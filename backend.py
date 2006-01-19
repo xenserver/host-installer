@@ -18,7 +18,7 @@ dom0_size = 200
 rws_size = 20
 vgname = "VG_XenEnterprise"
 
-dom0fs_tgz_location = "/op/xensource/clean-installer/dom0fs.tgz"
+dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs.tgz"
 
 grubroot = '(hd0,0)'
 
