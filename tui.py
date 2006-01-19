@@ -14,7 +14,7 @@ screen = None
 
 # functions to start and end the GUI - these create and destroy a snack screen as
 # appropriate.
-def init_ui():
+def init_ui(results):
     global screen
     
     screen = SnackScreen()
@@ -336,7 +336,7 @@ def initProgressDialog(title, text, total):
 
     return (form, scale)
 
-def displayProgressDialog(current, (form, scale) = (None, None)):
+def displayProgressDialog(current, (form, scale)):
     global screen
     
     scale.set(current)
