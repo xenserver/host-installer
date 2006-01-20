@@ -260,7 +260,13 @@ def createLVMVolumeGroup(partitions):
 # OTHER HELPERS
 
 def getGrUBDevice(disk):
-    devmap = open("/boot/grub/device.map")
+    devicemap_path = "/tmp/device.map"
+    
+    # first, make sure the device.map file exists:
+    if not os.path.isfile(devicemap_path):
+        runCmd("echo '' | grub --device-map %s --batch" % devicemap_path)
+
+    devmap = open(devicemap_path)
     for line in devmap:
         if line[0] != '#':
             # (we get e.g. ['a','','','','','b'] due to multiple spaces unless
