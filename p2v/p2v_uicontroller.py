@@ -28,6 +28,8 @@ def runUISequence(seq, answers):
             delta = fn(answers)
         else:
             delta = fn(answers, args)
+        if (delta == -2):
+            return -1
         current += delta
 
     return delta

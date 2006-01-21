@@ -11,10 +11,10 @@ import sys
 import commands
 
 def run_command(cmd):
-    sys.stderr.write("running: %s\n" % cmd)
+#    sys.stdout.write("running: %s\n" % cmd)
     rc, out = commands.getstatusoutput(cmd)
-    if rc != 0:
-        sys.stderr.write("Failed %d: %s\n" % (rc, out))
+ #   if rc != 0:
+ #       sys.stdout.write("Failed %d: %s\n" % (rc, out))
     return (rc, out)
 
 def parse_blkid(line):
@@ -46,7 +46,7 @@ def mount_dev(dev, dev_type, mntpnt, options):
     # be paranoid, try to fsck it first
 #    rc, out = run_command("/sbin/fsck -n %s" % (dev,))
 #    if rc != 0:
-#        sys.stderr.write("fsck failed, not mounting\n")
+#        sys.stdout.write("fsck failed, not mounting\n")
 #        return rc
     rc, out = run_command("mount -o %s -t %s %s %s" % (options, dev_type,
                                                        dev, mntpnt))
@@ -127,7 +127,7 @@ def handle_root(mntpnt, dev_name):
         rc = mount_dev(mount_info[0], mount_info[2],
                        extra_mntpnt, mount_info[3] + ",ro")
         if rc != 0:
-            sys.stderr.write("Failed to mount %s\n" % mount_info[0])
+#            sys.stdout.write("Failed to mount %s\n" % mount_info[0])
             return rc
 
         active_mounts.append(extra_mntpnt)
@@ -148,12 +148,12 @@ def mount_os_root(dev_name, dev_attrs):
     mnt = mntbase + "/" + os.path.basename(dev_name)
     rc, out = run_command("mkdir -p %s" % (mnt))
     if rc != 0:
-        sys.stderr.write("mkdir failed\n")
+        sys.stdout.write("mkdir failed\n")
         sys.exit(1)
     
     rc = mount_dev(dev_name, dev_attrs['type'], mnt, 'ro')
-    if rc != 0:
-           sys.stderr.write("Failed to mount mnt")
+#    if rc != 0:
+ #          sys.stdout.write("Failed to mount mnt")
     return mnt
 
 def inspect_root(dev_name, dev_attrs, results):
@@ -162,14 +162,14 @@ def inspect_root(dev_name, dev_attrs, results):
        print "* Found root partition on", dev_name
        rc, out = run_command("/opt/xensource/clean-installer/p2v/read_osversion.sh " + mnt)
        if rc == 0:
-           sys.stderr.write("read_osversion succeeded : out = %s" % out)
+           sys.stdout.write("read_osversion succeeded : out = %s" % out)
            parts = out.split('\n')
            if len(parts) > 0:
-               sys.stderr.write("found os name: %s" % parts[0])
-               sys.stderr.write("found os version : %s" % parts[1])
+               sys.stdout.write("found os name: %s" % parts[0])
+               sys.stdout.write("found os version : %s" % parts[1])
                results.append([parts[0], parts[1], dev_name, dev_attrs])
        else:
-           sys.stderr.write("read_osversion failed : out = %s" % out)
+           sys.stdout.write("read_osversion failed : out = %s" % out)
     umount_dev(mnt)
 
 def findroot():
@@ -197,12 +197,12 @@ if __name__ == '__main__':
             mnt = mntbase + "/" + os.path.basename(dev_name)
             rc, out = run_command("mkdir -p %s" % (mnt))
             if rc != 0:
-                sys.stderr.write("mkdir failed\n")
+                sys.stdout.write("mkdir failed\n")
                 sys.exit(1)
 
             rc = mount_dev(dev_name, dev_attrs['type'], mnt, 'ro')
             if rc != 0:
-                sys.stderr.write("Failed to mount mnt")
+                sys.stdout.write("Failed to mount mnt")
                 continue
                 #sys.exit(rc)
 
@@ -210,7 +210,7 @@ if __name__ == '__main__':
                 print "* Found root partition on", dev_name
                 rc = handle_root(mnt, dev_name)
                 if rc != 0:
-                    sys.stderr.write("%s failed\n" % dev_name)
+                    sys.stdout.write("%s failed\n" % dev_name)
                     sys.exit(rc)
 
             umount_dev(mnt)

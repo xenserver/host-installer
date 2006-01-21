@@ -39,7 +39,7 @@ def welcome_screen(answers):
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
-    if button == "cancel": return 0
+    if button == "cancel": return -2
     return 1
 
 # NFS or XenEnterprise target
@@ -53,9 +53,9 @@ def target_screen(answers):
                         "Target Choice",
                         """Please choose the target you want send the P2V image of your machine to.""",
                         entries,
-                        ['Cancel'], width=50)
+                        ['Ok', 'Cancel'], width=50)
 
-    if button == "cancel": return 1
+    if button == "cancel": return -2
 
     #ask for more info
     if entry == 0:
@@ -90,13 +90,12 @@ def get_os_installs(answers):
 def os_install_screen(answers):
     global screen
     os_install_strings = []
-    if screen: screen.suspend()
+#    if screen: screen.suspend()
 
     os_installs = get_os_installs(answers)
     for os in os_installs: 
         os_install_strings.append(os[0] + " " + os[1] + "  (" + os[2] + ")")
-
-    if screen: screen.resume()
+#    if screen: screen.resume()
     
     if len(os_install_strings) > 0:
         (button, entry) = ListboxChoiceWindow(screen,
@@ -106,14 +105,13 @@ def os_install_screen(answers):
                 ['Ok', 'Back'])
             
         if button == "ok" or button == None:
-            ButtonChoiceWindow(screen, "debug", """OK pressed""",  ['Ok'], width=50)
             answers['osinstall'] = os_installs[entry]
             return 1
         else:
             return 0
     else: 
         ButtonChoiceWindow(screen, "debug", """NO oss found""",  ['Ok'], width=50)
-        return -1
+        return -2
     
     if button == "back": 
         ButtonChoiceWindow(screen, "debug", """Back Pressed""",  ['Ok'], width=50)

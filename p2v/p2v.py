@@ -77,11 +77,14 @@ def main():
     seq = [ ui_package.welcome_screen,
             ui_package.target_screen,
             ui_package.os_install_screen ]
-    p2v_uicontroller.runUISequence(seq, results)
+    rc = p2v_uicontroller.runUISequence(seq, results)
     
     ui_package.end_ui()
-
-    perform_P2V(results)
+    if rc != -1:
+        perform_P2V(results)
+    else:
+        sys.exit(1)
+            
 
 #    backend.performStage1Install(results)
 
