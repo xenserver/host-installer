@@ -11,6 +11,7 @@ XEN_TARGET = 'xen-target'
 XEN_TARGET_XE =  'xe'
 XEN_TARGET_NFS = 'nfs'
 XEN_TAR_FILENAME = 'tarfilename'
+XEN_TAR_DIRNAME = 'tardirname'
 XEN_TAR_MD5SUM = 'md5sum'
 
 NFS_HOST = 'nfshost'

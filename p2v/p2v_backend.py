@@ -43,8 +43,9 @@ def perform_p2v( os_install, inbox_path ):
     os_root_device = os_install[constants.DEV_NAME]
     dev_attrs = os_install[constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
-    rc, tarfilename, md5sum = findroot.handle_root( os_root_mount_point, os_root_device )
+    rc, tardirname, tarfilename, md5sum = findroot.handle_root( os_root_mount_point, os_root_device )
     os_install[constants.XEN_TAR_FILENAME] = tarfilename
+    os_install[constants.XEN_TAR_DIRNAME] = tarfilename
     os_install[constants.XEN_TAR_MD5SUM] = md5sum
     umount_os_root( os_root_mount_point )
     

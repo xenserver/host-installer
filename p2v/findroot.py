@@ -11,6 +11,10 @@ import sys
 import commands
 import constants
 import p2v_utils
+import p2v_tui
+
+ui_package = p2v_tui
+
 
 def run_command(cmd):
 #    p2v_utils.trace_message("running: %s\n" % cmd)
@@ -158,7 +162,14 @@ def handle_root(mntpnt, dev_name):
     fstab = load_fstab(fp)
     fp.close()
     
+    pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
+                                       'Performing P2V operation',
+                                       3)
+    ui_package.displayProgressDialog(0, pd)
+                                       
     devices = scan()
+    
+    
 
     active_mounts = []
     p2v_utils.trace_message("* Need to mount:")
@@ -175,19 +186,25 @@ def handle_root(mntpnt, dev_name):
 
         active_mounts.append(extra_mntpnt)
 
+    ui_package.displayProgressDialog(1, pd)
+
     hostname = os.uname()[1]
     os.chdir(mntpnt)
     tar_basefilename = "p2v%s.%s.tar.gz" % (hostname, os.path.basename(dev_name))
-    tar_filename = "/xenpending/%s" %tar_basefilename
+    base_dirname = "/xenpending/"
+    tar_filename = "%s%s" % (base_dirname, tar_basefilename)
     rc, out = run_command("tar czvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
+    ui_package.displayProgressDialog(2, pd)
     rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
+    ui_package.displayProgressDialog(3, pd)
     os.chdir("/")
 
     for item in active_mounts:
         # assume the umount works
         umount_dev(item)
+    ui_package.clearProgressDialog()
 
-    return (0, tar_basefilename, md5_out)
+    return (0, base_dirname, tar_basefilename, md5_out)
 
 def mount_os_root(dev_name, dev_attrs):
     mntbase = "/var/mnt"
@@ -260,7 +277,7 @@ if __name__ == '__main__':
 
             if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
                 p2v_utils.trace_message("* Found root partition on %s" % dev_name)
-                rc, tar_filename, md5sum = handle_root(mnt, dev_name)
+                rc, tar_dirname, tar_filename, md5sum = handle_root(mnt, dev_name)
                 if rc != 0:
                     p2v_utils.trace_message("%s failed\n" % dev_name)
                     sys.exit(rc)

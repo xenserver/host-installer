@@ -145,3 +145,30 @@ def failed_screen(answers):
     ButtonChoiceWindow(screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
     return 1
     
+
+###
+# Progress dialog:
+def initProgressDialog(title, text, total):
+    global screen
+    
+    form = GridFormHelp(screen, title, None, 1, 3)
+    
+    t = Textbox(60, 1, text)
+    scale = Scale(60, total)
+    form.add(t, 0, 0, padding = (0,0,0,1))
+    form.add(scale, 0, 1, padding = (0,0,0,0))
+
+    return (form, scale)
+
+def displayProgressDialog(current, (form, scale)):
+    global screen
+    
+    scale.set(current)
+
+    form.draw()
+    screen.refresh()
+
+def clearProgressDialog():
+    global screen
+    
+    screen.popWindow()
