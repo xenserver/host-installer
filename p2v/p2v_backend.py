@@ -45,7 +45,7 @@ def perform_p2v( os_install, inbox_path ):
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
     rc, tardirname, tarfilename, md5sum = findroot.handle_root( os_root_mount_point, os_root_device )
     os_install[constants.XEN_TAR_FILENAME] = tarfilename
-    os_install[constants.XEN_TAR_DIRNAME] = tarfilename
+    os_install[constants.XEN_TAR_DIRNAME] = tardirname
     os_install[constants.XEN_TAR_MD5SUM] = md5sum
     umount_os_root( os_root_mount_point )
     
@@ -203,6 +203,18 @@ def write_template(os_install):
     template_string += add_distrib(os_install)
     template_string += add_filesystem(os_install)
     template_string += close_tag(constants.TAG_XGT)
+    
+    template_dir= os_install[constants.XEN_TAR_DIRNAME]
+    template_filename = "template_" + os_install[constants.XEN_TAR_FILENAME] + ".dat"
+    template_file = os.path.join(template_dir, template_filename)
+    
+    if os.path.exists(template_file):
+        p2v_utils.trace_message("template file already exists");
+        return
+    
+    f = open(template_file, "w")
+    f.write(template_string + '\n')
+    f.close()
     
     p2v_utils.trace_message("template  = %s\n" % template_string)
     

@@ -154,15 +154,18 @@ def initProgressDialog(title, text, total):
     form = GridFormHelp(screen, title, None, 1, 3)
     
     t = Textbox(60, 1, text)
+    t2 = Textbox(60, 1, "testtext")
     scale = Scale(60, total)
     form.add(t, 0, 0, padding = (0,0,0,1))
-    form.add(scale, 0, 1, padding = (0,0,0,0))
+    form.add(t2, 0, 1, padding = (0,0,0,0))
+    form.add(scale, 0, 2, padding = (0,0,0,0))
 
-    return (form, scale)
+    return (form, scale, t2)
 
-def displayProgressDialog(current, (form, scale)):
+def displayProgressDialog(current, (form, scale, t2), t2_text = ""):
     global screen
     
+    t2.setText(t2_text)
     scale.set(current)
 
     form.draw()

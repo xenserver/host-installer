@@ -163,9 +163,9 @@ def handle_root(mntpnt, dev_name):
     fp.close()
     
     pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
-                                       'Performing P2V operation',
+                                       'Performing P2V operation...',
                                        3)
-    ui_package.displayProgressDialog(0, pd)
+    ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
                                        
     devices = scan()
     
@@ -186,7 +186,7 @@ def handle_root(mntpnt, dev_name):
 
         active_mounts.append(extra_mntpnt)
 
-    ui_package.displayProgressDialog(1, pd)
+    ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
 
     hostname = os.uname()[1]
     os.chdir(mntpnt)
@@ -194,7 +194,7 @@ def handle_root(mntpnt, dev_name):
     base_dirname = "/xenpending/"
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
     rc, out = run_command("tar czvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
-    ui_package.displayProgressDialog(2, pd)
+    ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
     rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
     ui_package.displayProgressDialog(3, pd)
     os.chdir("/")
