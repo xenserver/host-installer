@@ -12,6 +12,8 @@ import p2v_uicontroller
 import findroot
 import os
 import sys
+import constants
+import p2v_utils
 
 screen = None
 
@@ -22,7 +24,11 @@ def init_ui():
 
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to Xen Enterprise")
-
+    
+def redraw_screen():
+    global screen
+    screen.refresh()
+    
 def end_ui():
     global screen
 
@@ -59,22 +65,22 @@ def target_screen(answers):
 
     #ask for more info
     if entry == 0:
-        answers['xen-target'] = 'xe'
+        answers[constants.XEN_TARGET] = constants.XEN_TARGET_XE
         (button, xehost) = EntryWindow(screen,
                 "XenEnterprise Host Information",
                 "Please enter the XenEnterprise hostname: ",
                 ['Hostname:'],
                 buttons= ['Ok', 'Back'])
-        answers['xehost'] = xehost[0]
+        answers[constants.XE_HOST] = xehost[0]
     elif entry == 1:
-        answers['xen-target'] = 'nfs'
+        answers[constants.XEN_TARGET] = constants.XEN_TARGET_NFS
         (button, (nfshost, nfspath)) = EntryWindow(screen,
                  "NFS Server Information",
                 "Please enter the NFS server information: ",
                 ['NFS Server:', 'Path'],
                 buttons= ['Ok', 'Back'])
-        answers['nfshost'] = nfshost
-        answers['nfspath'] = nfspath
+        answers[constants.NFS_HOST] = nfshost
+        answers[constants.NFS_PATH] = nfspath
         
 
     #dump_answers(answers)
@@ -90,12 +96,14 @@ def get_os_installs(answers):
 def os_install_screen(answers):
     global screen
     os_install_strings = []
-#    if screen: screen.suspend()
+    if not p2v_utils.is_debug():
+        if screen: screen.suspend()
 
     os_installs = get_os_installs(answers)
     for os in os_installs: 
-        os_install_strings.append(os[0] + " " + os[1] + "  (" + os[2] + ")")
-#    if screen: screen.resume()
+        os_install_strings.append(os[constants.OS_NAME] + " " + os[constants.OS_VERSION] + "  (" + os[constants.DEV_NAME] + ")")
+    if not p2v_utils.is_debug():
+        if screen: screen.resume()
     
     if len(os_install_strings) > 0:
         (button, entry) = ListboxChoiceWindow(screen,
@@ -127,3 +135,13 @@ def dump_answers(answers):
             ['Ok'], width=50)
 
 
+def finish_screen(answers):
+    global screen
+    ButtonChoiceWindow(screen, "Finish P2V", """P2V operation successfully completed""", ['Ok'], width = 50)
+    return 1
+    
+def failed_screen(answers):
+    global screen
+    ButtonChoiceWindow(screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
+    return 1
+    
