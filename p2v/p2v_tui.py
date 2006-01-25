@@ -14,6 +14,7 @@ import os
 import sys
 import constants
 import p2v_utils
+import time
 
 screen = None
 
@@ -170,6 +171,8 @@ def displayProgressDialog(current, (form, scale, t2), t2_text = ""):
 
     form.draw()
     screen.refresh()
+    
+    time.sleep(.5)
 
 def clearProgressDialog():
     global screen

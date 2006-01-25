@@ -157,20 +157,15 @@ def determine_size(mntpnt, dev_name):
     return str(size)
 
 
-def handle_root(mntpnt, dev_name):
+def handle_root(mntpnt, dev_name, pd = None):
     fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
     fstab = load_fstab(fp)
     fp.close()
     
-    pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
-                                       'Performing P2V operation...',
-                                       3)
     ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
                                        
     devices = scan()
     
-    
-
     active_mounts = []
     p2v_utils.trace_message("* Need to mount:")
     mounts = find_extra_mounts(fstab, devices)
@@ -196,13 +191,11 @@ def handle_root(mntpnt, dev_name):
     rc, out = run_command("tar czvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
     ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
     rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
-    ui_package.displayProgressDialog(3, pd)
     os.chdir("/")
 
     for item in active_mounts:
         # assume the umount works
         umount_dev(item)
-    ui_package.clearProgressDialog()
 
     return (0, base_dirname, tar_basefilename, md5_out)
 
@@ -252,7 +245,13 @@ def findroot():
                    
     #run_command("sleep 2")
     return results
-    
+
+
+def create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename):
+    command = "tar cfv %s/%s -C %s %s %s" % (xgt_create_dir, xgt_filename, xgt_create_dir, template_filename, tar_filename)
+    rc, out = run_command(command)
+    assert rc == 0
+    return
 
 if __name__ == '__main__':
     mntbase = "/var/mnt"

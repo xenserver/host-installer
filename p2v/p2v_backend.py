@@ -13,7 +13,11 @@ import p2v_uicontroller
 import findroot
 import sys
 import constants
+import p2v_tui
 import p2v_utils
+
+ui_package = p2v_tui
+
 
 def print_results( results ):
     if p2v_utils.is_debug():
@@ -43,7 +47,8 @@ def perform_p2v( os_install, inbox_path ):
     os_root_device = os_install[constants.DEV_NAME]
     dev_attrs = os_install[constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
-    rc, tardirname, tarfilename, md5sum = findroot.handle_root( os_root_mount_point, os_root_device )
+    pd = os_install['pd']
+    rc, tardirname, tarfilename, md5sum = findroot.handle_root( os_root_mount_point, os_root_device, pd)
     os_install[constants.XEN_TAR_FILENAME] = tarfilename
     os_install[constants.XEN_TAR_DIRNAME] = tardirname
     os_install[constants.XEN_TAR_MD5SUM] = md5sum
@@ -72,6 +77,10 @@ def xe_p2v( xe_host, os_install ):
          
 def perform_P2V( results ):
     os_install = results[constants.OS_INSTALL]
+    pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
+                                       'Performing P2V operation...',
+                                       5)
+    os_install['pd'] = pd
     determine_size(os_install)
     append_hostname(os_install)
     if results[constants.XEN_TARGET] == constants.XEN_TARGET_XE:
@@ -83,7 +92,16 @@ def perform_P2V( results ):
         nfs_host = results[constants.NFS_HOST]
         nfs_path = results[constants.NFS_PATH]
         nfs_p2v( nfs_host, nfs_path, os_install )
+        
+    ui_package.displayProgressDialog(3, pd, " - Writing template")
     write_template(os_install)
+    
+    ui_package.displayProgressDialog(4, pd, " - Creating XGT")
+    create_xgt(os_install)
+    ui_package.displayProgressDialog(5, pd, " - Finished")
+    
+    ui_package.clearProgressDialog()
+    
     return 0
     
 def open_tag(tag, value = ""):
@@ -207,6 +225,8 @@ def write_template(os_install):
     template_dir= os_install[constants.XEN_TAR_DIRNAME]
     template_filename = "template_" + os_install[constants.XEN_TAR_FILENAME] + ".dat"
     template_file = os.path.join(template_dir, template_filename)
+    #store the template file name in the os_install, so we can use it when creating the xgt
+    os_install[constants.XEN_TEMPLATE_FILENAME] = template_filename
     
     if os.path.exists(template_file):
         p2v_utils.trace_message("template file already exists");
@@ -217,5 +237,19 @@ def write_template(os_install):
     f.close()
     
     p2v_utils.trace_message("template  = %s\n" % template_string)
-    
     return
+
+def create_xgt(os_install):
+    xgt_create_dir = os_install[constants.XEN_TAR_DIRNAME]
+    template_filename =  os_install[constants.XEN_TEMPLATE_FILENAME]
+    tar_filename = os_install[constants.XEN_TAR_FILENAME]
+    
+    xgt_filename = tar_filename.replace('.tar.gz', '.xgt')
+    
+    assert (os.path.exists(os.path.join(xgt_create_dir, template_filename)))
+    assert (os.path.exists(os.path.join(xgt_create_dir, tar_filename)))
+    
+    findroot.create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename)
+    
+    
+    

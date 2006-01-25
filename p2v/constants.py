@@ -13,6 +13,7 @@ XEN_TARGET_NFS = 'nfs'
 XEN_TAR_FILENAME = 'tarfilename'
 XEN_TAR_DIRNAME = 'tardirname'
 XEN_TAR_MD5SUM = 'md5sum'
+XEN_TEMPLATE_FILENAME = 'templatefilename'
 
 NFS_HOST = 'nfshost'
 NFS_PATH = 'nfspath'
