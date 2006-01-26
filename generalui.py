@@ -52,8 +52,8 @@ def disk_selection(answers):
 ###
 # Logging
 
-#log_redirect = '>/dev/null 2>&1'
-log_redirect = ''
+log_redirect = '>/dev/null 2>&1'
+#log_redirect = ''
 
 def setRedirectFile(filename):
     global log_redirect

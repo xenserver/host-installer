@@ -7,6 +7,7 @@
 
 import os
 import os.path
+import subprocess
 
 import tui
 import generalui
@@ -350,10 +351,13 @@ def setTime(mounts, answers):
     ### between now and when the question was asked.
     pass
 
-# TODO.
 def setRootPassword(mounts, answers):
-    pass
-
+    # avoid using shell here to get around potential security issues.
+    pipe = subprocess.Popen(["/usr/sbin/chroot", "%s" % mounts["root"],
+                             "passwd", "--stdin", "root"],
+                            stdin = subprocess.PIPE)
+    pipe.stdin.write(answers["root-password"])
+    assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, answers):
