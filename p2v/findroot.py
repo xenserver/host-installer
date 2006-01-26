@@ -13,14 +13,16 @@ import constants
 import p2v_utils
 import p2v_tui
 
+from p2v_error import P2VError
+
 ui_package = p2v_tui
 
 
 def run_command(cmd):
 #    p2v_utils.trace_message("running: %s\n" % cmd)
     rc, out = commands.getstatusoutput(cmd)
- #   if rc != 0:
- #       p2v_utils.trace_message("Failed %d: %s\n" % (rc, out))
+    if rc != 0:
+        p2v_utils.trace_message("Failed %d: %s\n" % (rc, out))
     return (rc, out)
 
 def parse_blkid(line):
@@ -45,15 +47,12 @@ def scan():
         for line in out.split("\n"):
             attrs = parse_blkid(line)
             devices[attrs[constants.DEV_ATTRS_PATH]] = attrs
+    else:
+        raise P2VError("Failed to scan devices")
     return devices
 
 def mount_dev(dev, dev_type, mntpnt, options):
     umount_dev(mntpnt) # just a precaution, don't care if it fails
-    # be paranoid, try to fsck it first
-#    rc, out = run_command("/sbin/fsck -n %s" % (dev,))
-#    if rc != 0:
-#        p2v_utils.trace_message("fsck failed, not mounting\n")
-#        return rc
     rc, out = run_command("echo 5 > /proc/sys/kernel/printk")
     rc, out = run_command("mount -o %s -t %s %s %s %s" % (options, dev_type,
                                                        dev, mntpnt, p2v_utils.show_debug_output()))
@@ -133,15 +132,18 @@ def determine_size(mntpnt, dev_name):
 
         rc = mount_dev(mount_info[0], mount_info[2],
                        extra_mntpnt, mount_info[3] + ",ro")
+                       
         if rc != 0:
-#            p2v_utils.trace_message("Failed to mount %s\n" % mount_info[0])
-            return rc
+            raise P2VError("Failed to determine size - mount failed.")
 
         active_mounts.append(extra_mntpnt)
 
     command = "df -k | grep %s | awk '{print $3}'" % mntpnt
     p2v_utils.trace_message("going to run : %s" % command)
     rc, out = run_command(command);
+    if rc != 0:
+        raise P2VError("Failed to determine size - df failed")
+    
     p2v_utils.trace_message("\n\nFS Usage : %s\n\n" % out)
     size = 0
     split_out = out.split('\n')
@@ -176,8 +178,7 @@ def handle_root(mntpnt, dev_name, pd = None):
         rc = mount_dev(mount_info[0], mount_info[2],
                        extra_mntpnt, mount_info[3] + ",ro")
         if rc != 0:
-#            p2v_utils.trace_message("Failed to mount %s\n" % mount_info[0])
-            return rc
+            raise P2VError("Failed to handle root - mount failed.")
 
         active_mounts.append(extra_mntpnt)
 
@@ -189,8 +190,13 @@ def handle_root(mntpnt, dev_name, pd = None):
     base_dirname = "/xenpending/"
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
     rc, out = run_command("tar czvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
+    if rc != 0:
+        raise P2VError("Failed to handle root - tar failed")
+    
     ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
     rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
+    if rc != 0:
+        raise P2VError("Failed to handle root - md5sum failed")
     os.chdir("/")
 
     for item in active_mounts:
@@ -205,11 +211,11 @@ def mount_os_root(dev_name, dev_attrs):
     rc, out = run_command("mkdir -p %s" % (mnt))
     if rc != 0:
         p2v_utils.trace_message("mkdir failed\n")
-        sys.exit(1)
+        raise P2VError("Failed to mount os root - mkdir failed")
     
     rc = mount_dev(dev_name, dev_attrs['type'], mnt, 'ro')
 #    if rc != 0:
- #          p2v_utils.trace_message("Failed to mount mnt")
+#       raise P2VError("Failed to mount os root")
     return mnt
 
 def inspect_root(dev_name, dev_attrs, results):
@@ -233,6 +239,7 @@ def inspect_root(dev_name, dev_attrs, results):
                results.append(os_install)
        else:
            p2v_utils.trace_message("read_osversion failed : out = %s" % out)
+           raise P2VError("Failed to inspect root - read_osversion failed.")
     umount_dev(mnt)
 
 def findroot():
@@ -241,7 +248,7 @@ def findroot():
 
     for dev_name, dev_attrs in devices.items():
         if dev_attrs.has_key(constants.DEV_ATTRS_TYPE) and dev_attrs[constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
-            inspect_root(dev_name, dev_attrs, results)
+            rc = inspect_root(dev_name, dev_attrs, results)
                    
     #run_command("sleep 2")
     return results
@@ -250,7 +257,8 @@ def findroot():
 def create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename):
     command = "tar cfv %s/%s -C %s %s %s" % (xgt_create_dir, xgt_filename, xgt_create_dir, template_filename, tar_filename)
     rc, out = run_command(command)
-    assert rc == 0
+    if rc != 0:
+        raise P2VError("Failed to create xgt - tar failed")
     return
 
 if __name__ == '__main__':

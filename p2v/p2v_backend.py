@@ -18,6 +18,8 @@ import p2v_utils
 
 ui_package = p2v_tui
 
+from p2v_error import P2VError
+
 
 def print_results( results ):
     if p2v_utils.is_debug():
@@ -38,7 +40,12 @@ def determine_size(os_install):
     os_root_device = os_install[constants.DEV_NAME]
     dev_attrs = os_install[constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
-    size = findroot.determine_size(os_root_mount_point, os_root_device )
+    try:
+        size = findroot.determine_size(os_root_mount_point, os_root_device )
+    except:
+        os_install[constants.ERRORS].append("Failed to determine size")
+        raise
+        
     os_install[constants.FS_USED_SIZE] = size
     umount_os_root( os_root_mount_point )
     
@@ -56,8 +63,13 @@ def perform_p2v( os_install, inbox_path ):
     
 def nfs_mount( nfs_mount_path ):
     local_mount_path = "/xenpending"
-    findroot.run_command( "mkdir -p /xenpending" )
-    findroot.run_command( "mount %s %s %s" % ( nfs_mount_path, local_mount_path, p2v_utils.show_debug_output() ) )
+    rc, out = findroot.run_command( "mkdir -p /xenpending" )
+    if rc != 0: 
+        raise P2VError("Failed to nfs mount - mkdir failed")
+#    print "*** command = mount %s %s" % ( nfs_mount_path, local_mount_path )
+    rc, out = findroot.run_command( "mount %s %s %s" % ( nfs_mount_path, local_mount_path, p2v_utils.show_debug_output() ) )
+    if rc != 0: 
+        raise P2VError("Failed to nfs mount - mount failed")
     return local_mount_path
 
 #TODO : validation of nfs_path?         

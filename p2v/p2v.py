@@ -12,6 +12,10 @@ import sys
 import findroot
 import p2v_backend
 
+from p2v_error import P2VError
+from snack import *
+
+
 ui_package = p2v_tui
 
 def main():
@@ -22,33 +26,30 @@ def main():
     seq = [ ui_package.welcome_screen,
             ui_package.target_screen,
             ui_package.os_install_screen ]
-    rc = p2v_uicontroller.runUISequence(seq, results)
+    try:
+        rc = p2v_uicontroller.runUISequence(seq, results)
     
-    if rc != -1:
-        rc = p2v_backend.perform_P2V(results)
-    else:
+        if rc != -1:
+            rc = p2v_backend.perform_P2V(results)
+        else:
+            ui_package.end_ui()
+            sys.exit(1)
+    
+        if rc == 0: 
+            seq = [ui_package.finish_screen ]
+            rc = p2v_uicontroller.runUISequence(seq, results)
+        else:
+            seq = [ui_package.failed_screen ]
+            rc = p2v_uicontroller.runUISequence(seq, results)
+        ui_package.end_ui()
+        p2v_backend.print_results(results)
+
+    except P2VError, e:
+        global screen
+        ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
+        ui_package.end_ui()
+        print "P2V Failed: %s" % e
         sys.exit(1)
-        
-    #ui_package.redraw_screen()
-
-#    backend.performStage1Install(results)
-
-    #seq = [ ui_package.get_root_password,
-    #        ui_package.determine_basic_network_config,
-    #        ui_package.need_manual_hostname,
-    #        ui_package.installation_complete ]
-    #seq = [ ui_package.installation_complete ]
-
-    #uicontroller.runUISequence(seq, results)
-    
-    if rc == 0: 
-        seq = [ui_package.finish_screen ]
-        rc = p2v_uicontroller.runUISequence(seq, results)
-    else:
-        seq = [ui_package.failed_screen ]
-        rc = p2v_uicontroller.runUISequence(seq, results)
-    ui_package.end_ui()
-    p2v_backend.print_results(results)
 
 if __name__ == "__main__":
     main()

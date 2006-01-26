@@ -7,6 +7,8 @@ OS_NAME = 'osname'
 OS_VERSION = 'osversion'
 HOST_NAME = 'hostname'
 
+ERRORS = 'errors'
+
 XEN_TARGET = 'xen-target'
 XEN_TARGET_XE =  'xe'
 XEN_TARGET_NFS = 'nfs'
