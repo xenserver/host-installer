@@ -66,7 +66,6 @@ def nfs_mount( nfs_mount_path ):
     rc, out = findroot.run_command( "mkdir -p /xenpending" )
     if rc != 0: 
         raise P2VError("Failed to nfs mount - mkdir failed")
-#    print "*** command = mount %s %s" % ( nfs_mount_path, local_mount_path )
     rc, out = findroot.run_command( "mount %s %s %s" % ( nfs_mount_path, local_mount_path, p2v_utils.show_debug_output() ) )
     if rc != 0: 
         raise P2VError("Failed to nfs mount - mount failed")
@@ -235,7 +234,7 @@ def write_template(os_install):
     template_string += close_tag(constants.TAG_XGT)
     
     template_dir= os_install[constants.XEN_TAR_DIRNAME]
-    template_filename = "template_" + os_install[constants.XEN_TAR_FILENAME] + ".dat"
+    template_filename = "template.dat"
     template_file = os.path.join(template_dir, template_filename)
     #store the template file name in the os_install, so we can use it when creating the xgt
     os_install[constants.XEN_TEMPLATE_FILENAME] = template_filename
