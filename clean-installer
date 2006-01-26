@@ -48,12 +48,13 @@ def main():
 
     backend.performStage1Install(results)
 
-    #seq = [ ui_package.get_root_password,
-    #        ui_package.determine_basic_network_config,
-    #        ui_package.need_manual_hostname,
-    #        ui_package.installation_complete ]
+    seq = [ ui_package.get_root_password,
+            ui_package.determine_basic_network_config,
+            ui_package.need_manual_hostname ]
+    uicontroller.runUISequence(seq, results)
+    backend.performStage2Install(results)
+    
     seq = [ ui_package.installation_complete ]
-
     uicontroller.runUISequence(seq, results)
     
     ui_package.end_ui()
@@ -61,4 +62,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-2

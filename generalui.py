@@ -29,6 +29,10 @@ def getNetifList():
 
     return interfaces
 
+# TODO
+def getHWAddr(iface):
+    return None
+
 def disk_selection(answers):
     ui_package = answers['ui-package']
     disks = getDiskList()
@@ -43,3 +47,19 @@ def disk_selection(answers):
                      ui_package.confirm_destroy_disks ]
     
     return uicontroller.runUISequence(sequence, answers)
+
+
+###
+# Logging
+
+#log_redirect = '>/dev/null 2>&1'
+log_redirect = ''
+
+def setRedirectFile(filename):
+    global log_redirect
+    log_redirect = "&>%s" % filename
+
+def runCmd(command):
+    global log_redirect
+    actualCmd = "%s %s" % (command, log_redirect)
+    return os.system(actualCmd)
