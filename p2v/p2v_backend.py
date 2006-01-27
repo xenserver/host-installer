@@ -47,6 +47,14 @@ def determine_size(os_install):
     os_install[constants.FS_TOTAL_SIZE] = total_size
     umount_os_root( os_root_mount_point )
     
+def get_mem_info(os_install):
+    total_mem = findroot.get_mem_info()
+    os_install[constants.TOTAL_MEM] = total_mem
+    
+def get_cpu_count(os_install):
+    cpu_count = findroot.get_cpu_count()
+    os_install[constants.CPU_COUNT] = cpu_count
+    
 
 def perform_p2v( os_install, inbox_path ):
     os_root_device = os_install[constants.DEV_NAME]
@@ -98,6 +106,8 @@ def perform_P2V( results ):
     os_install['pd'] = pd
     determine_size(os_install)
     append_hostname(os_install)
+    get_mem_info(os_install)
+    get_cpu_count(os_install)
     if results[constants.XEN_TARGET] == constants.XEN_TARGET_XE:
         p2v_utils.trace_message( "we're doing a p2v to XE" )
         xe_host = results[constants.XE_HOST]
@@ -168,6 +178,18 @@ def add_distrib(os_install):
     template_string += close_tag( constants.TAG_DISTRIB)
     return template_string
 
+def add_mem_info(os_install):
+    template_string = ""
+    template_string += open_tag(constants.TAG_TOTAL_MEM, os_install[constants.TOTAL_MEM])
+    template_string += close_tag( constants.TAG_TOTAL_MEM)
+    return template_string
+
+def add_cpu_count(os_install):
+    template_string = ""
+    template_string += open_tag(constants.TAG_CPU_COUNT, os_install[constants.CPU_COUNT])
+    template_string += close_tag( constants.TAG_CPU_COUNT)
+    return template_string
+
 def add_uri(os_install):
     template_string = ""
     template_string += open_tag(constants.TAG_FILESYSTEM_URI, os_install[constants.XEN_TAR_FILENAME])
@@ -234,6 +256,8 @@ def write_template(os_install):
     template_string += add_xgt_type()
     template_string += add_name(os_install)
     template_string += add_distrib(os_install)
+    template_string += add_mem_info(os_install)
+    template_string += add_cpu_count(os_install)
     template_string += add_filesystem(os_install)
     template_string += close_tag(constants.TAG_XGT)
     

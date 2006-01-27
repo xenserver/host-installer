@@ -3,6 +3,8 @@ DEV_NAME = "dev_name"
 DEV_ATTRS = "dev_attrs"
 FS_USED_SIZE  = "fs_used_size"
 FS_TOTAL_SIZE  = "fs_total_size"
+TOTAL_MEM = "total_mem"
+CPU_COUNT = "cpu count"
 OS_INSTALL = 'osinstall'
 OS_NAME = 'osname'
 OS_VERSION = 'osversion'
@@ -29,6 +31,8 @@ TAG_XGT_VERSION = 'xgt-version'
 TAG_XGT_TYPE = 'xgt-type'
 TAG_NAME = 'name'
 TAG_DISTRIB = 'distrib'
+TAG_TOTAL_MEM = 'total-mem'
+TAG_CPU_COUNT = 'cpu-count'
 
 TAG_KERNEL = 'kernel'
 TAG_KERNEL_KERNELTYPE = 'kernel-type'

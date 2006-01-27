@@ -270,13 +270,26 @@ def findroot():
     #run_command("sleep 2")
     return results
 
-
 def create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename):
     command = "tar cfv %s/%s -C %s %s %s" % (xgt_create_dir, xgt_filename, xgt_create_dir, template_filename, tar_filename)
     rc, out = run_command(command)
     if rc != 0:
         raise P2VError("Failed to create xgt - tar failed")
     return
+
+def get_mem_info():
+    command = "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"
+    rc, out = run_command(command)
+    if rc != 0:
+        raise P2VError("Failed to get mem size")
+    return out
+
+def get_cpu_count():
+    command = "cat /proc/cpuinfo | grep processor | wc -l"
+    rc, out = run_command(command)
+    if rc != 0:
+        raise P2VError("Failed to get cpu count")
+    return out
 
 if __name__ == '__main__':
     mntbase = "/var/mnt"
