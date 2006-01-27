@@ -126,6 +126,22 @@ def os_install_screen(answers):
         ButtonChoiceWindow(screen, "debug", """Back Pressed""",  ['Ok'], width=50)
         return 1
 
+def description_screen(answers):
+    global screen
+    (button, description) = EntryWindow(screen,
+                "P2V Description",
+                "Please enter a description (optional): ",
+                ['Description:'],
+                buttons= ['Ok', 'Back'])
+
+    if button == "ok" or button == None:
+        osinstall = answers['osinstall']
+        osinstall[constants.DESCRIPTION] = description[0]
+        return 1
+    else:
+        return -1
+
+
 def dump_answers(answers):
     global screen
 

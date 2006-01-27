@@ -25,7 +25,8 @@ def main():
 
     seq = [ ui_package.welcome_screen,
             ui_package.target_screen,
-            ui_package.os_install_screen ]
+            ui_package.os_install_screen,
+            ui_package.description_screen ]
     try:
         rc = p2v_uicontroller.runUISequence(seq, results)
     
@@ -50,6 +51,10 @@ def main():
         ui_package.end_ui()
         print "P2V Failed: %s" % e
         sys.exit(1)
+    except Exception, e:
+        # clean up the screen
+        ui_package.end_ui()
+        raise
 
 if __name__ == "__main__":
     main()

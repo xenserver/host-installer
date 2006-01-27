@@ -54,7 +54,6 @@ def get_mem_info(os_install):
 def get_cpu_count(os_install):
     cpu_count = findroot.get_cpu_count()
     os_install[constants.CPU_COUNT] = cpu_count
-    
 
 def perform_p2v( os_install, inbox_path ):
     os_root_device = os_install[constants.DEV_NAME]
@@ -190,6 +189,12 @@ def add_cpu_count(os_install):
     template_string += close_tag( constants.TAG_CPU_COUNT)
     return template_string
 
+def add_description(os_install):
+    template_string = ""
+    template_string += open_tag(constants.TAG_DESCRIPTION, "'%s'" % os_install[constants.DESCRIPTION])
+    template_string += close_tag( constants.TAG_DESCRIPTION)
+    return template_string
+
 def add_uri(os_install):
     template_string = ""
     template_string += open_tag(constants.TAG_FILESYSTEM_URI, os_install[constants.XEN_TAR_FILENAME])
@@ -258,6 +263,7 @@ def write_template(os_install):
     template_string += add_distrib(os_install)
     template_string += add_mem_info(os_install)
     template_string += add_cpu_count(os_install)
+    template_string += add_description(os_install)
     template_string += add_filesystem(os_install)
     template_string += close_tag(constants.TAG_XGT)
     
