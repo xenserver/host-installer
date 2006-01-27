@@ -5,6 +5,8 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
+### TODO: Create Dropbox and copy in XGTs
+
 import os
 import os.path
 import subprocess
@@ -13,28 +15,30 @@ import tui
 import generalui
 from generalui import runCmd
 import uicontroller
+import version
 
 ################################################################################
 # CONFIGURATION
 
+# TODO - get this passed in somehow.
 ui_package = tui
 
-dom0_size = 200
-dom0_name = "Dom0"
 rws_size = 20
 rws_name = "RWS"
 boot_size = 50
 vgname = "VG_XenEnterprise"
 
-dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs.tgz"
-kernel_tgz_location = "/opt/xensource/clean-installer/kernels.tgz"
-kernel_version = "2.6.12.6-xen"
+dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
+kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
+
+dom0tmpfs_name = "tmp-%s" % version.dom0_name
+dom0tmpfs_size = 200
 
 grubroot = '(hd0,0)'
-#grubroot = '(cd)'
 
 bootfs_type = 'ext2'
-rootfs_type = 'ext3'
+dom0tmpfs_type = 'ext3'
+ramdiskfs_type = 'cramfs'
 rwsfs_type = 'ext3'
 
 ################################################################################
@@ -64,6 +68,7 @@ def performStage1Install(answers):
 
     # Put filesystems on Dom0 Disk
     createDom0DiskFilesystems(answers['primary-disk'])
+    createDom0Tmpfs(answers['primary-disk'])
     ui_package.displayProgressDialog(4, pd)
 
     # Extract Dom0 onto disk:
@@ -75,20 +80,16 @@ def performStage1Install(answers):
     installGrub(answers['primary-disk'])
     ui_package.displayProgressDialog(6, pd)
 
-    ui_package.clearProgressDialog()
+    ui_package.clearModelessDialog()
 
 
 # TODO - get all this right!!
 def hasServicePartition(disk):
     return False
 
-def getDom0PartName(disk):
-    global dom0_name
-    return "/dev/VG_XenEnterprise/%s" % dom0_name
-
 def getRWSPartName(disk):
-    global rws_name
-    return "/dev/VG_XenEnterprise/%s" % rws_name
+    global rws_name, vgname
+    return "/dev/%s/%s" % (vgname, rws_name)
 
 def getBootPartNumber(disk):
     if hasServicePartition(disk):
@@ -158,7 +159,7 @@ def writeGuestDiskPartitions(disk):
 
 def prepareLVM(answers):
     global vgname
-    global dom0_name, dom0_size
+    global dom0_size
     global rws_name, rws_size
     
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
@@ -177,20 +178,27 @@ def prepareLVM(answers):
         runCmd("rm -rf /dev/%s" % vgname)
     assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
 
-    assert runCmd("lvcreate -L %s -C y -n %s %s" % (dom0_size, dom0_name, vgname)) == 0
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (rws_size, rws_name, vgname)) == 0
 
-    os.system("vgmknodes")
+    assert runCmd("vgchange -a y VG_XenEnterprise") == 0
+    assert runCmd("vgmknodes") == 0
 
 
 ###
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
+    global bootfs_type, rwsfs_type
     assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
-    assert runCmd("mkfs.%s %s" % (rootfs_type, getDom0PartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
 
+def createDom0Tmpfs(disk):
+    global vgname, dom0tmpfs_name, dom0tmpfs_size
+    assert runCmd("lvcreate -L %s -C y -n %s %s" % (dom0tmpfs_size, dom0tmpfs_name, vgname)) == 0
+    assert runCmd("vgchange -a y VG_XenEnterprise") == 0
+    assert runCmd("vgmknodes") == 0
+    assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
+    
 def installGrub(disk):
     global grubroot
     
@@ -202,15 +210,14 @@ def installGrub(disk):
     grubconf += "hiddenmenu\n"
     grubconf += "title Xen Enterprise\n"
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk))
-    grubconf += "   kernel /boot/xen-3.0.0.gz\n"
-    grubconf += "   module /boot/vmlinuz-2.6.12.6-xen root=%s ro\n" % getDom0PartName(disk)
-    grubconf += "   module /boot/initrd-2.6.12.6-xen.img\n"
+    grubconf += "   kernel /xen-3.0.0.gz\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen root=%s ro\n" % getBootPartName(disk)
+    grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title Xen Enterprise in Safe Mode\n"
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk))
-    grubconf += "   kernel /boot/xen-3.0.0.gz noacpi nousb nosmp\n"
-    grubconf += "   module /boot/vmlinuz-2.6.12.6-xen root=%s ro\n" % getDom0PartName(disk)
-    grubconf += "   module /boot/initrd-2.6.12.6-xen.img\n"
-
+    grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen root=%s ro\n" % getBootPartName(disk)
+    grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
 
     # install GrUB - TODO better error handling required here:
     # - copy GrUB files into place:
@@ -238,11 +245,9 @@ def installGrub(disk):
 def extractDom0Filesystem(disk):
     global dom0fs_tgz_location
     
-    dest = getDom0PartName(disk)
-
     # mount empty filesystem:
     # TODO - better error handling:
-    assert runCmd("mount %s /tmp" % dest) == 0
+    assert runCmd("mount /dev/%s/%s /tmp" % (vgname, dom0tmpfs_name)) == 0
 
     # extract tar.gz to filesystem:
     # TODO - rewrite this using native Python so we have a better progress
@@ -269,21 +274,33 @@ def installKernels(disk):
 # SECOND STAGE INSTALLATION (i.e. fs customisation etc.)
 
 def performStage2Install(answers):
+    global ui_package
+
     mounts = mountVolumes(answers['primary-disk'])
 
+    ui_package.displayInfoDialog("Completing installation",
+                                 "The Xen Enterprise installation is being completed - this may take a while")
+
     installKernels(mounts, answers)
+    doDepmod(mounts, answers)
     setRootPassword(mounts, answers)
     setTime(mounts, answers)
     configureNetworking(mounts, answers)
     writeFstab(mounts, answers)
+    writeModprobeConf(mounts, answers)
 
     umountVolumes(mounts)
+    finalise(answers)
+
+    ui_package.clearModelessDialog()
 
 ##########
 # mounting and unmounting of various volumes
 
 def mountVolumes(primary_disk):
-    rootvol = getDom0PartName(primary_disk)
+    global vgname, dom0tmpfs_name
+    
+    tmprootvol = "/dev/%s/%s" % (vgname, dom0tmpfs_name)
     bootvol = getBootPartName(primary_disk)
     rwsvol = getRWSPartName(primary_disk)
     
@@ -294,14 +311,11 @@ def mountVolumes(primary_disk):
     bootpath = '/tmp/root/boot'
     rwspath = "/tmp/root/rws"
 
-    # mount the volumes
+    # mount the volumes (must assertDir in mounted filesystem...)
     assertDir(rootpath)
-    os.system("mount %s %s" % (rootvol, rootpath))
-
-    if not rootvol == bootvol:
-        assertDir(bootpath)
-        os.system("mount %s %s" % (bootvol, bootpath))
-
+    os.system("mount %s %s" % (tmprootvol, rootpath))
+    assertDir(bootpath)
+    os.system("mount %s %s" % (bootvol, bootpath))
     assertDir(rwspath)
     os.system("mount %s %s" % (rwsvol, rwspath))
 
@@ -313,38 +327,32 @@ def mountVolumes(primary_disk):
 
 def umountVolumes(mounts):
     for m in mounts['umount-order']: # hack!
-        os.system("umount %s" % m)
+        assert os.system("umount %s" % m) == 0
 
 ##########
 # second stage install helpers:
 
 def installKernels(mounts, answers):
-    assert os.system("tar -C %s -xzf %s" % (mounts['boot'], kernel_tgz_location)) == 0
+    assert runCmd("tar -C %s -xzf %s" % (mounts['boot'], kernel_tgz_location)) == 0
     
-def mkInitrd(mounts, answers):
-    global kernel_version
-
-    # chroot in and make the initrd:
-    os.system("chroot %s depmod %s" % kernel_version)
-    os.system("chroot %s mkinitrd -o /boot/initrd-%s.img %s"
-              % (mounts['root'], kernel_version, kernel_version))
+def doDepmod(mounts, answers):
+    runCmd("chroot %s depmod %s" % (version.kernel_version, version.kernel_version))
 
 def writeFstab(mounts, answers):
     assertDir("%s/etc" % mounts['rws'])
 
     # first work out what we're going to write:
-    rootpart = getDom0PartName(answers['primary-disk'])
     rwspart = getRWSPartName(answers['primary-disk'])
     bootpart = getBootPartName(answers['primary-disk'])
-    
-    fstab = open("%s/etc/fstab" % mounts['rws'], "w")
-    fstab.write("%s   /     %s     defaults   1  1\n" % (rootpart, rootfs_type))
-    fstab.write("%s   /boot %s     defaults   1  1\n" % (bootpart, rootfs_type))
-    fstab.write("%s   /rws  %s     defaults   1  1\n" % (rwspart, rwsfs_type))
-    fstab.write("none /proc proc   defaults   1  1\n")
-    fstab.write("none /sys  sysfs  defaults   1  1\n")
 
-    fstab.close()
+    # write 
+    for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
+        fstab = open(dest, "w")
+        fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
+        fstab.write("%s          /rws  %s     defaults   1  1\n" % (rwspart, rwsfs_type))
+        fstab.write("none        /proc proc   defaults   1  1\n")
+        fstab.write("none        /sys  sysfs  defaults   1  1\n")
+        fstab.close()
     
 def setTime(mounts, answers):
     ### the UI will have to do this, because there would be too big a time-gap
@@ -355,7 +363,7 @@ def setRootPassword(mounts, answers):
     # avoid using shell here to get around potential security issues.
     pipe = subprocess.Popen(["/usr/sbin/chroot", "%s" % mounts["root"],
                              "passwd", "--stdin", "root"],
-                            stdin = subprocess.PIPE)
+                            stdin = subprocess.PIPE, stdout = subprocess.PIPE)
     pipe.stdin.write(answers["root-password"])
     assert pipe.wait() == 0
 
@@ -389,30 +397,72 @@ def configureNetworking(mounts, answers):
     if alldhcp:
         ifaces = generalui.getNetifList()
         for i in ifaces:
-            ifcfd = open("%s/etc/sysconfig/network-scripts/%s" % (mounts['rws'], i), "w")
+            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
             writeDHCPConfigFile(ifcfd, i, generalui.getHWAddr(i))
             ifcfd.close()
+
+            # symlink from Dom0 -> RWS:
+            assert runCmd("ln -s /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
+                          (i, mounts["root"], i)) == 0
     else:
         # no - go through each interface manually:
         for i in mancfg:
             iface = mancfg[i]
             ifcfd = open("%s/etc/sysconfig/network-scripts/%s" % (mounts['rws'], i), "w")
-            if i['use-dhcp']:
+            if iface['use-dhcp']:
                 writeDHCPConfigFile(ifcfd, i, generalui.getHWAddr(i))
             else:
                 ifcfd.write("DEVICE=%s\n" % i)
                 ifcfd.write("BOOTPROTO=none\n")
-                if getHWAddr(i):
-                    ifcfd.write("HWADDR=%s\n" % generalui.getHWAddr(i))
+                hwaddr = generalui.getHWAddr(i)
+                if hwaddr:
+                    ifcfd.write("HWADDR=%s\n" % hwaddr)
                 ifcfd.write("ONBOOT=yes\n")
                 ifcfd.write("TYPE=Ethernet\n")
-                ifcfd.write("NETMASK=%s\n" % i['subnet-mask'])
-                ifcfd.write("IPADDR=%s\n" % i['ip'])
-                ifcfd.write("GATEWAY=%s\n" % i['gateway'])
+                ifcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
+                ifcfd.write("IPADDR=%s\n" % iface['ip'])
+                ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
                 ifcfd.write("PEERDNS=yes\n")
+
+            # symlink from Dom0 -> RWS:
+            assert runCmd("ln -s /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
+                          (i, mounts["root"], i)) == 0
+
             ifcfd.close()
 
-    
+    # now we need to write /etc/sysconfig/network
+    nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
+    nfd.write("NETWORKING=yes")
+    if answers["manual-hostname"][0] == True:
+        nfd.write("HOSTNAME=%s" % answers["manual-hostname"][1])
+    else:
+        nfd.write("HOSTNAME=localhost.localdomain")
+    nfd.close()
+
+    # now symlink from dom0:
+    assert runCmd("ln -s /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"])
+
+def writeModprobeConf(mounts, answers):
+    os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
+
+###
+# Compress root filesystem and save to disk:
+def finalise(answers):
+    global dom0tmpfs_name
+
+    # mount the filesystem parts again - this time in different places (since
+    # we are compressing the rootfs into a file in boot, we don't want boot
+    # mounted inside root...):
+    assert runCmd("mount /dev/VG_XenEnterprise/%s /tmp/root" % dom0tmpfs_name) == 0
+    if not os.path.isdir("/tmp/boot"):
+        os.mkdir("/tmp/boot")
+    assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
+    assert runCmd("mkcramfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
+    assert runCmd("umount /tmp/{root,boot}") == 0
+
+    # now remove the temporary volume
+    assert runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name)) == 0
+
 
 ################################################################################
 # OTHER HELPERS

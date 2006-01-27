@@ -24,7 +24,7 @@ def getNetifList():
     pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }'")
     interfaces = []
     for iface in pipe:
-        interfaces.append(iface)
+        interfaces.append(iface.strip("\n"))
     pipe.close()
 
     return interfaces

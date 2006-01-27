@@ -6,6 +6,8 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
+### TODO: Validation of IP addresses
+
 from snack import *
 import generalui
 import uicontroller
@@ -199,6 +201,10 @@ def get_autoconfig_ifaces(answers):
 
     rv = uicontroller.runUISequence(seq, subdict)
 
+    for x in entries:
+        if x not in manually_configured:
+            subdict[x] = {"use-dhcp": True}
+
     answers['iface-configuration'] = (False, subdict)
     
     if rv == -1: return 0
@@ -216,7 +222,7 @@ def get_iface_configuration(answers, args):
                                           ['IP Address;', 'Subnet mask:', 'Gateway:'],
                                           buttons = ['Ok', 'Back'])
 
-    answers[iface] = {'dhcp': False,
+    answers[iface] = {'use-dhcp': False,
                       'ip': ip,
                       'subnet-mask': snm,
                       'gateway': gw }
@@ -342,7 +348,17 @@ def displayProgressDialog(current, (form, scale)):
     form.draw()
     screen.refresh()
 
-def clearProgressDialog():
+def displayInfoDialog(title, text):
+    global screen
+
+    form = GridFormHelp(screen, title, None, 1, 2)
+    
+    t = TextboxReflowed(60, text)
+    form.add(t, 0, 0)
+    form.draw()
+    screen.refresh()
+
+def clearModelessDialog():
     global screen
     
     screen.popWindow()
