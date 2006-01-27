@@ -138,28 +138,45 @@ def determine_size(mntpnt, dev_name):
 
         active_mounts.append(extra_mntpnt)
 
+    # get the used size
     command = "df -k | grep %s | awk '{print $3}'" % mntpnt
     p2v_utils.trace_message("going to run : %s" % command)
-    rc, out = run_command(command);
+    rc, used_out = run_command(command);
     if rc != 0:
-        raise P2VError("Failed to determine size - df failed")
+        raise P2VError("Failed to determine used size - df failed")
+
+    #get the total size
+    command = "df -k | grep %s | awk '{print $2}'" % mntpnt
+    p2v_utils.trace_message("going to run : %s" % command)
+    rc, total_out = run_command(command);
+    if rc != 0:
+        raise P2VError("Failed to determine used size - df failed")
     
-    p2v_utils.trace_message("\n\nFS Usage : %s\n\n" % out)
-    size = 0
-    split_out = out.split('\n')
-    for o in split_out:
-        p2v_utils.trace_message("\n\nFS Usage : %s\n\n" % o)
-        size += int(o)
-    p2v_utils.trace_message("\n\nFinal FS Usage : %d\n\n" % size)
+    p2v_utils.trace_message("\n\nFS used Usage : %s, FS total usage : %s\n" % (used_out, total_out))
+    used_size = 0
+    total_size = 0
+    
+    split_used_size = used_out.split('\n')
+    split_total_size = total_out.split('\n')
+    for o in split_used_size:
+        p2v_utils.trace_message("\n\nFS used Usage : %s\n\n" % o)
+        used_size += int(o)
+    for o in split_total_size:
+        p2v_utils.trace_message("\n\nFS total Usage : %s\n\n" % o)
+        total_size += int(o)
+        
+    p2v_utils.trace_message("\n\nFinal FS used Usage : %d\n\n" % used_size)
+    p2v_utils.trace_message("\n\nFinal FS total Usage : %d\n\n" % total_size)
     
     for item in active_mounts:
         # assume the umount works
         umount_dev(item)
 
-    return str(size)
+    return str(used_size), str(total_size)
 
 
 def handle_root(mntpnt, dev_name, pd = None):
+    rc = 0
     fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
     fstab = load_fstab(fp)
     fp.close()
@@ -186,11 +203,11 @@ def handle_root(mntpnt, dev_name, pd = None):
 
     hostname = os.uname()[1]
     os.chdir(mntpnt)
-    tar_basefilename = "p2v%s.%s.tar.gz" % (hostname, os.path.basename(dev_name))
+    tar_basefilename = "p2v%s.%s.tar.bz2" % (hostname, os.path.basename(dev_name))
     base_dirname = "/xenpending/"
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
-    rc, out = run_command("tar czvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
-    if rc != 0:
+    rc, out = run_command("tar cjvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
+    if not rc == 0:
         raise P2VError("Failed to handle root - tar failed")
     
     ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")

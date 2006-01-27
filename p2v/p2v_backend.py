@@ -40,13 +40,11 @@ def determine_size(os_install):
     os_root_device = os_install[constants.DEV_NAME]
     dev_attrs = os_install[constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
-    try:
-        size = findroot.determine_size(os_root_mount_point, os_root_device )
-    except:
-        os_install[constants.ERRORS].append("Failed to determine size")
-        raise
+
+    (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
         
-    os_install[constants.FS_USED_SIZE] = size
+    os_install[constants.FS_USED_SIZE] = used_size
+    os_install[constants.FS_TOTAL_SIZE] = total_size
     umount_os_root( os_root_mount_point )
     
 
@@ -63,6 +61,12 @@ def perform_p2v( os_install, inbox_path ):
     
 def nfs_mount( nfs_mount_path ):
     local_mount_path = "/xenpending"
+    rc, out = findroot.run_command('grep -q "%s nfs" /proc/mounts' % local_mount_path)
+    if rc == 0:
+        return #already mounted
+    else: 
+        print "\n\n*** out = %s\n\n" % out
+    
     rc, out = findroot.run_command( "mkdir -p /xenpending" )
     if rc != 0: 
         raise P2VError("Failed to nfs mount - mkdir failed")
@@ -196,7 +200,7 @@ def add_md5sum(os_install):
 
 def add_total_size(os_install):
     template_string = ""
-    template_string += open_tag(constants.TAG_FILESYSTEM_TOTAL_SIZE,  os_install[constants.FS_USED_SIZE])
+    template_string += open_tag(constants.TAG_FILESYSTEM_TOTAL_SIZE,  os_install[constants.FS_TOTAL_SIZE])
     template_string += close_tag( constants.TAG_FILESYSTEM_TOTAL_SIZE)
     return template_string
 
@@ -240,8 +244,8 @@ def write_template(os_install):
     os_install[constants.XEN_TEMPLATE_FILENAME] = template_filename
     
     if os.path.exists(template_file):
-        p2v_utils.trace_message("template file already exists");
-        return
+        p2v_utils.trace_message("template file already exists. overwriting");
+        os.unlink(template_file)
     
     f = open(template_file, "w")
     f.write(template_string + '\n')
@@ -255,7 +259,7 @@ def create_xgt(os_install):
     template_filename =  os_install[constants.XEN_TEMPLATE_FILENAME]
     tar_filename = os_install[constants.XEN_TAR_FILENAME]
     
-    xgt_filename = tar_filename.replace('.tar.gz', '.xgt')
+    xgt_filename = tar_filename.replace('.tar.bz2', '.xgt')
     
     assert (os.path.exists(os.path.join(xgt_create_dir, template_filename)))
     assert (os.path.exists(os.path.join(xgt_create_dir, tar_filename)))

@@ -2,12 +2,11 @@
 DEV_NAME = "dev_name"
 DEV_ATTRS = "dev_attrs"
 FS_USED_SIZE  = "fs_used_size"
+FS_TOTAL_SIZE  = "fs_total_size"
 OS_INSTALL = 'osinstall'
 OS_NAME = 'osname'
 OS_VERSION = 'osversion'
 HOST_NAME = 'hostname'
-
-ERRORS = 'errors'
 
 XEN_TARGET = 'xen-target'
 XEN_TARGET_XE =  'xe'
