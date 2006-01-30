@@ -440,7 +440,7 @@ def configureNetworking(mounts, answers):
     nfd.close()
 
     # now symlink from dom0:
-    assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"])
+    assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"]) == 0
 
 def writeModprobeConf(mounts, answers):
     os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
