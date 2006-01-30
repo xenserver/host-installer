@@ -402,7 +402,7 @@ def configureNetworking(mounts, answers):
             ifcfd.close()
 
             # symlink from Dom0 -> RWS:
-            assert runCmd("ln -s /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
+            assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
                           (i, mounts["root"], i)) == 0
     else:
         # no - go through each interface manually:
