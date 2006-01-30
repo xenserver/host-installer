@@ -425,7 +425,7 @@ def configureNetworking(mounts, answers):
                 ifcfd.write("PEERDNS=yes\n")
 
             # symlink from Dom0 -> RWS:
-            assert runCmd("ln -s /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
+            assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
                           (i, mounts["root"], i)) == 0
 
             ifcfd.close()
@@ -440,7 +440,7 @@ def configureNetworking(mounts, answers):
     nfd.close()
 
     # now symlink from dom0:
-    assert runCmd("ln -s /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"])
+    assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"])
 
 def writeModprobeConf(mounts, answers):
     os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
