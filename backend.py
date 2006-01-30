@@ -34,7 +34,7 @@ kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (vers
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
 dom0tmpfs_size = 200
 
-grubroot = '(hd0,0)'
+grubroot = '(hd0,0'
 
 bootfs_type = 'ext2'
 dom0tmpfs_type = 'ext3'
@@ -209,14 +209,14 @@ def installGrub(disk):
     grubconf += "timeout 3\n"
     grubconf += "hiddenmenu\n"
     grubconf += "title Xen Enterprise\n"
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk))
+    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen root=%s ro\n" % getBootPartName(disk)
+    grubconf += "   module /vmlinuz-2.6.12.6-xen root=/dev/ram0 ro\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title Xen Enterprise in Safe Mode\n"
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk))
+    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen root=%s ro\n" % getBootPartName(disk)
+    grubconf += "   module /vmlinuz-2.6.12.6-xen root=/dev/ram0 ro\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
 
     # install GrUB - TODO better error handling required here:
