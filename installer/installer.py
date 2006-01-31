@@ -54,6 +54,7 @@ def main():
                            ['Ok', 'Cancel'], width=50)
                     if button == 'ok':
                         screen.finish()
+                        os.system("eject")
                         os.system("reboot")
             else:
                 screen.finish()
