@@ -25,6 +25,9 @@ ui_package = tui
 
 rws_size = 20
 rws_name = "RWS"
+dropbox_size = 4000
+dropbox_name = "Dropbox"
+
 boot_size = 50
 vgname = "VG_XenEnterprise"
 
@@ -179,6 +182,7 @@ def prepareLVM(answers):
     assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
 
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (rws_size, rws_name, vgname)) == 0
+    assert runCmd("lvcreate -L %s -C y -n %s %s" % (dropbox_size, dropbox_name, vgname)) == 0
 
     assert runCmd("vgchange -a y VG_XenEnterprise") == 0
     assert runCmd("vgmknodes") == 0
@@ -188,9 +192,10 @@ def prepareLVM(answers):
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    global bootfs_type, rwsfs_type
+    global bootfs_type, rwsfs_type, vgname, dropbox_name
     assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
+    assert runCmd("mkfs.%s %s" % (dropbox_type, "/dev/%s/%s" % (vgname, dropbox_name))) == 0
 
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
