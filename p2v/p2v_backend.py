@@ -71,8 +71,6 @@ def nfs_mount( nfs_mount_path ):
     rc, out = findroot.run_command('grep -q "%s nfs" /proc/mounts' % local_mount_path)
     if rc == 0:
         return #already mounted
-    else: 
-        print "\n\n*** out = %s\n\n" % out
     
     rc, out = findroot.run_command( "mkdir -p /xenpending" )
     if rc != 0: 

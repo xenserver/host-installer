@@ -129,7 +129,13 @@ def get_root_password(answers):
         
         (pw, conf) = result[1]
         if pw == conf:
-            done = True
+            if pw == None or len(pw) == 0:
+                ButtonChoiceWindow(screen,
+                               "Password Error",
+                               "Please enter a non-empty password.",
+                               ['Ok'])
+            else:
+                done = True
         else:
             ButtonChoiceWindow(screen,
                                "Password Error",

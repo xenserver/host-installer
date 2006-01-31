@@ -37,7 +37,7 @@ kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (vers
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
 dom0tmpfs_size = 200
 
-grubroot = '(hd0,0'
+grubroot = '(hd0,0)'
 
 bootfs_type = 'ext2'
 dom0tmpfs_type = 'ext3'
@@ -216,12 +216,12 @@ def installGrub(disk):
     grubconf += "title Xen Enterprise\n"
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen root=/dev/ram0 ro\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=50000 root=/dev/ram0 ro\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title Xen Enterprise in Safe Mode\n"
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
-    grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen root=/dev/ram0 ro\n"
+    grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp noreboot\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=50000 root=/dev/ram0 ro\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
 
     # install GrUB - TODO better error handling required here:
@@ -448,7 +448,8 @@ def configureNetworking(mounts, answers):
     assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"]) == 0
 
 def writeModprobeConf(mounts, answers):
-    os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
+    #os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
+    os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
 
 ###
 # Compress root filesystem and save to disk:

@@ -239,7 +239,7 @@ def inspect_root(dev_name, dev_attrs, results):
     mnt = mount_os_root(dev_name, dev_attrs)
     if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
        p2v_utils.trace_message("* Found root partition on %s" % dev_name)
-       rc, out = run_command("/opt/xensource/clean-installer/p2v/read_osversion.sh " + mnt)
+       rc, out = run_command("/opt/xensource/clean-installer/read_osversion.sh " + mnt)
        if rc == 0:
            p2v_utils.trace_message("read_osversion succeeded : out = %s" % out)
            parts = out.split('\n')
