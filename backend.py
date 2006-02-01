@@ -27,8 +27,9 @@ rws_size = 20
 rws_name = "RWS"
 dropbox_size = 4000
 dropbox_name = "Dropbox"
+dropbox_type = "ext3"
 
-boot_size = 50
+boot_size = 65
 vgname = "VG_XenEnterprise"
 
 dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
@@ -216,7 +217,7 @@ def installGrub(disk):
     grubconf += "title Xen Enterprise\n"
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=50000 root=/dev/ram0 ro\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title Xen Enterprise in Safe Mode\n"
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
@@ -293,6 +294,7 @@ def performStage2Install(answers):
     configureNetworking(mounts, answers)
     writeFstab(mounts, answers)
     writeModprobeConf(mounts, answers)
+    mkLvmDirs(mounts, answers)
 
     umountVolumes(mounts)
     finalise(answers)
@@ -354,9 +356,9 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("%s          /rws  %s     defaults   1  1\n" % (rwspart, rwsfs_type))
-        fstab.write("none        /proc proc   defaults   1  1\n")
-        fstab.write("none        /sys  sysfs  defaults   1  1\n")
+        fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
+        fstab.write("none        /proc proc   defaults   0  0\n")
+        fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
     
 def setTime(mounts, answers):
@@ -450,6 +452,10 @@ def configureNetworking(mounts, answers):
 def writeModprobeConf(mounts, answers):
     #os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
     os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
+    
+def mkLvmDirs(mounts, answers):
+    os.system("mkdir -p %s/etc/lvm/archive" % mounts["root"])
+    os.system("mkdir -p %s/etc/lvm/backup" % mounts["root"])
 
 ###
 # Compress root filesystem and save to disk:
