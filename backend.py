@@ -5,8 +5,6 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
-### TODO: Create Dropbox and copy in XGTs
-
 import os
 import os.path
 import subprocess
@@ -135,7 +133,7 @@ def writeDom0DiskPartitions(disk):
     parts.write("\n")
     parts.close()
 
-    assert runCmd("sfdisk --no-reread -q -uM %s </tmp/dom0disk_parts" % disk) == 0
+    assert runCmd("sfdisk -q -uM %s </tmp/dom0disk_parts" % disk) == 0
 
 def writeGuestDiskPartitions(disk):
     global dom0_size
@@ -165,6 +163,7 @@ def prepareLVM(answers):
     global vgname
     global dom0_size
     global rws_name, rws_size
+    global dropbox_name, dropbox_size
     
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
 
@@ -193,7 +192,7 @@ def prepareLVM(answers):
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    global bootfs_type, rwsfs_type, vgname, dropbox_name
+    global bootfs_type, rwsfs_type, vgname, dropbox_name, dropbox_type
     assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (dropbox_type, "/dev/%s/%s" % (vgname, dropbox_name))) == 0
