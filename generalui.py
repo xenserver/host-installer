@@ -21,7 +21,7 @@ def getDiskList():
     return devices
 
 def getNetifList():
-    pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }'")
+    pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }' | grep '^eth.*'")
     interfaces = []
     for iface in pipe:
         interfaces.append(iface.strip("\n"))
