@@ -7,6 +7,7 @@
 # Copyright XenSource Inc. 2006
 
 from snack import *
+from version import *
 #import generalui
 import p2v_uicontroller
 import findroot
@@ -24,7 +25,7 @@ def init_ui():
     global screen
 
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to Xen Enterprise")
+    screen.drawRootText(0, 0, "Welcome to %s" % PRODUCT_NAME)
     
 def redraw_screen():
     global screen
@@ -41,8 +42,8 @@ def welcome_screen(answers):
     global screen
 
     button = ButtonChoiceWindow(screen,
-                       "Welcome to Xen Enterprise P2V",
-                       """This will convert a locally installed OS install to a XenEnterprise machine to be used as a Xen guest on that machine.""",
+                       "Welcome to %s P2V" % PRODUCT_NAME,
+                       """This will convert a locally installed OS install to a %PRODUCT_NAME machine to be used as a Xen guest on that machine.""" % PRODUCT_NAME,
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
@@ -68,8 +69,8 @@ def target_screen(answers):
     if entry == 0:
         answers[constants.XEN_TARGET] = constants.XEN_TARGET_XE
         (button, xehost) = EntryWindow(screen,
-                "XenEnterprise Host Information",
-                "Please enter the XenEnterprise host information: ",
+                "%s Host Information" % PRODUCT_NAME,
+                "Please enter the %s host information: " % PRODUCT_NAME,
                 ['Hostname or IP:'],
                 buttons= ['Ok', 'Back'])
         answers[constants.XE_HOST] = xehost[0]

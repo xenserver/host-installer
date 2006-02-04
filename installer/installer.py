@@ -11,6 +11,7 @@ import commands
 import sys
 import os
 import p2v
+from version import *
 
 screen = None
 
@@ -28,10 +29,11 @@ def main():
         
         while True:
             screen = SnackScreen()
-            screen.drawRootText(0, 0, "Welcome to the Xen Enterprise Installer")
+            screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s" % (PRODUCT_NAME, PRODUCT_VERSION))
+            screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
     
             entries = [ 
-                    ' * XenEnterprise Install (clean install)',
+                    ' * %s Install (clean install)' % PRODUCT_NAME,
 #                    ' * P2V (existing OS install)',
                     ' * Reboot machine'
                      ]

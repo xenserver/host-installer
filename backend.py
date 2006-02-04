@@ -32,6 +32,7 @@ vgname = "VG_XenEnterprise"
 
 dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
+xgt_location = "/opt/xensource/xgt/"
 
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
 dom0tmpfs_size = 200
@@ -92,6 +93,10 @@ def hasServicePartition(disk):
 def getRWSPartName(disk):
     global rws_name, vgname
     return "/dev/%s/%s" % (vgname, rws_name)
+
+def getDropboxPartName(disk):
+    global dropbox_name, vgname
+    return "/dev/%s/%s" % (vgname, dropbox_name)
 
 def getBootPartNumber(disk):
     if hasServicePartition(disk):
@@ -154,7 +159,7 @@ def writeGuestDiskPartitions(disk):
     parts.write("\n")                    # no fourth partition
     parts.close()
 
-    result = runCmd("sfdisk --no-reread -q -uM %s </tmp/dom0disk_parts" % disk)
+    result = runCmd("sfdisk  -q -uM %s </tmp/dom0disk_parts" % disk)
 
     # clean up:
     assert result == 0
@@ -290,10 +295,13 @@ def performStage2Install(answers):
     doDepmod(mounts, answers)
     setRootPassword(mounts, answers)
     setTime(mounts, answers)
+    ui_package.screen.suspend()
     configureNetworking(mounts, answers)
+    ui_package.screen.resume()
     writeFstab(mounts, answers)
     writeModprobeConf(mounts, answers)
     mkLvmDirs(mounts, answers)
+    copyXgts(mounts, answers)
 
     umountVolumes(mounts)
     finalise(answers)
@@ -309,6 +317,7 @@ def mountVolumes(primary_disk):
     tmprootvol = "/dev/%s/%s" % (vgname, dom0tmpfs_name)
     bootvol = getBootPartName(primary_disk)
     rwsvol = getRWSPartName(primary_disk)
+    dropboxvol = getDropboxPartName(primary_disk)
     
     # work out where to bount things (note that rootVol and bootVol might
     # be equal).  Note the boot volume must be mounted inside the root directory
@@ -316,6 +325,7 @@ def mountVolumes(primary_disk):
     rootpath = '/tmp/root'
     bootpath = '/tmp/root/boot'
     rwspath = "/tmp/root/rws"
+    dropboxpath = "/tmp/root/dropbox"
 
     # mount the volumes (must assertDir in mounted filesystem...)
     assertDir(rootpath)
@@ -324,12 +334,15 @@ def mountVolumes(primary_disk):
     os.system("mount %s %s" % (bootvol, bootpath))
     assertDir(rwspath)
     os.system("mount %s %s" % (rwsvol, rwspath))
+    assertDir(dropboxpath)
+    os.system("mount %s %s" % (dropboxvol, dropboxpath))
 
     # ugh - umount-order - what a piece of crap
     return {'boot': bootpath,
             'rws' : rwspath,
             'root': rootpath,
-            'umount-order': [bootpath, rwspath, rootpath]}
+            'dropbox': dropboxpath,
+            'umount-order': [dropboxpath, bootpath, rwspath, rootpath]}
 
 def umountVolumes(mounts):
     for m in mounts['umount-order']: # hack!
@@ -350,12 +363,14 @@ def writeFstab(mounts, answers):
     # first work out what we're going to write:
     rwspart = getRWSPartName(answers['primary-disk'])
     bootpart = getBootPartName(answers['primary-disk'])
+    dropboxpart = getDropboxPartName(answers['primary-disk'])
 
     # write 
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
         fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
+        fstab.write("%s          /dropbox  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
         fstab.write("none        /proc proc   defaults   0  0\n")
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
@@ -376,27 +391,16 @@ def setRootPassword(mounts, answers):
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, answers):
     def writeDHCPConfigFile(fd, device, hwaddr = None):
-        fd.write("DEVICE=%s" % device)
-        fd.write("BOOTPROTO=dhcp")
-        fd.write("ONBOOT=yes")
-        fd.write("TYPE=ethernet")
+        fd.write("DEVICE=%s\n" % device)
+        fd.write("BOOTPROTO=dhcp\n")
+        fd.write("ONBOOT=yes\n")
+        fd.write("TYPE=ethernet\n")
         if hwaddr:
-            fd.write("HWADDR=%s" % hwaddr)
+            fd.write("HWADDR=%s\n" % hwaddr)
             
     assertDirs("%s/etc" % mounts['rws'],
                "%s/etc/sysconfig" % mounts['rws'],
                "%s/etc/sysconfig/network-scripts" % mounts['rws'])
-
-    # write the configuration file for the loopback interface
-    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['rws'], "w")
-    out.write("DEVICE=lo\n")
-    out.write("IPADDR=127.0.0.1\n")
-    out.write("NETMASK=255.0.0.0\n")
-    out.write("NETWORK=127.0.0.0\n")
-    out.write("BROADCASE=127.255.255.255\n")
-    out.write("ONBOOT=yes\n")
-    out.write("NAME=loopback\n")
-    out.close()
 
     # are we all DHCP?
     (alldhcp, mancfg) = answers['iface-configuration']
@@ -436,13 +440,24 @@ def configureNetworking(mounts, answers):
 
             ifcfd.close()
 
+    # write the configuration file for the loopback interface
+    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['rws'], "w")
+    out.write("DEVICE=lo\n")
+    out.write("IPADDR=127.0.0.1\n")
+    out.write("NETMASK=255.0.0.0\n")
+    out.write("NETWORK=127.0.0.0\n")
+    out.write("BROADCASE=127.255.255.255\n")
+    out.write("ONBOOT=yes\n")
+    out.write("NAME=loopback\n")
+    out.close()
+
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
-    nfd.write("NETWORKING=yes")
+    nfd.write("NETWORKING=yes\n")
     if answers["manual-hostname"][0] == True:
-        nfd.write("HOSTNAME=%s" % answers["manual-hostname"][1])
+        nfd.write("HOSTNAME=%s\n" % answers["manual-hostname"][1])
     else:
-        nfd.write("HOSTNAME=localhost.localdomain")
+        nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
 
     # now symlink from dom0:
@@ -455,6 +470,12 @@ def writeModprobeConf(mounts, answers):
 def mkLvmDirs(mounts, answers):
     os.system("mkdir -p %s/etc/lvm/archive" % mounts["root"])
     os.system("mkdir -p %s/etc/lvm/backup" % mounts["root"])
+    
+def copyXgts(mounts, answers):
+    dropboxpath = mounts['dropbox']
+    xgtpath = "%s/%s" % (dropboxpath, "/xgt")
+    assert(os.system("mkdir -p %s" % xgtpath) == 0)
+    assert(os.system("cp  -f %s/*.xgt %s" %(xgt_location, xgtpath)) == 0)
 
 ###
 # Compress root filesystem and save to disk:

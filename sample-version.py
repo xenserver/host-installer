@@ -9,3 +9,7 @@ dom0_name = "burbank"
 dom0_version = "0.7"
 kernel_version = "2.6.12.6-xen"
 kernel_name = "vmlinuz"
+
+PRODUCT_NAME = "XenSource Carbon"
+PRODUCT_VERSION = "Burbank Alpha One"
+BUILD_NUMBER = "1"
