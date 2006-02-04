@@ -459,7 +459,7 @@ def configureNetworking(mounts, answers):
     out.write("IPADDR=127.0.0.1\n")
     out.write("NETMASK=255.0.0.0\n")
     out.write("NETWORK=127.0.0.0\n")
-    out.write("BROADCASE=127.255.255.255\n")
+    out.write("BROADCAST=127.255.255.255\n")
     out.write("ONBOOT=yes\n")
     out.write("NAME=loopback\n")
     out.close()
