@@ -13,6 +13,7 @@ import tui
 import generalui
 from generalui import runCmd
 import uicontroller
+from version import *
 import version
 
 ################################################################################
@@ -61,8 +62,8 @@ writeable_dirs = [
 def performStage1Install(answers):
     global ui_package
 
-    pd = ui_package.initProgressDialog('Xen Enterprise Installation',
-                                       'Installing Xen Enterprise, please wait...',
+    pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_NAME,
+                                       'Installing %s, please wait...' % PRODUCT_NAME,
                                        6)
 
     ui_package.displayProgressDialog(0, pd)
@@ -229,12 +230,12 @@ def installGrub(disk):
     grubconf += "default 0\n"
     grubconf += "timeout 3\n"
     grubconf += "hiddenmenu\n"
-    grubconf += "title Xen Enterprise\n"
+    grubconf += "title %s\n" % PRODUCT_NAME
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz\n"
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-    grubconf += "title Xen Enterprise in Safe Mode\n"
+    grubconf += "title %s in Safe Mode\n" % PRODUCT_NAME
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp noreboot\n"
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=50000 root=/dev/ram0 ro\n"
@@ -300,7 +301,7 @@ def performStage2Install(answers):
     mounts = mountVolumes(answers['primary-disk'])
 
     ui_package.displayInfoDialog("Completing installation",
-                                 "The Xen Enterprise installation is being completed - this may take a while")
+                                 "The %s installation is being completed.\nThis may take a while" % PRODUCT_NAME)
 
     installKernels(mounts, answers)
     doDepmod(mounts, answers)
@@ -501,11 +502,11 @@ def writeEjectRcs():
         rcFile.write("[ -f /etc/default/rcS ] && . /etc/default/rcS\n")
         rcFile.write(". /lib/lsb/init-functions\n")
         rcFile.write("do_stop () {\n")
-        rcFile.write('    log_begin_msg "Ejecting CD..."')
+        rcFile.write('    log_begin_msg "Ejecting CD..."\n')
         rcFile.write("    /usr/bin/eject > /dev/null 2>/dev/null\n")
         rcFile.write("    log_end_msg $?\n")
         rcFile.write("}\n")
-        rcFile.write('case "$1" in')
+        rcFile.write('case "$1" in\n')
         rcFile.write("    stop)\n")
         rcFile.write("        do_stop\n")
         rcFile.write("        ;;\n")
@@ -515,6 +516,7 @@ def writeEjectRcs():
         rcFile.write(": exit 0\n")
         rcFile.write("\n")
         rcFile.close()
+        os.system("chmod a+x %s" % file)
 
 ###
 # Compress root filesystem and save to disk:

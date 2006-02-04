@@ -11,6 +11,7 @@
 from snack import *
 import generalui
 import uicontroller
+from version import *
 
 screen = None
 
@@ -20,8 +21,9 @@ def init_ui(results):
     global screen
     
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to Xen Enterprise")
-
+    screen.drawRootText(0, 0, "Welcome to %s Installer - Version %s" % (PRODUCT_NAME, PRODUCT_VERSION))
+    screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
+    
 def end_ui():
     global screen
     
@@ -33,10 +35,10 @@ def welcome_screen(answers):
     global screen
 
     ButtonChoiceWindow(screen,
-                       "Welcome to Xen Enterprise Setup",
-                       """This CD will install XenEnterprise on your server.
+                       "Welcome to %s Setup" % PRODUCT_NAME,
+                       """This CD will install %s on your server.
 
-Please ensure that you have backed up any critical data before proceeding, as the installation process will format any disks specified as to be used by XenEnterprise on this server.""",
+Please ensure that you have backed up any critical data before proceeding, as the installation process will format any disks specified as to be used by %s on this server.""" % (PRODUCT_NAME, PRODUCT_NAME),
                        ['Ok'], width=60)
 
     # advance to next screen:
@@ -50,9 +52,9 @@ def select_primary_disk(answers):
 
     (button, entry) = ListboxChoiceWindow(screen,
                         "Select Primary Disk",
-                        """Please select the disk you would like to use as the primary XenEnterprise disk.
+                        """Please select the disk you would like to use as the primary %s disk.
 
-Xen will be installed onto this disk, requiring 120MB, and the remaining space used for guest virtual machines.""",
+Xen will be installed onto this disk, requiring 120MB, and the remaining space used for guest virtual machines.""" % PRODUCT_NAME,
                         entries,
                         ['Ok', 'Back'])
 
@@ -93,11 +95,11 @@ def confirm_destroy_disks(answers):
 
     button = ButtonChoiceWindow(screen,
                        "Confirm Disk Selection",
-                       """You have selected the following disks to be used by XenEnterprise:
+                       """You have selected the following disks to be used by %s:
 
   %s
 
-If you proceed, all data on these disks will be destroyed (vendor service partitions will be left intact)""" % disks_used,
+If you proceed, all data on these disks will be destroyed (vendor service partitions will be left intact)""" % (disks_used, PRODUCT_NAME),
                        ['Ok', 'Back'])
 
     if button == "ok": return 1
@@ -108,9 +110,9 @@ def confirm_installation_one_disk(answers):
 
     button = ButtonChoiceWindow(screen,
                                 "Confirm Installation",
-                                """Since your server only has a single disk, this will be used to install XenEnterprise.
+                                """Since your server only has a single disk, this will be used to install %s.
 
-Please confirm you wish to proceed; all data on this disk will be destroyed (vendor service partitions will be left intact)""",
+Please confirm you wish to proceed; all data on this disk will be destroyed (vendor service partitions will be left intact)""" % PRODUCT_NAME,
                                 ['Ok', 'Back'])
 
     if button == "ok": return 1
@@ -283,7 +285,7 @@ def installation_complete(answers):
 
     ButtonChoiceWindow(screen,
                        "Installation Complete",
-                       "The Xen Enterprise installation has completed.  Please remove any media from your drives and press enter to reboot the machine.",
+                       "The %s installation has completed.  Please remove any media from your drives and press enter to reboot the machine." % PRODUCT_NAME,
                        ['Ok'])
 
     return 1
