@@ -502,7 +502,7 @@ def writeEjectRcs():
         rcFile.write(". /lib/lsb/init-functions\n")
         rcFile.write("do_stop () {\n")
         rcFile.write('    log_begin_msg "Ejecting CD..."')
-        rcFile.write("    /usr/bin/eject\n")
+        rcFile.write("    /usr/bin/eject > /dev/null 2>/dev/null\n")
         rcFile.write("    log_end_msg $?\n")
         rcFile.write("}\n")
         rcFile.write('case "$1" in')
