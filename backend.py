@@ -44,6 +44,13 @@ dom0tmpfs_type = 'ext3'
 ramdiskfs_type = 'cramfs'
 rwsfs_type = 'ext3'
 
+writeable_files = [ '/etc/yp.conf',
+                                  '/etc/ntp.conf',
+                                  '/etc/resolv.conf',
+                                  '/etc/hosts'
+                                ]
+
+
 ################################################################################
 # FIRST STAGE INSTALLATION:
 
@@ -437,6 +444,9 @@ def configureNetworking(mounts, answers):
             # symlink from Dom0 -> RWS:
             assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
                           (i, mounts["root"], i)) == 0
+                          
+            for file in writeable_files:
+                assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
 
             ifcfd.close()
 
