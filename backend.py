@@ -49,6 +49,7 @@ writeable_files = [ '/etc/yp.conf',
                                   '/etc/ntp.conf',
                                   '/etc/resolv.conf',
                                   '/etc/hosts',
+                                  '/etc/issue',
                                   '/etc/adjtime'
                                 ]
                                 
