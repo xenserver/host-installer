@@ -21,7 +21,7 @@ import version
 # TODO - get this passed in somehow.
 ui_package = tui
 
-rws_size = 20
+rws_size = 20000
 rws_name = "RWS"
 dropbox_size = 4000
 dropbox_name = "Dropbox"
