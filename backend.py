@@ -463,6 +463,9 @@ def configureNetworking(mounts, answers):
     out.write("ONBOOT=yes\n")
     out.write("NAME=loopback\n")
     out.close()
+    
+    assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-lo %s/etc/sysconfig/network-scripts/ifcfg-lo" %
+                   mounts["root"]) == 0
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
