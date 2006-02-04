@@ -370,7 +370,7 @@ def writeFstab(mounts, answers):
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
         fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
-        fstab.write("%s          /dropbox  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
+        fstab.write("%s          /dropbox  %s     defaults   0  0\n" % (dropboxpart, dropbox_type))
         fstab.write("none        /proc proc   defaults   0  0\n")
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
