@@ -53,7 +53,8 @@ writeable_files = [ '/etc/yp.conf',
                                 ]
                                 
 writeable_dirs = [ 
-                                  '/etc/ntp'
+                                  '/etc/ntp',
+                                  '/root'
                                 ]
 
 
