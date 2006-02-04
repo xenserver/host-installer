@@ -492,6 +492,29 @@ def copyXgts(mounts, answers):
     xgtpath = "%s/%s" % (dropboxpath, "/xgt")
     assert(os.system("mkdir -p %s" % xgtpath) == 0)
     assert(os.system("cp  -f %s/*.xgt %s" %(xgt_location, xgtpath)) == 0)
+    
+def writeEjectRcs():
+    for file in ['/etc/rc6.d/S75eject', '/etc/rc0.d/S75eject' ]:
+        rcFile = open("%s" % file, "w")
+        rcFile.write("#! /bin/sh\n")
+        rcFile.write("PATH=/sbin:/bin:/usr/bin\n")
+        rcFile.write("[ -f /etc/default/rcS ] && . /etc/default/rcS\n")
+        rcFile.write(". /lib/lsb/init-functions\n")
+        rcFile.write("do_stop () {\n")
+        rcFile.write('    log_begin_msg "Ejecting CD..."')
+        rcFile.write("    /usr/bin/eject\n")
+        rcFile.write("    log_end_msg $?\n")
+        rcFile.write("}\n")
+        rcFile.write('case "$1" in')
+        rcFile.write("    stop)\n")
+        rcFile.write("        do_stop\n")
+        rcFile.write("        ;;\n")
+        rcFile.write("    *)\n")
+        rcFile.write("        ;;\n")
+        rcFile.write("esac\n")
+        rcFile.write(": exit 0\n")
+        rcFile.write("\n")
+        rcFile.close()
 
 ###
 # Compress root filesystem and save to disk:
@@ -510,6 +533,7 @@ def finalise(answers):
 
     # now remove the temporary volume
     assert runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name)) == 0
+    writeEjectRcs()
 
 
 ################################################################################
