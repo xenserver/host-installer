@@ -55,6 +55,7 @@ writeable_files = [ '/etc/yp.conf',
                                 
 writeable_dirs = [ 
                                   '/etc/ntp',
+                                  '/etc/lvm',
                                   '/root'
                                 ]
 
@@ -484,6 +485,8 @@ def configureNetworking(mounts, answers):
             assert runCmd("cp -f %s/%s %s/%s" % (mounts["root"], file, mounts["rws"], file)) == 0
         assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
     for dir in writeable_dirs:
+        assertDir("%s/%s" % (mounts['rws'], dir))
+        runCmd("cp -rf %s/%s %s/%s" % (mounts['root'], dir, mounts['rws'], dir) )
         assert runCmd("ln -sf /rws/%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
 
     # now symlink from dom0:
