@@ -47,7 +47,8 @@ rwsfs_type = 'ext3'
 writeable_files = [ '/etc/yp.conf',
                                   '/etc/ntp.conf',
                                   '/etc/resolv.conf',
-                                  '/etc/hosts'
+                                  '/etc/hosts',
+                                  '/etc/ntp/'
                                 ]
 
 
@@ -445,9 +446,6 @@ def configureNetworking(mounts, answers):
             assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
                           (i, mounts["root"], i)) == 0
                           
-            for file in writeable_files:
-                assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
-
             ifcfd.close()
 
     # write the configuration file for the loopback interface
@@ -469,6 +467,9 @@ def configureNetworking(mounts, answers):
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
+
+    for file in writeable_files:
+        assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
 
     # now symlink from dom0:
     assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"]) == 0
