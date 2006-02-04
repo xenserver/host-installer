@@ -477,6 +477,9 @@ def configureNetworking(mounts, answers):
     nfd.close()
 
     for file in writeable_files:
+        # Copy the file if it exists
+        if os.path.isfile("%s/%s" % (mounts["root"], file)):
+            assert runCmd("cp -f %s/%s %s/%s" % (mounts["root"], file, mounts["rws"], file))
         assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
     for dir in writeable_dirs:
         assert runCmd("ln -sf /rws/%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
