@@ -200,7 +200,7 @@ def createDom0DiskFilesystems(disk):
     global bootfs_type, rwsfs_type, vgname, dropbox_name, dropbox_type
     assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
-    assert runCmd("mkfs.%s %s" % (dropbox_type, "/dev/%s/%s" % (vgname, dropbox_name))) == 0
+    assert runCmd("mkfs.%s %s" % (dropbox_type, getDropboxPartName(disk))) == 0
 
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
