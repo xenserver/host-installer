@@ -387,6 +387,7 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
+        fstab.write("/dev/sda1    /boot    ext2    nouser,auto,ro,async    0    0\n")
         fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
         fstab.write("%s          /dropbox  %s     defaults   0  0\n" % (dropboxpart, dropbox_type))
         fstab.write("none        /proc proc   defaults   0  0\n")
@@ -487,7 +488,7 @@ def configureNetworking(mounts, answers):
             assert runCmd("cp -f %s/%s %s/%s" % (mounts["root"], file, mounts["rws"], file)) == 0
         assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
     for dir in writeable_dirs:
-        assertDir("%s/%s" % (mounts['rws'], dir))
+        assert runCmd("mkdir -p %s/%s" % (mounts['rws'], dir)) == 0
         runCmd("cp -rf %s/%s/* %s/%s" % (mounts['root'], dir, mounts['rws'], dir) )
         assert runCmd("rm -rf %s/%s" % (mounts['root'], dir)) == 0
         assert runCmd("ln -sf /rws/%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
