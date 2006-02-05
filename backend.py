@@ -55,7 +55,9 @@ writeable_files = [ '/etc/yp.conf',
                                 
 writeable_dirs = [ 
                                   '/etc/ntp',
-                                  '/etc/lvm',
+                                  '/etc/lvm/archive',
+                                  '/etc/lvm/backup',
+                                  '/etc/ssh',
                                   '/root'
                                 ]
 
@@ -312,11 +314,11 @@ def performStage2Install(answers):
     setRootPassword(mounts, answers)
     setTime(mounts, answers)
     ui_package.screen.suspend()
+    mkLvmDirs(mounts, answers)
     configureNetworking(mounts, answers)
     ui_package.screen.resume()
     writeFstab(mounts, answers)
     writeModprobeConf(mounts, answers)
-    mkLvmDirs(mounts, answers)
     copyXgts(mounts, answers)
 
     umountVolumes(mounts)
@@ -486,7 +488,8 @@ def configureNetworking(mounts, answers):
         assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
     for dir in writeable_dirs:
         assertDir("%s/%s" % (mounts['rws'], dir))
-        runCmd("cp -rf %s/%s %s/%s" % (mounts['root'], dir, mounts['rws'], dir) )
+        runCmd("cp -rf %s/%s/* %s/%s" % (mounts['root'], dir, mounts['rws'], dir) )
+        assert runCmd("rm -rf %s/%s" % (mounts['root'], dir)) == 0
         assert runCmd("ln -sf /rws/%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
 
     # now symlink from dom0:
