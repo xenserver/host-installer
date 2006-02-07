@@ -294,5 +294,9 @@ def create_xgt(os_install):
     
     findroot.create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename)
     
+    #and delete the tar and template files
+    os.unlink(os.path.join(xgt_create_dir, template_filename))
+    os.unlink(os.path.join(xgt_create_dir, tar_filename))
+    
     
     
