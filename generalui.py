@@ -19,6 +19,7 @@ def getDiskList():
     pipe.close()
 
     # add some more devices (compaq has disks in this format)
+    # ADP: TODO - this is broken.
     pipe = os.popen("blockdev --report | grep -v '.*p[0-9]$' | awk '{ print $7 }'")
     for dev in pipe:
         dev = dev.strip("\n")

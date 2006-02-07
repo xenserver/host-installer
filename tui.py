@@ -99,7 +99,7 @@ def confirm_destroy_disks(answers):
 
   %s
 
-If you proceed, all data on these disks will be destroyed (vendor service partitions will be left intact)""" % (disks_used, PRODUCT_NAME),
+If you proceed, all data on these disks will be destroyed (vendor service partitions will be left intact)""" % (PRODUCT_NAME, disks_used),
                        ['Ok', 'Back'])
 
     if button == "ok": return 1

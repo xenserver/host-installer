@@ -46,21 +46,18 @@ ramdiskfs_type = 'cramfs'
 rwsfs_type = 'ext3'
 
 writeable_files = [ '/etc/yp.conf',
-                                  '/etc/ntp.conf',
-                                  '/etc/resolv.conf',
-                                  '/etc/hosts',
-                                  '/etc/issue',
-                                  '/etc/adjtime'
-                                ]
+                    '/etc/ntp.conf',
+                    '/etc/resolv.conf',
+                    '/etc/hosts',
+                    '/etc/issue',
+                    '/etc/adjtime'
+                    ]
                                 
-writeable_dirs = [ 
-                                  '/etc/ntp',
-                                  '/etc/lvm/archive',
-                                  '/etc/lvm/backup',
-                                  '/etc/ssh',
-                                  '/root'
-                                ]
-
+writeable_dirs = [ '/etc/ntp',
+                   '/etc/lvm/archive',
+                   '/etc/lvm/backup',
+                   '/etc/ssh',
+                   '/root' ]
 
 ################################################################################
 # FIRST STAGE INSTALLATION:
@@ -234,17 +231,19 @@ def installGrub(disk):
     # the grub.conf file later in this function.
     grubconf = ""
     grubconf += "default 0\n"
+    grubconf += "serial --unit=0 speed=115200"
+    grubconf += "terminal serial console"
     grubconf += "timeout 3\n"
     grubconf += "hiddenmenu\n"
     grubconf += "title %s\n" % PRODUCT_NAME
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
-    grubconf += "   kernel /xen-3.0.0.gz\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro\n"
+    grubconf += "   kernel /xen-3.0.0.gz com1=115200,8n1 console=com1,tty\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s in Safe Mode\n" % PRODUCT_NAME
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
-    grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp noreboot\n"
-    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=50000 root=/dev/ram0 ro\n"
+    grubconf += "   kernel /xen-3.0.0.gz noacpi nousb nosmp noreboot com1=115200,8n1 console=com1,tty\n"
+    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
 
     # install GrUB - TODO better error handling required here:
@@ -509,7 +508,8 @@ def copyXgts(mounts, answers):
     xgtpath = "%s/%s" % (dropboxpath, "/xgt")
     assert(os.system("mkdir -p %s" % xgtpath) == 0)
     assert(os.system("cp  -f %s/*.xgt %s" %(xgt_location, xgtpath)) == 0)
-    
+
+# ADP - TODO: this should be created at build time.
 def writeEjectRcs():
     for file in ['/etc/rc6.d/S75eject', '/etc/rc0.d/S75eject' ]:
         rcFile = open("%s" % file, "w")
