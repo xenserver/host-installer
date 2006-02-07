@@ -285,7 +285,9 @@ def installation_complete(answers):
 
     ButtonChoiceWindow(screen,
                        "Installation Complete",
-                       "The %s installation has completed.  Please remove any media from your drives and press enter to reboot the machine." % PRODUCT_NAME,
+                       """The %s installation has completed.  Please press enter to reboot the machine.
+                       
+                       The CD will automatically eject upon reboot""" % PRODUCT_NAME,
                        ['Ok'])
 
     return 1
