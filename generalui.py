@@ -18,6 +18,14 @@ def getDiskList():
 
     pipe.close()
 
+    # add some more devices (compaq has disks in this format)
+    pipe = os.popen("blockdev --report | grep -v '.*p[0-9]$' | awk '{ print $7 }'")
+    for dev in pipe:
+        dev = dev.strip("\n")
+        if dev != "Device":
+            devices.append(dev)
+    pipe.close()
+
     return devices
 
 def getNetifList():
