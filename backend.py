@@ -29,7 +29,7 @@ dropbox_name = "Dropbox"
 dropbox_type = "ext3"
 
 boot_size = 65
-vgname = "VG_XenEnterprise"
+vgname = "VG_XenSource"
 
 dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
