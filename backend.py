@@ -506,10 +506,10 @@ def mkLvmDirs(mounts, answers):
     os.system("mkdir -p %s/etc/lvm/backup" % mounts["root"])
     
 def copyXgts(mounts, answers):
-    dropboxpath = mounts['dropbox']
-    xgtpath = "%s/%s" % (dropboxpath, "/xgt")
-    assert(os.system("mkdir -p %s" % xgtpath) == 0)
-    assert(os.system("cp  -f %s/*.xgt %s" %(xgt_location, xgtpath)) == 0)
+    if not os.path.isdir("%s/xgt" % mounts['dropbox']):
+        os.mkdir("%s/xgt" % mounts['dropbox'])
+    copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
+
 
 # ADP - TODO: this should be created at build time.
 def writeEjectRcs():
@@ -589,3 +589,11 @@ def assertDir(dirname):
 def assertDirs(*dirnames):
     for d in dirnames:
         assertDir(d)
+
+def copyFilesFromDir(sourcedir, dest):
+    assert os.path.isdir(sourcedir)
+    assert os.path.isdir(dest)
+
+    files = os.listdir(sourcedir)
+    for f in files:
+        assert runCmd("cp %s/%s %s/" % (sourcedir, f, dest)) == 0
