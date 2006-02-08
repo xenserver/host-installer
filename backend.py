@@ -42,7 +42,7 @@ grubroot = '(hd0,0)'
 
 bootfs_type = 'ext2'
 dom0tmpfs_type = 'ext3'
-ramdiskfs_type = 'cramfs'
+ramdiskfs_type = 'squashfs'
 rwsfs_type = 'ext3'
 
 writeable_files = [ '/etc/yp.conf',
@@ -128,7 +128,7 @@ def getDom0LVMPartNumber(disk):
         return 2
 
 def getDom0LVMPartName(disk):
-    return "%s%s" % (disk, getDom0LVMPartNumber(disk))
+    return determinePartitionName(disk, getDom0LVMPartNumber(disk))
 
 ###
 # Functions to write partition tables to disk
@@ -177,6 +177,12 @@ def writeGuestDiskPartitions(disk):
 
     # clean up:
     assert result == 0
+    
+def determinePartitionName(guestdisk, partitionNumber):
+    if guestdisk.find("cciss") != -1:
+        return guestdisk+"p%d" % partitionNumber
+    else:
+        return guestdisk + "%d" % partitionNumber
 
 def prepareLVM(answers):
     global vgname
@@ -187,7 +193,10 @@ def prepareLVM(answers):
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
 
     # [ '/dev/sda', '/dev/sdb' ] ==> [ '/dev/sda1', '/dev/sda2' ]
-    partitions = partitions + map(lambda x: "%s1" % x, answers['guest-disks'])
+    
+#    partitions = partitions + map(lambda x: "%s1" % x, answers['guest-disks'])
+    for gd in answers['guest-disks']: 
+        partitions.append(determinePartitionName(gd, 1))
 
     # TODO - better error handling
 
@@ -250,6 +259,7 @@ def installGrub(disk):
     assert runCmd("mount %s /tmp" % getBootPartName(disk)) == 0
     os.mkdir("/tmp/grub")
     runCmd("cp /boot/grub/* /tmp/grub") # We should do this in Python...
+    runCmd("rm /tmp/grub/menu.lst") # no menu.lst from cd
     runCmd("rm -f /tmp/grub/grub.conf")
 
     # now install GrUB to the MBR of the first disk:
@@ -548,7 +558,9 @@ def finalise(answers):
     if not os.path.isdir("/tmp/boot"):
         os.mkdir("/tmp/boot")
     assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
-    assert runCmd("mkcramfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
+#    assert runCmd("mkcramfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
+    assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
+
     assert runCmd("umount /tmp/{root,boot}") == 0
 
     # now remove the temporary volume
