@@ -50,8 +50,7 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/resolv.conf',
                     '/etc/hosts',
                     '/etc/issue',
-                    '/etc/adjtime'
-                    ]
+                    '/etc/adjtime' ]
                                 
 writeable_dirs = [ '/etc/ntp',
                    '/etc/lvm/archive',
@@ -496,8 +495,11 @@ def configureNetworking(mounts, answers):
     assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"]) == 0
 
 def writeModprobeConf(mounts, answers):
-    #os.system("discover --data-path=linux/module/name --data-path=linux/module/options --format='%%s %%s' --data-version=$(uname -r) | uniq >%s/etc/modprobe.conf" % mounts["root"])
-    os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
+    # mount proc and sys in the filesystem
+    runCmd("mount -t proc none %s/proc" % mounts['root'])
+    runCmd("mount -t sysfs none %s/sys" % mounts['root'])
+    assert runCmd("chroot %s kudzu -q -k 2.6.12.6-xen" % mounts['root']) == 0
+    runCmd("umount %s/{proc,sys}" % mounts['root'])
     
 def mkLvmDirs(mounts, answers):
     os.system("mkdir -p %s/etc/lvm/archive" % mounts["root"])
