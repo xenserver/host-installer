@@ -43,7 +43,7 @@ def welcome_screen(answers):
 
     button = ButtonChoiceWindow(screen,
                        "Welcome to %s P2V" % PRODUCT_NAME,
-                       """This will convert a locally installed OS install to a %PRODUCT_NAME machine to be used as a Xen guest on that machine.""" % PRODUCT_NAME,
+                       """This will convert a locally installed OS install to a %s machine to be used as a Xen guest on that machine.""" % PRODUCT_NAME,
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
