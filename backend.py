@@ -230,8 +230,8 @@ def installGrub(disk):
     # the grub.conf file later in this function.
     grubconf = ""
     grubconf += "default 0\n"
-    grubconf += "serial --unit=0 speed=115200"
-    grubconf += "terminal serial console"
+    grubconf += "serial --unit=0 speed=115200\n"
+    grubconf += "terminal serial console\n"
     grubconf += "timeout 3\n"
     grubconf += "hiddenmenu\n"
     grubconf += "title %s\n" % PRODUCT_NAME
