@@ -212,7 +212,7 @@ def prepareLVM(answers):
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (rws_size, rws_name, vgname)) == 0
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (dropbox_size, dropbox_name, vgname)) == 0
 
-    assert runCmd("vgchange -a y VG_XenEnterprise") == 0
+    assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
 
 
@@ -228,7 +228,7 @@ def createDom0DiskFilesystems(disk):
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (dom0tmpfs_size, dom0tmpfs_name, vgname)) == 0
-    assert runCmd("vgchange -a y VG_XenEnterprise") == 0
+    assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
     assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
     
@@ -559,7 +559,7 @@ def finalise(answers):
     # mount the filesystem parts again - this time in different places (since
     # we are compressing the rootfs into a file in boot, we don't want boot
     # mounted inside root...):
-    assert runCmd("mount /dev/VG_XenEnterprise/%s /tmp/root" % dom0tmpfs_name) == 0
+    assert runCmd("mount /dev/%s/%s /tmp/root" % (vgname, dom0tmpfs_name)) == 0
     if not os.path.isdir("/tmp/boot"):
         os.mkdir("/tmp/boot")
     assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
