@@ -47,11 +47,11 @@ def disk_selection(answers):
     if len(disks) == 1:
         answers['primary-disk'] = disks[0]
         answers['guest-disks'] = []
+        return 1
     else:
         sequence = [ ui_package.select_primary_disk,
                      ui_package.select_guest_disks ]
-    
-    return uicontroller.runUISequence(sequence, answers)
+        return uicontroller.runUISequence(sequence, answers)
 
 def confirm_installation(answers):
     ui_package = answers['ui-package']
