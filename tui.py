@@ -88,19 +88,18 @@ def select_guest_disks(answers):
     if buttons.buttonPressed(result) == 'back': return -1
 
 # confirm they want to blow stuff away:
-def confirm_destroy_disks(answers):
+def confirm_installation_multiple_disks(answers):
     global screen
 
-    disks_used = ", ".join([ answers['primary-disk'] ] + answers['guest-disks'])
+    disks = [ answers['primary-disk'] ] + answers['guest-disks']
+    disks_used = generalui.makeHumanList(disks)
 
     button = ButtonChoiceWindow(screen,
-                       "Confirm Disk Selection",
-                       """You have selected the following disks to be used by %s:
+                                "Confirm Installation",
+                                """We have collected all the information required to install %s.
 
-  %s
-
-If you proceed, all data on these disks will be destroyed (vendor service partitions will be left intact)""" % (PRODUCT_NAME, disks_used),
-                       ['Ok', 'Back'])
+If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_NAME, PRODUCT_NAME, disks_used),
+                                ['Ok', 'Back'])
 
     if button == "ok": return 1
     if button == "back": return -1

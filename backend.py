@@ -61,12 +61,12 @@ writeable_dirs = [ '/etc/ntp',
 ################################################################################
 # FIRST STAGE INSTALLATION:
 
-def performStage1Install(answers):
+def performInstallation(answers):
     global ui_package
 
     pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_NAME,
                                        'Installing %s, please wait...' % PRODUCT_NAME,
-                                       6)
+                                       20)
 
     ui_package.displayProgressDialog(0, pd)
 
@@ -96,6 +96,41 @@ def performStage1Install(answers):
     # Install grub and grub configuration to read-write partition
     installGrub(answers['primary-disk'])
     ui_package.displayProgressDialog(6, pd)
+
+    # Customise the installation:
+    mounts = mountVolumes(answers['primary-disk'])
+    ui_package.displayProgressDialog(7, pd)
+
+    # put kernel in /boot and prepare it for use:
+    installKernels(mounts, answers)
+    ui_package.displayProgressDialog(8, pd)
+    doDepmod(mounts, answers)
+    ui_package.displayProgressDialog(9, pd)
+
+    # set the root password:
+    setRootPassword(mounts, answers)
+    ui_package.displayProgressDialog(10, pd)
+
+    # set system time
+    setTime(mounts, answers)
+    ui_package.displayProgressDialog(11, pd)
+
+    # perform dom0 file system customisations:
+    mkLvmDirs(mounts, answers)
+    ui_package.displayProgressDialog(12, pd)
+    configureNetworking(mounts, answers)
+    ui_package.displayProgressDialog(13, pd)
+    writeFstab(mounts, answers)
+    ui_package.displayProgressDialog(14, pd)
+    writeModprobeConf(mounts, answers)
+    ui_package.displayProgressDialog(15, pd)
+    copyXgts(mounts, answers)
+    ui_package.displayProgressDialog(16, pd)
+
+    # complete the installation:
+    umountVolumes(mounts)
+    finalise(answers)
+    ui_package.displayProgressDialog(20, pd)
 
     ui_package.clearModelessDialog()
 
@@ -310,35 +345,6 @@ def installKernels(disk):
 
     runCmd("umount /tmp")
 
-
-################################################################################
-# SECOND STAGE INSTALLATION (i.e. fs customisation etc.)
-
-def performStage2Install(answers):
-    global ui_package
-
-    mounts = mountVolumes(answers['primary-disk'])
-
-    ui_package.displayInfoDialog("Completing installation",
-                                 "The %s installation is being completed.\nThis may take a while" % PRODUCT_NAME)
-
-    installKernels(mounts, answers)
-    doDepmod(mounts, answers)
-    setRootPassword(mounts, answers)
-    setTime(mounts, answers)
-    ui_package.screen.suspend()
-    mkLvmDirs(mounts, answers)
-    configureNetworking(mounts, answers)
-    ui_package.screen.resume()
-    writeFstab(mounts, answers)
-    writeModprobeConf(mounts, answers)
-    copyXgts(mounts, answers)
-
-    umountVolumes(mounts)
-    finalise(answers)
-
-    ui_package.clearModelessDialog()
-
 ##########
 # mounting and unmounting of various volumes
 
@@ -416,7 +422,7 @@ def setRootPassword(mounts, answers):
     # avoid using shell here to get around potential security issues.
     pipe = subprocess.Popen(["/usr/sbin/chroot", "%s" % mounts["root"],
                              "passwd", "--stdin", "root"],
-                            stdin = subprocess.PIPE, stdout = subprocess.PIPE)
+                            stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
     pipe.stdin.write(answers["root-password"])
     assert pipe.wait() == 0
 

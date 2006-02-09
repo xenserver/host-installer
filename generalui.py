@@ -16,6 +16,7 @@ def getDiskList():
         if dev != "Device":
             devices.append(dev)
 
+    # CCISS disks:
     pipe = os.popen("blockdev --report | grep -v '/dev/hd' | grep -v '/dev/sd' | grep -v '.*p[0-9]$' | awk '{ print $7 }'")
     for dev in pipe:
         dev = dev.strip("\n")
@@ -23,15 +24,6 @@ def getDiskList():
             devices.append(dev)
 
     pipe.close()
-
-    # add some more devices (compaq has disks in this format)
-    # ADP: TODO - this is broken.
-#    pipe = os.popen("blockdev --report | grep -v '.*p[0-9]$' | awk '{ print $7 }'")
-#    for dev in pipe:
-#        dev = dev.strip("\n")
-#        if dev != "Device":
-#            devices.append(dev)
-#    pipe.close()
 
     return devices
 
@@ -55,12 +47,21 @@ def disk_selection(answers):
     if len(disks) == 1:
         answers['primary-disk'] = disks[0]
         answers['guest-disks'] = []
-        sequence = [ ui_package.confirm_installation_one_disk ]
     else:
         sequence = [ ui_package.select_primary_disk,
-                     ui_package.select_guest_disks,
-                     ui_package.confirm_destroy_disks ]
+                     ui_package.select_guest_disks ]
     
+    return uicontroller.runUISequence(sequence, answers)
+
+def confirm_installation(answers):
+    ui_package = answers['ui-package']
+    disks = getDiskList()
+
+    if len(disks) == 1:
+        sequence = [ ui_package.confirm_installation_one_disk ]
+    else:
+        sequence = [ ui_package.confirm_installation_multiple_disks ]
+
     return uicontroller.runUISequence(sequence, answers)
 
 
@@ -78,3 +79,14 @@ def runCmd(command):
     global log_redirect
     actualCmd = "%s %s" % (command, log_redirect)
     return os.system(actualCmd)
+
+def makeHumanList(list):
+    if len(list) == 0:
+        return ""
+    elif len(list) == 1:
+        return list[0]
+    else:
+        start = ", ".join(list[:len(list) - 1])
+        start += " and %s" % list[len(list) - 1]
+        return start
+                          
