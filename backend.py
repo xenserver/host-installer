@@ -450,7 +450,7 @@ def configureNetworking(mounts, answers):
         # no - go through each interface manually:
         for i in mancfg:
             iface = mancfg[i]
-            ifcfd = open("%s/etc/sysconfig/network-scripts/%s" % (mounts['rws'], i), "w")
+            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
             if iface['use-dhcp']:
                 writeDHCPConfigFile(ifcfd, i, generalui.getHWAddr(i))
             else:
