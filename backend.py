@@ -276,8 +276,8 @@ def installGrub(disk):
     grubconf += "default 0\n"
     grubconf += "serial --unit=0 speed=115200\n"
     grubconf += "terminal serial console\n"
-    grubconf += "timeout 3\n"
-    grubconf += "hiddenmenu\n"
+    grubconf += "timeout 10\n"
+    #grubconf += "hiddenmenu\n"
     grubconf += "title %s\n" % PRODUCT_NAME
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-3.0.0.gz\n"
@@ -531,32 +531,6 @@ def copyXgts(mounts, answers):
         os.mkdir("%s/xgt" % mounts['dropbox'])
     copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
 
-
-# ADP - TODO: this should be created at build time.
-def writeEjectRcs():
-    for file in ['/etc/rc6.d/S75eject', '/etc/rc0.d/S75eject' ]:
-        rcFile = open("%s" % file, "w")
-        rcFile.write("#! /bin/sh\n")
-        rcFile.write("PATH=/sbin:/bin:/usr/bin\n")
-        rcFile.write("[ -f /etc/default/rcS ] && . /etc/default/rcS\n")
-        rcFile.write(". /lib/lsb/init-functions\n")
-        rcFile.write("do_stop () {\n")
-        rcFile.write('    log_begin_msg "Ejecting CD..."\n')
-        rcFile.write("    /usr/bin/eject > /dev/null 2>/dev/null\n")
-        rcFile.write("    log_end_msg $?\n")
-        rcFile.write("}\n")
-        rcFile.write('case "$1" in\n')
-        rcFile.write("    stop)\n")
-        rcFile.write("        do_stop\n")
-        rcFile.write("        ;;\n")
-        rcFile.write("    *)\n")
-        rcFile.write("        ;;\n")
-        rcFile.write("esac\n")
-        rcFile.write(": exit 0\n")
-        rcFile.write("\n")
-        rcFile.close()
-        os.system("chmod a+x %s" % file)
-
 ###
 # Compress root filesystem and save to disk:
 def finalise(answers):
@@ -576,7 +550,6 @@ def finalise(answers):
 
     # now remove the temporary volume
     assert runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name)) == 0
-    writeEjectRcs()
 
 
 ################################################################################
