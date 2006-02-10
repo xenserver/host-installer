@@ -506,12 +506,12 @@ def configureNetworking(mounts, answers):
         # Copy the file if it exists
         if os.path.isfile("%s/%s" % (mounts["root"], file)):
             assert runCmd("cp -f %s/%s %s/%s" % (mounts["root"], file, mounts["rws"], file)) == 0
-        assert runCmd("ln -sf /rws/%s %s/%s" % (file, mounts["root"], file)) == 0
+        assert runCmd("ln -sf /rws%s %s/%s" % (file, mounts["root"], file)) == 0
     for dir in writeable_dirs:
         assert runCmd("mkdir -p %s/%s" % (mounts['rws'], dir)) == 0
         runCmd("cp -rf %s/%s/* %s/%s" % (mounts['root'], dir, mounts['rws'], dir) )
         assert runCmd("rm -rf %s/%s" % (mounts['root'], dir)) == 0
-        assert runCmd("ln -sf /rws/%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
+        assert runCmd("ln -sf /rws%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
 
     # now symlink from dom0:
     assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"]) == 0
