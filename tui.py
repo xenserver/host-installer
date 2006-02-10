@@ -226,7 +226,7 @@ def get_iface_configuration(answers, args):
     (button, (ip, snm, gw)) = EntryWindow(screen,
                                           "Configuration for %s" % iface,
                                           "Please give configuration details for the interface %s" % iface,
-                                          ['IP Address;', 'Subnet mask:', 'Gateway:'],
+                                          ['IP Address:', 'Subnet mask:', 'Gateway:'],
                                           buttons = ['Ok', 'Back'])
 
     answers[iface] = {'use-dhcp': False,
