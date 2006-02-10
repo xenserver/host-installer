@@ -522,6 +522,9 @@ def writeModprobeConf(mounts, answers):
     # mount proc and sys in the filesystem
     runCmd("mount -t proc none %s/proc" % mounts['root'])
     runCmd("mount -t sysfs none %s/sys" % mounts['root'])
+    #####
+    #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
+    #####
     assert runCmd("chroot %s kudzu -q -k 2.6.12.6-xen" % mounts['root']) == 0
     runCmd("umount %s/{proc,sys}" % mounts['root'])
     
