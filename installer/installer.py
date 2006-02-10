@@ -29,7 +29,7 @@ def main():
         
         while True:
             screen = SnackScreen()
-            screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s" % (PRODUCT_NAME, PRODUCT_VERSION))
+            screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s (%s)" % (PRODUCT_NAME, PRODUCT_VERSION, BUILD_NUMBER))
             screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
     
             entries = [ 
