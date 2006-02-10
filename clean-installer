@@ -38,23 +38,28 @@ def main():
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
             
-    results = { 'ui-package': ui_package }
-    
-    ui_package.init_ui(results)
-
-    seq = [ ui_package.welcome_screen,
-            generalui.disk_selection,
-            ui_package.get_root_password,
-            ui_package.determine_basic_network_config,
-            ui_package.need_manual_hostname,
-            generalui.confirm_installation]
-
-    uicontroller.runUISequence(seq, results)
-
-    backend.performInstallation(results)
-    
-    seq = [ ui_package.installation_complete ]
-    uicontroller.runUISequence(seq, results)
+    try:
+	    results = { 'ui-package': ui_package }
+	    
+	    ui_package.init_ui(results)
+	
+	    seq = [ ui_package.welcome_screen,
+	            generalui.disk_selection,
+	            ui_package.get_root_password,
+	            ui_package.determine_basic_network_config,
+	            ui_package.need_manual_hostname,
+	            generalui.confirm_installation]
+	
+	    uicontroller.runUISequence(seq, results)
+	
+	    backend.performInstallation(results)
+	    
+	    seq = [ ui_package.installation_complete ]
+	    uicontroller.runUISequence(seq, results)
+    except Exception, e:
+        # clean up the screen
+        ui_package.end_ui()
+        raise
     
     ui_package.end_ui()
 
