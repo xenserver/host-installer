@@ -150,7 +150,7 @@ def determine_distrib(os_install):
     if os_name == "Red Hat":
         return "rhel"
     elif os_name == "SuSE":
-        return "sles"
+        return "sles9"
     
 def add_xgt_version():
     template_string = ""
@@ -160,9 +160,17 @@ def add_xgt_version():
 
 def add_xgt_type():
     template_string = ""
-    template_string += open_tag(constants.TAG_XGT_TYPE, "archive")
+    template_string += open_tag(constants.TAG_XGT_TYPE, "p2v-archive")
     template_string += close_tag(constants.TAG_XGT_TYPE)
     return template_string
+
+# pp2vp = post p2v processing :)
+def add_pp2vp():
+    template_string = ""
+    template_string += open_tag(constants.TAG_XGT_PP2VP, "yes")
+    template_string += close_tag(constants.TAG_XGT_PP2VP)
+    return template_string
+
     
 def add_name(os_install):
     template_string = ""
@@ -261,6 +269,7 @@ def write_template(os_install):
     template_string += open_tag(constants.TAG_XGT)
     template_string += add_xgt_version()
     template_string += add_xgt_type()
+    template_string += add_pp2vp(os_install)
     template_string += add_name(os_install)
     template_string += add_distrib(os_install)
     template_string += add_mem_info(os_install)
