@@ -53,7 +53,12 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/hosts',
                     '/etc/issue',
                     '/etc/adjtime' ]
-                                
+
+asserted_dirs = [ '/etc',
+                  '/etc/sysconfig',
+                  '/etc/sysconfig/network-scripts',
+                  '/etc/lvm' ]
+
 writeable_dirs = [ '/etc/ntp',
                    '/etc/lvm/archive',
                    '/etc/lvm/backup',
@@ -135,6 +140,7 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(17, pd)
 
     # complete the installation:
+    makeSymlinks(mounts, answers)    
     umountVolumes(mounts)
     finalise(answers)
     ui_package.displayProgressDialog(20, pd)
@@ -442,7 +448,8 @@ def configureNetworking(mounts, answers):
         fd.write("TYPE=ethernet\n")
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
-            
+
+    # make sure the directories in rws exist to write to:
     assertDirs("%s/etc" % mounts['rws'],
                "%s/etc/sysconfig" % mounts['rws'],
                "%s/etc/sysconfig/network-scripts" % mounts['rws'])
@@ -456,9 +463,8 @@ def configureNetworking(mounts, answers):
             writeDHCPConfigFile(ifcfd, i, generalui.getHWAddr(i))
             ifcfd.close()
 
-            # symlink from Dom0 -> RWS:
-            assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
-                          (i, mounts["root"], i)) == 0
+            # this is a writeable file:
+            writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
     else:
         # no - go through each interface manually:
         for i in mancfg:
@@ -479,9 +485,8 @@ def configureNetworking(mounts, answers):
                 ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
                 ifcfd.write("PEERDNS=yes\n")
 
-            # symlink from Dom0 -> RWS:
-            assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-%s %s/etc/sysconfig/network-scripts/ifcfg-%s" %
-                          (i, mounts["root"], i)) == 0
+            # this is a writeable file:
+            writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
                           
             ifcfd.close()
 
@@ -495,9 +500,8 @@ def configureNetworking(mounts, answers):
     out.write("ONBOOT=yes\n")
     out.write("NAME=loopback\n")
     out.close()
-    
-    assert runCmd("ln -sf /rws/etc/sysconfig/network-scripts/ifcfg-lo %s/etc/sysconfig/network-scripts/ifcfg-lo" %
-                   mounts["root"]) == 0
+
+    writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-lo")
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
@@ -508,21 +512,8 @@ def configureNetworking(mounts, answers):
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
 
-    for file in writeable_files:
-        # Copy the file if it exists
-        if os.path.isfile("%s/%s" % (mounts["root"], file)):
-            assert runCmd("cp -f %s/%s %s/%s" % (mounts["root"], file, mounts["rws"], file)) == 0
-        else:
-            assert runCmd("touch %s/%s" % (mounts["rws"], file)) == 0
-        assert runCmd("ln -sf /rws%s %s/%s" % (file, mounts["root"], file)) == 0
-    for dir in writeable_dirs:
-        assert runCmd("mkdir -p %s/%s" % (mounts['rws'], dir)) == 0
-        runCmd("cp -rf %s/%s/* %s/%s" % (mounts['root'], dir, mounts['rws'], dir) )
-        assert runCmd("rm -rf %s/%s" % (mounts['root'], dir)) == 0
-        assert runCmd("ln -sf /rws%s/ %s/%s" % (dir, mounts["root"], dir)) == 0
-
     # now symlink from dom0:
-    assert runCmd("ln -sf /rws/etc/sysconfig/network %s/etc/sysconfig/network" % mounts["root"]) == 0
+    writeable_files.append("/etc/sysconfig/network")
 
 def writeModprobeConf(mounts, answers):
     # mount proc and sys in the filesystem
@@ -543,10 +534,47 @@ def copyXgts(mounts, answers):
         os.mkdir("%s/xgt" % mounts['dropbox'])
     copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
 
+# make appropriate symlinks according to writeable_files and writeable_dirs:
+def makeSymlinks(mounts, answers):
+    global writeable_dirs, writeable_files
+
+    # make sure required directories exist:
+    for dir in asserted_dirs:
+        assertDir("%s%s" % (mounts['root'], dir))
+        assertDir("%s%s" % (mounts['rws'], dir))
+
+    # link directories:
+    for dir in writeable_dirs:
+        rws_dir = "%s%s" % (mounts['rws'], dir)
+        dom0_dir = "%s%s" % (mounts['root'], dir)
+        if not os.path.isdir(rws_dir):
+            os.mkdir(rws_dir)
+
+        if os.path.isdir(dom0_dir):
+	    copyFilesFromDir(dom0_dir, rws_dir)
+
+        runCmd("rm -rf %s" % dom0_dir)
+        assert runCmd("ln -sf /rws/%s %s" % (dir, dom0_dir)) == 0
+
+    # now link files:
+    for file in writeable_files:
+        rws_file = "%s%s" % (mounts['rws'], file)
+        dom0_file = "%s%s" % (mounts['root'], file)
+
+        # make sure the destination file exists:
+	if not os.path.isfile(rws_file):
+	    if os.path.isfile(dom0_file):
+                runCmd("cp %s %s" % (dom0_file, rws_file))
+            else:
+                fd = open(rws_file, 'w')
+                fd.close()
+
+        assert runCmd("ln -sf /rws%s %s" % (file, dom0_file)) == 0
+        
 def copyRpms(mounts, answers):
     if not os.path.isdir("%s/rpms" % mounts['dropbox']):
         os.mkdir("%s/rpms" % mounts['dropbox'])
-    copyFilesFromDir(rpm_location, "%s/rpms" % mounts['dropbox'])
+    copyFilesFromDir(rpms_location, "%s/rpms" % mounts['dropbox'])
 
 ###
 # Compress root filesystem and save to disk:
@@ -560,7 +588,6 @@ def finalise(answers):
     if not os.path.isdir("/tmp/boot"):
         os.mkdir("/tmp/boot")
     assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
-#    assert runCmd("mkcramfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
     assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
 
     assert runCmd("umount /tmp/{root,boot}") == 0
@@ -609,4 +636,4 @@ def copyFilesFromDir(sourcedir, dest):
 
     files = os.listdir(sourcedir)
     for f in files:
-        assert runCmd("cp %s/%s %s/" % (sourcedir, f, dest)) == 0
+        assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
