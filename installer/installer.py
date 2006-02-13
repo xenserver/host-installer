@@ -34,7 +34,7 @@ def main():
     
             entries = [ 
                     ' * %s Install (clean install)' % PRODUCT_NAME,
-#                    ' * P2V (existing OS install)',
+                    ' * P2V (existing OS install)',
                     ' * Reboot machine'
                      ]
             (button, entry) = ListboxChoiceWindow(screen,
