@@ -29,6 +29,16 @@ def end_ui():
     
     if screen:
         screen.finish()
+        
+def suspend_ui():
+    global screen
+    if screen:
+        screen.suspend()
+        
+def resume_ui():
+    global screen
+    if screen:
+        screen.resume()
 
 # welcome screen:
 def welcome_screen(answers):

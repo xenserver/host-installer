@@ -35,6 +35,7 @@ xen_version = "3.0.1"
 dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 xgt_location = "/opt/xensource/xgt/"
+rpms_location = "/opt/xensource/rpms/"
 
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
 dom0tmpfs_size = 200
@@ -109,7 +110,9 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(9, pd)
 
     # set the root password:
+    ui_package.suspend_ui()
     setRootPassword(mounts, answers)
+    ui_package.resume_ui()
     ui_package.displayProgressDialog(10, pd)
 
     # set system time
@@ -127,6 +130,9 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(15, pd)
     copyXgts(mounts, answers)
     ui_package.displayProgressDialog(16, pd)
+
+    copyRpms(mounts, answers)
+    ui_package.displayProgressDialog(17, pd)
 
     # complete the installation:
     umountVolumes(mounts)
@@ -536,6 +542,11 @@ def copyXgts(mounts, answers):
     if not os.path.isdir("%s/xgt" % mounts['dropbox']):
         os.mkdir("%s/xgt" % mounts['dropbox'])
     copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
+
+def copyRpms(mounts, answers):
+    if not os.path.isdir("%s/rpms" % mounts['dropbox']):
+        os.mkdir("%s/rpms" % mounts['dropbox'])
+    copyFilesFromDir(rpm_location, "%s/rpms" % mounts['dropbox'])
 
 ###
 # Compress root filesystem and save to disk:
