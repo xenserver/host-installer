@@ -54,6 +54,7 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/resolv.conf',
                     '/etc/hosts',
                     '/etc/issue',
+                    '/etc/exports',
                     '/etc/adjtime' ]
 
 asserted_dirs = [ '/etc',
