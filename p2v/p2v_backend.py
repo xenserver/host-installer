@@ -165,7 +165,7 @@ def add_xgt_type():
     return template_string
 
 # pp2vp = post p2v processing :)
-def add_pp2vp():
+def add_pp2vp(os_install):
     template_string = ""
     template_string += open_tag(constants.TAG_XGT_PP2VP, "yes")
     template_string += close_tag(constants.TAG_XGT_PP2VP)
