@@ -142,7 +142,7 @@ def get_root_password(answers):
         if button == 'back':
             return -1
         
-        (pw, conf) = result[1]
+        (pw, conf) = result
         if pw == conf:
             if pw == None or len(pw) == 0:
                 ButtonChoiceWindow(screen,
