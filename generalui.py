@@ -8,6 +8,8 @@
 import os
 import uicontroller
 
+timezone_data_file = '/opt/xensource/clean-installer/timezones'
+
 def getDiskList():
     pipe = os.popen("blockdev --report | grep -v '.*[0-9]$' | awk '{ print $7 }'")
     devices = []
@@ -35,6 +37,16 @@ def getNetifList():
     pipe.close()
 
     return interfaces
+
+def getTimeZones():
+    global timezone_data_file
+
+    tzf = open(timezone_data_file)
+    lines = tzf.readlines()
+    tzf.close()
+
+    # strip trailing newlines:
+    return map(lambda x: x.strip('\n'), lines)
 
 # TODO
 def getHWAddr(iface):

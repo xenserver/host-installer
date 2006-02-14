@@ -8,6 +8,8 @@
 import os
 import os.path
 import subprocess
+import datetime
+import time
 
 import tui
 import generalui
@@ -428,9 +430,37 @@ def writeFstab(mounts, answers):
         fstab.close()
     
 def setTime(mounts, answers):
-    ### the UI will have to do this, because there would be too big a time-gap
-    ### between now and when the question was asked.
-    pass
+    global writeable_files
+    
+    # first, calculate the difference between the current time
+    # and the time when the user entered their desired time, and
+    # find the actual desired time:
+    now = datetime.datetime.now()
+    delta = now - answers['set-time-dialog-dismissed']
+    newtime = answers['localtime'] + delta
+
+    # now set the local time zone variable and use it:
+    os.environ['TZ'] = answers['timezone']
+    time.tzset()
+
+    # set the local time according to newtime:
+    year = str(newtime.year)[2:]
+    timestr = "%s-%s-%s %s:%s" % (year, newtime.month,
+                                  newtime.day, newtime.hour,
+                                  newtime.minute)
+    assert runCmd("date --set='%s'" % timestr) == 0
+    assert runCmd("hwclock --systohc") == 0
+
+    # write the time configuration to the /etc/sysconfig/clock
+    # file in dom0:
+    timeconfig = open("%s/etc/sysconfig/clock" % mounts['root'], 'w')
+    timeconfig.write("ZONE=%s\n" % answers['timezone'])
+    timeconfig.write("UTC=true\n")
+    timeconfig.write("ARC=false\n")
+    timeconfig.close()
+
+    writeable_files.append('/etc/sysconfig/clock')
+    
 
 def setRootPassword(mounts, answers):
     # avoid using shell here to get around potential security issues.

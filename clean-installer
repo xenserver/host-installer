@@ -46,6 +46,8 @@ def main():
 	    seq = [ ui_package.welcome_screen,
 	            generalui.disk_selection,
 	            ui_package.get_root_password,
+                    ui_package.get_timezone,
+                    ui_package.set_time,
 	            ui_package.determine_basic_network_config,
 	            ui_package.need_manual_hostname,
 	            generalui.confirm_installation]

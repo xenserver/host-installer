@@ -13,6 +13,8 @@ import generalui
 import uicontroller
 from version import *
 
+import datetime
+
 screen = None
 
 # functions to start and end the GUI - these create and destroy a snack screen as
@@ -288,6 +290,50 @@ def need_manual_hostname(answers):
         rv = -1
 
     return rv
+
+def get_timezone(answers):
+    global screen
+
+    entries = generalui.getTimeZones()
+
+    (button, entry) = ListboxChoiceWindow(screen,
+                                          "Select Timezone",
+                                          "Which timezone is the managed host in?",
+                                          entries,
+                                          ['Ok', 'Back'], height = 8, scroll = 1)
+
+    if button == "ok" or button == None:
+        answers['timezone'] = entries[entry]
+        return 1
+    
+    if button == "back": return -1
+
+def set_time(answers):
+    global screen
+
+    now = datetime.datetime.now()
+
+    result = EntryWindow(screen,
+                         "Set local time",
+                         "Please enter the current date and time",
+                         [('Day (DD)', Entry(3, str(now.day))),
+                          ('Month (MM)', Entry(3, str(now.month))),
+                          ('Year (YYYY)', Entry(5, str(now.year))),
+                          ('Hour (0-23)', Entry(3, str(now.hour))),
+                          ('Minute (0-59)', Entry(3, str(now.minute)))],
+                         buttons = ['Ok', 'Back'])
+
+    (button, (day, month, year, hour, minute)) = result
+
+    if button == 'ok':
+        answers['set-time-dialog-dismissed'] = datetime.datetime.now()
+        answers['localtime'] = datetime.datetime(int(year),
+                                                 int(month),
+                                                 int(day),
+                                                 int(hour),
+                                                 int(minute))
+        return 1
+    if button == 'back': return -1
 
 def installation_complete(answers):
     global screen
