@@ -180,6 +180,24 @@ def add_name(os_install):
     template_string += open_tag(constants.TAG_NAME, "'P2V of os_install %s %s of host %s'" % (os_name, os_version, host_name))
     template_string += close_tag(constants.TAG_NAME)
     return template_string
+
+def add_rootfs(os_install):
+	template_string = ""
+	fs = ""
+	if os_install['dev_attrs'] != None:
+		sec_type = os_install['dev_attrs']['sec_type']
+    	fs_type = os_install['dev_attrs']['type']
+
+	if sec_type != None:
+		print "sectype = ", sec_type
+		fs = sec_type
+	else:
+		if fs_type != None:
+			print "fs_type = ", fs_type
+			fs = fs_type
+	template_string += open_tag("rootfs-type", fs)
+	template_string += close_tag("rootfs-type")
+	return template_string
     
 def add_distrib(os_install):
     template_string = ""
@@ -271,6 +289,7 @@ def write_template(os_install):
     template_string += add_xgt_type()
     template_string += add_pp2vp(os_install)
     template_string += add_name(os_install)
+    template_string += add_rootfs(os_install)
     template_string += add_distrib(os_install)
     template_string += add_mem_info(os_install)
     template_string += add_cpu_count(os_install)
