@@ -208,7 +208,7 @@ def handle_root(mntpnt, dev_name, pd = None):
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
     rc, out = run_command("tar cjvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
     if not rc == 0:
-        raise P2VError("Failed to handle root - tar failed")
+        raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % rc, out)
     
     ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
     rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
@@ -248,7 +248,6 @@ def inspect_root(dev_name, dev_attrs, results):
                p2v_utils.trace_message("found os name: %s" % parts[0])
                p2v_utils.trace_message("found os version : %s" % parts[1])
                
-               #results.append([parts[0], parts[1], dev_name, dev_attrs, out])
                os_install[constants.OS_NAME] = parts[0]
                os_install[constants.OS_VERSION] = parts[1]
                os_install[constants.DEV_NAME] = dev_name

@@ -20,15 +20,15 @@ which_os () {
 	"redhat-release")
 		printf "Red Hat"
 		;;
-#	"SuSE-release")
-#		printf "SuSE"
-#		;;
-#	"fedora-release")
-#		printf "Fedora"
-#		;;
-#	"debian_version")
-#		printf "Debian"
-#		;;
+	"SuSE-release")
+		printf "SuSE"
+		;;
+	"fedora-release")
+		printf "Fedora"
+		;;
+	"debian_version")
+		printf "Debian"
+		;;
 	*)
 		printf "unknown"
 		;;

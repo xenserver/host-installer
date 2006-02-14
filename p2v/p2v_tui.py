@@ -94,6 +94,12 @@ def get_os_installs(answers):
     
     return os_installs
 
+def isP2Vable(os):
+    if os[constants.OS_NAME] != "Red Hat" or os[constants.OS_VERSION] != "4.1":
+            return False;
+    else:
+        return True;
+
 #let the user chose the OS install
 def os_install_screen(answers):
     global screen
@@ -103,7 +109,8 @@ def os_install_screen(answers):
 
     os_installs = get_os_installs(answers)
     for os in os_installs: 
-        os_install_strings.append(os[constants.OS_NAME] + " " + os[constants.OS_VERSION] + "  (" + os[constants.DEV_NAME] + ")")
+        if isP2Vable(os):
+            os_install_strings.append(os[constants.OS_NAME] + " " + os[constants.OS_VERSION] + "  (" + os[constants.DEV_NAME] + ")")
     if p2v_utils.is_debug():
         if screen: screen.resume()
     

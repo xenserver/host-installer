@@ -141,6 +141,7 @@ def performInstallation(answers):
 
     # complete the installation:
     makeSymlinks(mounts, answers)    
+    ui_package.displayProgressDialog(18, pd)
     umountVolumes(mounts)
     finalise(answers)
     ui_package.displayProgressDialog(20, pd)
