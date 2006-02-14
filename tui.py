@@ -134,11 +134,13 @@ def get_root_password(answers):
     done = False
     
     while not done:
-        result = PasswordEntryWindow(screen,
+        (button, result) = PasswordEntryWindow(screen,
                                      "Set Password",
                                      "Please specify the admin password for this installation",
                                      ['Password', 'Confirm'],
-                                     buttons = ['Ok'])
+                                     buttons = ['Ok', 'Back'])
+        if button == 'back':
+            return -1
         
         (pw, conf) = result[1]
         if pw == conf:
@@ -155,8 +157,9 @@ def get_root_password(answers):
                                "The passwords you entered did not match.  Please try again.",
                                ['Ok'])
 
+    # if they didn't select OK we should have returned already
+    assert button == 'ok'
     answers['root-password'] = pw
-
     return 1
 
 def determine_basic_network_config(answers):
