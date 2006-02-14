@@ -54,7 +54,6 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/resolv.conf',
                     '/etc/hosts',
                     '/etc/issue',
-                    '/etc/exports',
                     '/etc/adjtime' ]
 
 asserted_dirs = [ '/etc',
@@ -142,9 +141,13 @@ def performInstallation(answers):
     copyRpms(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
 
+    initNfs(mounts, answers)
+    ui_package.displayProgressDialog(18, pd)
+    
     # complete the installation:
     makeSymlinks(mounts, answers)    
-    ui_package.displayProgressDialog(18, pd)
+    ui_package.displayProgressDialog(19, pd)
+    
     umountVolumes(mounts)
     finalise(answers)
     ui_package.displayProgressDialog(20, pd)
@@ -602,6 +605,10 @@ def makeSymlinks(mounts, answers):
                 fd.close()
 
         assert runCmd("ln -sf /rws%s %s" % (file, dom0_file)) == 0
+        
+def initNfs(mount, answers):
+    exports = open("%s/etc/exports" % mounts['root'] , "w")
+    exports.write("/dropbox    *(rw,async,no_root_squash)")
         
 def copyRpms(mounts, answers):
     if not os.path.isdir("%s/rpms" % mounts['dropbox']):
