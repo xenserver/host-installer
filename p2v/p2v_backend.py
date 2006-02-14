@@ -90,7 +90,7 @@ def nfs_p2v( nfs_host, nfs_path, os_install ):
     perform_p2v( os_install, inbox_path )
         
 def mount_inbox( xe_host ):    
-    inbox_path = "/inbox"
+    inbox_path = "/dropbox/xgt"
     fs_mount_path = nfs_mount( xe_host +":" + inbox_path )
     return fs_mount_path
 
