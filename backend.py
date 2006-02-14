@@ -73,8 +73,8 @@ writeable_dirs = [ '/etc/ntp',
 def performInstallation(answers):
     global ui_package
 
-    pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_NAME,
-                                       'Installing %s, please wait...' % PRODUCT_NAME,
+    pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_NAME.capitalize(),
+                                       'Installing %s, please wait...' % PRODUCT_NAME.capitalize(),
                                        20)
 
     ui_package.displayProgressDialog(0, pd)
@@ -294,17 +294,17 @@ def installGrub(disk):
     grubconf += "terminal serial console\n"
     grubconf += "timeout 10\n"
     #grubconf += "hiddenmenu\n"
-    grubconf += "title %s\n" % PRODUCT_NAME
+    grubconf += "title %s\n" % PRODUCT_NAME.capitalize()
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz\n" % xen_version
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-    grubconf += "title %s (Serial)\n" % PRODUCT_NAME
+    grubconf += "title %s (Serial)\n" % PRODUCT_NAME.capitalize()
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty\n" % xen_version
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-    grubconf += "title %s in Safe Mode\n" % PRODUCT_NAME
+    grubconf += "title %s in Safe Mode\n" % PRODUCT_NAME.capitalize()
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot com1=115200,8n1 console=com1,tty\n" % xen_version
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
