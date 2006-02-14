@@ -606,7 +606,7 @@ def makeSymlinks(mounts, answers):
 
         assert runCmd("ln -sf /rws%s %s" % (file, dom0_file)) == 0
         
-def initNfs(mount, answers):
+def initNfs(mounts, answers):
     exports = open("%s/etc/exports" % mounts['root'] , "w")
     exports.write("/dropbox    *(rw,async,no_root_squash)")
         
