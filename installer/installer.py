@@ -47,8 +47,12 @@ def main():
                      rc = os.system("/opt/xensource/clean-installer/clean-installer")
                      if rc == 0: 
                          os.system("reboot")
+                     else:
+                         sys.exit(rc)
                 elif entry == 1:
-                    os.system("/opt/xensource/clean-installer/p2v.py")
+                    rc = os.system("/opt/xensource/clean-installer/p2v.py")
+                    if rc != 0:
+                        sys.exit(rc)
                 elif entry == 2:
                     button = ButtonChoiceWindow(screen,
                            "Confirm",
