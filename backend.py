@@ -143,7 +143,7 @@ def performInstallation(answers):
 
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
-    
+    writeEjectRcs(mounts, answers)
     # complete the installation:
     makeSymlinks(mounts, answers)    
     ui_package.displayProgressDialog(19, pd)
@@ -609,6 +609,34 @@ def makeSymlinks(mounts, answers):
 def initNfs(mounts, answers):
     exports = open("%s/etc/exports" % mounts['root'] , "w")
     exports.write("/dropbox    *(rw,async,no_root_squash)")
+    runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
+
+# ADP - TODO: this should be created at build time.
+def writeEjectRcs(mounts, answers):
+    for file in ['/etc/rc6.d/S75eject', '/etc/rc0.d/S75eject' ]:
+        os.unlink(file)
+        rcFile = open("%s" % file, "w")
+        rcFile.write("#! /bin/sh\n")
+        rcFile.write("PATH=/sbin:/bin:/usr/bin\n")
+        rcFile.write("[ -f /etc/default/rcS ] && . /etc/default/rcS\n")
+        rcFile.write(". /lib/lsb/init-functions\n")
+        rcFile.write("do_stop () {\n")
+        rcFile.write('    log_begin_msg "Ejecting CD..."\n')
+        rcFile.write("    /usr/bin/eject > /dev/null 2>/dev/null\n")
+        rcFile.write("    log_end_msg $?\n")
+        rcFile.write("}\n")
+        rcFile.write('case "$1" in\n')
+        rcFile.write("    stop)\n")
+        rcFile.write("        do_stop\n")
+        rcFile.write("        ;;\n")
+        rcFile.write("    *)\n")
+        rcFile.write("        ;;\n")
+        rcFile.write("esac\n")
+        rcFile.write(": exit 0\n")
+        rcFile.write("\n")
+        rcFile.close()
+        os.system("chmod a+x %s" % file)
+    
         
 def copyRpms(mounts, answers):
     if not os.path.isdir("%s/rpms" % mounts['dropbox']):
