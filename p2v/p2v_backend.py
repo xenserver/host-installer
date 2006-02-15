@@ -243,7 +243,8 @@ def add_type(os_install):
     
 def add_vbd(os_install):
     template_string = ""
-    template_string += open_tag(constants.TAG_FILESYSTEM_VBD, os.path.basename(os_install[constants.DEV_NAME]))
+#    template_string += open_tag(constants.TAG_FILESYSTEM_VBD, os.path.basename(os_install[constants.DEV_NAME]))
+    template_string += open_tag(constants.TAG_FILESYSTEM_VBD, 'sda1')
     template_string += close_tag( constants.TAG_FILESYSTEM_VBD)
     return template_string
 
