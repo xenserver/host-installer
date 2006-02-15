@@ -329,6 +329,7 @@ def set_time(answers):
     (button, (day, month, year, hour, minute)) = result
 
     if button == 'ok':
+        answers['set-time'] = True
         answers['set-time-dialog-dismissed'] = datetime.datetime.now()
         answers['localtime'] = datetime.datetime(int(year),
                                                  int(month),

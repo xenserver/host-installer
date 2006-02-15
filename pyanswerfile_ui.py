@@ -65,6 +65,7 @@ def need_manual_hostname(answers):
 def get_timezone(answers):
     return 1
 def set_time(answers):
+    answers['set-time'] = False
     return 1
 def get_nameserver(answers):
     return 1

@@ -144,6 +144,7 @@ def performInstallation(answers):
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
     writeEjectRcs(mounts, answers)
+    
     # complete the installation:
     makeSymlinks(mounts, answers)    
     ui_package.displayProgressDialog(19, pd)
@@ -435,25 +436,27 @@ def writeFstab(mounts, answers):
     
 def setTime(mounts, answers):
     global writeable_files
-    
-    # first, calculate the difference between the current time
-    # and the time when the user entered their desired time, and
-    # find the actual desired time:
-    now = datetime.datetime.now()
-    delta = now - answers['set-time-dialog-dismissed']
-    newtime = answers['localtime'] + delta
 
-    # now set the local time zone variable and use it:
-    os.environ['TZ'] = answers['timezone']
-    time.tzset()
-
-    # set the local time according to newtime:
-    year = str(newtime.year)[2:]
-    timestr = "%s-%s-%s %s:%s" % (year, newtime.month,
-                                  newtime.day, newtime.hour,
-                                  newtime.minute)
-    assert runCmd("date --set='%s'" % timestr) == 0
-    assert runCmd("hwclock --systohc") == 0
+    # are we dealing with setting the time?
+    if answers['set-time']:
+        # first, calculate the difference between the current time
+        # and the time when the user entered their desired time, and
+        # find the actual desired time:
+        now = datetime.datetime.now()
+        delta = now - answers['set-time-dialog-dismissed']
+        newtime = answers['localtime'] + delta
+        
+        # now set the local time zone variable and use it:
+        os.environ['TZ'] = answers['timezone']
+        time.tzset()
+        
+        # set the local time according to newtime:
+        year = str(newtime.year)[2:]
+        timestr = "%s-%s-%s %s:%s" % (year, newtime.month,
+                                      newtime.day, newtime.hour,
+                                      newtime.minute)
+        assert runCmd("date --set='%s'" % timestr) == 0
+        assert runCmd("hwclock --systohc") == 0
 
     # write the time configuration to the /etc/sysconfig/clock
     # file in dom0:
