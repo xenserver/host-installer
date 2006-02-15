@@ -37,7 +37,7 @@ def append_hostname(os_install):
     os_install[constants.HOST_NAME] = os.uname()[1]
     
 def setup_networking(os_install):
-    findroot.run_command("ifup eth0");
+    findroot.run_command("ifup eth0 > /dev/null 2>&1");
 
 def determine_size(os_install):
     os_root_device = os_install[constants.DEV_NAME]
