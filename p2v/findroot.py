@@ -42,6 +42,10 @@ a dictionary created from the key/value pairs and the /dev entry as 'path'"""
     
 def scan():
     devices = {}
+    
+    #activate LVM
+    run_command("vgscan")
+    run_command("vgchange -a y")
     rc, out = run_command("/sbin/blkid -c /dev/null")
     if rc == 0 and out:
         for line in out.split("\n"):
@@ -127,7 +131,7 @@ def determine_size(mntpnt, dev_name):
     p2v_utils.trace_message("* Need to mount:")
     mounts = find_extra_mounts(fstab, devices)
     for mount_info in mounts:
-        p2v_utils.trace_message("  --", mount_info)
+#        p2v_utils.trace_message("  --", mount_info)
         extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
 
         rc = mount_dev(mount_info[0], mount_info[2],
@@ -189,7 +193,7 @@ def handle_root(mntpnt, dev_name, pd = None):
     p2v_utils.trace_message("* Need to mount:")
     mounts = find_extra_mounts(fstab, devices)
     for mount_info in mounts:
-        p2v_utils.trace_message("  --", mount_info)
+        #p2v_utils.trace_message("  --", mount_info)
         extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
 
         rc = mount_dev(mount_info[0], mount_info[2],

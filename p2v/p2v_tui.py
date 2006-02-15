@@ -104,15 +104,13 @@ def isP2Vable(os):
 def os_install_screen(answers):
     global screen
     os_install_strings = []
-    if p2v_utils.is_debug():
-        if screen: screen.suspend()
+    
+    
 
     os_installs = get_os_installs(answers)
     for os in os_installs: 
         if isP2Vable(os):
             os_install_strings.append(os[constants.OS_NAME] + " " + os[constants.OS_VERSION] + "  (" + os[constants.DEV_NAME] + ")")
-    if p2v_utils.is_debug():
-        if screen: screen.resume()
     
     if len(os_install_strings) > 0:
         (button, entry) = ListboxChoiceWindow(screen,
@@ -169,7 +167,17 @@ def failed_screen(answers):
     global screen
     ButtonChoiceWindow(screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
     return 1
+
+def displayPleaseWaitDialog():
+    global screen
+    form = GridFormHelp(screen, "Please wait...", None, 1, 3)
+    t = Textbox(60, 1, """Please wait while scanning for block devices.
+This can take a long time...""")
+    form.add(t, 0, 0, padding = (0,0,0,1))
     
+def removePleaseWaitDialog():
+    global screen
+    screen.popWindow()
 
 ###
 # Progress dialog:
