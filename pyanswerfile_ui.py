@@ -50,19 +50,23 @@ def welcome_screen(answers):
     return 1
 def confirm_installation_one_disk(answers):
     return 1
+def confirm_installation_multiple_disks(answers):
+    return 1
 def select_primary_disk(answers):
     return 1
 def select_guest_disks(answers):
     return 1
-def confirm_destroy_disks(answers):
-    return 1
-
-# - stage 2 install:
 def get_root_password(answers):
     return 1
 def determine_basic_network_config(answers):
     return 1
 def need_manual_hostname(answers):
+    return 1
+def get_timezone(answers):
+    return 1
+def set_time(answers):
+    return 1
+def get_nameserver(answers):
     return 1
 def installation_complete(answers):
     return 1
