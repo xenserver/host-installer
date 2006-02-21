@@ -60,14 +60,12 @@ def get_root_password(answers):
     return 1
 def determine_basic_network_config(answers):
     return 1
-def need_manual_hostname(answers):
-    return 1
 def get_timezone(answers):
     return 1
 def set_time(answers):
     answers['set-time'] = False
     return 1
-def get_nameserver(answers):
+def get_name_service_configuration():
     return 1
 def installation_complete(answers):
     return 1

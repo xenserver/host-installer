@@ -11,6 +11,7 @@
 from snack import *
 import generalui
 import uicontroller
+import sys
 from version import *
 
 import datetime
@@ -187,6 +188,84 @@ def determine_basic_network_config(answers):
     
     if button == "back": return -1
 
+def get_name_service_configuration(answers):
+    global screen
+
+    def auto_nameserver_change((cb, entries)):
+        for entry in entries:
+            entry.setFlags(FLAG_DISABLED, not cb.value())
+
+    def auto_hostname_change((cb, entry)):
+        entry.setFlags(FLAG_DISABLED, not cb.value())
+
+    gf = GridFormHelp(screen, 'Name Service Configuration', None, 1, 8)
+
+    text = TextboxReflowed(50, "How should the name service be configured?")
+    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+
+    auto_hostname = Checkbox("Automatically set hostname?", 1)
+    hostname_text = Textbox(15, 1, "Hostname:")
+    hostname = Entry(30)
+    hostname.setFlags(FLAG_DISABLED, 0)
+    hostname_grid = Grid(2, 1)
+    hostname_grid.setField(hostname_text, 0, 0)
+    hostname_grid.setField(hostname, 1, 0)
+    auto_hostname.setCallback(auto_hostname_change, (auto_hostname, hostname))
+
+    ns1_text = Textbox(15, 1, "Nameserver 1:")
+    ns1_entry = Entry(30)
+    ns1_grid = Grid(2, 1)
+    ns1_grid.setField(ns1_text, 0, 0)
+    ns1_grid.setField(ns1_entry, 1, 0)
+    
+    ns2_text = Textbox(15, 1, "Nameserver 2:")
+    ns2_entry = Entry(30)
+    ns2_grid = Grid(2, 1)
+    ns2_grid.setField(ns2_text, 0, 0)
+    ns2_grid.setField(ns2_entry, 1, 0)
+
+    ns3_text = Textbox(15, 1, "Nameserver 3:")
+    ns3_entry = Entry(30)
+    ns3_grid = Grid(2, 1)
+    ns3_grid.setField(ns3_text, 0, 0)
+    ns3_grid.setField(ns3_entry, 1, 0)
+
+    for entry in [ns1_entry, ns2_entry, ns3_entry]:
+        entry.setFlags(FLAG_DISABLED, 0)
+
+    auto_nameservers = Checkbox("Get DNS server list from DHCP?", 1)
+    auto_nameservers.setCallback(auto_nameserver_change, (auto_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
+
+    gf.add(text, 0, 0, padding = (0,0,0,1))
+    gf.add(auto_hostname, 0, 1)
+    gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
+    gf.add(auto_nameservers, 0, 3)
+    gf.add(ns1_grid, 0, 4)
+    gf.add(ns2_grid, 0, 5)
+    gf.add(ns3_grid, 0, 6, padding = (0,0,0,1))
+    
+    gf.add(buttons, 0, 7)
+
+    result = gf.runOnce()
+
+    if buttons.buttonPressed(result) == "ok":
+        # manual hostname?
+        if auto_hostname.value():
+            answers['manual-hostname'] = (False, None)
+        else:
+            answers['manual-hostname'] = (True, hostname.value())
+
+        # manual nameservers?
+        if auto_nameservers.value():
+            answers['manual-nameservers'] = (False, None)
+        else:
+            answers['manual-nameservers'] = (True, [ns1_entry.value(),
+                                                    ns2_entry.value(),
+                                                    ns3_entry.value()])
+
+        return 1
+    else:
+        return -1
 
 def get_autoconfig_ifaces(answers):
     global screen
@@ -251,48 +330,6 @@ def get_iface_configuration(answers, args):
     
     if button == 'ok': return 1
     if button == 'back': return -1
-
-def get_nameservers(answers):
-    global screen
-
-    (button, (ns1, ns2, ns3)) = EntryWindow(screen,
-                                            "Nameservers",
-                                            "Enter the hostnames or IP addresses of DNS hosts to be used for name resolution",
-                                            ['Nameserver 1', 'Nameserver 2', 'Nameserver 3'],
-                                            ['Ok', 'Back'])
-
-    answers['nameservers'] = [ ns1, ns2, ns3 ]
-
-    if button == "ok": return 1
-    if button == 'back': return -1
-
-def need_manual_hostname(answers):
-    global screen
-
-    button = ButtonChoiceWindow(screen,
-                                "Hostname",
-                                "Do you need to manually specify a hostname for this server?",
-                                ['No', 'Yes', 'Back'])
-
-    if button == "yes":
-        result = EntryWindow(screen,
-                             "Hostname",
-                             "Enter the hostname you would like to use for this server:",
-                             ['Hostname'],
-                             buttons = ['Ok', 'Back'])
-        if result[0] == 'ok':
-            (hn) = result[1]
-            rv = 1
-            answers['manual-hostname'] = (True, hn)
-        else:
-            rv = 0
-    elif button == "no":
-        rv = 1
-        answers['manual-hostname'] = (False, None)
-    else:
-        rv = -1
-
-    return rv
 
 def get_timezone(answers):
     global screen

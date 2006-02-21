@@ -128,6 +128,7 @@ def performInstallation(answers):
 
     # perform dom0 file system customisations:
     mkLvmDirs(mounts, answers)
+    writeResolvConf(mounts, answers)
     ui_package.displayProgressDialog(12, pd)
     configureNetworking(mounts, answers)
     ui_package.displayProgressDialog(13, pd)
@@ -434,6 +435,25 @@ def writeFstab(mounts, answers):
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
 
+def writeResolvConf(mounts, answers):
+    (manual_hostname, hostname) = answers['manual-hostname']
+    (manual_nameservers, nameservers) = answers['manual-nameservers']
+
+    if manual_nameservers:
+        resolvconf = open("%s/etc/resolv.conf" % mounts['root'], 'w')
+        if manual_hostname:
+            try:
+                dot = hostname.index('.')
+                if dot + 1 != len(hostname):
+                    dname = hostname[dot + 1:]
+                    resolvconf.write("search %s\n" % dname)
+            except:
+                pass
+        for ns in nameservers:
+            if ns != "":
+                resolvconf.write("nameserver %s\n" % ns)
+        resolvconf.close()
+
 def setTime(mounts, answers):
     global writeable_files
 
@@ -566,7 +586,7 @@ def writeModprobeConf(mounts, answers):
 def mkLvmDirs(mounts, answers):
     os.system("mkdir -p %s/etc/lvm/archive" % mounts["root"])
     os.system("mkdir -p %s/etc/lvm/backup" % mounts["root"])
-    
+
 def copyXgts(mounts, answers):
     if not os.path.isdir("%s/xgt" % mounts['dropbox']):
         os.mkdir("%s/xgt" % mounts['dropbox'])
@@ -617,7 +637,8 @@ def initNfs(mounts, answers):
 # ADP - TODO: this should be created at build time.
 def writeEjectRcs(mounts, answers):
     for file in ['/etc/rc6.d/S75eject', '/etc/rc0.d/S75eject' ]:
-        os.unlink(file)
+        if os.path.isfile(file):
+            os.unlink(file)
         rcFile = open("%s" % file, "w")
         rcFile.write("#! /bin/sh\n")
         rcFile.write("PATH=/sbin:/bin:/usr/bin\n")

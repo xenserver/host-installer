@@ -49,9 +49,9 @@ def main():
                 ui_package.get_timezone,
                 ui_package.set_time,
                 ui_package.determine_basic_network_config,
-                ui_package.need_manual_hostname,
+                ui_package.get_name_service_configuration,
                 ( generalui.confirm_installation, { 'ui-package': ui_package }) ]
-	
+
         uicontroller.runUISequence(seq, results)
 	
         backend.performInstallation(results)
