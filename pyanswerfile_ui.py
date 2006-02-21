@@ -65,7 +65,7 @@ def get_timezone(answers):
 def set_time(answers):
     answers['set-time'] = False
     return 1
-def get_name_service_configuration():
+def get_name_service_configuration(answers):
     return 1
 def installation_complete(answers):
     return 1
