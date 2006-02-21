@@ -25,7 +25,7 @@ def init_ui():
     global screen
 
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s" % PRODUCT_NAME.capitalize())
+    screen.drawRootText(0, 0, "Welcome to %s" % PRODUCT_BRAND)
     
 def redraw_screen():
     global screen
@@ -42,8 +42,8 @@ def welcome_screen(answers):
     global screen
 
     button = ButtonChoiceWindow(screen,
-                       "Welcome to %s P2V" % PRODUCT_NAME.capitalize(),
-                       """This will convert a locally installed OS install to a %s machine to be used as a Xen guest on that machine.""" % PRODUCT_NAME.capitalize(),
+                       "Welcome to %s P2V" % PRODUCT_BRAND,
+                       """This will convert a locally installed OS install to a %s machine to be used as a Xen guest on that machine.""" % PRODUCT_BRAND,
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
@@ -69,8 +69,8 @@ def target_screen(answers):
     if entry == 0:
         answers[constants.XEN_TARGET] = constants.XEN_TARGET_XE
         (button, xehost) = EntryWindow(screen,
-                "%s Host Information" % PRODUCT_NAME.capitalize(),
-                "Please enter the %s host information: " % PRODUCT_NAME.capitalize(),
+                "%s Host Information" % PRODUCT_BRAND,
+                "Please enter the %s host information: " % PRODUCT_BRAND,
                 ['Hostname or IP:'],
                 buttons= ['Ok', 'Back'])
         answers[constants.XE_HOST] = xehost[0]

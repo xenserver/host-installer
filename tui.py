@@ -24,7 +24,7 @@ def init_ui(results):
     global screen
     
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s Installer - Version %s" % (PRODUCT_NAME.capitalize(), PRODUCT_VERSION))
+    screen.drawRootText(0, 0, "Welcome to %s Installer - Version %s" % (PRODUCT_BRAND, PRODUCT_VERSION))
     screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
     
 def end_ui():
@@ -48,10 +48,10 @@ def welcome_screen(answers):
     global screen
 
     ButtonChoiceWindow(screen,
-                       "Welcome to %s Setup" % PRODUCT_NAME.capitalize(),
+                       "Welcome to %s Setup" % PRODUCT_BRAND,
                        """This CD will install %s on your server.
 
-Please ensure that you have backed up any critical data before proceeding, as the installation process will format any disks specified as to be used by %s on this server.""" % (PRODUCT_NAME.capitalize(), PRODUCT_NAME.capitalize()),
+Please ensure that you have backed up any critical data before proceeding, as the installation process will format any disks specified as to be used by %s on this server.""" % (PRODUCT_BRAND, PRODUCT_BRAND),
                        ['Ok'], width=60)
 
     # advance to next screen:
@@ -67,7 +67,7 @@ def select_primary_disk(answers):
                         "Select Primary Disk",
                         """Please select the disk you would like to use as the primary %s disk.
 
-Xen will be installed onto this disk, requiring 120MB, and the remaining space used for guest virtual machines.""" % PRODUCT_NAME.capitalize(),
+Xen will be installed onto this disk, requiring 120MB, and the remaining space used for guest virtual machines.""" % PRODUCT_BRAND,
                         entries,
                         ['Ok', 'Back'])
 
@@ -111,7 +111,7 @@ def confirm_installation_multiple_disks(answers):
                                 "Confirm Installation",
                                 """We have collected all the information required to install %s.
 
-If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_NAME.capitalize(), PRODUCT_NAME.capitalize(), disks_used),
+If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
                                 ['Ok', 'Back'])
 
     if button == "ok": return 1
@@ -124,7 +124,7 @@ def confirm_installation_one_disk(answers):
                                 "Confirm Installation",
                                 """Since your server only has a single disk, this will be used to install %s.
 
-Please confirm you wish to proceed; all data on this disk will be destroyed (vendor service partitions will be left intact)""" % PRODUCT_NAME.capitalize(),
+Please confirm you wish to proceed; all data on this disk will be destroyed (vendor service partitions will be left intact)""" % PRODUCT_BRAND,
                                 ['Ok', 'Back'])
 
     if button == "ok": return 1
@@ -383,7 +383,7 @@ def installation_complete(answers):
                        "Installation Complete",
                        """The %s installation has completed.  Please press enter to reboot the machine.
                        
-The CD will automatically eject upon reboot""" % PRODUCT_NAME.capitalize(),
+The CD will automatically eject upon reboot""" % PRODUCT_BRAND,
                        ['Ok'])
 
     return 1
