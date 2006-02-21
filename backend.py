@@ -433,7 +433,7 @@ def writeFstab(mounts, answers):
         fstab.write("none        /proc proc   defaults   0  0\n")
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
-    
+
 def setTime(mounts, answers):
     global writeable_files
 

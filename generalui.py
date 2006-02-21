@@ -52,8 +52,8 @@ def getTimeZones():
 def getHWAddr(iface):
     return None
 
-def disk_selection(answers):
-    ui_package = answers['ui-package']
+def disk_selection(answers, args):
+    ui_package = args['ui-package']
     disks = getDiskList()
 
     if len(disks) == 1:
@@ -65,8 +65,8 @@ def disk_selection(answers):
                      ui_package.select_guest_disks ]
         return uicontroller.runUISequence(sequence, answers)
 
-def confirm_installation(answers):
-    ui_package = answers['ui-package']
+def confirm_installation(answers, args):
+    ui_package = args['ui-package']
     disks = getDiskList()
 
     if len(disks) == 1:

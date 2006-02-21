@@ -5,16 +5,15 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
-# this will transform dict according to user input and will return a value
-# indication the mode of exit:
-#  0 == OK
-#  1 == Cancel selected
-def runUISequence(seq, answers):
+def runUISequence(seq, answers, previous_delta = 1):
     assert type(seq) == list
     assert type(answers) == dict
     assert len(seq) > 0
 
-    current = 0
+    if previous_delta == 1:
+        current = 0
+    else:
+        current = len(seq) -1
     delta = 0
 
     while current < len(seq) and current >= 0:

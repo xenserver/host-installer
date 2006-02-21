@@ -39,25 +39,25 @@ def main():
             ui_package = pyanswerfile_ui
             
     try:
-	    results = { 'ui-package': ui_package }
-	    
-	    ui_package.init_ui(results)
+        results = { 'ui-package': ui_package }
+        
+        ui_package.init_ui(results)
 	
-	    seq = [ ui_package.welcome_screen,
-	            generalui.disk_selection,
-	            ui_package.get_root_password,
-                    ui_package.get_timezone,
-                    ui_package.set_time,
-	            ui_package.determine_basic_network_config,
-	            ui_package.need_manual_hostname,
-	            generalui.confirm_installation]
+        seq = [ ui_package.welcome_screen,
+                ( generalui.disk_selection, { 'ui-package': ui_package  }),
+                ui_package.get_root_password,
+                ui_package.get_timezone,
+                ui_package.set_time,
+                ui_package.determine_basic_network_config,
+                ui_package.need_manual_hostname,
+                ( generalui.confirm_installation, { 'ui-package': ui_package }) ]
 	
-	    uicontroller.runUISequence(seq, results)
+        uicontroller.runUISequence(seq, results)
 	
-	    backend.performInstallation(results)
-	    
-	    seq = [ ui_package.installation_complete ]
-	    uicontroller.runUISequence(seq, results)
+        backend.performInstallation(results)
+        
+        seq = [ ui_package.installation_complete ]
+        uicontroller.runUISequence(seq, results)
     except Exception, e:
         # clean up the screen
         ui_package.end_ui()
