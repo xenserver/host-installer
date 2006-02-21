@@ -293,7 +293,7 @@ def installGrub(disk):
     global grubroot
     
     # grub configuration - placed here for easy editing.  Written to
-    # the grub.conf file later in this function.
+    # the menu.lst file later in this function.
     grubconf = ""
     grubconf += "default 0\n"
     grubconf += "serial --unit=0 --speed=115200\n"
@@ -329,14 +329,14 @@ def installGrub(disk):
     boot_grubpart = getBootPartNumber(disk) - 1
     grubdest = '(%s,%s)' % (getGrUBDevice(disk), boot_grubpart)
     stage2 = "%s/grub/stage2" % grubdest
-    conf = "%s/grub/grub.conf" % grubdest
+    conf = "%s/grub/menu.lst" % grubdest
     runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
               % (grubroot, stage2, conf))
     
     # write the grub.conf file:
-    grubconf_file = open("/tmp/grub/grub.conf", "w")
-    grubconf_file.write(grubconf)
-    grubconf_file.close()
+    menulst_file = open("/tmp/grub/menu.lst", "w")
+    menulst_file.write(grubconf)
+    menulst_file.close()
 
     runCmd("umount /tmp")
 
