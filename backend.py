@@ -73,8 +73,8 @@ writeable_dirs = [ '/etc/ntp',
 def performInstallation(answers):
     global ui_package
 
-    pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_NAME.capitalize(),
-                                       'Installing %s, please wait...' % PRODUCT_NAME.capitalize(),
+    pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
+                                       'Installing %s, please wait...' % PRODUCT_BRAND,
                                        20)
 
     ui_package.displayProgressDialog(0, pd)
@@ -130,12 +130,17 @@ def performInstallation(answers):
     mkLvmDirs(mounts, answers)
     writeResolvConf(mounts, answers)
     ui_package.displayProgressDialog(12, pd)
+    
     configureNetworking(mounts, answers)
     ui_package.displayProgressDialog(13, pd)
+    
     writeFstab(mounts, answers)
+    ignoreLvmCdrom(mounts, answers)
     ui_package.displayProgressDialog(14, pd)
+    
     writeModprobeConf(mounts, answers)
     ui_package.displayProgressDialog(15, pd)
+    
     copyXgts(mounts, answers)
     ui_package.displayProgressDialog(16, pd)
 
@@ -434,6 +439,11 @@ def writeFstab(mounts, answers):
         fstab.write("none        /proc proc   defaults   0  0\n")
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
+        
+def ignoreLvmCdrom(mounts, answers):
+    assert os.system('sed -e "s/\\(.*\\)# filter\\(.*\\)cdrom/\\1filter \\2cdrom/g" %s/etc/lvm/lvm.conf > %s/etc/lvm/lvm.conf.filter' % (mounts['root'], mounts['root'])) == 0
+    assert runCmd("rm -f %s/etc/lvm/lvm.conf" % mounts['root']) == 0
+    assert runCmd("mv %s/etc/lvm/lvm.conf.filter %s/etc/lvm/lvm.conf" % (mounts['root'], mounts['root'])) == 0
 
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
