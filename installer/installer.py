@@ -47,6 +47,7 @@ def main():
                      rc = os.system("/opt/xensource/clean-installer/clean-installer")
                      if rc == 0: 
                          os.system("reboot")
+                         sys.exit(0)
                      else:
                          sys.exit(rc)
                 elif entry == 1:
@@ -61,6 +62,7 @@ def main():
                     if button == 'ok':
                         screen.finish()
                         os.system("reboot")
+                        sys.exit(0)
             else:
                 screen.finish()
                 sys.exit(0)
