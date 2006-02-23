@@ -674,7 +674,7 @@ def writeEjectRcs(mounts, answers):
         os.system("chmod a+x %s" % file)
         
 def enableUsb(mounts, answers):
-    rclocal = open('%s/etc/rc.local', mounts['root'], 'a')
+    rclocal = open('%s/etc/rc.local' % mounts['root'], 'a')
     rclocal.write('modprobe uhci_hcd')
     rclocal.close()
         
