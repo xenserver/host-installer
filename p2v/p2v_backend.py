@@ -44,7 +44,7 @@ def determine_size(os_install):
     dev_attrs = os_install[constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
 
-    (total_size, used_size) = findroot.determine_size(os_root_mount_point, os_root_device )
+    (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
         
     os_install[constants.FS_USED_SIZE] = used_size
     os_install[constants.FS_TOTAL_SIZE] = total_size
@@ -189,11 +189,9 @@ def add_rootfs(os_install):
     	fs_type = os_install['dev_attrs']['type']
 
 	if sec_type != None:
-		print "sectype = ", sec_type
 		fs = sec_type
 	else:
 		if fs_type != None:
-			print "fs_type = ", fs_type
 			fs = fs_type
 	template_string += open_tag("rootfs-type", fs)
 	template_string += close_tag("rootfs-type")

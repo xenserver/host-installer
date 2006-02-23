@@ -274,10 +274,11 @@ def findroot():
     return results
 
 def create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename):
-    command = "tar cfv %s/%s -C %s %s %s" % (xgt_create_dir, xgt_filename, xgt_create_dir, template_filename, tar_filename)
+    #command = "tar cfv %s/%s -C %s %s %s" % (xgt_create_dir, xgt_filename, xgt_create_dir, template_filename, tar_filename)
+    command = "cd %s && zip %s %s %s" % (xgt_create_dir, xgt_filename, template_filename, tar_filename)
     rc, out = run_command(command)
     if rc != 0:
-        raise P2VError("Failed to create xgt - tar failed")
+        raise P2VError("Failed to create xgt - zip failed")
     return
 
 def get_mem_info():
