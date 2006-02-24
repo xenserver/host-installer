@@ -38,6 +38,8 @@ dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (versi
 kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 xgt_location = "/opt/xensource/xgt/"
 rhel41_guest_installer_location = xgt_location + "install/rhel41/"
+rhel41_install_initrd = rhel41_guest_installer_location + "rhel41-install-initrd.img"
+update_modules_script = "/opt/xensource/guest-installer/update-modules"
 rpms_location = "/opt/xensource/rpms/"
 
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
@@ -144,6 +146,7 @@ def performInstallation(answers):
     
     copyXgts(mounts, answers)
     copyGuestInstallerFiles(mounts, answers)
+    doGuestUpdateModules(mount, answers)
     ui_package.displayProgressDialog(16, pd)
 
     copyRpms(mounts, answers)
@@ -339,15 +342,15 @@ def installGrub(disk):
     grubdest = '(%s,%s)' % (getGrUBDevice(disk), boot_grubpart)
     stage2 = "%s/grub/stage2" % grubdest
     conf = "%s/grub/menu.lst" % grubdest
-    assert (runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
-              % (grubroot, stage2, conf))) == 0
+    assert runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
+              % (grubroot, stage2, conf)) == 0
     
     # write the grub.conf file:
     menulst_file = open("/tmp/grub/menu.lst", "w")
     menulst_file.write(grubconf)
     menulst_file.close()
 
-    assert (runCmd("umount /tmp")) == 0
+    assert runCmd("umount /tmp") == 0
 
 def extractDom0Filesystem(disk):
     global dom0fs_tgz_location
@@ -361,7 +364,7 @@ def extractDom0Filesystem(disk):
     #        dialog situation :)
     assert runCmd("tar -C /tmp -xzf %s" % dom0fs_tgz_location) == 0
 
-    assert (runCmd("umount /tmp")) == 0
+    assert runCmd("umount /tmp") == 0
 
 def installKernels(disk):
     dest = getRWSPartName(disk)
@@ -374,7 +377,7 @@ def installKernels(disk):
     runCmd("cp /boot/vmlinuz-2.6.12.6-xen /tmp/boot")
     runCmd("cp /boot/xen-%s.gz /tmp/boot") % xen_version
 
-    assert (runCmd("umount /tmp")) == 0
+    assert runCmd("umount /tmp") == 0
 
 ##########
 # mounting and unmounting of various volumes
@@ -621,6 +624,17 @@ def copyGuestInstallerFiles(mounts, answers):
     copyFilesFromDir(rhel41_guest_installer_location, "%s/xgt/install/rhel41" % mounts['dropbox'])
     
 
+def doGuestUpdateModules(mounts, answers):
+    os.mkdir("%s/tmp/guest-depmod"% mounts["root"])
+    runCmd("cp %s %s/tmp/guest-depmod/" % (update_modules_script, mounts["root"]))
+
+    #TODO : hardcoding alert
+    runCmd("chroot %s /tmp/guest-depmod/update-modules -k 2.6.12.6-xen %s" % (mounts['root'], rhel41_install_initrd))
+    
+    # and clean up
+    runCmd("rm -rf %s/tmp/guest-depmod/" % mounts['root'])
+
+
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):
     global writeable_dirs, writeable_files
@@ -658,11 +672,13 @@ def makeSymlinks(mounts, answers):
 
         assert runCmd("ln -sf /rws%s %s" % (file, dom0_file)) == 0
         
+
 def initNfs(mounts, answers):
     exports = open("%s/etc/exports" % mounts['root'] , "w")
     exports.write("/dropbox    *(rw,async,no_root_squash)")
     exports.close()
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
+
 
 # ADP - TODO: this should be created at build time.
 def writeEjectRcs(mounts, answers):
