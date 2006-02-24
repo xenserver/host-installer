@@ -133,7 +133,7 @@ Please confirm you wish to proceed; all data on this disk will be destroyed (ven
 def get_root_password(answers):
     global screen
     done = False
-    
+        
     while not done:
         (button, result) = PasswordEntryWindow(screen,
                                      "Set Password",
@@ -145,7 +145,7 @@ def get_root_password(answers):
         
         (pw, conf) = result
         if pw == conf:
-            if pw == None or len(pw) == 0:
+            if pw == None or len(pw) < constants.MIN_PASSWD_LEN:
                 ButtonChoiceWindow(screen,
                                "Password Error",
                                "Please enter a non-empty password.",
