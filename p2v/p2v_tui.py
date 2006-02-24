@@ -74,6 +74,8 @@ def target_screen(answers):
                 ['Hostname or IP:'],
                 buttons= ['Ok', 'Back'])
         answers[constants.XE_HOST] = xehost[0]
+        if button == 'back':
+            return 0;
     elif entry == 1:
         answers[constants.XEN_TARGET] = constants.XEN_TARGET_NFS
         (button, (nfshost, nfspath)) = EntryWindow(screen,
@@ -84,6 +86,8 @@ def target_screen(answers):
         answers[constants.NFS_HOST] = nfshost
         answers[constants.NFS_PATH] = nfspath
         
+        if button == 'back':
+            return 0;
 
     #dump_answers(answers)
     #advance to next screen:
