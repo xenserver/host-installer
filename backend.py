@@ -339,15 +339,15 @@ def installGrub(disk):
     grubdest = '(%s,%s)' % (getGrUBDevice(disk), boot_grubpart)
     stage2 = "%s/grub/stage2" % grubdest
     conf = "%s/grub/menu.lst" % grubdest
-    runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
-              % (grubroot, stage2, conf))
+    assert (runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
+              % (grubroot, stage2, conf))) == 0
     
     # write the grub.conf file:
     menulst_file = open("/tmp/grub/menu.lst", "w")
     menulst_file.write(grubconf)
     menulst_file.close()
 
-    runCmd("umount /tmp")
+    assert (runCmd("umount /tmp")) == 0
 
 def extractDom0Filesystem(disk):
     global dom0fs_tgz_location
@@ -361,7 +361,7 @@ def extractDom0Filesystem(disk):
     #        dialog situation :)
     assert runCmd("tar -C /tmp -xzf %s" % dom0fs_tgz_location) == 0
 
-    runCmd("umount /tmp")
+    assert (runCmd("umount /tmp")) == 0
 
 def installKernels(disk):
     dest = getRWSPartName(disk)
@@ -374,7 +374,7 @@ def installKernels(disk):
     runCmd("cp /boot/vmlinuz-2.6.12.6-xen /tmp/boot")
     runCmd("cp /boot/xen-%s.gz /tmp/boot") % xen_version
 
-    runCmd("umount /tmp")
+    assert (runCmd("umount /tmp")) == 0
 
 ##########
 # mounting and unmounting of various volumes
