@@ -592,6 +592,10 @@ def writeModprobeConf(mounts, answers):
     #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
     #####
     assert runCmd("chroot %s kudzu -q -k 2.6.12.6-xen" % mounts['root']) == 0
+    
+    #TODO: hack
+    os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
+    
     runCmd("umount %s/{proc,sys}" % mounts['root'])
     
 def mkLvmDirs(mounts, answers):
