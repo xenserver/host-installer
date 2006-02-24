@@ -182,7 +182,7 @@ def getBootPartNumber(disk):
         return 1
 
 def getBootPartName(disk):
-    return "%s%s" % (disk, getBootPartNumber(disk))
+    return determinePartitionName(disk, getBootPartNumber(disk))
 
 def getDom0LVMPartNumber(disk):
     if hasServicePartition(disk):
