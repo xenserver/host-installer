@@ -309,8 +309,7 @@ def installGrub(disk):
     grubconf = ""
     grubconf += "default 0\n"
     grubconf += "serial --unit=0 --speed=115200\n"
-    grubconf += "terminal --timeout=10 serial console\n"
-    grubconf += "timeout 10\n"
+    grubconf += "terminal  console serial --timeout=10\n"
     #grubconf += "hiddenmenu\n"
     grubconf += "title %s\n" % PRODUCT_NAME.capitalize()
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
