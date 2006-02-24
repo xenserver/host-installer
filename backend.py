@@ -37,6 +37,7 @@ xen_version = "3.0.1"
 dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 xgt_location = "/opt/xensource/xgt/"
+rhel41_guest_installer_location = xgt_location + "install/rhel41/"
 rpms_location = "/opt/xensource/rpms/"
 
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
@@ -142,6 +143,7 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(15, pd)
     
     copyXgts(mounts, answers)
+    copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(16, pd)
 
     copyRpms(mounts, answers)
@@ -607,6 +609,17 @@ def copyXgts(mounts, answers):
     if not os.path.isdir("%s/xgt" % mounts['dropbox']):
         os.mkdir("%s/xgt" % mounts['dropbox'])
     copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
+    
+def copyGuestInstallerFiles(mounts, answers):
+    if not os.path.isdir("%s/xgt" % mounts['dropbox']):
+        os.mkdir("%s/xgt" % mounts['dropbox'])
+    if not os.path.isdir("%s/xgt/install" % mounts['dropbox']):
+        os.mkdir("%s/xgt/install" % mounts['dropbox'])
+    if not os.path.isdir("%s/xgt/install/rhel41" % mounts['dropbox']):
+        os.mkdir("%s/xgt/install/rhel41" % mounts['dropbox'])
+        
+    copyFilesFromDir(rhel41_guest_installer_location, "%s/xgt/install/rhel41" % mounts['dropbox'])
+    
 
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):
