@@ -150,7 +150,6 @@ def performInstallation(answers):
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
     writeEjectRcs(mounts, answers)
-    enableUsb(mounts, answers)
     
     # complete the installation:
     makeSymlinks(mounts, answers)    
@@ -675,11 +674,6 @@ def writeEjectRcs(mounts, answers):
         rcFile.write("\n")
         rcFile.close()
         os.system("chmod a+x %s" % file)
-        
-def enableUsb(mounts, answers):
-    rclocal = open('%s/etc/rc.local' % mounts['root'], 'a')
-    rclocal.write('modprobe uhci_hcd')
-    rclocal.close()
         
 def copyRpms(mounts, answers):
     if not os.path.isdir("%s/rpms" % mounts['dropbox']):
