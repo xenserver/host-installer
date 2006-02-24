@@ -51,7 +51,7 @@ def welcome_screen(answers):
                        "Welcome to %s Setup" % PRODUCT_BRAND,
                        """This CD will install %s on your server.
 
-Please ensure that you have backed up any critical data before proceeding, as the installation process will format any disks specified as to be used by %s on this server.""" % (PRODUCT_BRAND, PRODUCT_BRAND),
+This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceding with the product install.""",
                        ['Ok'], width=60)
 
     # advance to next screen:
