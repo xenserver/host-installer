@@ -147,6 +147,8 @@ def performInstallation(answers):
     copyRpms(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
 
+    writeInventory(mounts, answers)
+
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
     writeEjectRcs(mounts, answers)
@@ -680,6 +682,15 @@ def copyRpms(mounts, answers):
         os.mkdir("%s/rpms" % mounts['dropbox'])
     copyFilesFromDir(rpms_location, "%s/rpms" % mounts['dropbox'])
 
+def writeInventory(mounts, answers):
+    inv = open("%s/etc/xensource-inventory" % mounts['root'], "w")
+    inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
+    inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
+    inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
+    inv.write("BUILD_NUMBER='%s'\n" % BUILD_NUMBER)
+    inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
+    inv.close()
+    
 ###
 # Compress root filesystem and save to disk:
 def finalise(answers):
