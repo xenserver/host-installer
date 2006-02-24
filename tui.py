@@ -12,6 +12,7 @@ from snack import *
 import generalui
 import uicontroller
 import sys
+import constants
 from version import *
 
 import datetime
@@ -148,7 +149,7 @@ def get_root_password(answers):
             if pw == None or len(pw) < constants.MIN_PASSWD_LEN:
                 ButtonChoiceWindow(screen,
                                "Password Error",
-                               "Please enter a non-empty password.",
+                               "The password has to be 6 characters or longer.",
                                ['Ok'])
             else:
                 done = True
