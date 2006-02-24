@@ -54,7 +54,7 @@ def welcome_screen(answers):
 def target_screen(answers):
     global screen
 
-    entries = [ 'XenEnterprise Machine',
+    entries = [ '%s Machine' % PRODUCT_BRAND,
                 'NFS Server' ]
 
     (button, entry) = ListboxChoiceWindow(screen,
