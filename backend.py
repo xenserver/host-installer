@@ -448,7 +448,7 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("%s    /boot    ext2    nouser,auto,ro,async    0    0\n" % bootpart)
+        fstab.write("%s    /boot    %s    nouser,auto,ro,async    0    0\n" % (bootpart, bootfs_type) )
         fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
         fstab.write("%s          /dropbox  %s     defaults   0  0\n" % (dropboxpart, dropbox_type))
         fstab.write("none        /proc proc   defaults   0  0\n")
