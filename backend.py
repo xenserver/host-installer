@@ -151,7 +151,7 @@ def performInstallation(answers):
     copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
 
-    doGuestUpdateModules(mounts, answers)
+#    doGuestUpdateModules(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
 
     copyRpms(mounts, answers)
