@@ -41,6 +41,7 @@ rhel41_guest_installer_location = xgt_location + "install/rhel41/"
 rhel41_install_initrd = rhel41_guest_installer_location + "rhel41-install-initrd.img"
 update_modules_script = "/opt/xensource/guest-installer/update-modules"
 rpms_location = "/opt/xensource/rpms/"
+vendor_kernels_location = "/opt/xensource/vendor-kernels"
 
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
 dom0tmpfs_size = 200
@@ -613,27 +614,31 @@ def copyXgts(mounts, answers):
     copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
     
 def copyGuestInstallerFiles(mounts, answers):
-    if not os.path.isdir("%s/xgt" % mounts['dropbox']):
-        os.mkdir("%s/xgt" % mounts['dropbox'])
-    if not os.path.isdir("%s/xgt/install" % mounts['dropbox']):
-        os.mkdir("%s/xgt/install" % mounts['dropbox'])
-    if not os.path.isdir("%s/xgt/install/rhel41" % mounts['dropbox']):
-        os.mkdir("%s/xgt/install/rhel41" % mounts['dropbox'])
+    if not os.path.isdir("%s/var" % mounts['rws']):
+        os.mkdir("%s/var" % mounts['rws'])
+    if not os.path.isdir("%s/var/opt" % mounts['rws']):
+        os.mkdir("%s/var/opt" % mounts['rws'])
+    if not os.path.isdir("%s/var/opt/xen" % mounts['rws']):
+        os.mkdir("%s/var/opt/xen" % mounts['rws'])
         
-    copyFilesFromDir(rhel41_guest_installer_location, "%s/xgt/install/rhel41" % mounts['dropbox'])
+    copyFilesFromDir(rhel41_guest_installer_location, "%s/var/opt/xen/" % mounts['rws'])
     
 
 def doGuestUpdateModules(mounts, answers):
-    os.mkdir("%s/tmp/guest-depmod"% mounts["root"])
-    runCmd("cp %s %s/tmp/guest-depmod/" % (update_modules_script, mounts["root"]))
+    os.mkdir("%s/tmp/guest-depmod/"% mounts["root"])
+    assert runCmd("cp %s %s/tmp/guest-depmod/" % (update_modules_script, mounts["root"])) == 0
 
     #TODO : hardcoding alert
-    runCmd("chroot %s /tmp/guest-depmod/update-modules -k 2.6.12.6-xen %s" % (mounts['root'], rhel41_install_initrd))
+    assert runCmd("chroot %s /tmp/guest-depmod/update-modules -k 2.6.12.6-xen %s%s" % (mounts['root'], mounts['rws'], '/var/opt/xen/rhel41-install-initrd.img')) == 0
     
     # and clean up
-    runCmd("rm -rf %s/tmp/guest-depmod/" % mounts['root'])
+    assert runCmd("rm -rf %s/tmp/guest-depmod/" % mounts['root']) == 0
+    
 
-
+def copyVendorKernels(mounts):
+     copyFilesFromDir(vendor_kernels_location, "%s/var/opt/xen/" % mounts['rws'])
+     
+   
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):
     global writeable_dirs, writeable_files
