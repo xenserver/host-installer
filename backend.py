@@ -320,17 +320,17 @@ def installGrub(disk):
     grubconf += "serial --unit=0 --speed=115200\n"
     grubconf += "terminal  console serial --timeout=5\n"
     grubconf += "timeout 10\n"
-    grubconf += "title %s\n" % PRODUCT_NAME.capitalize()
+    grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz\n" % xen_version
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-    grubconf += "title %s (Serial)\n" % PRODUCT_NAME.capitalize()
+    grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty\n" % xen_version
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-    grubconf += "title %s in Safe Mode\n" % PRODUCT_NAME.capitalize()
+    grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot com1=115200,8n1 console=com1,tty\n" % xen_version
     grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
