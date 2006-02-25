@@ -243,7 +243,7 @@ def writeGuestDiskPartitions(disk):
     parts.write("\n")                    # no fourth partition
     parts.close()
 
-    result = runCmd("sfdisk  -q -uM %s </tmp/dom0disk_parts" % disk)
+    result = runCmd("sfdisk  -q -uM %s </tmp/guestdisk_parts" % disk)
 
     # clean up:
     assert result == 0
