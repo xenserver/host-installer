@@ -79,7 +79,7 @@ def performInstallation(answers):
 
     pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
                                        'Installing %s, please wait...' % PRODUCT_BRAND,
-                                       20)
+                                       24)
 
     ui_package.displayProgressDialog(0, pd)
 
@@ -146,26 +146,34 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(15, pd)
     
     copyXgts(mounts, answers)
-    copyGuestInstallerFiles(mounts, answers)
-    doGuestUpdateModules(mounts, answers)
     ui_package.displayProgressDialog(16, pd)
 
-    copyRpms(mounts, answers)
+    copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
 
+#    doGuestUpdateModules(mounts, answers)
+    ui_package.displayProgressDialog(18, pd)
+
+    copyRpms(mounts, answers)
+    ui_package.displayProgressDialog(19, pd)
+
     writeInventory(mounts, answers)
+    ui_package.displayProgressDialog(20, pd)
 
     initNfs(mounts, answers)
-    ui_package.displayProgressDialog(18, pd)
+    ui_package.displayProgressDialog(21, pd)
+
     writeEjectRcs(mounts, answers)
+    ui_package.displayProgressDialog(22, pd)
     
     # complete the installation:
     makeSymlinks(mounts, answers)    
-    ui_package.displayProgressDialog(19, pd)
+    ui_package.displayProgressDialog(23, pd)
     
     umountVolumes(mounts)
     finalise(answers)
-    ui_package.displayProgressDialog(20, pd)
+    ui_package.displayProgressDialog(24, pd)
+    
 
     ui_package.clearModelessDialog()
 
