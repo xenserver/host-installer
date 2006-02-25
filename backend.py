@@ -151,7 +151,7 @@ def performInstallation(answers):
     copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
 
-#    doGuestUpdateModules(mounts, answers)
+    doGuestUpdateModules(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
 
     copyRpms(mounts, answers)
@@ -637,7 +637,7 @@ def doGuestUpdateModules(mounts, answers):
     assert runCmd("cp %s %s/tmp/guest-depmod/" % (update_modules_script, mounts["root"])) == 0
 
     #TODO : hardcoding alert
-    assert runCmd("chroot %s /tmp/guest-depmod/update-modules -k 2.6.12.6-xen %s" % (mounts['root'], '/rws/var/opt/xen/rhel41-install-initrd.img')) == 0
+    assert runCmd("/tmp/guest-depmod/update-modules -r %s -k 2.6.12.6-xen %s" % (mounts['root'], '/rws/var/opt/xen/rhel41-install-initrd.img')) == 0
     
     # and clean up
     assert runCmd("rm -rf %s/tmp/guest-depmod/" % mounts['root']) == 0
