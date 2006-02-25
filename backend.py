@@ -44,7 +44,7 @@ rpms_location = "/opt/xensource/rpms/"
 vendor_kernels_location = "/opt/xensource/vendor-kernels"
 
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
-dom0tmpfs_size = 200
+dom0tmpfs_size = 500
 
 grubroot = '(hd0,0)'
 
@@ -629,7 +629,7 @@ def doGuestUpdateModules(mounts, answers):
     assert runCmd("cp %s %s/tmp/guest-depmod/" % (update_modules_script, mounts["root"])) == 0
 
     #TODO : hardcoding alert
-    assert runCmd("chroot %s /tmp/guest-depmod/update-modules -k 2.6.12.6-xen %s%s" % (mounts['root'], mounts['rws'], '/var/opt/xen/rhel41-install-initrd.img')) == 0
+    assert runCmd("chroot %s /tmp/guest-depmod/update-modules -k 2.6.12.6-xen %s" % (mounts['root'], '/rws/var/opt/xen/rhel41-install-initrd.img')) == 0
     
     # and clean up
     assert runCmd("rm -rf %s/tmp/guest-depmod/" % mounts['root']) == 0
