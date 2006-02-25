@@ -318,8 +318,8 @@ def installGrub(disk):
     grubconf = ""
     grubconf += "default 0\n"
     grubconf += "serial --unit=0 --speed=115200\n"
-    grubconf += "terminal  console serial --timeout=10\n"
-    #grubconf += "hiddenmenu\n"
+    grubconf += "terminal  console serial --timeout=5\n"
+    grubconf += "timeout 10\n"
     grubconf += "title %s\n" % PRODUCT_NAME.capitalize()
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz\n" % xen_version
@@ -501,7 +501,7 @@ def setTime(mounts, answers):
                                       newtime.day, newtime.hour,
                                       newtime.minute)
         assert runCmd("date --set='%s'" % timestr) == 0
-        assert runCmd("hwclock --systohc") == 0
+        assert runCmd("hwclock --utc --systohc") == 0
 
     # write the time configuration to the /etc/sysconfig/clock
     # file in dom0:
