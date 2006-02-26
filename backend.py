@@ -163,6 +163,7 @@ def performInstallation(answers):
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(21, pd)
 
+    copyLvmConf(mounts, answers)
 #    writeEjectRcs(mounts, answers)
     ui_package.displayProgressDialog(22, pd)
     
@@ -692,6 +693,8 @@ def initNfs(mounts, answers):
     exports.close()
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
+def copyLvmConf(mounts, answers):
+    runCmd("cp -f /etc/lvm/lvm.conf %s/etc/lvm/" % mounts['root'])
 
 # ADP - TODO: this should be created at build time.
 def writeEjectRcs(mounts, answers):
