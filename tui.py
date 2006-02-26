@@ -384,7 +384,7 @@ def installation_complete(answers):
                        "Installation Complete",
                        """The %s installation has completed.  Please press enter to reboot the machine.
                        
-The CD will automatically eject upon reboot""" % PRODUCT_BRAND,
+Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
                        ['Ok'])
 
     return 1

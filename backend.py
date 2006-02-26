@@ -139,7 +139,7 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(13, pd)
     
     writeFstab(mounts, answers)
-    ignoreLvmCdrom(mounts, answers)
+#    ignoreLvmCdrom(mounts, answers)
     ui_package.displayProgressDialog(14, pd)
     
     writeModprobeConf(mounts, answers)
@@ -163,7 +163,7 @@ def performInstallation(answers):
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(21, pd)
 
-    writeEjectRcs(mounts, answers)
+#    writeEjectRcs(mounts, answers)
     ui_package.displayProgressDialog(22, pd)
     
     # complete the installation:
@@ -456,9 +456,10 @@ def writeFstab(mounts, answers):
         fstab.close()
         
 def ignoreLvmCdrom(mounts, answers):
-    assert os.system('sed -e "s/\\(.*\\)# filter\\(.*\\)cdrom/\\1filter \\2cdrom/g" %s/etc/lvm/lvm.conf > %s/etc/lvm/lvm.conf.filter' % (mounts['root'], mounts['root'])) == 0
+    assert os.system('sed -e "s/\\(.*\\)# filter\\(.*\\)cdrom/    filter = [ "r\\/dev\\/cdrom\/", "a\\/.*\\/" ]/g" %s/etc/lvm/lvm.conf > %s/etc/lvm/lvm.conf.filter' % (mounts['root'], mounts['root'])) == 0
     assert runCmd("rm -f %s/etc/lvm/lvm.conf" % mounts['root']) == 0
     assert runCmd("mv %s/etc/lvm/lvm.conf.filter %s/etc/lvm/lvm.conf" % (mounts['root'], mounts['root'])) == 0
+    #lvmconf = open( " %s/etc/lvm/lvm.conf" % mounts['root'])
 
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
