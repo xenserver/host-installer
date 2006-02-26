@@ -139,7 +139,6 @@ def performInstallation(answers):
     ui_package.displayProgressDialog(13, pd)
     
     writeFstab(mounts, answers)
-#    ignoreLvmCdrom(mounts, answers)
     ui_package.displayProgressDialog(14, pd)
     
     writeModprobeConf(mounts, answers)
@@ -151,7 +150,6 @@ def performInstallation(answers):
     copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
 
-#    doGuestUpdateModules(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
 
     copyRpms(mounts, answers)
@@ -163,9 +161,6 @@ def performInstallation(answers):
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(21, pd)
 
-    copyLvmConf(mounts, answers)
-#    writeEjectRcs(mounts, answers)
-    ui_package.displayProgressDialog(22, pd)
     
     # complete the installation:
     makeSymlinks(mounts, answers)    
@@ -456,12 +451,6 @@ def writeFstab(mounts, answers):
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
         
-def ignoreLvmCdrom(mounts, answers):
-    assert os.system('sed -e "s/\\(.*\\)# filter\\(.*\\)cdrom/    filter = [ "r\\/dev\\/cdrom\/", "a\\/.*\\/" ]/g" %s/etc/lvm/lvm.conf > %s/etc/lvm/lvm.conf.filter' % (mounts['root'], mounts['root'])) == 0
-    assert runCmd("rm -f %s/etc/lvm/lvm.conf" % mounts['root']) == 0
-    assert runCmd("mv %s/etc/lvm/lvm.conf.filter %s/etc/lvm/lvm.conf" % (mounts['root'], mounts['root'])) == 0
-    #lvmconf = open( " %s/etc/lvm/lvm.conf" % mounts['root'])
-
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
     (manual_nameservers, nameservers) = answers['manual-nameservers']
@@ -634,16 +623,6 @@ def copyGuestInstallerFiles(mounts, answers):
     copyFilesFromDir(rhel41_guest_installer_location, "%s/var/opt/xen/" % mounts['rws'])
     
 
-def doGuestUpdateModules(mounts, answers):
-    os.mkdir("%s/tmp/guest-depmod/"% mounts["root"])
-    assert runCmd("cp %s %s/tmp/guest-depmod/" % (update_modules_script, mounts["root"])) == 0
-
-    #TODO : hardcoding alert
-    assert runCmd("/tmp/guest-depmod/update-modules -r %s -k 2.6.12.6-xen %s" % (mounts['root'], '/rws/var/opt/xen/rhel41-install-initrd.img')) == 0
-    
-    # and clean up
-    assert runCmd("rm -rf %s/tmp/guest-depmod/" % mounts['root']) == 0
-    
 
 def copyVendorKernels(mounts):
      copyFilesFromDir(vendor_kernels_location, "%s/var/opt/xen/" % mounts['rws'])
@@ -693,35 +672,6 @@ def initNfs(mounts, answers):
     exports.close()
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
-def copyLvmConf(mounts, answers):
-    runCmd("cp -f /etc/lvm/lvm.conf %s/etc/lvm/" % mounts['root'])
-
-# ADP - TODO: this should be created at build time.
-def writeEjectRcs(mounts, answers):
-    for file in ['/etc/rc6.d/S75eject', '/etc/rc0.d/S75eject' ]:
-        if os.path.isfile(file):
-            os.unlink(file)
-        rcFile = open("%s" % file, "w")
-        rcFile.write("#! /bin/sh\n")
-        rcFile.write("PATH=/sbin:/bin:/usr/bin\n")
-        rcFile.write("[ -f /etc/default/rcS ] && . /etc/default/rcS\n")
-        rcFile.write("do_stop () {\n")
-        rcFile.write('    echo -n "Ejecting CD..."\n')
-        rcFile.write("    /usr/bin/eject > /dev/null 2>/dev/null\n")
-        rcFile.write("    echo $?\n")
-        rcFile.write("}\n")
-        rcFile.write('case "$1" in\n')
-        rcFile.write("    stop)\n")
-        rcFile.write("        do_stop\n")
-        rcFile.write("        ;;\n")
-        rcFile.write("    *)\n")
-        rcFile.write("        ;;\n")
-        rcFile.write("esac\n")
-        rcFile.write(": exit 0\n")
-        rcFile.write("\n")
-        rcFile.close()
-        os.system("chmod a+x %s" % file)
-        
 def copyRpms(mounts, answers):
     if not os.path.isdir("%s/rpms" % mounts['dropbox']):
         os.mkdir("%s/rpms" % mounts['dropbox'])
