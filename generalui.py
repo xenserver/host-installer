@@ -8,6 +8,7 @@
 import os
 import uicontroller
 import commands
+import logging
 
 timezone_data_file = '/opt/xensource/clean-installer/timezones'
 
@@ -77,21 +78,10 @@ def confirm_installation(answers, args):
 
     return uicontroller.runUISequence(sequence, answers)
 
-
-###
-# Logging
-
-log_redirect = '>/dev/null 2>&1'
-#log_redirect = ''
-
-def setRedirectFile(filename):
-    global log_redirect
-    log_redirect = "&>%s" % filename
-
 def runCmd(command):
-    global log_redirect
-    actualCmd = "%s %s" % (command, log_redirect)
-    return os.system(actualCmd)
+    (rv, output) = commands.getstatusoutput(command)
+    logging.logOutput(command, output)
+    return rv
 
 def makeHumanList(list):
     if len(list) == 0:

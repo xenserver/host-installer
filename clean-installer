@@ -17,6 +17,7 @@ import backend
 
 # general
 import sys
+import logging
 from getopt import getopt
 
 ui_package = tui
@@ -27,17 +28,33 @@ def main():
     try:
         (opts, args) = getopt(sys.argv[1:],
                               "",
-                              ["pyanswerfile="])
+                              ["pyanswerfile=",
+                               "verbose-pyanswerfile=",
+                               "clog="])
     except Exception, e:
         print "This program takes no arguments."
         sys.exit(1)
+
+    clog_fds = []
 
     for (opt, val) in opts:
         if opt == "--pyanswerfile":
             pyanswerfile_ui.specifySubUI(ui_package)
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
-            
+        if opt == "--verbose-pyanswerfile":
+            pyanswerfile_ui.specifyAnswerFile(val)
+            ui_package = pyanswerfile_ui
+            logging.continuous_logs.append(sys.stdout)
+        if opt == "--clog":
+            try:
+                fd = open(val, "w")
+                clog_fds.append(fd)
+                logging.continuous_logs.append(fd)
+            except:
+                print "Error adding continuous log %s." % val
+
+    results = {}
     try:
         ui_package.init_ui(results, False)
 	
@@ -52,16 +69,35 @@ def main():
 
         uicontroller.runUISequence(seq, results)
 	
-        backend.performInstallation(results)
+        backend.performInstallation(results, ui_package)
         
         seq = [ ui_package.installation_complete ]
         uicontroller.runUISequence(seq, results)
     except Exception, e:
         # clean up the screen
         ui_package.end_ui()
+
+        # close continuous logs:
+        for logfd in clog_fds:
+            try:
+                logging.continuous_logs.remove(logfd)
+            except:
+                pass
+            logfd.close()
+            
         raise
-    
+        
     ui_package.end_ui()
+
+    # close continuous logs:
+    for logfd in clog_fds:
+        try:
+            logging.continuous_logs.remove(logfd)
+        except:
+            pass
+        logfd.close()
+
+    backend.writeLog(results)
 
 
 if __name__ == "__main__":

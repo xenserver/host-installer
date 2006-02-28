@@ -17,6 +17,7 @@ from generalui import runCmd
 import uicontroller
 from version import *
 import version
+import logging
 
 ################################################################################
 # CONFIGURATION
@@ -74,9 +75,9 @@ writeable_dirs = [ '/etc/ntp',
 ################################################################################
 # FIRST STAGE INSTALLATION:
 
-def performInstallation(answers):
-    global ui_package
-
+# XXX Hack - we should have a progress callback, not pass in the
+# entire UI component.
+def performInstallation(answers, ui_package):
     pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
                                        'Installing %s, please wait...' % PRODUCT_BRAND,
                                        24)
@@ -748,3 +749,9 @@ def copyFilesFromDir(sourcedir, dest):
     files = os.listdir(sourcedir)
     for f in files:
         assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
+
+def writeLog(answers):
+    bootnode = getBootPartName(answers['primary-disk'])
+    assert os.system("mount %s /tmp" % bootnode) == 0
+    logging.writeLog("/tmp/install-log")
+    assert os.system("umount /tmp") == 0

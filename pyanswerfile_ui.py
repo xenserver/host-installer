@@ -42,7 +42,14 @@ def init_ui(results, is_subui):
 def end_ui():
     if sub_ui_package is not None:
         sub_ui_package.end_ui()
-    
+
+# XXX THESE MUST GO!!!!
+def suspend_ui():
+    pass
+
+def resume_ui():
+    pass
+
 # stubs:
 ###
 # - stage 1 install:
@@ -79,6 +86,6 @@ def displayProgressDialog(current, pd):
     if sub_ui_package:
         sub_ui_package.displayProgressDialog(current, pd)
 
-def clearProgressDialog():
+def clearModelessDialog():
     if sub_ui_package:
         sub_ui_package.clearProgressDialog()
