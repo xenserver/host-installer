@@ -199,19 +199,22 @@ def get_name_service_configuration(answers):
     def auto_hostname_change((cb, entry)):
         entry.setFlags(FLAG_DISABLED, not cb.value())
 
-    gf = GridFormHelp(screen, 'Name Service Configuration', None, 1, 8)
+    ask_autohostname = not answers['iface-configuration'][0]
 
+    gf = GridFormHelp(screen, 'Name Service Configuration', None, 1, 8)
+        
     text = TextboxReflowed(50, "How should the name service be configured?")
     buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
 
-    auto_hostname = Checkbox("Automatically set hostname?", 1)
-    hostname_text = Textbox(15, 1, "Hostname:")
-    hostname = Entry(30)
-    hostname.setFlags(FLAG_DISABLED, 0)
-    hostname_grid = Grid(2, 1)
-    hostname_grid.setField(hostname_text, 0, 0)
-    hostname_grid.setField(hostname, 1, 0)
-    auto_hostname.setCallback(auto_hostname_change, (auto_hostname, hostname))
+    if ask_autohostname:
+        auto_hostname = Checkbox("Set a hostname manually?", 1)
+        hostname_text = Textbox(15, 1, "Hostname:")
+        hostname = Entry(30)
+        hostname.setFlags(FLAG_DISABLED, 0)
+        hostname_grid = Grid(2, 1)
+        hostname_grid.setField(hostname_text, 0, 0)
+        hostname_grid.setField(hostname, 1, 0)
+        auto_hostname.setCallback(auto_hostname_change, (auto_hostname, hostname))
 
     ns1_text = Textbox(15, 1, "Nameserver 1:")
     ns1_entry = Entry(30)
@@ -238,8 +241,11 @@ def get_name_service_configuration(answers):
     auto_nameservers.setCallback(auto_nameserver_change, (auto_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
-    gf.add(auto_hostname, 0, 1)
-    gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
+
+    if ask_autohostname:
+        gf.add(auto_hostname, 0, 1)
+        gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
+        
     gf.add(auto_nameservers, 0, 3)
     gf.add(ns1_grid, 0, 4)
     gf.add(ns2_grid, 0, 5)
@@ -250,11 +256,12 @@ def get_name_service_configuration(answers):
     result = gf.runOnce()
 
     if buttons.buttonPressed(result) == "ok":
-        # manual hostname?
-        if auto_hostname.value():
-            answers['manual-hostname'] = (False, None)
-        else:
-            answers['manual-hostname'] = (True, hostname.value())
+        if ask_autohostname:
+            # manual hostname?
+            if auto_hostname.value():
+                answers['manual-hostname'] = (False, None)
+            else:
+                answers['manual-hostname'] = (True, hostname.value())
 
         # manual nameservers?
         if auto_nameservers.value():
@@ -403,8 +410,9 @@ def set_time(answers):
                                     int(hour.value()),
                                     int(min.value()))
         return 1
-    else if buttons.buttonPressed(result) == "back":
-        return -1
+    else:
+        if buttons.buttonPressed(result) == "back":
+            return -1
 
 def installation_complete(answers):
     global screen
