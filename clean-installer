@@ -39,8 +39,6 @@ def main():
             ui_package = pyanswerfile_ui
             
     try:
-        results = { 'ui-package': ui_package }
-        
         ui_package.init_ui(results)
 	
         seq = [ ui_package.welcome_screen,

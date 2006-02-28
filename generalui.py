@@ -7,6 +7,7 @@
 
 import os
 import uicontroller
+import commands
 
 timezone_data_file = '/opt/xensource/clean-installer/timezones'
 
