@@ -345,8 +345,8 @@ def get_timezone(answers):
     entries = generalui.getTimeZones()
 
     (button, entry) = ListboxChoiceWindow(screen,
-                                          "Select Timezone",
-                                          "Which timezone is the managed host in?",
+                                          "Select Time Zone",
+                                          "Which time zone is the managed host in?",
                                           entries,
                                           ['Ok', 'Back'], height = 8, scroll = 1)
 

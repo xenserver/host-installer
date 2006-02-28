@@ -35,25 +35,38 @@ boot_size = 65
 vgname = "VG_XenSource"
 xen_version = "3.0.1"
 
-dom0fs_tgz_location = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-kernel_tgz_location = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-xgt_location = "/opt/xensource/xgt/"
-rhel41_guest_installer_location = xgt_location + "install/rhel41/"
-rhel41_install_initrd = rhel41_guest_installer_location + "rhel41-install-initrd.img"
-update_modules_script = "/opt/xensource/guest-installer/update-modules"
-rpms_location = "/opt/xensource/rpms/"
-vendor_kernels_location = "/opt/xensource/vendor-kernels"
+# location of files on the CDROM
+CD_DOM0FS_TGZ_LOCATION = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
+CD_KERNEL_TGZ_LOCATION = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
 
+CD_XGT_LOCATION = "/opt/xensource/xgt/"
+CD_RHEL41_GUEST_INSTALLER_LOCATION = CD_XGT_LOCATION + "install/rhel41/"
+CD_RHEL41_INSTALL_INITRD = CD_RHEL41_GUEST_INSTALLER_LOCATION + "rhel41-install-initrd.img"
+CD_UPDATE_MODULES_SCRIPT = "/opt/xensource/guest-installer/update-modules"
+CD_RPMS_LOCATION = "/opt/xensource/rpms/"
+CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
+
+#location/destination of files on the dom0 FS
+DOM0_FILES_LOCATION_ROOT = "%s/files/"
+DOM0_VENDOR_KERNEL_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
+DOM0_GUEST_INSTALLER_LOCATION = DOM0_FILES_LOCATION_ROOT + "guest-installer/"
+
+DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
+DOM0_XGT_LOCATION = "%s/xgt"
+
+
+#file system creation constants
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
 dom0tmpfs_size = 500
-
-grubroot = '(hd0,0)'
-
 bootfs_type = 'ext2'
 dom0tmpfs_type = 'ext3'
 ramdiskfs_type = 'squashfs'
 rwsfs_type = 'ext3'
 
+grubroot = '(hd0,0)'
+
+
+#files that should be writeable in the dom0 FS
 writeable_files = [ '/etc/yp.conf',
                     '/etc/ntp.conf',
                     '/etc/resolv.conf',
@@ -61,11 +74,13 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/issue',
                     '/etc/adjtime' ]
 
+#directories to be created in the dom0 FS
 asserted_dirs = [ '/etc',
                   '/etc/sysconfig',
                   '/etc/sysconfig/network-scripts',
                   '/etc/lvm' ]
 
+#directories that should be writeable in the dom0 FS
 writeable_dirs = [ '/etc/ntp',
                    '/etc/lvm/archive',
                    '/etc/lvm/backup',
@@ -337,7 +352,7 @@ def installGrub(disk):
     # install GrUB - TODO better error handling required here:
     # - copy GrUB files into place:
     assert runCmd("mount %s /tmp" % getBootPartName(disk)) == 0
-    os.mkdir("/tmp/grub")
+    assertDir("/tmp/grub")
     runCmd("cp /boot/grub/* /tmp/grub") # We should do this in Python...
     runCmd("rm /tmp/grub/menu.lst") # no menu.lst from cd
     runCmd("rm -f /tmp/grub/grub.conf")
@@ -368,7 +383,7 @@ def extractDom0Filesystem(disk):
     # extract tar.gz to filesystem:
     # TODO - rewrite this using native Python so we have a better progress
     #        dialog situation :)
-    assert runCmd("tar -C /tmp -xzf %s" % dom0fs_tgz_location) == 0
+    assert runCmd("tar -C /tmp -xzf %s" % CD_DOM0FS_TGZ_LOCATION) == 0
 
     assert runCmd("umount /tmp") == 0
 
@@ -429,7 +444,7 @@ def umountVolumes(mounts):
 # second stage install helpers:
 
 def installKernels(mounts, answers):
-    assert runCmd("tar -C %s -xzf %s" % (mounts['boot'], kernel_tgz_location)) == 0
+    assert runCmd("tar -C %s -xzf %s" % (mounts['boot'], CD_KERNEL_TGZ_LOCATION)) == 0
     
 def doDepmod(mounts, answers):
     runCmd("chroot %s depmod %s" % (version.kernel_version, version.kernel_version))
@@ -606,28 +621,24 @@ def writeModprobeConf(mounts, answers):
     runCmd("umount %s/{proc,sys}" % mounts['root'])
     
 def mkLvmDirs(mounts, answers):
-    os.system("mkdir -p %s/etc/lvm/archive" % mounts["root"])
-    os.system("mkdir -p %s/etc/lvm/backup" % mounts["root"])
+    assertDir("%s/etc/lvm/archive" % mounts["root"])
+    assertDir("%s/etc/lvm/backup" % mounts["root"])
 
 def copyXgts(mounts, answers):
-    if not os.path.isdir("%s/xgt" % mounts['dropbox']):
-        os.mkdir("%s/xgt" % mounts['dropbox'])
-    copyFilesFromDir(xgt_location, "%s/xgt" % mounts['dropbox'])
+    assertDir(DOM0_XGT_LOCATION % mounts['dropbox'])
+    copyFilesFromDir(CD_XGT_LOCATION, 
+                      DOM0_XGT_LOCATION % mounts['dropbox'])
     
 def copyGuestInstallerFiles(mounts, answers):
-    if not os.path.isdir("%s/var" % mounts['rws']):
-        os.mkdir("%s/var" % mounts['rws'])
-    if not os.path.isdir("%s/var/opt" % mounts['rws']):
-        os.mkdir("%s/var/opt" % mounts['rws'])
-    if not os.path.isdir("%s/var/opt/xen" % mounts['rws']):
-        os.mkdir("%s/var/opt/xen" % mounts['rws'])
-        
-    copyFilesFromDir(rhel41_guest_installer_location, "%s/var/opt/xen/" % mounts['rws'])
-    
+    assertDir(DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
+    copyFilesFromDir(CD_RHEL41_GUEST_INSTALLER_LOCATION, 
+                      DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
 
 
 def copyVendorKernels(mounts, answers):
-     copyFilesFromDir(vendor_kernels_location, "%s/var/opt/xen/" % mounts['rws'])
+    assertDir(DOM0_VENDOR_KERNEL_LOCATION % mounts['dropbox'])
+    copyFilesFromDir(CD_VENDOR_KERNELS_LOCATION, 
+                       DOM0_VENDOR_KERNEL_LOCATION % mounts['dropbox'])
      
    
 # make appropriate symlinks according to writeable_files and writeable_dirs:
@@ -643,11 +654,10 @@ def makeSymlinks(mounts, answers):
     for dir in writeable_dirs:
         rws_dir = "%s%s" % (mounts['rws'], dir)
         dom0_dir = "%s%s" % (mounts['root'], dir)
-        if not os.path.isdir(rws_dir):
-            os.mkdir(rws_dir)
+        assertDir(rws_dir)
 
         if os.path.isdir(dom0_dir):
-	    copyFilesFromDir(dom0_dir, rws_dir)
+	        copyFilesFromDir(dom0_dir, rws_dir)
 
         runCmd("rm -rf %s" % dom0_dir)
         assert runCmd("ln -sf /rws/%s %s" % (dir, dom0_dir)) == 0
@@ -675,9 +685,9 @@ def initNfs(mounts, answers):
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
 def copyRpms(mounts, answers):
-    if not os.path.isdir("%s/rpms" % mounts['dropbox']):
-        os.mkdir("%s/rpms" % mounts['dropbox'])
-    copyFilesFromDir(rpms_location, "%s/rpms" % mounts['dropbox'])
+    assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
+    copyFilesFromDir(CD_RPMS_LOCATION, 
+                      DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
 
 def writeInventory(mounts, answers):
     inv = open("%s/etc/xensource-inventory" % mounts['root'], "w")
@@ -697,8 +707,7 @@ def finalise(answers):
     # we are compressing the rootfs into a file in boot, we don't want boot
     # mounted inside root...):
     assert runCmd("mount /dev/%s/%s /tmp/root" % (vgname, dom0tmpfs_name)) == 0
-    if not os.path.isdir("/tmp/boot"):
-        os.mkdir("/tmp/boot")
+    assertDir("/tmp/boot")
     assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
     assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
 
@@ -736,7 +745,7 @@ def assertDir(dirname):
     assert not (os.path.exists(dirname) and not os.path.isdir(dirname))
 
     if not os.path.isdir(dirname):
-        os.mkdir(dirname)
+        os.makedirs(dirname)
 
 def assertDirs(*dirnames):
     for d in dirnames:
