@@ -27,7 +27,7 @@ def init_ui(results):
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to %s Installer - Version %s" % (PRODUCT_BRAND, PRODUCT_VERSION))
     screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
-    
+
 def end_ui():
     global screen
     
@@ -354,28 +354,57 @@ def set_time(answers):
 
     now = datetime.datetime.now()
 
-    result = EntryWindow(screen,
-                         "Set local time",
-                         "Please enter the current date and time",
-                         [('Day (DD)', Entry(3, str(now.day))),
-                          ('Month (MM)', Entry(3, str(now.month))),
-                          ('Year (YYYY)', Entry(5, str(now.year))),
-                          ('Hour (0-23)', Entry(3, str(now.hour))),
-                          ('Minute (0-59)', Entry(3, str(now.minute)))],
-                         buttons = ['Ok', 'Back'])
+    gf = GridFormHelp(screen, "Set local time", "", 1, 4)
 
-    (button, (day, month, year, hour, minute)) = result
+    gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0,0,1,1))
 
-    if button == 'ok':
+    dategrid = Grid(7, 4)
+    # TODO: switch day and month around if in appropriate timezone
+    dategrid.setField(Textbox(12, 1, "Month (MM)"), 1, 0)
+    dategrid.setField(Textbox(12, 1, "Day (DD)"), 2, 0)
+    dategrid.setField(Textbox(12, 1, "Year (YYYY)"), 3, 0)
+
+    dategrid.setField(Textbox(12, 1, "Hour (HH)"), 1, 2)
+    dategrid.setField(Textbox(12, 1, "Min (MM)"), 2, 2)
+    dategrid.setField(Textbox(12, 1, ""), 3, 2)
+    
+    dategrid.setField(Textbox(12, 1, ""), 0, 0)
+    dategrid.setField(Textbox(12, 1, "Date:"), 0, 1)
+    dategrid.setField(Textbox(12, 1, "Time (24h):"), 0, 3)
+    dategrid.setField(Textbox(12, 1, ""), 0, 2)
+    
+    day = Entry(3, str(now.day))
+    month = Entry(3, str(now.month))
+    year = Entry(5, str(now.year))
+
+    dategrid.setField(month, 1, 1, padding=(0,0,0,1))
+    dategrid.setField(day, 2, 1, padding=(0,0,0,1))
+    dategrid.setField(year, 3, 1, padding=(0,0,0,1))
+
+    hour = Entry(3, str(now.hour))
+    min = Entry(3, str(now.minute))
+
+    dategrid.setField(hour, 1, 3)
+    dategrid.setField(min, 2, 3)
+
+    gf.add(dategrid, 0, 1, padding=(0,0,1,1))
+
+    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+    gf.add(buttons, 0, 2)
+
+    result = gf.runOnce()
+
+    if buttons.buttonPressed(result) == "ok":
         answers['set-time'] = True
         answers['set-time-dialog-dismissed'] = datetime.datetime.now()
-        answers['localtime'] = datetime.datetime(int(year),
-                                                 int(month),
-                                                 int(day),
-                                                 int(hour),
-                                                 int(minute))
+        answers = datetime.datetime(int(year.value()),
+                                    int(month.value()),
+                                    int(day.value()),
+                                    int(hour.value()),
+                                    int(min.value()))
         return 1
-    if button == 'back': return -1
+    else if buttons.buttonPressed(result) == "back":
+        return -1
 
 def installation_complete(answers):
     global screen
