@@ -625,7 +625,7 @@ def copyGuestInstallerFiles(mounts, answers):
     
 
 
-def copyVendorKernels(mounts):
+def copyVendorKernels(mounts, answers):
      copyFilesFromDir(vendor_kernels_location, "%s/var/opt/xen/" % mounts['rws'])
      
    
