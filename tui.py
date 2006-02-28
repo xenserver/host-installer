@@ -21,7 +21,7 @@ screen = None
 
 # functions to start and end the GUI - these create and destroy a snack screen as
 # appropriate.
-def init_ui(results):
+def init_ui(results, is_subui):
     global screen
     
     screen = SnackScreen()

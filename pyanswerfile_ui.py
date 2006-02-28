@@ -24,7 +24,7 @@ def specifyAnswerFile(file):
     assert type(file) == str
     pyAnswerFile = file
 
-def init_ui(results):
+def init_ui(results, is_subui):
     global pyAnswerFile
     assert pyAnswerFile
     
@@ -37,7 +37,7 @@ def init_ui(results):
 
     # now pass on initialisation to our sub-UI:
     if sub_ui_package is not None:
-        sub_ui_package.init_ui(results)
+        sub_ui_package.init_ui(results, True)
 
 def end_ui():
     if sub_ui_package is not None:

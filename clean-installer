@@ -39,7 +39,7 @@ def main():
             ui_package = pyanswerfile_ui
             
     try:
-        ui_package.init_ui(results)
+        ui_package.init_ui(results, False)
 	
         seq = [ ui_package.welcome_screen,
                 ( generalui.disk_selection, { 'ui-package': ui_package  }),
