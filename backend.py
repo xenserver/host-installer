@@ -28,7 +28,7 @@ ui_package = tui
 rws_size = 15000
 rws_name = "RWS"
 dropbox_size = 15000
-dropbox_name = "XSPackages"
+dropbox_name = "Files"
 dropbox_type = "ext3"
 
 boot_size = 65
