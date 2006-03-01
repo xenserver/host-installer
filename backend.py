@@ -465,7 +465,7 @@ def writeFstab(mounts, answers):
                      % (bootpart, bootfs_type) )
         fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
         fstab.write("%s          %s  %s     defaults   0  0\n" % 
-                     (DOM0_PKGS_DIR_LOCATION, dropboxpart, dropbox_type))
+                     (dropboxpart, DOM0_PKGS_DIR_LOCATION, dropbox_type))
         fstab.write("none        /proc proc   defaults   0  0\n")
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
