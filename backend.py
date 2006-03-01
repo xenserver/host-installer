@@ -28,7 +28,7 @@ ui_package = tui
 rws_size = 15000
 rws_name = "RWS"
 dropbox_size = 15000
-dropbox_name = "Dropbox"
+dropbox_name = "XSPackages"
 dropbox_type = "ext3"
 
 boot_size = 65
@@ -53,7 +53,7 @@ DOM0_GUEST_INSTALLER_LOCATION = DOM0_FILES_LOCATION_ROOT + "guest-installer/"
 
 DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
 DOM0_XGT_LOCATION = "%s/xgt"
-
+DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
 
 #file system creation constants
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
@@ -417,7 +417,7 @@ def mountVolumes(primary_disk):
     rootpath = '/tmp/root'
     bootpath = '/tmp/root/boot'
     rwspath = "/tmp/root/rws"
-    dropboxpath = "/tmp/root/dropbox"
+    dropboxpath = "/tmp/root%s"  % DOM0_PKGS_DIR_LOCATION
 
     # mount the volumes (must assertDir in mounted filesystem...)
     assertDir(rootpath)
@@ -461,9 +461,11 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("%s    /boot    %s    nouser,auto,ro,async    0    0\n" % (bootpart, bootfs_type) )
+        fstab.write("%s    /boot    %s    nouser,auto,ro,async    0    0\n" 
+                     % (bootpart, bootfs_type) )
         fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
-        fstab.write("%s          /dropbox  %s     defaults   0  0\n" % (dropboxpart, dropbox_type))
+        fstab.write("%s          %s  %s     defaults   0  0\n" % 
+                     (DOM0_PKGS_DIR_LOCATION, dropboxpart, dropbox_type))
         fstab.write("none        /proc proc   defaults   0  0\n")
         fstab.write("none        /sys  sysfs  defaults   0  0\n")
         fstab.close()
@@ -680,7 +682,7 @@ def makeSymlinks(mounts, answers):
 
 def initNfs(mounts, answers):
     exports = open("%s/etc/exports" % mounts['root'] , "w")
-    exports.write("/dropbox    *(rw,async,no_root_squash)")
+    exports.write("%s    *(rw,async,no_root_squash)" % DOM0_PKGS_DIR_LOCATION)
     exports.close()
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
