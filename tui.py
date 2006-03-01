@@ -404,7 +404,7 @@ def set_time(answers):
     if buttons.buttonPressed(result) == "ok":
         answers['set-time'] = True
         answers['set-time-dialog-dismissed'] = datetime.datetime.now()
-        answers = datetime.datetime(int(year.value()),
+        answers['localtime'] = datetime.datetime(int(year.value()),
                                     int(month.value()),
                                     int(day.value()),
                                     int(hour.value()),
