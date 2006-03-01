@@ -262,6 +262,8 @@ def get_name_service_configuration(answers):
                 answers['manual-hostname'] = (False, None)
             else:
                 answers['manual-hostname'] = (True, hostname.value())
+        else:
+            answers['manual-hostname'] = (False, None)
 
         # manual nameservers?
         if auto_nameservers.value():
