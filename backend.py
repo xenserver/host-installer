@@ -45,10 +45,12 @@ CD_RHEL41_INSTALL_INITRD = CD_RHEL41_GUEST_INSTALLER_LOCATION + "rhel41-install-
 CD_UPDATE_MODULES_SCRIPT = "/opt/xensource/guest-installer/update-modules"
 CD_RPMS_LOCATION = "/opt/xensource/rpms/"
 CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
+CD_XEN_KERNEL_LOCATION = "/opt/xensource/xen-kernel"
 
 #location/destination of files on the dom0 FS
 DOM0_FILES_LOCATION_ROOT = "%s/files/"
-DOM0_VENDOR_KERNEL_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
+DOM0_VENDOR_KERNELS_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
+DOM0_XEN_KERNEL_LOCATION = DOM0_FILES_LOCATION_ROOT + "xen-kernel/"
 DOM0_GUEST_INSTALLER_LOCATION = DOM0_FILES_LOCATION_ROOT + "guest-installer/"
 
 DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
@@ -167,6 +169,7 @@ def performInstallation(answers, ui_package):
     ui_package.displayProgressDialog(17, pd)
 
     copyVendorKernels(mounts, answers)
+    copyXenKernel(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
 
     copyRpms(mounts, answers)
@@ -638,9 +641,14 @@ def copyGuestInstallerFiles(mounts, answers):
 
 
 def copyVendorKernels(mounts, answers):
-    assertDir(DOM0_VENDOR_KERNEL_LOCATION % mounts['dropbox'])
+    assertDir(DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
     copyFilesFromDir(CD_VENDOR_KERNELS_LOCATION, 
-                       DOM0_VENDOR_KERNEL_LOCATION % mounts['dropbox'])
+                       DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
+
+def copyXenKernel(mounts, answers):
+    assertDir(DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
+    copyFilesFromDir(CD_XEN_KERNEL_LOCATION, 
+                       DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
      
    
 # make appropriate symlinks according to writeable_files and writeable_dirs:
