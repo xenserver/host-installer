@@ -20,6 +20,8 @@ ui_package = p2v_tui
 
 from p2v_error import P2VError
 
+#globals
+dropbox_path = "/opt/xensource/files/"
 
 def print_results( results ):
     if p2v_utils.is_debug():
@@ -89,14 +91,14 @@ def nfs_p2v( nfs_host, nfs_path, os_install ):
     inbox_path = nfs_mount( nfs_mount_path )
     perform_p2v( os_install, inbox_path )
         
-def mount_inbox( xe_host ):    
-    inbox_path = "/dropbox/xgt"
-    fs_mount_path = nfs_mount( xe_host +":" + inbox_path )
+def mount_dropbox( xe_host ):    
+    global dropbox_path
+    fs_mount_path = nfs_mount( xe_host +":" + dropbox_path )
     return fs_mount_path
 
 def xe_p2v( xe_host, os_install ):
-    inbox_path = mount_inbox( xe_host )
-    perform_p2v( os_install, inbox_path )
+    dropbox_path = mount_dropbox( xe_host )
+    perform_p2v( os_install, dropbox_path )
          
 def perform_P2V( results ):
     os_install = results[constants.OS_INSTALL]
