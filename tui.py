@@ -100,8 +100,14 @@ Xen will be installed onto this disk, requiring 120MB, and the remaining space u
 
 def select_guest_disks(answers):
     global screen
+    
+    entries = []
 
-    entries = generalui.getDiskList()
+    diskEntries = generalui.getDiskList()
+    for de in diskEntries:
+        (vendor, model, size) = generalui.getExtendedDiskInfo(de)
+        entry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        entries.append(entry)
     entries.remove(answers['primary-disk'])
 
     text = TextboxReflowed(50, "Please select any additional disks you would like to use for guest storage")
