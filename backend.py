@@ -95,24 +95,34 @@ writeable_dirs = [ '/etc/ntp',
 # XXX Hack - we should have a progress callback, not pass in the
 # entire UI component.
 def performInstallation(answers, ui_package):
+    
+    try:
+        isUpgradeInstall = answers['upgrade']
+    except:
+        isUpgradeInstall = False
+    
     pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
                                        'Installing %s, please wait...' % PRODUCT_BRAND,
                                        24)
 
     ui_package.displayProgressDialog(0, pd)
 
-    # Dom0 Disk partition table
-    writeDom0DiskPartitions(answers['primary-disk'])
-    ui_package.displayProgressDialog(1, pd)
-
-    # Guest disk partition table
-    for gd in answers['guest-disks']:
-        writeGuestDiskPartitions(gd)
-    ui_package.displayProgressDialog(2, pd)
-
-    # Create volume group and any needed logical volumes:
-    prepareLVM(answers)
-    ui_package.displayProgressDialog(3, pd)
+    if isUpgradeInstall == False:    
+        # Dom0 Disk partition table
+        writeDom0DiskPartitions(answers['primary-disk'])
+        ui_package.displayProgressDialog(1, pd)
+    
+        # Guest disk partition table
+        for gd in answers['guest-disks']:
+            writeGuestDiskPartitions(gd)
+        ui_package.displayProgressDialog(2, pd)
+    
+        # Create volume group and any needed logical volumes:
+        prepareLVM(answers)
+        ui_package.displayProgressDialog(3, pd)
+    else:
+        if not CheckInstalledVersion(answers):
+            return
 
     # Put filesystems on Dom0 Disk
     createDom0DiskFilesystems(answers['primary-disk'])
@@ -180,11 +190,13 @@ def performInstallation(answers, ui_package):
 
     initNfs(mounts, answers)
     ui_package.displayProgressDialog(21, pd)
-
     
     # complete the installation:
     makeSymlinks(mounts, answers)    
     ui_package.displayProgressDialog(23, pd)
+
+    if isUpgradeInstall:
+        removeOldFs(mounts, answers)
     
     umountVolumes(mounts)
     finalise(answers)
@@ -192,7 +204,68 @@ def performInstallation(answers, ui_package):
     
 
     ui_package.clearModelessDialog()
+#    else: 
+#        # Do Upgrade
+#        pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
+#                                           'Upgrading %s, please wait...' % PRODUCT_BRAND,
+#                                           7)
+#
+#        ui_package.displayProgressDialog(0, pd)
+#                                           
+#        if not CheckInstalledVersion(answers):
+#            #do something
+#            return
+#        
+#        createDom0Tmpfs(answers['primary-disk'])
+#        ui_package.displayProgressDialog(1, pd)
+#
+#        extractDom0Filesystem(answers['primary-disk'])
+#        ui_package.displayProgressDialog(2, pd)
+#
+#        mounts = mountVolumes(answers['primary-disk'])
+#        ui_package.displayProgressDialog(3, pd)
+#
+#        installKernels(mounts, answers)
+#        ui_package.displayProgressDialog(4, pd)
+#        
+#        doDepmod(mounts, answers)
+#        ui_package.displayProgressDialog(5, pd)
+#        
+#        removeOldFs(mounts, answers)
+#
+#        umountVolumes(mounts)
+#        ui_package.displayProgressDialog(6, pd)
+#
+#        finalise(answers)
+#        ui_package.displayProgressDialog(7, pd)
+#
+#        ui_package.clearModelessDialog()
+        
 
+#will scan all detected harddisks, and pick the first one
+#that has a partition with burbank*.img on it.
+def CheckInstalledVersion(answers):
+    disks = generalui.getDiskList()
+    for disk in disks:
+        if hasBootPartition(disk):
+            answers['primary-disk'] = disk
+            return True
+    return False
+
+def removeOldFs(mounts, ansers):
+    assert runCmd("rm -f %s/%s-%s.img" %
+                   (mounts['boot'], dom0_name, dom0_version)) == 0
+
+def hasBootPartition(disk):
+    mountPoint = os.path.join("tmp", "mnt")
+    rc = False
+    assertDir(mountPoint)
+    if runCmd("mount %s %s" % (getBootPartName(disk), mountPoint )) == 0:
+        if os.path.exists(os.path.join(mountPoint, "xen-3.0.1.gz")):
+            rc = True
+        runCmd("umount %s" % getBootPartName(disk))
+        
+    return rc
 
 # TODO - get all this right!!
 def hasServicePartition(disk):
@@ -321,6 +394,7 @@ def createDom0DiskFilesystems(disk):
 
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
+    assert runCmd("vgscan") == 0
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (dom0tmpfs_size, dom0tmpfs_name, vgname)) == 0
     assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
@@ -398,8 +472,8 @@ def installKernels(disk):
     assert runCmd("mount %s /tmp" % dest) == 0
 
     # TODO - use Python directly here...!
-    runCmd("cp /boot/vmlinuz-2.6.12.6-xen /tmp/boot")
-    runCmd("cp /boot/xen-%s.gz /tmp/boot") % xen_version
+    runCmd("cp /boot/vmlinuz-%s /tmp/boot" % kernel_version) 
+    runCmd("cp /boot/xen-%s.gz /tmp/boot" % xen_version)
 
     assert runCmd("umount /tmp") == 0
 
@@ -770,7 +844,10 @@ def copyFilesFromDir(sourcedir, dest):
         assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
 
 def writeLog(answers):
-    bootnode = getBootPartName(answers['primary-disk'])
-    assert os.system("mount %s /tmp" % bootnode) == 0
-    logging.writeLog("/tmp/install-log")
-    assert os.system("umount /tmp") == 0
+    try: 
+        bootnode = getBootPartName(answers['primary-disk'])
+        assert os.system("mount %s /tmp" % bootnode) == 0
+        logging.writeLog("/tmp/install-log")
+        assert os.system("umount /tmp") == 0
+    except:
+        pass

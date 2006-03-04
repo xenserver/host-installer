@@ -58,11 +58,32 @@ This install will overwrite data on any hard drives you select to use during the
     # advance to next screen:
     return 1
 
+def upgrade_screen(answers):
+    global screen
+
+    button = ButtonChoiceWindow(screen,
+                       "Welcome to %s Setup" % PRODUCT_BRAND,
+                       """This CD will upgrade %s on your server to version %s.""" % 
+                           (PRODUCT_BRAND, PRODUCT_VERSION),
+                       ['Ok', 'Exit'], width=60)
+
+    # advance to next screen:
+    if button == "exit":
+        sys.exit(0)
+    else:
+        return 1
+
+
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     global screen
-
-    entries = generalui.getDiskList()
+    entries = []
+    
+    diskEntries = generalui.getDiskList()
+    for de in diskEntries:
+        (vendor, model, size) = generalui.getExtendedDiskInfo(de)
+        entry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        entries.append(entry)
 
     (button, entry) = ListboxChoiceWindow(screen,
                         "Select Primary Disk",

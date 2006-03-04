@@ -24,18 +24,22 @@ ui_package = tui
 
 def main():
     global ui_package
+    isUpgrade = False
     
     try:
         (opts, args) = getopt(sys.argv[1:],
                               "",
                               ["pyanswerfile=",
                                "verbose-pyanswerfile=",
+                               "upgrade",
                                "clog="])
     except Exception, e:
         print "This program takes no arguments."
         sys.exit(1)
 
     clog_fds = []
+
+    results = {}
 
     for (opt, val) in opts:
         if opt == "--pyanswerfile":
@@ -53,12 +57,15 @@ def main():
                 logging.continuous_logs.append(fd)
             except:
                 print "Error adding continuous log %s." % val
+        if opt == "--upgrade":
+        	results['upgrade'] = True
+        	isUpgrade = True
 
-    results = {}
     try:
         ui_package.init_ui(results, False)
 	
-        seq = [ ui_package.welcome_screen,
+        if not isUpgrade:
+        	seq = [ ui_package.welcome_screen,
                 ( generalui.disk_selection, { 'ui-package': ui_package  }),
                 ui_package.get_root_password,
                 ui_package.get_timezone,
@@ -66,6 +73,8 @@ def main():
                 ui_package.determine_basic_network_config,
                 ui_package.get_name_service_configuration,
                 ( generalui.confirm_installation, { 'ui-package': ui_package }) ]
+        else:
+        	seq = [ui_package.upgrade_screen ]
 
         uicontroller.runUISequence(seq, results)
 	

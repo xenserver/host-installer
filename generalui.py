@@ -28,8 +28,51 @@ def getDiskList():
             devices.append(dev)
 
     pipe.close()
-
+    
     return devices
+
+def getDiskDeviceVendor(deviceName):
+    rc, output = runOutputCmd('cat /sys/block/%s/device/vendor' % deviceName)
+    if rc == 0:
+        return output.strip()
+    else:
+        return None
+        
+
+def getDiskDeviceModel(deviceName):
+    rc, output = runOutputCmd('cat /sys/block/%s/device/model' % deviceName)
+    if rc == 0:
+        return output.strip()
+    else:
+        return None
+
+def getDiskDeviceSize(deviceName):
+    rc, output = runOutputCmd('cat /sys/block/%s/size' % deviceName)
+    if rc == 0:
+        return output.strip()
+    else:
+        return None
+    
+def getHumanDiskSize(rawDiskSize):
+    longSize = long(rawDiskSize)
+    gbSize = (longSize * 512) / (1024 * 1024 * 1024)
+    return "%d GB" % gbSize
+
+def getExtendedDiskInfo(disk):
+    deviceNameParts = disk.split('/')
+    if len(deviceNameParts) == 2:
+        deviceName = deviceNameParts[1]
+    elif len(deviceNameParts) == 3:
+        deviceName = deviceNameParts[2]
+    else:
+        #unsupported
+        return None
+    
+    deviceVendor = getDiskDeviceVendor(deviceName)
+    deviceModel = getDiskDeviceModel(deviceName)
+    deviceSize = getDiskDeviceSize(deviceName)
+    
+    return (deviceVendor, deviceModel, deviceSize)
 
 def getNetifList():
     pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }' | grep '^eth.*'")
@@ -82,6 +125,12 @@ def runCmd(command):
     (rv, output) = commands.getstatusoutput(command)
     logging.logOutput(command, output)
     return rv
+
+def runOutputCmd(command):
+    (rv, output) = commands.getstatusoutput(command)
+    logging.logOutput(command, output)
+    return (rv, output)
+    
 
 def makeHumanList(list):
     if len(list) == 0:
