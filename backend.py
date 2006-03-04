@@ -101,7 +101,13 @@ def performInstallation(answers, ui_package):
     except:
         isUpgradeInstall = False
     
-    pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
+
+    if isUpgradeInstall:
+        pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
+                                   'Upgrading %s, please wait...' % PRODUCT_BRAND,
+                                   24)
+    else:
+        pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
                                        'Installing %s, please wait...' % PRODUCT_BRAND,
                                        24)
 

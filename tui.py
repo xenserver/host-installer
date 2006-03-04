@@ -455,6 +455,17 @@ Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
 
     return 1
                       
+def upgrade_complete(answers):
+    global screen
+
+    ButtonChoiceWindow(screen,
+                       "Upgrade Complete",
+                       """The %s upgrade has completed.  Please press enter to reboot the machine.
+                       
+Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
+                       ['Ok'])
+
+    return 1
 
 
 ###

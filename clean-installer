@@ -80,7 +80,11 @@ def main():
 	
         backend.performInstallation(results, ui_package)
         
-        seq = [ ui_package.installation_complete ]
+        if not isUpgrade:
+        	seq = [ ui_package.installation_complete ]
+        else:
+        	seq = [ ui_package.upgrade_complete ]
+        
         uicontroller.runUISequence(seq, results)
     except Exception, e:
         # clean up the screen
