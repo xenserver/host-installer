@@ -82,8 +82,9 @@ def select_primary_disk(answers):
     diskEntries = generalui.getDiskList()
     for de in diskEntries:
         (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        entry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
-        entries.append(entry)
+        stringEntry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        e = (stringEntry, de)
+        entries.append(e)
 
     (button, entry) = ListboxChoiceWindow(screen,
                         "Select Primary Disk",
@@ -93,7 +94,9 @@ Xen will be installed onto this disk, requiring 120MB, and the remaining space u
                         entries,
                         ['Ok', 'Back'])
 
-    answers['primary-disk'] = entries[entry]
+    # entry contains the 'de' part of the tuple passed in
+    answers['primary-disk'] = entry
+    print ("setting primary disk to %s" % entry)
 
     if button == "ok" or button == None: return 1
     if button == "back": return -1
@@ -104,12 +107,12 @@ def select_guest_disks(answers):
     entries = []
 
     diskEntries = generalui.getDiskList()
+    diskEntries.remove(answers['primary-disk'])
     for de in diskEntries:
         (vendor, model, size) = generalui.getExtendedDiskInfo(de)
         entry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
         entries.append(entry)
-    entries.remove(answers['primary-disk'])
-
+        
     text = TextboxReflowed(50, "Please select any additional disks you would like to use for guest storage")
     buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
     cbt = CheckboxTree(4, 1)
@@ -122,8 +125,11 @@ def select_guest_disks(answers):
     gf.add(buttons, 0, 2)
     
     result = gf.runOnce()
-
-    answers['guest-disks'] = cbt.getSelection()
+    
+    answers['guest-disks'] = []
+  
+    for sel in cbt.getSelection():
+        answers['guest-disks'].append(diskEntries[entries.index(sel)])
 
     if buttons.buttonPressed(result) == 'ok': return 1
     if buttons.buttonPressed(result) == 'back': return -1

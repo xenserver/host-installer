@@ -126,12 +126,13 @@ def performInstallation(answers, ui_package):
         # Create volume group and any needed logical volumes:
         prepareLVM(answers)
         ui_package.displayProgressDialog(3, pd)
-    else:
-        if not CheckInstalledVersion(answers):
-            return
 
-    # Put filesystems on Dom0 Disk
-    createDom0DiskFilesystems(answers['primary-disk'])
+        # Put filesystems on Dom0 Disk
+        createDom0DiskFilesystems(answers['primary-disk'])
+#    else:
+#       if not CheckInstalledVersion(answers):
+#            return
+
     createDom0Tmpfs(answers['primary-disk'])
     ui_package.displayProgressDialog(4, pd)
 
@@ -178,8 +179,9 @@ def performInstallation(answers, ui_package):
     writeModprobeConf(mounts, answers)
     ui_package.displayProgressDialog(15, pd)
     
-    copyXgts(mounts, answers)
-    ui_package.displayProgressDialog(16, pd)
+    if not isUpgradeInstall:
+        copyXgts(mounts, answers)
+        ui_package.displayProgressDialog(16, pd)
 
     copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
@@ -207,7 +209,6 @@ def performInstallation(answers, ui_package):
     umountVolumes(mounts)
     finalise(answers)
     ui_package.displayProgressDialog(24, pd)
-    
 
     ui_package.clearModelessDialog()
 #    else: 
@@ -252,6 +253,7 @@ def performInstallation(answers, ui_package):
 #that has a partition with burbank*.img on it.
 def CheckInstalledVersion(answers):
     disks = generalui.getDiskList()
+    answers['guest-disks'] = []
     for disk in disks:
         if hasBootPartition(disk):
             answers['primary-disk'] = disk

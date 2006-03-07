@@ -26,6 +26,9 @@ def main():
     global ui_package
     isUpgrade = False
     
+    #disable all kernel printing
+    generalui.runCmd("echo 1 > /proc/sys/kernel/printk")
+    
     try:
         (opts, args) = getopt(sys.argv[1:],
                               "",
@@ -63,18 +66,19 @@ def main():
 
     try:
         ui_package.init_ui(results, False)
-	
-        if not isUpgrade:
-        	seq = [ ui_package.welcome_screen,
-                ( generalui.disk_selection, { 'ui-package': ui_package  }),
-                ui_package.get_root_password,
+        seq = [ ui_package.get_root_password,
                 ui_package.get_timezone,
                 ui_package.set_time,
                 ui_package.determine_basic_network_config,
                 ui_package.get_name_service_configuration,
                 ( generalui.confirm_installation, { 'ui-package': ui_package }) ]
+		
+        if not isUpgrade:
+            seq.insert(0, ( generalui.disk_selection, { 'ui-package': ui_package  }) )
+            seq.insert(0, ui_package.welcome_screen)
         else:
-        	seq = [ui_package.upgrade_screen ]
+            seq.insert(0, ui_package.upgrade_screen )
+            backend.CheckInstalledVersion(results)
 
         uicontroller.runUISequence(seq, results)
 	
