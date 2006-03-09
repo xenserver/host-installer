@@ -33,18 +33,17 @@ def main():
             screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
     
             entries = [ 
-                    ' * %s Install (clean install)' % PRODUCT_BRAND,
-                    ' * P2V (existing OS install)',
-                    ' * Reboot machine'
+                    ' * Install %s Managed Host' % PRODUCT_BRAND,
+                    ' * P2V (convert existing OS on this host into a VM template)'
                      ]
             (button, entry) = ListboxChoiceWindow(screen,
                             "Make a choice",
                             """Select the install you want to perform:""",
                             entries,
-                            ['Ok', 'Exit'], width=60)
+                            ['Ok', 'Exit and reboot'], width=60)
             if button == 'ok' or button == None:
                 if entry == 0:
-                     rc = os.system("/opt/xensource/clean-installer/clean-installer")
+                     rc = os.system("/opt/xensource/clean-installer/clean-installer --clog /dev/tty2")
                      if rc == 0: 
                          os.system("reboot")
                          sys.exit(0)
@@ -54,17 +53,12 @@ def main():
                     rc = os.system("/opt/xensource/clean-installer/p2v.py")
                     if rc != 0:
                         sys.exit(rc)
-                elif entry == 2:
-                    button = ButtonChoiceWindow(screen,
-                           "Confirm",
-                           """Do you really want to reboot?""",
-                           ['Ok', 'Cancel'], width=50)
-                    if button == 'ok':
                         screen.finish()
                         os.system("reboot")
                         sys.exit(0)
             else:
                 screen.finish()
+                os.system("reboot")
                 sys.exit(0)
     except Exception, e:
         screen.finish()
