@@ -40,7 +40,7 @@ def main():
                             "Make a choice",
                             """Select the install you want to perform:""",
                             entries,
-                            ['Ok', 'Exit and reboot'], width=60)
+                            ['Ok', 'Exit and reboot'], width=70)
             if button == 'ok' or button == None:
                 if entry == 0:
                      rc = os.system("/opt/xensource/clean-installer/clean-installer --clog /dev/tty2")
@@ -53,9 +53,6 @@ def main():
                     rc = os.system("/opt/xensource/clean-installer/p2v.py")
                     if rc != 0:
                         sys.exit(rc)
-                        screen.finish()
-                        os.system("reboot")
-                        sys.exit(0)
             else:
                 screen.finish()
                 os.system("reboot")
