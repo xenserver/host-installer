@@ -43,7 +43,7 @@ def main():
                             ['Ok', 'Exit and reboot'], width=70)
             if button == 'ok' or button == None:
                 if entry == 0:
-                     rc = os.system("/opt/xensource/clean-installer/clean-installer --clog /dev/tty2")
+                     rc = os.system("/opt/xensource/clean-installer/clean-installer --clog /dev/tty3")
                      if rc == 0: 
                          os.system("reboot")
                          sys.exit(0)
