@@ -354,7 +354,15 @@ def writeGuestDiskPartitions(disk):
     assert result == 0
     
 def determinePartitionName(guestdisk, partitionNumber):
-    if guestdisk.find("cciss") != -1:
+    if guestdisk.find("cciss") != -1 or \
+        guestdisk.find("ida") != -1 or \
+        guestdisk.find("rd") != -1 or \
+        guestdisk.find("sg") != -1 or \
+        guestdisk.find("i2o") != -1 or \
+        guestdisk.find("amiraid") != -1 or \
+        guestdisk.find("iseries") != -1 or \
+        guestdisk.find("emd") != -1 or \
+        guestdisk.find("carmel") != -1:
         return guestdisk+"p%d" % partitionNumber
     else:
         return guestdisk + "%d" % partitionNumber
