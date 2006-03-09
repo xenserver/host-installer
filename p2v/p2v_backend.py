@@ -21,7 +21,7 @@ ui_package = p2v_tui
 from p2v_error import P2VError
 
 #globals
-dropbox_path = "/opt/xensource/files/"
+dropbox_path = "/opt/xensource/packages/xgt/"
 
 def print_results( results ):
     if p2v_utils.is_debug():
@@ -116,7 +116,7 @@ def perform_P2V( results ):
         xe_host = results[constants.XE_HOST]
         xe_p2v( xe_host, os_install )
     elif results[constants.XEN_TARGET] == constants.XEN_TARGET_NFS:
-        p2v_utils.trace_message( "we're doing a p2v to XE" )
+        p2v_utils.trace_message( "we're doing a p2v to NFS" )
         nfs_host = results[constants.NFS_HOST]
         nfs_path = results[constants.NFS_PATH]
         nfs_p2v( nfs_host, nfs_path, os_install )
