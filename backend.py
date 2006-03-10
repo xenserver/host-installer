@@ -613,7 +613,7 @@ def setTime(mounts, answers):
 
     # make the localtime link:
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
-           mounts['root'])
+           (answers['timezone'], mounts['root']))
     
 
 def setRootPassword(mounts, answers):
