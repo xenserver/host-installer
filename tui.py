@@ -394,7 +394,9 @@ def get_timezone(answers):
 def set_time(answers):
     global screen
 
-    now = datetime.datetime.now()
+    # translate the current time to the selected timezone:
+    now = generalui.translateDateTime(datetime.datetime.now(),
+                                      answers['timezone'])
 
     gf = GridFormHelp(screen, "Set local time", "", 1, 4)
 

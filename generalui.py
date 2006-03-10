@@ -9,6 +9,8 @@ import os
 import uicontroller
 import commands
 import logging
+import time
+import datetime
 
 timezone_data_file = '/opt/xensource/clean-installer/timezones'
 
@@ -141,4 +143,21 @@ def makeHumanList(list):
         start = ", ".join(list[:len(list) - 1])
         start += " and %s" % list[len(list) - 1]
         return start
-                          
+
+# Hack to get the time in a different timezone
+def translateDateTime(dt, tzname):
+    localtz = "utc"
+    if os.environ.has_key('TZ'):
+        localtz = os.environ['TZ']
+    os.environ['TZ'] = tzname
+    time.tzset()
+
+    # work out the delta:
+    nowlocal = datetime.datetime.now()
+    nowutc = datetime.datetime.utcnow()
+    delta = nowlocal - nowutc
+
+    os.environ['TZ'] = localtz
+    time.tzset()
+
+    return dt + delta

@@ -610,6 +610,10 @@ def setTime(mounts, answers):
     timeconfig.close()
 
     writeable_files.append('/etc/sysconfig/clock')
+
+    # make the localtime link:
+    runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
+           mounts['root'])
     
 
 def setRootPassword(mounts, answers):

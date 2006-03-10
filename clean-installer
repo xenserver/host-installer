@@ -28,6 +28,9 @@ def main():
     
     #disable all kernel printing
     generalui.runCmd("echo 1 > /proc/sys/kernel/printk")
+
+    # sync hwclock to syscock ready for date/time stuff
+    generalui.runCmd("hwclock --utc --hwtosys")
     
     try:
         (opts, args) = getopt(sys.argv[1:],
