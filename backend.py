@@ -31,7 +31,7 @@ dropbox_size = 15000
 dropbox_name = "Files"
 dropbox_type = "ext3"
 
-boot_size = 65
+boot_size = 75
 vgname = "VG_XenSource"
 xen_version = "3.0.1"
 
@@ -136,17 +136,16 @@ def performInstallation(answers, ui_package):
     createDom0Tmpfs(answers['primary-disk'])
     ui_package.displayProgressDialog(4, pd)
 
-    # Extract Dom0 onto disk:
-    # TODO - more granularity for progress dialog here
-    extractDom0Filesystem(answers['primary-disk'])
-    ui_package.displayProgressDialog(5, pd)
-
-    # Install grub and grub configuration to read-write partition
-    installGrub(answers['primary-disk'])
-    ui_package.displayProgressDialog(6, pd)
-
     # Customise the installation:
     mounts = mountVolumes(answers['primary-disk'])
+    ui_package.displayProgressDialog(5, pd)
+
+    # Extract Dom0 onto disk:
+    extractDom0Filesystem(mounts, answers['primary-disk'])
+    ui_package.displayProgressDialog(6, pd)
+
+    # Install grub and grub configuration to read-write partition
+    installGrub(mounts, answers['primary-disk'])
     ui_package.displayProgressDialog(7, pd)
 
     # put kernel in /boot and prepare it for use:
@@ -416,7 +415,7 @@ def createDom0Tmpfs(disk):
     assert runCmd("vgmknodes") == 0
     assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
     
-def installGrub(disk):
+def installGrub(mounts, disk):
     global grubroot
     
     # grub configuration - placed here for easy editing.  Written to
@@ -444,11 +443,10 @@ def installGrub(disk):
 
     # install GrUB - TODO better error handling required here:
     # - copy GrUB files into place:
-    assert runCmd("mount %s /tmp" % getBootPartName(disk)) == 0
-    assertDir("/tmp/grub")
-    runCmd("cp /boot/grub/* /tmp/grub") # We should do this in Python...
-    runCmd("rm /tmp/grub/menu.lst") # no menu.lst from cd
-    runCmd("rm -f /tmp/grub/grub.conf")
+    assertDir("%s/grub" % mounts['boot'])
+    runCmd("cp /boot/grub/* %s/grub" % mounts['boot']) # We should do this in Python...
+    runCmd("rm %s/grub/menu.lst" % mounts['boot']) # no menu.lst from cd
+    runCmd("rm -f %s/grub/grub.conf" % mounts['boot'])
 
     # now install GrUB to the MBR of the first disk:
     # (note GrUB partition numbers start from 0 not 1)
@@ -456,29 +454,26 @@ def installGrub(disk):
     grubdest = '(%s,%s)' % (getGrUBDevice(disk), boot_grubpart)
     stage2 = "%s/grub/stage2" % grubdest
     conf = "%s/grub/menu.lst" % grubdest
-    assert runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
-              % (grubroot, stage2, conf)) == 0
+    assert runCmd("chroot %s echo 'install %s/grub/stage1 d (hd0) %s p %s' | /sbin/grub --batch"
+              % (mounts['root'], grubroot, stage2, conf)) == 0
     
     # write the grub.conf file:
-    menulst_file = open("/tmp/grub/menu.lst", "w")
+    menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
     menulst_file.write(grubconf)
     menulst_file.close()
 
-    assert runCmd("umount /tmp") == 0
 
-def extractDom0Filesystem(disk):
+def extractDom0Filesystem(mounts, disk):
     global dom0fs_tgz_location
     
     # mount empty filesystem:
     # TODO - better error handling:
-    assert runCmd("mount /dev/%s/%s /tmp" % (vgname, dom0tmpfs_name)) == 0
 
     # extract tar.gz to filesystem:
     # TODO - rewrite this using native Python so we have a better progress
     #        dialog situation :)
-    assert runCmd("tar -C /tmp -xzf %s" % CD_DOM0FS_TGZ_LOCATION) == 0
+    assert runCmd("tar -C %s -xzf %s" % (mounts['root'], CD_DOM0FS_TGZ_LOCATION)) == 0
 
-    assert runCmd("umount /tmp") == 0
 
 def installKernels(disk):
     dest = getRWSPartName(disk)
@@ -780,7 +775,7 @@ def makeSymlinks(mounts, answers):
 
 def initNfs(mounts, answers):
     exports = open("%s/etc/exports" % mounts['root'] , "w")
-    exports.write("%s    *(rw,async,no_root_squash)" % DOM0_PKGS_DIR_LOCATION)
+    exports.write("%s    *(rw,async,no_root_squash)" % DOM0_PKGS_DIR_LOCATION + "/xgt")
     exports.close()
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
