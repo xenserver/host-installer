@@ -755,7 +755,7 @@ def makeSymlinks(mounts, answers):
 	        copyFilesFromDir(dom0_dir, rws_dir)
 
         runCmd("rm -rf %s" % dom0_dir)
-        assert runCmd("ln -sf /rws/%s %s" % (dir, dom0_dir)) == 0
+        assert runCmd("ln -sf /rws%s %s" % (dir, dom0_dir)) == 0
 
     # now link files:
     for file in writeable_files:
