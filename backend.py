@@ -454,8 +454,8 @@ def installGrub(mounts, disk):
     grubdest = '(%s,%s)' % (getGrUBDevice(disk), boot_grubpart)
     stage2 = "%s/grub/stage2" % grubdest
     conf = "%s/grub/menu.lst" % grubdest
-    assert runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | chroot %s /sbin/grub --batch"
-              % (grubroot, stage2, conf, mounts['root'])) == 0
+    assert runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
+              % (grubroot, stage2, conf)) == 0
     
     # write the grub.conf file:
     menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
@@ -779,7 +779,8 @@ def makeSymlinks(mounts, answers):
 
 def initNfs(mounts, answers):
     exports = open("%s/etc/exports" % mounts['root'] , "w")
-    exports.write("%s    *(rw,async,no_root_squash)" % DOM0_PKGS_DIR_LOCATION + "/xgt")
+    xgt_dir = DOM0_PKGS_DIR_LOCATION + "/xgt"
+    exports.write("%s    *(rw,async,no_root_squash)" % (xgt_dir))
     exports.close()
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
