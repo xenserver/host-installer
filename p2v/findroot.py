@@ -157,8 +157,8 @@ def determine_size(mntpnt, dev_name):
         raise P2VError("Failed to determine used size - df failed")
     
     p2v_utils.trace_message("\n\nFS used Usage : %s, FS total usage : %s\n" % (used_out, total_out))
-    used_size = 0
-    total_size = 0
+    used_size = long(0)
+    total_size = long(0)
     
     split_used_size = used_out.split('\n')
     split_total_size = total_out.split('\n')
