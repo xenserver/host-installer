@@ -74,7 +74,8 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/resolv.conf',
                     '/etc/hosts',
                     '/etc/issue',
-                    '/etc/adjtime' ]
+                    '/etc/adjtime' ,
+                    '/etc/lvm/.cache']
 
 #directories to be created in the dom0 FS
 asserted_dirs = [ '/etc',
@@ -84,7 +85,8 @@ asserted_dirs = [ '/etc',
 
 #directories that should be writeable in the dom0 FS
 writeable_dirs = [ '/etc/ntp',
-                   '/etc/lvm',
+                   '/etc/lvm/archive',
+                   '/etc/lvm/backup',
                    '/etc/ssh',
                    '/root' ]
 
