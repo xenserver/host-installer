@@ -46,7 +46,7 @@ def determine_size(os_install):
     dev_attrs = os_install[constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
 
-    (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
+    (total_size, used_size) = findroot.determine_size(os_root_mount_point, os_root_device )
         
     os_install[constants.FS_USED_SIZE] = used_size
     os_install[constants.FS_TOTAL_SIZE] = total_size
