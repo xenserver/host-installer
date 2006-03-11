@@ -84,8 +84,7 @@ asserted_dirs = [ '/etc',
 
 #directories that should be writeable in the dom0 FS
 writeable_dirs = [ '/etc/ntp',
-                   '/etc/lvm/archive',
-                   '/etc/lvm/backup',
+                   '/etc/lvm',
                    '/etc/ssh',
                    '/root' ]
 
