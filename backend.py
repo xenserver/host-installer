@@ -18,6 +18,7 @@ import uicontroller
 from version import *
 import version
 import logging
+import pickle
 
 ################################################################################
 # CONFIGURATION
@@ -56,6 +57,8 @@ DOM0_GUEST_INSTALLER_LOCATION = DOM0_FILES_LOCATION_ROOT + "guest-installer/"
 DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
 DOM0_XGT_LOCATION = "%s/xgt"
 DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
+
+ANSWERS_FILENAME = "upgrade_answers"
 
 #file system creation constants
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
@@ -205,6 +208,10 @@ def performInstallation(answers, ui_package):
 
     if isUpgradeInstall:
         removeOldFs(mounts, answers)
+
+    if not isUpgradeInstall:
+        writeAnswersFile(mounts, answers)
+
     
     umountVolumes(mounts)
     finalise(answers)
@@ -263,6 +270,13 @@ def CheckInstalledVersion(answers):
 def removeOldFs(mounts, ansers):
     assert runCmd("rm -f %s/%s-%s.img" %
                    (mounts['boot'], dom0_name, dom0_version)) == 0
+                   
+def writeAnswersFile(mounts, answers):
+    filename = ANSWERS_FILE
+    fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
+    pickle.dump(dict, fd)
+    fd.close()
+
 
 def hasBootPartition(disk):
     mountPoint = os.path.join("tmp", "mnt")

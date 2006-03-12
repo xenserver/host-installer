@@ -7,10 +7,13 @@
 # Copyright XenSource Inc. 2006
 
 import pickle
+from backend import ANSWERS_FILE
+from generalui import runCmd
 
 # module globals:
 sub_ui_package = None
 pyAnswerFile = None
+pyAnswerFileDevice = None
 
 # allow a sub-interface to specified - progress dialog calls and the
 # init and de-init calls will be passed through.  Dialogs will be translated
@@ -24,13 +27,28 @@ def specifyAnswerFile(file):
     assert type(file) == str
     pyAnswerFile = file
 
+def specifyAnswerFileDevice(file):
+    global pyAnswerFileDevice
+    assert type(file) == str
+    pyAnswerFileDevice = file
+
 def init_ui(results, is_subui):
     global pyAnswerFile
+    global pyAnswerFileDevice
+    
+    if pyAnswerFileDevice != None:
+        assert runCmd("mkdir -p /tmp/mnt/") == 0
+        assert runCmd("mount %s /tmp/mnt/" % pyAnswerFileDevice) == 0
+        pyAnswerFile = os.path.join("/tmp/mnt", ANSWERS_FILE)
+    
     assert pyAnswerFile
     
     fd = open(pyAnswerFile, "r")
     answers = pickle.load(fd)
     fd.close()
+
+    if pyAnswerFileDevice != None:
+        runCmd("umount /tmp/mnt")
 
     for key in answers:
         results[key] = answers[key]
@@ -38,6 +56,7 @@ def init_ui(results, is_subui):
     # now pass on initialisation to our sub-UI:
     if sub_ui_package is not None:
         sub_ui_package.init_ui(results, True)
+        
 
 def end_ui():
     if sub_ui_package is not None:

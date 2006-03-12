@@ -37,6 +37,7 @@ def main():
                               "",
                               ["pyanswerfile=",
                                "verbose-pyanswerfile=",
+                               "upgrade-answerdev=",
                                "upgrade",
                                "clog="])
     except Exception, e:
@@ -56,6 +57,10 @@ def main():
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
             logging.continuous_logs.append(sys.stdout)
+        if opt == "--upgrade-answerdev=":
+            pyanswerfile_ui.specifySubUI(ui_package)
+       		pyanswerfile_ui.specifyAnswerFileDevice(val)
+       		ui_package=pyanswerfile_ui
         if opt == "--clog":
             try:
                 fd = open(val, "w")
