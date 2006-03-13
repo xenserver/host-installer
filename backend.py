@@ -197,19 +197,21 @@ def CheckInstalledVersion(answers):
     return False
 
 def removeOldFs(mounts, answers):
-    assert runCmd("rm -f %s/%s-%s.img" %
-                  (mounts['boot'], dom0_name, dom0_version)) == 0
-                   
+    fsname = "%s/%s-%s.img" % (mounts['boot'],
+                               version.dom0_name,
+                               version.dom0_version)
+    if os.path.isfile(fsname):
+        os.unlink(fsname)
+        
 def writeAnswersFile(mounts, answers):
     fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
     pickle.dump(dict, fd)
     fd.close()
 
-
 def hasBootPartition(disk):
     mountPoint = os.path.join("tmp", "mnt")
     rc = False
-    assertDir(mountPoint)
+    util.assertDir(mountPoint)
     if runCmd("mount %s %s" % (getBootPartName(disk), mountPoint )) == 0:
         if os.path.exists(os.path.join(mountPoint, "xen-3.0.1.gz")):
             rc = True
@@ -356,7 +358,7 @@ def createDom0Tmpfs(disk):
     
 def installGrub(mounts, disk):
     grubroot = '(hd0,0)'
-    
+
     # grub configuration - placed here for easy editing.  Written to
     # the menu.lst file later in this function.
     grubconf = ""
@@ -382,10 +384,9 @@ def installGrub(mounts, disk):
 
     # install GrUB - TODO better error handling required here:
     # - copy GrUB files into place:
-    assertDir("%s/grub" % mounts['boot'])
-    runCmd("cp /boot/grub/* %s/grub" % mounts['boot']) # We should do this in Python...
-    runCmd("rm %s/grub/menu.lst" % mounts['boot']) # no menu.lst from cd
-    runCmd("rm -f %s/grub/grub.conf" % mounts['boot'])
+    util.assertDir("%s/grub" % mounts['boot'])
+    for f in os.listdir("/boot/grub"):
+        runCmd("cp /boot/grub/%s %s/grub/" % (f, mounts['boot']))
 
     # now install GrUB to the MBR of the first disk:
     # (note GrUB partition numbers start from 0 not 1)
@@ -421,13 +422,13 @@ def mountVolumes(primary_disk):
     dropboxpath = "/tmp/root%s"  % DOM0_PKGS_DIR_LOCATION
 
     # mount the volumes (must assertDir in mounted filesystem...)
-    assertDir(rootpath)
+    util.assertDir(rootpath)
     os.system("mount %s %s" % (tmprootvol, rootpath))
-    assertDir(bootpath)
+    util.assertDir(bootpath)
     os.system("mount %s %s" % (bootvol, bootpath))
-    assertDir(rwspath)
+    util.assertDir(rwspath)
     os.system("mount %s %s" % (rwsvol, rwspath))
-    assertDir(dropboxpath)
+    util.assertDir(dropboxpath)
     os.system("mount %s %s" % (dropboxvol, dropboxpath))
 
     # ugh - umount-order - what a piece of crap
@@ -459,7 +460,7 @@ def doDepmod(mounts, answers):
     runCmd("chroot %s depmod %s" % (version.kernel_version, version.kernel_version))
 
 def writeFstab(mounts, answers):
-    assertDir("%s/etc" % mounts['rws'])
+    util.assertDir("%s/etc" % mounts['rws'])
 
     # first work out what we're going to write:
     rwspart = getRWSPartName(answers['primary-disk'])
@@ -556,7 +557,7 @@ def configureNetworking(mounts, answers):
             fd.write("HWADDR=%s\n" % hwaddr)
 
     # make sure the directories in rws exist to write to:
-    assertDirs("%s/etc" % mounts['rws'],
+    util.assertDirs("%s/etc" % mounts['rws'],
                "%s/etc/sysconfig" % mounts['rws'],
                "%s/etc/sysconfig/network-scripts" % mounts['rws'])
 
@@ -637,27 +638,27 @@ def writeModprobeConf(mounts, answers):
     runCmd("umount %s/{proc,sys}" % mounts['root'])
     
 def mkLvmDirs(mounts, answers):
-    assertDir("%s/etc/lvm/archive" % mounts["root"])
-    assertDir("%s/etc/lvm/backup" % mounts["root"])
+    util.assertDir("%s/etc/lvm/archive" % mounts["root"])
+    util.assertDir("%s/etc/lvm/backup" % mounts["root"])
 
 def copyXgts(mounts, answers):
-    assertDir(DOM0_XGT_LOCATION % mounts['dropbox'])
+    util.assertDir(DOM0_XGT_LOCATION % mounts['dropbox'])
     copyFilesFromDir(CD_XGT_LOCATION, 
                       DOM0_XGT_LOCATION % mounts['dropbox'])
     
 def copyGuestInstallerFiles(mounts, answers):
-    assertDir(DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
+    util.assertDir(DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
     copyFilesFromDir(CD_RHEL41_GUEST_INSTALLER_LOCATION, 
                       DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
 
 
 def copyVendorKernels(mounts, answers):
-    assertDir(DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
+    util.assertDir(DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
     copyFilesFromDir(CD_VENDOR_KERNELS_LOCATION, 
                        DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
 
 def copyXenKernel(mounts, answers):
-    assertDir(DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
+    util.assertDir(DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
     copyFilesFromDir(CD_XEN_KERNEL_LOCATION, 
                        DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
      
@@ -668,14 +669,14 @@ def makeSymlinks(mounts, answers):
 
     # make sure required directories exist:
     for dir in asserted_dirs:
-        assertDir("%s%s" % (mounts['root'], dir))
-        assertDir("%s%s" % (mounts['rws'], dir))
+        util.assertDir("%s%s" % (mounts['root'], dir))
+        util.assertDir("%s%s" % (mounts['rws'], dir))
 
     # link directories:
     for d in writeable_dirs:
         rws_dir = "%s%s" % (mounts['rws'], d)
         dom0_dir = "%s%s" % (mounts['root'], d)
-        assertDir(rws_dir)
+        util.assertDir(rws_dir)
 
         if os.path.isdir(dom0_dir):
             copyFilesFromDir(dom0_dir, rws_dir)
@@ -707,7 +708,7 @@ def initNfs(mounts, answers):
     runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
 def copyRpms(mounts, answers):
-    assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
+    util.assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
     copyFilesFromDir(CD_RPMS_LOCATION, 
                       DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
 
@@ -729,7 +730,7 @@ def finalise(answers):
     # we are compressing the rootfs into a file in boot, we don't want boot
     # mounted inside root...):
     assert runCmd("mount /dev/%s/%s /tmp/root" % (vgname, dom0tmpfs_name)) == 0
-    assertDir("/tmp/boot")
+    util.assertDir("/tmp/boot")
     assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
     assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
 
@@ -761,25 +762,6 @@ def getGrUBDevice(disk):
                 return grubdev.strip("()")
     devmap.close()
     return None
-
-def assertDir(dirname):
-    # make sure there isn't already a file there:
-    assert not (os.path.exists(dirname) and not os.path.isdir(dirname))
-
-    if not os.path.isdir(dirname):
-        os.makedirs(dirname)
-
-def assertDirs(*dirnames):
-    for d in dirnames:
-        assertDir(d)
-
-def copyFilesFromDir(sourcedir, dest):
-    assert os.path.isdir(sourcedir)
-    assert os.path.isdir(dest)
-
-    files = os.listdir(sourcedir)
-    for f in files:
-        assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
 
 def writeLog(answers):
     try: 
