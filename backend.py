@@ -13,11 +13,13 @@ import time
 
 import tui
 import generalui
-from generalui import runCmd
 import uicontroller
 import version
 import logging
 import pickle
+
+import util
+from util import runCmd
 
 # Product version and constants:
 from version import *
@@ -212,10 +214,14 @@ def hasBootPartition(disk):
     mountPoint = os.path.join("tmp", "mnt")
     rc = False
     util.assertDir(mountPoint)
-    if runCmd("mount %s %s" % (getBootPartName(disk), mountPoint )) == 0:
+    try:
+        util.mount(getBootPartName(disk), mountPoint)
+    except:
+        rc = False
+    else:
         if os.path.exists(os.path.join(mountPoint, "xen-3.0.1.gz")):
             rc = True
-        runCmd("umount %s" % getBootPartName(disk))
+        util.umount(getBootPartName(disk))
         
     return rc
 
@@ -319,10 +325,9 @@ def prepareLVM(answers):
 
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
     partitions.append(map(lambda x: determinePartitionName(x, 1),
-                          answers['guest-disks'])
+                          answers['guest-disks']))
 
     # TODO - better error handling
-
     for x in partitions:
         assert runCmd("pvcreate -ff -y %s" % x) == 0
 
@@ -385,7 +390,9 @@ def installGrub(mounts, disk):
     # install GrUB - TODO better error handling required here:
     # - copy GrUB files into place:
     util.assertDir("%s/grub" % mounts['boot'])
-    for f in os.listdir("/boot/grub"):
+    files = filter(lambda x: x in ['menu.lst', 'grub.conf'],
+                   os.listdir("/boot/grub"))
+    for f in files:
         runCmd("cp /boot/grub/%s %s/grub/" % (f, mounts['boot']))
 
     # now install GrUB to the MBR of the first disk:
@@ -423,13 +430,16 @@ def mountVolumes(primary_disk):
 
     # mount the volumes (must assertDir in mounted filesystem...)
     util.assertDir(rootpath)
-    os.system("mount %s %s" % (tmprootvol, rootpath))
+    util.mount(tmprootvol, rootpath)
+
     util.assertDir(bootpath)
-    os.system("mount %s %s" % (bootvol, bootpath))
+    util.mount(bootvol, bootpath)
+
     util.assertDir(rwspath)
-    os.system("mount %s %s" % (rwsvol, rwspath))
+    util.mount(rwsvol, rwspath)
+
     util.assertDir(dropboxpath)
-    os.system("mount %s %s" % (dropboxvol, dropboxpath))
+    util.mount(dropboxvol, dropboxpath)
 
     # ugh - umount-order - what a piece of crap
     return {'boot': bootpath,
@@ -440,7 +450,7 @@ def mountVolumes(primary_disk):
 
 def umountVolumes(mounts):
     for m in mounts['umount-order']: # hack!
-        assert os.system("umount %s" % m) == 0
+        util.umount(m)
 
 ##########
 # second stage install helpers:
@@ -557,9 +567,8 @@ def configureNetworking(mounts, answers):
             fd.write("HWADDR=%s\n" % hwaddr)
 
     # make sure the directories in rws exist to write to:
-    util.assertDirs("%s/etc" % mounts['rws'],
-               "%s/etc/sysconfig" % mounts['rws'],
-               "%s/etc/sysconfig/network-scripts" % mounts['rws'])
+    util.assertDir("%s/etc/sysconfig/network-scripts" %
+                  mounts['rws'])
 
     # are we all DHCP?
     (alldhcp, mancfg) = answers['iface-configuration']
@@ -643,23 +652,23 @@ def mkLvmDirs(mounts, answers):
 
 def copyXgts(mounts, answers):
     util.assertDir(DOM0_XGT_LOCATION % mounts['dropbox'])
-    copyFilesFromDir(CD_XGT_LOCATION, 
+    util.copyFilesFromDir(CD_XGT_LOCATION, 
                       DOM0_XGT_LOCATION % mounts['dropbox'])
     
 def copyGuestInstallerFiles(mounts, answers):
     util.assertDir(DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
-    copyFilesFromDir(CD_RHEL41_GUEST_INSTALLER_LOCATION, 
+    util.copyFilesFromDir(CD_RHEL41_GUEST_INSTALLER_LOCATION, 
                       DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
 
 
 def copyVendorKernels(mounts, answers):
     util.assertDir(DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
-    copyFilesFromDir(CD_VENDOR_KERNELS_LOCATION, 
+    util.copyFilesFromDir(CD_VENDOR_KERNELS_LOCATION, 
                        DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
 
 def copyXenKernel(mounts, answers):
     util.assertDir(DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
-    copyFilesFromDir(CD_XEN_KERNEL_LOCATION, 
+    util.copyFilesFromDir(CD_XEN_KERNEL_LOCATION, 
                        DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
      
    
@@ -679,7 +688,7 @@ def makeSymlinks(mounts, answers):
         util.assertDir(rws_dir)
 
         if os.path.isdir(dom0_dir):
-            copyFilesFromDir(dom0_dir, rws_dir)
+            util.copyFilesFromDir(dom0_dir, rws_dir)
 
         runCmd("rm -rf %s" % dom0_dir)
         assert runCmd("ln -sf /rws%s %s" % (d, dom0_dir)) == 0
@@ -709,7 +718,7 @@ def initNfs(mounts, answers):
 
 def copyRpms(mounts, answers):
     util.assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
-    copyFilesFromDir(CD_RPMS_LOCATION, 
+    util.copyFilesFromDir(CD_RPMS_LOCATION, 
                       DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
 
 def writeInventory(mounts, answers):
@@ -729,12 +738,17 @@ def finalise(answers):
     # mount the filesystem parts again - this time in different places (since
     # we are compressing the rootfs into a file in boot, we don't want boot
     # mounted inside root...):
-    assert runCmd("mount /dev/%s/%s /tmp/root" % (vgname, dom0tmpfs_name)) == 0
     util.assertDir("/tmp/boot")
-    assert runCmd("mount %s /tmp/boot" % getBootPartName(answers['primary-disk'])) == 0
+
+    util.mount("/dev/%s/%s" % (vgname, dom0tmpfs_name),
+               "/tmp/root")
+    util.mount(getBootPartName(answers['primary-disk']),
+               "/tmp/boot")
+
     assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
 
-    assert runCmd("umount /tmp/{root,boot}") == 0
+    util.umount("/tmp/root")
+    util.umount("/tmp/boot")
 
     # now remove the temporary volume
     assert runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name)) == 0
@@ -766,8 +780,8 @@ def getGrUBDevice(disk):
 def writeLog(answers):
     try: 
         bootnode = getBootPartName(answers['primary-disk'])
-        assert os.system("mount %s /tmp" % bootnode) == 0
+        util.mount(bootnode, "/tmp")
         logging.writeLog("/tmp/install-log")
-        assert os.system("umount /tmp") == 0
+        util.umount("/tmp")
     except:
         pass

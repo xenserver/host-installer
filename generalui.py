@@ -7,10 +7,11 @@
 
 import os
 import uicontroller
-import commands
-import logging
 import time
 import datetime
+import util
+
+from util import runCmdWithOutput
 
 timezone_data_file = '/opt/xensource/clean-installer/timezones'
 
@@ -34,7 +35,7 @@ def getDiskList():
     return devices
 
 def getDiskDeviceVendor(deviceName):
-    rc, output = runOutputCmd('cat /sys/block/%s/device/vendor' % deviceName)
+    rc, output = runCmdWithOutput('cat /sys/block/%s/device/vendor' % deviceName)
     if rc == 0:
         return output.strip()
     else:
@@ -42,14 +43,14 @@ def getDiskDeviceVendor(deviceName):
         
 
 def getDiskDeviceModel(deviceName):
-    rc, output = runOutputCmd('cat /sys/block/%s/device/model' % deviceName)
+    rc, output = runCmdWithOutput('cat /sys/block/%s/device/model' % deviceName)
     if rc == 0:
         return output.strip()
     else:
         return None
 
 def getDiskDeviceSize(deviceName):
-    rc, output = runOutputCmd('cat /sys/block/%s/size' % deviceName)
+    rc, output = runCmdWithOutput('cat /sys/block/%s/size' % deviceName)
     if rc == 0:
         return output.strip()
     else:
@@ -122,17 +123,6 @@ def confirm_installation(answers, args):
         sequence = [ ui_package.confirm_installation_multiple_disks ]
 
     return uicontroller.runUISequence(sequence, answers)
-
-def runCmd(command):
-    (rv, output) = commands.getstatusoutput(command)
-    logging.logOutput(command, output)
-    return rv
-
-def runOutputCmd(command):
-    (rv, output) = commands.getstatusoutput(command)
-    logging.logOutput(command, output)
-    return (rv, output)
-    
 
 def makeHumanList(list):
     if len(list) == 0:

@@ -9,6 +9,7 @@
 # user-interface stuff:
 import tui
 import generalui
+import util
 import pyanswerfile_ui
 import uicontroller
 
@@ -25,19 +26,19 @@ def main():
     isUpgrade = False
     
     #disable all kernel printing
-    generalui.runCmd("echo 1 > /proc/sys/kernel/printk")
+    util.runCmd("echo 1 > /proc/sys/kernel/printk")
 
     # sync hwclock to syscock ready for date/time stuff
-    generalui.runCmd("hwclock --utc --hwtosys")
+    util.runCmd("hwclock --utc --hwtosys")
     
     try:
         (opts, _) = getopt(sys.argv[1:],
-                              "",
-                              ["pyanswerfile=",
-                               "verbose-pyanswerfile=",
-                               "upgrade-answerdev=",
-                               "upgrade",
-                               "clog="])
+                           "",
+                           ["pyanswerfile=",
+                            "verbose-pyanswerfile=",
+                            "upgrade-answerdev=",
+                            "upgrade",
+                            "clog="])
     except GetoptError, e:
         print "This program takes no arguments."
         sys.exit(1)

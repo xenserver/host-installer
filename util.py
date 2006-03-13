@@ -8,6 +8,10 @@
 import os
 import os.path
 import logging
+import commands
+
+###
+# directory/tree management
 
 def assertDir(dirname):
     # make sure there isn't already a file there:
@@ -33,3 +37,43 @@ def copyFilesFromDir(sourcedir, dest):
     for f in files:
         assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
 
+###
+# shell
+
+def runCmd(command):
+    (rv, output) = commands.getstatusoutput(command)
+    logging.logOutput(command, output)
+    return rv
+
+def runCmdWithOutput(command):
+    (rv, output) = commands.getstatusoutput(command)
+    logging.logOutput(command, output)
+    return (rv, output)
+
+###
+# mounting/unmounting
+
+class MountFailureException(Exception):
+    pass
+
+def mount(dev, mountpoint, options = None, fstype = None):
+    cmd = ['mount']
+
+    if fstype:
+        cmd.append('-t')
+        cmd.append(fstype)
+
+    if options:
+        cmd.append("-o")
+        cmd.append(",".join(options))
+
+    cmd.append(dev)
+    cmd.append(mountpoint)
+
+    rc = os.spawnv(os.P_WAIT, cmd)
+    if rc != 0:
+        raise MountFailureException()
+
+def umount(mountpoint):
+    assert os.path.ismount(mountpoint)
+    os.spawnv(os.P_WAIT, ['umount', mountpoint])
