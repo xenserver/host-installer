@@ -57,7 +57,7 @@ class MountFailureException(Exception):
     pass
 
 def mount(dev, mountpoint, options = None, fstype = None):
-    cmd = ['mount']
+    cmd = ['/bin/mount']
 
     if fstype:
         cmd.append('-t')
@@ -70,10 +70,10 @@ def mount(dev, mountpoint, options = None, fstype = None):
     cmd.append(dev)
     cmd.append(mountpoint)
 
-    rc = os.spawnv(os.P_WAIT, cmd)
+    rc = os.spawnv(os.P_WAIT, cmd[0], cmd)
     if rc != 0:
         raise MountFailureException()
 
 def umount(mountpoint):
     assert os.path.ismount(mountpoint)
-    os.spawnv(os.P_WAIT, ['umount', mountpoint])
+    os.spawnv(os.P_WAIT, '/bin/umount', ['/bin/umount', mountpoint])

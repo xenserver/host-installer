@@ -324,8 +324,8 @@ def prepareLVM(answers):
     global dropbox_name, dropbox_size
 
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
-    partitions.append(map(lambda x: determinePartitionName(x, 1),
-                          answers['guest-disks']))
+    partitions += map(lambda x: determinePartitionName(x, 1),
+                      answers['guest-disks'])
 
     # TODO - better error handling
     for x in partitions:

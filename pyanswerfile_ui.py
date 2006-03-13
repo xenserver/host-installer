@@ -7,8 +7,8 @@
 # Copyright XenSource Inc. 2006
 
 import pickle
-from backend import ANSWERS_FILE
-from generalui import runCmd
+from constants import ANSWERS_FILE
+from util import runCmd
 
 # module globals:
 sub_ui_package = None
