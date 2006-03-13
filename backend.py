@@ -57,7 +57,7 @@ DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
 DOM0_XGT_LOCATION = "%s/xgt"
 DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
 
-ANSWERS_FILENAME = "upgrade_answers"
+ANSWERS_FILE = "upgrade_answers"
 
 #file system creation constants
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
