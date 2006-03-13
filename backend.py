@@ -15,79 +15,14 @@ import tui
 import generalui
 from generalui import runCmd
 import uicontroller
-from version import *
 import version
 import logging
 import pickle
 
-################################################################################
-# CONFIGURATION
+# Product version and constants:
+from version import *
+from constants import *
 
-rws_size = 15000
-rws_name = "RWS"
-dropbox_size = 15000
-dropbox_name = "Files"
-dropbox_type = "ext3"
-
-boot_size = 75
-vgname = "VG_XenSource"
-xen_version = "3.0.1"
-
-# location of files on the CDROM
-CD_DOM0FS_TGZ_LOCATION = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-CD_KERNEL_TGZ_LOCATION = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-
-CD_XGT_LOCATION = "/opt/xensource/xgt/"
-CD_RHEL41_GUEST_INSTALLER_LOCATION = CD_XGT_LOCATION + "install/rhel41/"
-CD_RHEL41_INSTALL_INITRD = CD_RHEL41_GUEST_INSTALLER_LOCATION + "rhel41-install-initrd.img"
-CD_RPMS_LOCATION = "/opt/xensource/rpms/"
-CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
-CD_XEN_KERNEL_LOCATION = "/opt/xensource/xen-kernel"
-
-# location/destination of files on the dom0 FS
-DOM0_FILES_LOCATION_ROOT = "%s/files/"
-DOM0_VENDOR_KERNELS_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
-DOM0_XEN_KERNEL_LOCATION = DOM0_FILES_LOCATION_ROOT + "xen-kernel/"
-DOM0_GUEST_INSTALLER_LOCATION = DOM0_FILES_LOCATION_ROOT + "guest-installer/"
-
-DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
-DOM0_XGT_LOCATION = "%s/xgt"
-DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
-
-ANSWERS_FILE = "upgrade_answers"
-
-#file system creation constants
-dom0tmpfs_name = "tmp-%s" % version.dom0_name
-dom0tmpfs_size = 500
-bootfs_type = 'ext2'
-dom0tmpfs_type = 'ext3'
-ramdiskfs_type = 'squashfs'
-rwsfs_type = 'ext3'
-
-grubroot = '(hd0,0)'
-
-
-#files that should be writeable in the dom0 FS
-writeable_files = [ '/etc/yp.conf',
-                    '/etc/ntp.conf',
-                    '/etc/resolv.conf',
-                    '/etc/hosts',
-                    '/etc/issue',
-                    '/etc/adjtime' ,
-                    '/etc/lvm/.cache']
-
-#directories to be created in the dom0 FS
-asserted_dirs = [ '/etc',
-                  '/etc/sysconfig',
-                  '/etc/sysconfig/network-scripts',
-                  '/etc/lvm' ]
-
-#directories that should be writeable in the dom0 FS
-writeable_dirs = [ '/etc/ntp',
-                   '/etc/lvm/archive',
-                   '/etc/lvm/backup',
-                   '/etc/ssh',
-                   '/root' ]
 
 ################################################################################
 # FIRST STAGE INSTALLATION:
@@ -379,14 +314,10 @@ def prepareLVM(answers):
     global dom0_size
     global rws_name, rws_size
     global dropbox_name, dropbox_size
-    
-    partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
 
-    # [ '/dev/sda', '/dev/sdb' ] ==> [ '/dev/sda1', '/dev/sda2' ]
-    
-#    partitions = partitions + map(lambda x: "%s1" % x, answers['guest-disks'])
-    for gd in answers['guest-disks']: 
-        partitions.append(determinePartitionName(gd, 1))
+    partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
+    partitions.append(map(lambda x: determinePartitionName(x, 1),
+                          answers['guest-disks'])
 
     # TODO - better error handling
 
@@ -424,7 +355,7 @@ def createDom0Tmpfs(disk):
     assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
     
 def installGrub(mounts, disk):
-    global grubroot
+    grubroot = '(hd0,0)'
     
     # grub configuration - placed here for easy editing.  Written to
     # the menu.lst file later in this function.
@@ -470,19 +401,6 @@ def installGrub(mounts, disk):
     menulst_file.write(grubconf)
     menulst_file.close()
 
-
-def extractDom0Filesystem(mounts, disk):
-    global dom0fs_tgz_location
-    
-    # mount empty filesystem:
-    # TODO - better error handling:
-
-    # extract tar.gz to filesystem:
-    # TODO - rewrite this using native Python so we have a better progress
-    #        dialog situation :)
-    assert runCmd("tar -C %s -xzf %s" % (mounts['root'], CD_DOM0FS_TGZ_LOCATION)) == 0
-
-
 ##########
 # mounting and unmounting of various volumes
 
@@ -525,6 +443,14 @@ def umountVolumes(mounts):
 
 ##########
 # second stage install helpers:
+
+def extractDom0Filesystem(mounts, disk):
+    global dom0fs_tgz_location
+
+    # extract tar.gz to filesystem:
+    # TODO - rewrite this using native Python so we have a better progress
+    #        dialog situation :)
+    assert runCmd("tar -C %s -xzf %s" % (mounts['root'], CD_DOM0FS_TGZ_LOCATION)) == 0
 
 def installKernels(mounts, answers):
     assert runCmd("tar -C %s -xzf %s" % (mounts['boot'], CD_KERNEL_TGZ_LOCATION)) == 0
@@ -697,8 +623,9 @@ def configureNetworking(mounts, answers):
 
 def writeModprobeConf(mounts, answers):
     # mount proc and sys in the filesystem
-    runCmd("mount -t proc none %s/proc" % mounts['root'])
-    runCmd("mount -t sysfs none %s/sys" % mounts['root'])
+    runCmd("mount --bind /proc %s/proc" % mounts['root'])
+    runCmd("mount --bind /sys %s/sys" % mounts['root'])
+    
     #####
     #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
     #####
