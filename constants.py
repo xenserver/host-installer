@@ -5,6 +5,8 @@
 # written by Andrew Peace & Mark Nijmeijer
 # Copyright XenSource Inc. 2006
 
+import version
+
 rws_size = 15000
 rws_name = "RWS"
 dropbox_size = 15000
