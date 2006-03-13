@@ -96,7 +96,6 @@ Xen will be installed onto this disk, requiring 120MB, and the remaining space u
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
-    print ("setting primary disk to %s" % entry)
 
     if button == "ok" or button == None: return 1
     if button == "back": return -1
