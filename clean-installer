@@ -18,12 +18,10 @@ import backend
 # general
 import sys
 import logging
-from getopt import getopt
-
-ui_package = tui
+from getopt import getopt, GetoptError
 
 def main():
-    global ui_package
+    ui_package = tui
     isUpgrade = False
     
     #disable all kernel printing
@@ -33,14 +31,14 @@ def main():
     generalui.runCmd("hwclock --utc --hwtosys")
     
     try:
-        (opts, args) = getopt(sys.argv[1:],
+        (opts, _) = getopt(sys.argv[1:],
                               "",
                               ["pyanswerfile=",
                                "verbose-pyanswerfile=",
                                "upgrade-answerdev=",
                                "upgrade",
                                "clog="])
-    except Exception, e:
+    except GetoptError, e:
         print "This program takes no arguments."
         sys.exit(1)
 
@@ -59,8 +57,8 @@ def main():
             logging.continuous_logs.append(sys.stdout)
         if opt == "--upgrade-answerdev=":
             pyanswerfile_ui.specifySubUI(ui_package)
-       	    pyanswerfile_ui.specifyAnswerFileDevice(val)
-       	    ui_package=pyanswerfile_ui
+            pyanswerfile_ui.specifyAnswerFileDevice(val)
+            ui_package = pyanswerfile_ui
         if opt == "--clog":
             try:
                 fd = open(val, "w")
@@ -69,8 +67,8 @@ def main():
             except:
                 print "Error adding continuous log %s." % val
         if opt == "--upgrade":
-        	results['upgrade'] = True
-        	isUpgrade = True
+            results['upgrade'] = True
+            isUpgrade = True
 
     try:
         ui_package.init_ui(results, False)
@@ -79,8 +77,9 @@ def main():
                 ui_package.set_time,
                 ui_package.determine_basic_network_config,
                 ui_package.get_name_service_configuration,
-                ( generalui.confirm_installation, { 'ui-package': ui_package }) ]
-		
+                 ( generalui.confirm_installation,
+                  { 'ui-package': ui_package }) ]
+                
         if not isUpgrade:
             seq.insert(0, ( generalui.disk_selection, { 'ui-package': ui_package  }) )
             seq.insert(0, ui_package.welcome_screen)
@@ -89,16 +88,16 @@ def main():
             backend.CheckInstalledVersion(results)
 
         uicontroller.runUISequence(seq, results)
-	
+        
         backend.performInstallation(results, ui_package)
         
         if not isUpgrade:
-        	seq = [ ui_package.installation_complete ]
+            seq = [ ui_package.installation_complete ]
         else:
-        	seq = [ ui_package.upgrade_complete ]
+            seq = [ ui_package.upgrade_complete ]
         
         uicontroller.runUISequence(seq, results)
-    except Exception, e:
+    except Exception:
         # clean up the screen
         ui_package.end_ui()
 

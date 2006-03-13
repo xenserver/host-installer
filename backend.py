@@ -768,7 +768,7 @@ def makeSymlinks(mounts, answers):
         assertDir(rws_dir)
 
         if os.path.isdir(dom0_dir):
-	        copyFilesFromDir(dom0_dir, rws_dir)
+                copyFilesFromDir(dom0_dir, rws_dir)
 
         runCmd("rm -rf %s" % dom0_dir)
         assert runCmd("ln -sf /rws%s %s" % (dir, dom0_dir)) == 0
@@ -779,8 +779,8 @@ def makeSymlinks(mounts, answers):
         dom0_file = "%s%s" % (mounts['root'], file)
 
         # make sure the destination file exists:
-	if not os.path.isfile(rws_file):
-	    if os.path.isfile(dom0_file):
+        if not os.path.isfile(rws_file):
+            if os.path.isfile(dom0_file):
                 runCmd("cp %s %s" % (dom0_file, rws_file))
             else:
                 fd = open(rws_file, 'w')

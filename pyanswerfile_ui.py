@@ -74,6 +74,8 @@ def resume_ui():
 # - stage 1 install:
 def welcome_screen(answers):
     return 1
+def upgrade_screen(answers):
+    return 1
 def confirm_installation_one_disk(answers):
     return 1
 def confirm_installation_multiple_disks(answers):
@@ -94,6 +96,8 @@ def set_time(answers):
 def get_name_service_configuration(answers):
     return 1
 def installation_complete(answers):
+    return 1
+def upgrade_complete(answers):
     return 1
 
 # progress dialogs:
