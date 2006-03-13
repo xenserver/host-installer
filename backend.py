@@ -43,12 +43,11 @@ CD_KERNEL_TGZ_LOCATION = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (v
 CD_XGT_LOCATION = "/opt/xensource/xgt/"
 CD_RHEL41_GUEST_INSTALLER_LOCATION = CD_XGT_LOCATION + "install/rhel41/"
 CD_RHEL41_INSTALL_INITRD = CD_RHEL41_GUEST_INSTALLER_LOCATION + "rhel41-install-initrd.img"
-CD_UPDATE_MODULES_SCRIPT = "/opt/xensource/guest-installer/update-modules"
 CD_RPMS_LOCATION = "/opt/xensource/rpms/"
 CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
 CD_XEN_KERNEL_LOCATION = "/opt/xensource/xen-kernel"
 
-#location/destination of files on the dom0 FS
+# location/destination of files on the dom0 FS
 DOM0_FILES_LOCATION_ROOT = "%s/files/"
 DOM0_VENDOR_KERNELS_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
 DOM0_XEN_KERNEL_LOCATION = DOM0_FILES_LOCATION_ROOT + "xen-kernel/"
@@ -99,12 +98,10 @@ writeable_dirs = [ '/etc/ntp',
 # XXX Hack - we should have a progress callback, not pass in the
 # entire UI component.
 def performInstallation(answers, ui_package):
-    
-    try:
+    if answers.has_key('upgrade'):
         isUpgradeInstall = answers['upgrade']
-    except:
+    else:
         isUpgradeInstall = False
-    
 
     if isUpgradeInstall:
         pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
