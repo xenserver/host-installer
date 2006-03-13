@@ -13,7 +13,7 @@ dropbox_size = 15000
 dropbox_name = "Files"
 dropbox_type = "ext3"
 
-boot_size = 75
+boot_size = 160
 vgname = "VG_XenSource"
 xen_version = "3.0.1"
 
