@@ -406,7 +406,7 @@ def set_time(answers):
     month = Entry(3, str(now.month))
     year = Entry(5, str(now.year))
     hour = Entry(3, str(now.hour))
-    min = Entry(3, str(now.minute))
+    minute = Entry(3, str(now.minute))
 
     # loop until the form validates or they click back:
     while not done:
@@ -435,7 +435,7 @@ def set_time(answers):
         dategrid.setField(day, 3, 1, padding=(0,0,0,1))
         
         dategrid.setField(hour, 1, 3)
-        dategrid.setField(min, 2, 3)
+        dategrid.setField(minute, 2, 3)
         
         gf.add(dategrid, 0, 1, padding=(0,0,1,1))
         
@@ -453,7 +453,7 @@ def set_time(answers):
                                    int(month.value()),
                                    int(day.value()),
                                    int(hour.value()),
-                                   int(min.value()))
+                                   int(minute.value()))
         except ValueError, e:
             # the date was invalid - tell them why:
             done = False
@@ -471,7 +471,7 @@ def set_time(answers):
                                              int(month.value()),
                                              int(day.value()),
                                              int(hour.value()),
-                                             int(min.value()))
+                                             int(minute.value()))
     return 1
 
 def installation_complete(answers):
@@ -503,7 +503,7 @@ Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
 # Helper functions
 def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
                         entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
-    bb = ButtonBar(screen, buttons);
+    bb = ButtonBar(screen, buttons)
     t = TextboxReflowed(width, text)
 
     count = 0
