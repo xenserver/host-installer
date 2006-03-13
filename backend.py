@@ -23,9 +23,6 @@ import pickle
 ################################################################################
 # CONFIGURATION
 
-# TODO - get this passed in somehow.
-ui_package = tui
-
 rws_size = 15000
 rws_name = "RWS"
 dropbox_size = 15000
@@ -264,12 +261,11 @@ def CheckInstalledVersion(answers):
             return True
     return False
 
-def removeOldFs(mounts, ansers):
+def removeOldFs(mounts, answers):
     assert runCmd("rm -f %s/%s-%s.img" %
-                   (mounts['boot'], dom0_name, dom0_version)) == 0
+                  (mounts['boot'], dom0_name, dom0_version)) == 0
                    
 def writeAnswersFile(mounts, answers):
-    filename = ANSWERS_FILE
     fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
     pickle.dump(dict, fd)
     fd.close()
@@ -486,19 +482,6 @@ def extractDom0Filesystem(mounts, disk):
     #        dialog situation :)
     assert runCmd("tar -C %s -xzf %s" % (mounts['root'], CD_DOM0FS_TGZ_LOCATION)) == 0
 
-
-def installKernels(disk):
-    dest = getRWSPartName(disk)
-    
-    # mount empty filesystem:
-    # TODO - better error handling:
-    assert runCmd("mount %s /tmp" % dest) == 0
-
-    # TODO - use Python directly here...!
-    runCmd("cp /boot/vmlinuz-%s /tmp/boot" % kernel_version) 
-    runCmd("cp /boot/xen-%s.gz /tmp/boot" % xen_version)
-
-    assert runCmd("umount /tmp") == 0
 
 ##########
 # mounting and unmounting of various volumes
@@ -762,21 +745,21 @@ def makeSymlinks(mounts, answers):
         assertDir("%s%s" % (mounts['rws'], dir))
 
     # link directories:
-    for dir in writeable_dirs:
-        rws_dir = "%s%s" % (mounts['rws'], dir)
-        dom0_dir = "%s%s" % (mounts['root'], dir)
+    for d in writeable_dirs:
+        rws_dir = "%s%s" % (mounts['rws'], d)
+        dom0_dir = "%s%s" % (mounts['root'], d)
         assertDir(rws_dir)
 
         if os.path.isdir(dom0_dir):
-                copyFilesFromDir(dom0_dir, rws_dir)
+            copyFilesFromDir(dom0_dir, rws_dir)
 
         runCmd("rm -rf %s" % dom0_dir)
-        assert runCmd("ln -sf /rws%s %s" % (dir, dom0_dir)) == 0
+        assert runCmd("ln -sf /rws%s %s" % (d, dom0_dir)) == 0
 
     # now link files:
-    for file in writeable_files:
-        rws_file = "%s%s" % (mounts['rws'], file)
-        dom0_file = "%s%s" % (mounts['root'], file)
+    for f in writeable_files:
+        rws_file = "%s%s" % (mounts['rws'], f)
+        dom0_file = "%s%s" % (mounts['root'], f)
 
         # make sure the destination file exists:
         if not os.path.isfile(rws_file):
@@ -786,7 +769,7 @@ def makeSymlinks(mounts, answers):
                 fd = open(rws_file, 'w')
                 fd.close()
 
-        assert runCmd("ln -sf /rws%s %s" % (file, dom0_file)) == 0
+        assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
         
 
 def initNfs(mounts, answers):
