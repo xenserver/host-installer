@@ -221,7 +221,7 @@ def hasBootPartition(disk):
     else:
         if os.path.exists(os.path.join(mountPoint, "xen-3.0.1.gz")):
             rc = True
-        util.umount(getBootPartName(disk))
+        util.umount(mountPoint)
         
     return rc
 
