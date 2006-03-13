@@ -394,62 +394,85 @@ def get_timezone(answers):
 def set_time(answers):
     global screen
 
+    done = False
+
     # translate the current time to the selected timezone:
     now = generalui.translateDateTime(datetime.datetime.now(),
                                       answers['timezone'])
 
-    gf = GridFormHelp(screen, "Set local time", "", 1, 4)
-
-    gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0,0,1,1))
-
-    dategrid = Grid(7, 4)
-    # TODO: switch day and month around if in appropriate timezone
-    dategrid.setField(Textbox(12, 1, "Month (MM)"), 1, 0)
-    dategrid.setField(Textbox(12, 1, "Day (DD)"), 2, 0)
-    dategrid.setField(Textbox(12, 1, "Year (YYYY)"), 3, 0)
-
-    dategrid.setField(Textbox(12, 1, "Hour (HH)"), 1, 2)
-    dategrid.setField(Textbox(12, 1, "Min (MM)"), 2, 2)
-    dategrid.setField(Textbox(12, 1, ""), 3, 2)
-    
-    dategrid.setField(Textbox(12, 1, ""), 0, 0)
-    dategrid.setField(Textbox(12, 1, "Date:"), 0, 1)
-    dategrid.setField(Textbox(12, 1, "Time (24h):"), 0, 3)
-    dategrid.setField(Textbox(12, 1, ""), 0, 2)
-    
+    # set these outside the loop so we don't overwrite them in the
+    # case that the user enters a bad value.
     day = Entry(3, str(now.day))
     month = Entry(3, str(now.month))
     year = Entry(5, str(now.year))
-
-    dategrid.setField(month, 1, 1, padding=(0,0,0,1))
-    dategrid.setField(day, 2, 1, padding=(0,0,0,1))
-    dategrid.setField(year, 3, 1, padding=(0,0,0,1))
-
     hour = Entry(3, str(now.hour))
     min = Entry(3, str(now.minute))
 
-    dategrid.setField(hour, 1, 3)
-    dategrid.setField(min, 2, 3)
+    # loop until the form validates or they click back:
+    while not done:
+        
+        gf = GridFormHelp(screen, "Set local time", "", 1, 4)
+        
+        gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0,0,1,1))
+        
+        dategrid = Grid(7, 4)
+        # TODO: switch day and month around if in appropriate timezone
+        dategrid.setField(Textbox(12, 1, "Year (YYYY)"), 1, 0)
+        dategrid.setField(Textbox(12, 1, "Month (MM)"), 2, 0)
+        dategrid.setField(Textbox(12, 1, "Day (DD)"), 3, 0)
+        
+        dategrid.setField(Textbox(12, 1, "Hour (HH)"), 1, 2)
+        dategrid.setField(Textbox(12, 1, "Min (MM)"), 2, 2)
+        dategrid.setField(Textbox(12, 1, ""), 3, 2)
+        
+        dategrid.setField(Textbox(12, 1, ""), 0, 0)
+        dategrid.setField(Textbox(12, 1, "Date:"), 0, 1)
+        dategrid.setField(Textbox(12, 1, "Time (24h):"), 0, 3)
+        dategrid.setField(Textbox(12, 1, ""), 0, 2)
+        
+        dategrid.setField(year, 1, 1, padding=(0,0,0,1))
+        dategrid.setField(month, 2, 1, padding=(0,0,0,1))
+        dategrid.setField(day, 3, 1, padding=(0,0,0,1))
+        
+        dategrid.setField(hour, 1, 3)
+        dategrid.setField(min, 2, 3)
+        
+        gf.add(dategrid, 0, 1, padding=(0,0,1,1))
+        
+        buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+        gf.add(buttons, 0, 2)
+        
+        result = gf.runOnce()
 
-    gf.add(dategrid, 0, 1, padding=(0,0,1,1))
-
-    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
-    gf.add(buttons, 0, 2)
-
-    result = gf.runOnce()
-
-    if buttons.buttonPressed(result) == "ok":
-        answers['set-time'] = True
-        answers['set-time-dialog-dismissed'] = datetime.datetime.now()
-        answers['localtime'] = datetime.datetime(int(year.value()),
-                                    int(month.value()),
-                                    int(day.value()),
-                                    int(hour.value()),
-                                    int(min.value()))
-        return 1
-    else:
         if buttons.buttonPressed(result) == "back":
             return -1
+
+        # first, check they entered something valied:
+        try:
+            dt = datetime.datetime(int(year.value()),
+                                   int(month.value()),
+                                   int(day.value()),
+                                   int(hour.value()),
+                                   int(min.value()))
+        except ValueError, e:
+            # the date was invalid - tell them why:
+            done = False
+            ButtonChoiceWindow(screen, "Date error",
+                               "The date/time you entered was not valid.  Please try again.",
+                               ['Ok'])
+        else:
+            done = True
+
+    # we're done:
+    assert buttons.buttonPressed(result) == "ok"
+    answers['set-time'] = True
+    answers['set-time-dialog-dismissed'] = datetime.datetime.now()
+    answers['localtime'] = datetime.datetime(int(year.value()),
+                                             int(month.value()),
+                                             int(day.value()),
+                                             int(hour.value()),
+                                             int(min.value()))
+    return 1
 
 def installation_complete(answers):
     global screen
