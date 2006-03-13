@@ -9,7 +9,7 @@ import os
 import os.path
 import sys
 import commands
-import constants
+import p2v_constants
 import p2v_utils
 import p2v_tui
 
@@ -31,7 +31,7 @@ a dictionary created from the key/value pairs and the /dev entry as 'path'"""
 
     dev_attrs = {}
     i =  line.find(":")
-    dev_attrs[constants.DEV_ATTRS_PATH] = line[0:i]
+    dev_attrs[p2v_constants.DEV_ATTRS_PATH] = line[0:i]
     attribs = line[i+1:].split(" ")
     for attr in attribs:
         if len(attr) == 0:
@@ -50,7 +50,7 @@ def scan():
     if rc == 0 and out:
         for line in out.split("\n"):
             attrs = parse_blkid(line)
-            devices[attrs[constants.DEV_ATTRS_PATH]] = attrs
+            devices[attrs[p2v_constants.DEV_ATTRS_PATH]] = attrs
     else:
         raise P2VError("Failed to scan devices")
     return devices
@@ -90,8 +90,8 @@ def load_fstab(fp):
 
 def find_dev_for_label(devices, label):
     for value in devices.values():
-        if value.has_key(constants.DEV_ATTRS_LABEL) and value[constants.DEV_ATTRS_LABEL] == label:
-            return value[constants.DEV_ATTRS_PATH]
+        if value.has_key(p2v_constants.DEV_ATTRS_LABEL) and value[p2v_constants.DEV_ATTRS_LABEL] == label:
+            return value[p2v_constants.DEV_ATTRS_PATH]
     return None
 
 def find_extra_mounts(fstab, devices):
@@ -252,10 +252,10 @@ def inspect_root(dev_name, dev_attrs, results):
                p2v_utils.trace_message("found os name: %s" % parts[0])
                p2v_utils.trace_message("found os version : %s" % parts[1])
                
-               os_install[constants.OS_NAME] = parts[0]
-               os_install[constants.OS_VERSION] = parts[1]
-               os_install[constants.DEV_NAME] = dev_name
-               os_install[constants.DEV_ATTRS] = dev_attrs
+               os_install[p2v_constants.OS_NAME] = parts[0]
+               os_install[p2v_constants.OS_VERSION] = parts[1]
+               os_install[p2v_constants.DEV_NAME] = dev_name
+               os_install[p2v_constants.DEV_ATTRS] = dev_attrs
                results.append(os_install)
        else:
            p2v_utils.trace_message("read_osversion failed : out = %s" % out)
@@ -267,7 +267,7 @@ def findroot():
     results = []
 
     for dev_name, dev_attrs in devices.items():
-        if dev_attrs.has_key(constants.DEV_ATTRS_TYPE) and dev_attrs[constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
+        if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
             rc = inspect_root(dev_name, dev_attrs, results)
                    
     #run_command("sleep 2")
@@ -303,14 +303,14 @@ if __name__ == '__main__':
     umount_all_dev(devices)
 
     for dev_name, dev_attrs in devices.items():
-        if dev_attrs.has_key(constants.DEV_ATTRS_TYPE) and dev_attrs[constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
+        if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
             mnt = mntbase + "/" + os.path.basename(dev_name)
             rc, out = run_command("mkdir -p %s" % (mnt))
             if rc != 0:
                 p2v_utils.trace_message("mkdir failed\n")
                 sys.exit(1)
 
-            rc = mount_dev(dev_name, dev_attrs[constants.DEV_ATTRS_TYPE], mnt, 'ro')
+            rc = mount_dev(dev_name, dev_attrs[p2v_constants.DEV_ATTRS_TYPE], mnt, 'ro')
             if rc != 0:
                 p2v_utils.trace_message("Failed to mount mnt")
                 continue

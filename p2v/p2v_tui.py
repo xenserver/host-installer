@@ -13,7 +13,7 @@ import p2v_uicontroller
 import findroot
 import os
 import sys
-import constants
+import p2v_constants
 import p2v_utils
 import time
 
@@ -67,24 +67,24 @@ def target_screen(answers):
 
     #ask for more info
     if entry == 0:
-        answers[constants.XEN_TARGET] = constants.XEN_TARGET_XE
+        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_XE
         (button, xehost) = EntryWindow(screen,
                 "%s Host Information" % PRODUCT_BRAND,
                 "Please enter the %s host information: " % PRODUCT_BRAND,
                 ['Hostname or IP:'],
                 buttons= ['Ok', 'Back'])
-        answers[constants.XE_HOST] = xehost[0]
+        answers[p2v_constants.XE_HOST] = xehost[0]
         if button == 'back':
             return 0;
     elif entry == 1:
-        answers[constants.XEN_TARGET] = constants.XEN_TARGET_NFS
+        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_NFS
         (button, (nfshost, nfspath)) = EntryWindow(screen,
                  "NFS Server Information",
                 "Please enter the NFS server information: ",
                 ['Hostname or IP:', 'Path:'],
                 buttons= ['Ok', 'Back'])
-        answers[constants.NFS_HOST] = nfshost
-        answers[constants.NFS_PATH] = nfspath
+        answers[p2v_constants.NFS_HOST] = nfshost
+        answers[p2v_constants.NFS_PATH] = nfspath
         
         if button == 'back':
             return 0;
@@ -99,7 +99,7 @@ def get_os_installs(answers):
     return os_installs
 
 def isP2Vable(os):
-    if os[constants.OS_NAME] != "Red Hat" or os[constants.OS_VERSION] != "4.1":
+    if os[p2v_constants.OS_NAME] != "Red Hat" or os[p2v_constants.OS_VERSION] != "4.1":
             return False;
     else:
         return True;
@@ -114,7 +114,7 @@ def os_install_screen(answers):
     os_installs = get_os_installs(answers)
     for os in os_installs: 
         if isP2Vable(os):
-            os_install_strings.append(os[constants.OS_NAME] + " " + os[constants.OS_VERSION] + "  (" + os[constants.DEV_NAME] + ")")
+            os_install_strings.append(os[p2v_constants.OS_NAME] + " " + os[p2v_constants.OS_VERSION] + "  (" + os[p2v_constants.DEV_NAME] + ")")
     
     if len(os_install_strings) > 0:
         (button, entry) = ListboxChoiceWindow(screen,
@@ -146,7 +146,7 @@ def description_screen(answers):
 
     if button == "ok" or button == None:
         osinstall = answers['osinstall']
-        osinstall[constants.DESCRIPTION] = description[0]
+        osinstall[p2v_constants.DESCRIPTION] = description[0]
         return 1
     else:
         return -1
