@@ -7,7 +7,7 @@
 # Copyright XenSource Inc. 2006
 
 import pickle
-from backend import ANSWERS_FILENAME
+from backend import ANSWERS_FILE
 from generalui import runCmd
 
 # module globals:
@@ -39,7 +39,7 @@ def init_ui(results, is_subui):
     if pyAnswerFileDevice != None:
         assert runCmd("mkdir -p /tmp/mnt/") == 0
         assert runCmd("mount %s /tmp/mnt/" % pyAnswerFileDevice) == 0
-        pyAnswerFile = os.path.join("/tmp/mnt", ANSWERS_FILENAME)
+        pyAnswerFile = os.path.join("/tmp/mnt", ANSWERS_FILE)
     
     assert pyAnswerFile
     
