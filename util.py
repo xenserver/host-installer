@@ -37,6 +37,15 @@ def copyFilesFromDir(sourcedir, dest):
     for f in files:
         assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
 
+def rmtree(path):
+    assert os.path.exists(path)
+    if not os.path.isdir(path):
+        os.unlink(path)
+    else:
+        for f in os.listdir(path):
+            rmtree(os.path.join(path, f))
+        os.rmdir(path)
+
 ###
 # shell
 
