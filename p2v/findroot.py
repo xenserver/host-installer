@@ -57,7 +57,7 @@ def scan():
 
 def mount_dev(dev, dev_type, mntpnt, options):
     umount_dev(mntpnt) # just a precaution, don't care if it fails
-    rc, out = run_command("echo 5 > /proc/sys/kernel/printk")
+    rc, out = run_command("echo 1 > /proc/sys/kernel/printk")
     rc, out = run_command("mount -o %s -t %s %s %s %s" % (options, dev_type,
                                                        dev, mntpnt, p2v_utils.show_debug_output()))
     return rc
