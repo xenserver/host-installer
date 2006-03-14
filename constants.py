@@ -28,8 +28,8 @@ rwsfs_type = 'ext3'
 MIN_PASSWD_LEN=0
 
 # location of files on the CDROM
-CD_DOM0FS_TGZ_LOCATION = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-CD_KERNEL_TGZ_LOCATION = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
+CD_DOM0FS_TGZ_LOCATION = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % ("burbank", version.dom0_version)
+CD_KERNEL_TGZ_LOCATION = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % ("burbank", version.dom0_version)
 
 CD_XGT_LOCATION = "/opt/xensource/xgt/"
 CD_RHEL41_GUEST_INSTALLER_LOCATION = CD_XGT_LOCATION + "install/rhel41/"
