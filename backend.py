@@ -390,7 +390,7 @@ def installGrub(mounts, disk):
     # install GrUB - TODO better error handling required here:
     # - copy GrUB files into place:
     util.assertDir("%s/grub" % mounts['boot'])
-    files = filter(lambda x: x in ['menu.lst', 'grub.conf'],
+    files = filter(lambda x: x not in ['menu.lst', 'grub.conf'],
                    os.listdir("/boot/grub"))
     for f in files:
         runCmd("cp /boot/grub/%s %s/grub/" % (f, mounts['boot']))
