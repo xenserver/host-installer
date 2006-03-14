@@ -327,7 +327,7 @@ def get_autoconfig_ifaces(answers):
 
     entries = generalui.getNetifList()
 
-    text = TextboxReflowed(50, "Which network interfaces need to be configured manually?")
+    text = TextboxReflowed(50, "Which network interfaces need to be configured manually?  (Interfaces you do not select here will be brought up by DHCP.)")
     buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
     cbt = CheckboxTree(4, 1)
     for x in entries:
