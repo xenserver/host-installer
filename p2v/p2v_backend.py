@@ -136,6 +136,10 @@ def perform_P2V( results ):
     ui_package.clearProgressDialog()
     
     return 0
+
+def escape(string):
+    dict = {"'" : "\\'"}
+    return xml.sax.saxutils.escape(string, dict)
     
 def open_tag(tag, value = ""):
     template_string = ""
