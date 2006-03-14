@@ -7,6 +7,7 @@
 # Copyright XenSource Inc. 2006
 
 import pickle
+import os
 from constants import ANSWERS_FILE
 from util import runCmd
 
