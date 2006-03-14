@@ -7,6 +7,7 @@
 
 import os
 import os.path
+import xml.sax.saxutils
 
 import p2v_tui
 import p2v_uicontroller
@@ -15,6 +16,7 @@ import sys
 import p2v_constants
 import p2v_tui
 import p2v_utils
+
 
 ui_package = p2v_tui
 
@@ -188,7 +190,7 @@ def add_name(os_install):
     host_name = os_install[p2v_constants.HOST_NAME]
     os_name = os_install[p2v_constants.OS_NAME]
     os_version = os_install[p2v_constants.OS_VERSION]
-    template_string += open_tag(p2v_constants.TAG_NAME, "'P2V of os_install %s %s of host %s'" % (os_name, os_version, host_name))
+    template_string += open_tag(p2v_constants.TAG_NAME, "'P2V of %s'" % (os_name))
     template_string += close_tag(p2v_constants.TAG_NAME)
     return template_string
 
@@ -228,7 +230,7 @@ def add_cpu_count(os_install):
 
 def add_description(os_install):
     template_string = ""
-    template_string += open_tag(p2v_constants.TAG_DESCRIPTION, "'%s'" % os_install[p2v_constants.DESCRIPTION])
+    template_string += open_tag(p2v_constants.TAG_DESCRIPTION, "'%s'" % escape(os_install[p2v_constants.DESCRIPTION]))
     template_string += close_tag( p2v_constants.TAG_DESCRIPTION)
     return template_string
 
