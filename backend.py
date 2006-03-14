@@ -207,7 +207,7 @@ def removeOldFs(mounts, answers):
         
 def writeAnswersFile(mounts, answers):
     fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
-    pickle.dump(dict, fd)
+    pickle.dump(answers, fd)
     fd.close()
 
 def hasBootPartition(disk):
