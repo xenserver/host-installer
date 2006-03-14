@@ -61,6 +61,12 @@ def getHumanDiskSize(rawDiskSize):
     gbSize = (longSize * 512) / (1024 * 1024 * 1024)
     return "%d GB" % gbSize
 
+def getDiskSizeGB(rawDiskSize):
+    longSize = long(rawDiskSize)
+    gbSize = (longSize * 512) / (1024 * 1024 * 1024)
+    return gbSize
+
+
 def getExtendedDiskInfo(disk):
     deviceNameParts = disk.split('/')
     if len(deviceNameParts) == 2:

@@ -73,31 +73,39 @@ def main():
 
     try:
         ui_package.init_ui(results, False)
-        seq = [ ui_package.get_root_password,
-                ui_package.get_timezone,
-                ui_package.set_time,
-                ui_package.determine_basic_network_config,
-                ui_package.get_name_service_configuration,
-                 ( generalui.confirm_installation,
-                  { 'ui-package': ui_package }) ]
-                
-        if not isUpgrade:
-            seq.insert(0, ( generalui.disk_selection, { 'ui-package': ui_package  }) )
-            seq.insert(0, ui_package.welcome_screen)
-        else:
-            seq.insert(0, ui_package.upgrade_screen )
-            backend.CheckInstalledVersion(results)
 
-        uicontroller.runUISequence(seq, results)
-        
-        backend.performInstallation(results, ui_package)
-        
-        if not isUpgrade:
-            seq = [ ui_package.installation_complete ]
+        # first, make sure that we have enough disk space:
+        disks = generalui.getDiskList()
+        diskInfo = map(lambda x: generalui.getExtendedDiskInfo(x), disks)
+        if len(filter(lambda x: generalui.getDiskSizeGB(x[2]) >= 40, diskInfo)) == 0:
+            seq = [ ui_package.not_enough_space_screen ]
+            uicontroller.runUISequence(seq, results)
         else:
-            seq = [ ui_package.upgrade_complete ]
+            seq = [ ui_package.get_root_password,
+                    ui_package.get_timezone,
+                    ui_package.set_time,
+                    ui_package.determine_basic_network_config,
+                    ui_package.get_name_service_configuration,
+                     ( generalui.confirm_installation,
+                      { 'ui-package': ui_package }) ]
+                
+            if not isUpgrade:
+                seq.insert(0, ( generalui.disk_selection, { 'ui-package': ui_package  }) )
+                seq.insert(0, ui_package.welcome_screen)
+            else:
+                seq.insert(0, ui_package.upgrade_screen )
+                backend.CheckInstalledVersion(results)
+
+            uicontroller.runUISequence(seq, results)
+       
+            backend.performInstallation(results, ui_package)
         
-        uicontroller.runUISequence(seq, results)
+            if not isUpgrade:
+                seq = [ ui_package.installation_complete ]
+            else:
+                seq = [ ui_package.upgrade_complete ]
+        
+            uicontroller.runUISequence(seq, results)
     except Exception:
         # clean up the screen
         ui_package.end_ui()

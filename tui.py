@@ -58,6 +58,18 @@ This install will overwrite data on any hard drives you select to use during the
     # advance to next screen:
     return 1
 
+def not_enough_space_screen(answers):
+    global screen
+
+    ButtonChoiceWindow(screen,
+                       "Insufficient disk space",
+                       """Unfortunately, you do not have a disk with enough space to install %s.  You need at least one 40GB or greater disk in the system for the installation to proceed.""" % PRODUCT_BRAND,
+                       ['Exit'], width=60)
+
+    # leave the installer:
+    return 1
+
+
 def upgrade_screen(answers):
     global screen
 
@@ -82,13 +94,14 @@ def select_primary_disk(answers):
     diskEntries = generalui.getDiskList()
     for de in diskEntries:
         (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        stringEntry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
-        e = (stringEntry, de)
-        entries.append(e)
+        if generalui.getDiskSizeGB(size) >= 40:
+            stringEntry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+            e = (stringEntry, de)
+            entries.append(e)
 
     (button, entry) = ListboxChoiceWindow(screen,
                         "Select Primary Disk",
-                        """Please select the disk you would like to use as the primary %s disk.
+                        """Please select the disk you would like to use as the primary %s disk (the list below only shows disks with enough capacity to act as primary disks).
 
 Xen will be installed onto this disk, requiring 120MB, and the remaining space used for guest virtual machines.""" % PRODUCT_BRAND,
                         entries,
@@ -226,10 +239,10 @@ def get_name_service_configuration(answers):
 
     def auto_nameserver_change((cb, entries)):
         for entry in entries:
-            entry.setFlags(FLAG_DISABLED, not cb.value())
+            entry.setFlags(FLAG_DISABLED, cb.value())
 
     def auto_hostname_change((cb, entry)):
-        entry.setFlags(FLAG_DISABLED, not cb.value())
+        entry.setFlags(FLAG_DISABLED, cb.value())
 
     ask_autohostname = not answers['iface-configuration'][0]
 
@@ -239,7 +252,7 @@ def get_name_service_configuration(answers):
     buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
 
     if ask_autohostname:
-        auto_hostname = Checkbox("Set a hostname manually?", 1)
+        auto_hostname = Checkbox("Set hostname manually?", 0)
         hostname_text = Textbox(15, 1, "Hostname:")
         hostname = Entry(30)
         hostname.setFlags(FLAG_DISABLED, 0)
@@ -269,7 +282,7 @@ def get_name_service_configuration(answers):
     for entry in [ns1_entry, ns2_entry, ns3_entry]:
         entry.setFlags(FLAG_DISABLED, 0)
 
-    auto_nameservers = Checkbox("Get DNS server list from DHCP?", 1)
+    auto_nameservers = Checkbox("Enter DNS server manually?", 0)
     auto_nameservers.setCallback(auto_nameserver_change, (auto_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
