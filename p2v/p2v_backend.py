@@ -51,9 +51,11 @@ def determine_size(os_install):
     (total_size, used_size) = findroot.determine_size(os_root_mount_point, os_root_device )
     
     # adjust total size to 150% of used size, with a minimum of 4Gb
-    total_size = (used_size * 3) / 2
-    if total_size < (4 * (1024 ** 3)):
-        total_size = (4 * (1024 ** 3))
+    total_size_l = (long(used_size) * 3) / 2
+    if total_size_l < (4 * (1024 ** 3)):
+        total_size_l = (4 * (1024 ** 3))
+        
+    total_size = str(total_size_l)
         
     os_install[p2v_constants.FS_USED_SIZE] = used_size
     os_install[p2v_constants.FS_TOTAL_SIZE] = total_size
