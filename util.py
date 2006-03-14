@@ -17,10 +17,6 @@ def assertDir(dirname):
     # make sure there isn't already a file there:
     assert not (os.path.exists(dirname) and not os.path.isdir(dirname))
 
-    # does the base directory exist?
-    if not os.path.isdir(os.path.dirname(dirname)):
-        assertDir(os.path.dirname(dirname))
-
     # does the specified directory exist?
     if not os.path.isdir(dirname):
         os.makedirs(dirname)
