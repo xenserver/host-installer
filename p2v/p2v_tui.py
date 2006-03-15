@@ -129,7 +129,7 @@ def os_install_screen(answers):
         else:
             return -1
     else: 
-        ButtonChoiceWindow(screen, "debug", """NO oss found""",  ['Ok'], width=50)
+        ButtonChoiceWindow(screen, "Error", """No operating systems found""",  ['Ok'], width=50)
         return -2
     
     if button == "back": 
