@@ -13,6 +13,8 @@ import util
 import pyanswerfile_ui
 import uicontroller
 
+import constants
+
 # backend
 import backend
 
@@ -77,7 +79,7 @@ def main():
         # first, make sure that we have enough disk space:
         disks = generalui.getDiskList()
         diskInfo = map(lambda x: generalui.getExtendedDiskInfo(x), disks)
-        if len(filter(lambda x: generalui.getDiskSizeGB(x[2]) >= 40, diskInfo)) == 0:
+        if len(filter(lambda x: generalui.getDiskSizeGB(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
             seq = [ ui_package.not_enough_space_screen ]
             uicontroller.runUISequence(seq, results)
         else:

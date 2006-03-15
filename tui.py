@@ -63,7 +63,7 @@ def not_enough_space_screen(answers):
 
     ButtonChoiceWindow(screen,
                        "Insufficient disk space",
-                       """Unfortunately, you do not have a disk with enough space to install %s.  You need at least one 40GB or greater disk in the system for the installation to proceed.""" % PRODUCT_BRAND,
+                       """Unfortunately, you do not have a disk with enough space to install %s.  You need at least one %sGB or greater disk in the system for the installation to proceed.""" % (PRODUCT_BRAND, str(constants.min_primary_disk_size)),
                        ['Exit'], width=60)
 
     # leave the installer:
@@ -94,7 +94,7 @@ def select_primary_disk(answers):
     diskEntries = generalui.getDiskList()
     for de in diskEntries:
         (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        if generalui.getDiskSizeGB(size) >= 40:
+        if generalui.getDiskSizeGB(size) >= constants.min_primary_disk_size:
             stringEntry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
