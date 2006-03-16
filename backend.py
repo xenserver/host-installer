@@ -122,6 +122,7 @@ def performInstallation(answers, ui_package):
 
     copyVendorKernels(mounts, answers)
     copyXenKernel(mounts, answers)
+    copyDocs(mounts, answers)
     ui_package.displayProgressDialog(18, pd)
 
     copyRpms(mounts, answers)
@@ -670,7 +671,9 @@ def copyXenKernel(mounts, answers):
     util.assertDir(DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
     util.copyFilesFromDir(CD_XEN_KERNEL_LOCATION, 
                        DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
-     
+                       
+def copyDocs(mounts, answers):
+    util.copyFile(CD_README_LOCATION, mounts['root'])
    
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):

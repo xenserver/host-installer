@@ -39,6 +39,7 @@ CD_RHEL41_INSTALL_INITRD = CD_RHEL41_GUEST_INSTALLER_LOCATION + "rhel41-install-
 CD_RPMS_LOCATION = "/opt/xensource/rpms/"
 CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
 CD_XEN_KERNEL_LOCATION = "/opt/xensource/xen-kernel"
+CD_README_LOCATION = "/README"
 
 # location/destination of files on the dom0 FS
 DOM0_FILES_LOCATION_ROOT = "%s/files/"

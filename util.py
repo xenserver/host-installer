@@ -24,6 +24,12 @@ def assertDir(dirname):
 def assertDirs(*dirnames):
     for d in dirnames:
         assertDir(d)
+        
+def copyFile(source, dest):
+    assert os.path.isfile(source)
+    assert os.path.isdir(dest)
+    
+    assert runCmd("cp -f %s %s/" % (source, dest)) == 0
 
 def copyFilesFromDir(sourcedir, dest):
     assert os.path.isdir(sourcedir)
