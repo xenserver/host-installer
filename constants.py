@@ -27,7 +27,7 @@ dom0tmpfs_type = 'ext3'
 ramdiskfs_type = 'squashfs'
 rwsfs_type = 'ext3'
 
-MIN_PASSWD_LEN=0
+MIN_PASSWD_LEN=6
 
 # location of files on the CDROM
 CD_DOM0FS_TGZ_LOCATION = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
