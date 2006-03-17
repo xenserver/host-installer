@@ -510,6 +510,12 @@ Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
 
     return 1
 
+def error_dialog(message):
+    global screen
+    
+    ButtonChoiceWindow(screen, "Error occurred",
+                               message,
+                               ['Ok'])
 
 ###
 # Helper functions

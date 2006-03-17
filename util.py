@@ -85,6 +85,10 @@ def mount(dev, mountpoint, options = None, fstype = None):
     if rc != 0:
         raise MountFailureException()
 
-def umount(mountpoint):
-    assert os.path.ismount(mountpoint)
+def umount(mountpoint, force = False):
+    if not force:
+        assert os.path.ismount(mountpoint)
+    elif not os.path.ismount(mountpoint):
+        return
+        
     os.spawnv(os.P_WAIT, '/bin/umount', ['/bin/umount', mountpoint])

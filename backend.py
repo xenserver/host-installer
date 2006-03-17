@@ -25,6 +25,7 @@ from util import runCmd
 from version import *
 from constants import *
 
+mounts = {}
 
 ################################################################################
 # FIRST STAGE INSTALLATION:
@@ -32,6 +33,7 @@ from constants import *
 # XXX Hack - we should have a progress callback, not pass in the
 # entire UI component.
 def performInstallation(answers, ui_package):
+    global mounts
     if answers.has_key('upgrade'):
         isUpgradeInstall = answers['upgrade']
     else:
@@ -449,9 +451,18 @@ def mountVolumes(primary_disk):
             'dropbox': dropboxpath,
             'umount-order': [dropboxpath, bootpath, rwspath, rootpath]}
 
-def umountVolumes(mounts):
-    for m in mounts['umount-order']: # hack!
-        util.umount(m)
+def umountVolumes(mounts, force = False):
+     for m in mounts['umount-order']: # hack!
+        util.umount(m, force)
+
+def cleanup_umount():
+    global mounts
+    if mounts.has_key('umount-order'):
+        umountVolumes(mounts, True)
+    # now remove the temporary volume
+    runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name))
+    
+
 
 ##########
 # second stage install helpers:

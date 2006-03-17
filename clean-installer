@@ -12,6 +12,9 @@ import generalui
 import util
 import pyanswerfile_ui
 import uicontroller
+import sys
+import traceback
+import string
 
 import constants
 
@@ -109,8 +112,14 @@ def main():
         
             uicontroller.runUISequence(seq, results)
     except Exception:
+    	(t,v,tb) = sys.exc_info()
+    	err = traceback.format_exception(t,v,tb)
+    	ui_package.error_dialog(string.join(err))
         # clean up the screen
         ui_package.end_ui()
+
+        #umount volumes
+        backend.cleanup_umount()
 
         # close continuous logs:
         for logfd in clog_fds:
