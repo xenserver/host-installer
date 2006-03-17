@@ -101,6 +101,9 @@ def installation_complete(answers):
 def upgrade_complete(answers):
     return 1
 
+def error_dialog(message):
+    return
+
 # progress dialogs:
 def initProgressDialog(title, text, total):
     if sub_ui_package:
