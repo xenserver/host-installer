@@ -22,7 +22,6 @@ import constants
 import backend
 
 # general
-import sys
 import logging
 from getopt import getopt, GetoptError
 
@@ -44,7 +43,7 @@ def main():
                             "upgrade-answerdev=",
                             "upgrade",
                             "clog="])
-    except GetoptError, e:
+    except GetoptError:
         print "This program takes no arguments."
         sys.exit(1)
 
@@ -77,12 +76,17 @@ def main():
             isUpgrade = True
 
     try:
+        logging.log("Starting user interface")
         ui_package.init_ui(results, False)
 
         # first, make sure that we have enough disk space:
         disks = generalui.getDiskList()
+        logging.log("Found disks: %s" % str(disks))
         diskInfo = map(lambda x: generalui.getExtendedDiskInfo(x), disks)
+        logging.log("Extended disk info: %s" % str(diskInfo))
+
         if len(filter(lambda x: generalui.getDiskSizeGB(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
+            logging.log("Not enough disk space to proceed.")
             seq = [ ui_package.not_enough_space_screen ]
             uicontroller.runUISequence(seq, results)
         else:
@@ -91,7 +95,7 @@ def main():
                     ui_package.set_time,
                     ui_package.determine_basic_network_config,
                     ui_package.get_name_service_configuration,
-                     ( generalui.confirm_installation,
+                    ( generalui.confirm_installation,
                       { 'ui-package': ui_package }) ]
                 
             if not isUpgrade:
@@ -102,7 +106,8 @@ def main():
                 backend.CheckInstalledVersion(results)
 
             uicontroller.runUISequence(seq, results)
-       
+
+            logging.log("Starting actual installation")       
             backend.performInstallation(results, ui_package)
         
             if not isUpgrade:
@@ -112,9 +117,10 @@ def main():
         
             uicontroller.runUISequence(seq, results)
     except Exception:
-    	(t,v,tb) = sys.exc_info()
-    	err = traceback.format_exception(t,v,tb)
-    	ui_package.error_dialog(string.join(err))
+        (t, v, tb) = sys.exc_info()
+        err = traceback.format_exception(t,v,tb)
+        ui_package.error_dialog(string.join(err))
+
         # clean up the screen
         ui_package.end_ui()
 
@@ -130,7 +136,8 @@ def main():
             logfd.close()
             
         raise
-        
+
+    logging.log("Shutting down user interface")
     ui_package.end_ui()
 
     # close continuous logs:
