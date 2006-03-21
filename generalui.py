@@ -23,6 +23,8 @@ def getDiskList():
         if dev != "Device":
             devices.append(dev)
 
+    pipe.close()
+
     # CCISS disks:
     pipe = os.popen("blockdev --report | grep -v '/dev/hd' | grep -v '/dev/sd' | grep -v '.*p[0-9]$' | awk '{ print $7 }'")
     for dev in pipe:
