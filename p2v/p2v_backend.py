@@ -117,7 +117,7 @@ def perform_P2V( results ):
     os_install['pd'] = pd
     setup_networking(os_install)
     determine_size(os_install)
-    append_hostname(os_install)
+#    append_hostname(os_install)
     get_mem_info(os_install)
     get_cpu_count(os_install)
     if results[p2v_constants.XEN_TARGET] == p2v_constants.XEN_TARGET_XE:
@@ -192,7 +192,8 @@ def add_name(os_install):
     host_name = os_install[p2v_constants.HOST_NAME]
     os_name = os_install[p2v_constants.OS_NAME]
     os_version = os_install[p2v_constants.OS_VERSION]
-    template_string += open_tag(p2v_constants.TAG_NAME, "'P2V of %s'" % (os_name))
+    template_string += open_tag(p2v_constants.TAG_NAME, "'P2V of %s %s on %s'" 
+                                 % (os_name, os_version, host_name))
     template_string += close_tag(p2v_constants.TAG_NAME)
     return template_string
 

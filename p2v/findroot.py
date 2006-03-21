@@ -205,7 +205,7 @@ def handle_root(mntpnt, dev_name, pd = None):
 
     ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
 
-    hostname = os.uname()[1]
+    hostname = findHostName(mntpnt)
     os.chdir(mntpnt)
     tar_basefilename = "p2v%s.%s.tar.bz2" % (hostname, os.path.basename(dev_name))
     base_dirname = "/xenpending/"
@@ -239,6 +239,19 @@ def mount_os_root(dev_name, dev_attrs):
 #       raise P2VError("Failed to mount os root")
     return mnt
 
+def findHostName(mnt):
+    hostname = "localhost"
+    hnFile = os.path.join(mnt,'etc', 'hostname')
+    if os.path.exists(hnFile):
+        hn = open(hnFile)
+        for line in hn.readlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            hostname = line
+            break
+    return hostname
+    
 def inspect_root(dev_name, dev_attrs, results):
     mnt = mount_os_root(dev_name, dev_attrs)
     if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
@@ -256,6 +269,7 @@ def inspect_root(dev_name, dev_attrs, results):
                os_install[p2v_constants.OS_VERSION] = parts[1]
                os_install[p2v_constants.DEV_NAME] = dev_name
                os_install[p2v_constants.DEV_ATTRS] = dev_attrs
+               os_install[p2v_constants.HOST_NAME] = findHostName(mnt)
                results.append(os_install)
        else:
            p2v_utils.trace_message("read_osversion failed : out = %s" % out)
