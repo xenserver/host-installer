@@ -274,7 +274,7 @@ def writeDom0DiskPartitions(disk):
     # to a file and then use '<' to get sfdisk to read the file.
 
     parts = open("/tmp/dom0disk_parts", "w")
-    parts.write(",%s,L\n" % boot_size)
+    parts.write(",%s,L,*\n" % boot_size)
     parts.write(",,8e\n")
     parts.write("\n")
     parts.write("\n")
