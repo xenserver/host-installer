@@ -164,7 +164,9 @@ def dump_answers(answers):
 
 def finish_screen(answers):
     global screen
-    ButtonChoiceWindow(screen, "Finish P2V", """P2V operation successfully completed""", ['Ok'], width = 50)
+    ButtonChoiceWindow(screen, "Finish P2V", """P2V operation successfully completed. Please press enter to reboot the machine.
+                       
+Please manually eject the install media upon reboot.""", ['Ok'], width = 50)
     return 1
     
 def failed_screen(answers):
