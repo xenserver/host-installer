@@ -193,7 +193,7 @@ def performInstallation(answers, ui_package):
 #will scan all detected harddisks, and pick the first one
 #that has a partition with burbank*.img on it.
 def CheckInstalledVersion(answers):
-    disks = diskinfo.getQualifiedDiskList()
+    disks = generalui.getDiskList()
     answers['guest-disks'] = []
     for disk in disks:
         if hasBootPartition(disk):
