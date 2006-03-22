@@ -14,6 +14,7 @@ import uicontroller
 import sys
 import constants
 from version import *
+import diskinfo
 
 import datetime
 
@@ -91,11 +92,11 @@ def select_primary_disk(answers):
     global screen
     entries = []
     
-    diskEntries = generalui.getDiskList()
+    diskEntries = diskinfo.getQualifiedDiskList()
     for de in diskEntries:
-        (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        if generalui.getDiskSizeGB(size) >= constants.min_primary_disk_size:
-            stringEntry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        (vendor, model, size) = diskinfo.getExtendedDiskInfo(de)
+        if diskinfo.blockSizeToGBSize(size) >= constants.min_primary_disk_size:
+            stringEntry = "%s - %s [%s %s]" % (de, diskinfo.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
 
@@ -118,11 +119,11 @@ def select_guest_disks(answers):
     
     entries = []
 
-    diskEntries = generalui.getDiskList()
+    diskEntries = diskinfo.getQualifiedDiskList()
     diskEntries.remove(answers['primary-disk'])
     for de in diskEntries:
-        (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        entry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        (vendor, model, size) = diskinfo.getExtendedDiskInfo(de)
+        entry = "%s - %s [%s %s]" % (de, diskinfo.blockSizeToGBSize(size), vendor, model)
         entries.append(entry)
         
     text = TextboxReflowed(50, "Please select any additional disks you would like to use for guest storage")

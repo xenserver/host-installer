@@ -15,6 +15,7 @@ import uicontroller
 import sys
 import traceback
 import string
+import diskinfo
 
 import constants
 
@@ -80,12 +81,12 @@ def main():
         ui_package.init_ui(results, False)
 
         # first, make sure that we have enough disk space:
-        disks = generalui.getDiskList()
+        disks = diskinfo.getQualifiedDiskList()
         logging.log("Found disks: %s" % str(disks))
-        diskInfo = map(lambda x: generalui.getExtendedDiskInfo(x), disks)
+        diskInfo = map(lambda x: diskinfo.getExtendedDiskInfo(x), disks)
         logging.log("Extended disk info: %s" % str(diskInfo))
 
-        if len(filter(lambda x: generalui.getDiskSizeGB(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
+        if len(filter(lambda x: diskinfo.blockSizeToGBSize(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
             logging.log("Not enough disk space to proceed.")
             seq = [ ui_package.not_enough_space_screen ]
             uicontroller.runUISequence(seq, results)
