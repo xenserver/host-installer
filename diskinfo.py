@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 ###
 # XEN CLEAN INSTALLER
 # Disk discovery and utilities
