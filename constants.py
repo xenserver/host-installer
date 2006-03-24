@@ -17,7 +17,7 @@ dropbox_type = "ext3"
 
 boot_size = 160
 vgname = "VG_XenSource"
-xen_version = "3.0.1"
+#xen_version = "3.0.1"
 
 # file system creation constants
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
