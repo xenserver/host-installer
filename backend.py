@@ -377,17 +377,17 @@ def installGrub(mounts, disk):
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz\n" % xen_version
-    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0\n"
+    grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty\n" % xen_version
-    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
+    grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot com1=115200,8n1 console=com1,tty\n" % xen_version
-    grubconf += "   module /vmlinuz-2.6.12.6-xen ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n"
+    grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
 
     # install GrUB - TODO better error handling required here:
@@ -651,7 +651,7 @@ def writeModprobeConf(mounts, answers):
     #####
     #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
     #####
-    assert runCmd("chroot %s kudzu -q -k 2.6.12.6-xen" % mounts['root']) == 0
+    assert runCmd("chroot %s kudzu -q -k %s" % mounts['root'], version.kernel_version) == 0
     
     #TODO: hack
     os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
