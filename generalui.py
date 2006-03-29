@@ -71,10 +71,10 @@ def getDiskSizeGB(rawDiskSize):
 
 def getExtendedDiskInfo(disk):
     deviceNameParts = disk.split('/')
-    if len(deviceNameParts) == 2:
-        deviceName = deviceNameParts[1]
-    elif len(deviceNameParts) == 3:
+    if len(deviceNameParts) == 3:
         deviceName = deviceNameParts[2]
+    elif len(deviceNameParts) == 4:
+        deviceName = deviceNameParts[2] + "!" + deviceNameParts[3]
     else:
         #unsupported
         return None
