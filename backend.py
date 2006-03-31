@@ -330,9 +330,20 @@ def prepareLVM(answers):
     partitions += map(lambda x: determinePartitionName(x, 1),
                       answers['guest-disks'])
 
+    rc = 0
     # TODO - better error handling
     for x in partitions:
         assert runCmd("pvcreate -ff -y %s" % x) == 0
+        y = 0
+        while y < 8:
+            rc = runCmd("pvcreate -ff -y %s" % x)
+            if rc == 0:
+                break
+            time.sleep(3)
+            i += 1
+            if rc != 0:
+                raise Exception("Failed to pvcreate on %s. rc = %d" % (x, rc))
+
 
     # LVM doesn't like creating VGs if a previous volume existed and left
     # behind device nodes...
