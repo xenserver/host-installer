@@ -282,7 +282,7 @@ def findroot():
 
     for dev_name, dev_attrs in devices.items():
         if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
-            rc = inspect_root(dev_name, dev_attrs, results)
+            inspect_root(dev_name, dev_attrs, results)
                    
     #run_command("sleep 2")
     return results

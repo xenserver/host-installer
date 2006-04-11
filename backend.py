@@ -339,9 +339,9 @@ def prepareLVM(answers):
             if rc == 0:
                 break
             time.sleep(3)
-            i += 1
-        if rc != 0:
-            raise Exception("Failed to pvcreate on %s. rc = %d" % (x, rc))
+            y += 1
+    if rc != 0:
+        raise Exception("Failed to pvcreate on %s. rc = %d" % (x, rc))
 
 
     # LVM doesn't like creating VGs if a previous volume existed and left
@@ -751,6 +751,9 @@ def writeInventory(mounts, answers):
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
     inv.write("BUILD_NUMBER='%s'\n" % BUILD_NUMBER)
+    inv.write("KERNEL_VERSION='%s'\n" % version.kernel_version)
+    inv.write("XEN_VERSION='%s'\n" % version.xen_version)
+    inv.write("RHEL_KERNEL_VERSION='%s'\n" % version.rhel_kernel_version)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.close()
     
