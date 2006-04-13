@@ -201,8 +201,10 @@ def add_rootfs(os_install):
 	template_string = ""
 	fs = ""
 	if os_install['dev_attrs'] != None:
-		sec_type = os_install['dev_attrs']['sec_type']
-    	fs_type = os_install['dev_attrs']['type']
+        if os_install['dev_attrs'].has_key('sec_type'):
+            sec_type = os_install['dev_attrs']['sec_type']
+        if os_install['dev_attrs'].has_key('fs_type'):
+            fs_type = os_install['dev_attrs']['type']
 
 	if sec_type != None:
 		fs = sec_type
