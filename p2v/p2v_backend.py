@@ -198,22 +198,22 @@ def add_name(os_install):
     return template_string
 
 def add_rootfs(os_install):
-	template_string = ""
-	fs = ""
-	if os_install['dev_attrs'] != None:
+    template_string = ""
+    fs = ""
+    if os_install['dev_attrs'] != None:
         if os_install['dev_attrs'].has_key('sec_type'):
             sec_type = os_install['dev_attrs']['sec_type']
         if os_install['dev_attrs'].has_key('fs_type'):
             fs_type = os_install['dev_attrs']['type']
 
-	if sec_type != None:
-		fs = sec_type
-	else:
-		if fs_type != None:
-			fs = fs_type
-	template_string += open_tag("rootfs-type", fs)
-	template_string += close_tag("rootfs-type")
-	return template_string
+    if sec_type != None:
+        fs = sec_type
+    else:
+        if fs_type != None:
+            fs = fs_type
+    template_string += open_tag("rootfs-type", fs)
+    template_string += close_tag("rootfs-type")
+    return template_string
     
 def add_distrib(os_install):
     template_string = ""
