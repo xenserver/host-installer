@@ -54,8 +54,8 @@ which_distro_version () {
                 printf $result
                 ;;
         "SuSE")
-                `echo $CONTENTS | grep -q "SUSE LINUX Enterprise Server 9"` &&
-                printf "9"
+		result=`awk '/SUSE LINUX Ent.*/ {dist="sles"; sp="sp1"} /VERSION/ {version=$3} /PATCHLEVEL/ {sp="sp"$3} END {print version sp}' $filename`
+                printf $result
                 ;;
         *)
                 printf "$CONTENTS"

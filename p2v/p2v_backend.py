@@ -159,14 +159,17 @@ def close_tag(tag):
     return template_string
     #tag is unused
     
-#TODO: add implementation
 def determine_distrib(os_install):
     os_name = os_install[p2v_constants.OS_NAME]
     if os_name == "Red Hat":
         return "rhel"
     elif os_name == "SuSE":
-        return "sles9"
-    
+        return "sles"
+
+def determine_distrib_version(os_install):
+    os_version = os_install[p2v_constants.OS_VERSION]
+    return os_version
+     
 def add_xgt_version():
     template_string = ""
     template_string += open_tag(p2v_constants.TAG_XGT_VERSION, "4")
@@ -219,6 +222,12 @@ def add_distrib(os_install):
     template_string = ""
     template_string += open_tag(p2v_constants.TAG_DISTRIB, determine_distrib(os_install))
     template_string += close_tag( p2v_constants.TAG_DISTRIB)
+    return template_string
+
+def add_distrib_version(os_install):
+    template_string = ""
+    template_string += open_tag(p2v_constants.TAG_DISTRIB_VERSION, determine_distrib_version(os_install))
+    template_string += close_tag( p2v_constants.TAG_DISTRIB_VERSION)
     return template_string
 
 def add_mem_info(os_install):
@@ -308,6 +317,7 @@ def write_template(os_install):
     template_string += add_name(os_install)
     template_string += add_rootfs(os_install)
     template_string += add_distrib(os_install)
+    template_string += add_distrib_version(os_install)
     template_string += add_mem_info(os_install)
     template_string += add_cpu_count(os_install)
     template_string += add_description(os_install)
