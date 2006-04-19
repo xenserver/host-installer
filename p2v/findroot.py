@@ -176,7 +176,7 @@ def determine_size(mntpnt, dev_name):
         # assume the umount works
         umount_dev(item)
 
-    return str(used_size*1024), str(total_size*1024)
+    return str(used_size), str(total_size)
 
 
 def handle_root(mntpnt, dev_name, pd = None):
