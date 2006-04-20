@@ -761,7 +761,8 @@ def writeInventory(mounts, answers):
 def writeDhclientHooks(mounts, answers):
     #invokes rc.local to update /etc/issue
     hooks = open("%s/etc/dhclient-exit-hooks" % mounts['root'], "w")
-    inv.write(". /etc/rc.local")
+    hooks.write(". /etc/rc.local")
+    hooks.close()
     
 ###
 # Compress root filesystem and save to disk:
