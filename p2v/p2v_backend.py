@@ -203,6 +203,8 @@ def add_name(os_install):
 def add_rootfs(os_install):
     template_string = ""
     fs = ""
+    sec_type = None
+    fs_type = None
     if os_install['dev_attrs'] != None:
         if os_install['dev_attrs'].has_key('sec_type'):
             sec_type = os_install['dev_attrs']['sec_type']
