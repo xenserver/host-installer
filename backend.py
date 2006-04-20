@@ -755,6 +755,7 @@ def writeInventory(mounts, answers):
     inv.write("KERNEL_VERSION='%s'\n" % version.kernel_version)
     inv.write("XEN_VERSION='%s'\n" % version.xen_version)
     inv.write("RHEL_KERNEL_VERSION='%s'\n" % version.rhel_kernel_version)
+    inv.write("SLES_KERNEL_VERSION='%s'\n" % version.sles_kernel_version)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.close()
 
