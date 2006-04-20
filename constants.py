@@ -57,6 +57,7 @@ ANSWERS_FILE = "upgrade_answers"
 writeable_files = [ '/etc/yp.conf',
                     '/etc/ntp.conf',
                     '/etc/resolv.conf',
+                    '/etc/dhclient-exit-hooks',
                     '/etc/hosts',
                     '/etc/issue',
                     '/etc/adjtime' ,

@@ -131,6 +131,7 @@ def performInstallation(answers, ui_package):
     ui_package.displayProgressDialog(19, pd)
 
     writeInventory(mounts, answers)
+    writeDhclientHooks(mounts, answers)
     ui_package.displayProgressDialog(20, pd)
 
     initNfs(mounts, answers)
@@ -756,6 +757,11 @@ def writeInventory(mounts, answers):
     inv.write("RHEL_KERNEL_VERSION='%s'\n" % version.rhel_kernel_version)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.close()
+
+def writeDhclientHooks(mounts, answers):
+    #invokes rc.local to update /etc/issue
+    hooks = open("%s/etc/dhclient-exit-hooks" % mounts['root'], "w")
+    inv.write(". /etc/rc.local")
     
 ###
 # Compress root filesystem and save to disk:
