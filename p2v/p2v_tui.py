@@ -103,7 +103,7 @@ def isP2Vable(os):
         return True;
     if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "3.5":
         return True;
-    if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION] == "9":
+    if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION] == "9sp2":
         return True;
 
 
