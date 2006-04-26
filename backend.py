@@ -383,7 +383,7 @@ def installGrub(mounts, disk):
     grubconf = ""
     grubconf += "default 0\n"
     grubconf += "serial --unit=0 --speed=115200\n"
-    grubconf += "terminal  console serial --timeout=5\n"
+    grubconf += "terminal --timeout=10 console serial\n"
     grubconf += "timeout 10\n"
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
