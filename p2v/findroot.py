@@ -8,6 +8,7 @@
 import os
 import os.path
 import sys
+import time
 import commands
 import p2v_constants
 import p2v_utils
@@ -19,7 +20,7 @@ ui_package = p2v_tui
 
 
 def run_command(cmd):
-#    p2v_utils.trace_message("running: %s\n" % cmd)
+    p2v_utils.trace_message("running: %s\n" % cmd)
     rc, out = commands.getstatusoutput(cmd)
     if rc != 0:
         p2v_utils.trace_message("Failed %d: %s\n" % (rc, out))
@@ -160,6 +161,7 @@ def determine_size(mntpnt, dev_name):
     used_size = long(0)
     total_size = long(0)
     
+
     split_used_size = used_out.split('\n')
     split_total_size = total_out.split('\n')
     for o in split_used_size:
@@ -171,12 +173,12 @@ def determine_size(mntpnt, dev_name):
         
     p2v_utils.trace_message("\n\nFinal FS used Usage : %d\n\n" % used_size)
     p2v_utils.trace_message("\n\nFinal FS total Usage : %d\n\n" % total_size)
-    
+
     for item in active_mounts:
         # assume the umount works
         umount_dev(item)
 
-    return str(used_size), str(total_size)
+    return str(used_size/1024), str(total_size/1024)
 
 
 def handle_root(mntpnt, dev_name, pd = None):
@@ -185,7 +187,8 @@ def handle_root(mntpnt, dev_name, pd = None):
     fstab = load_fstab(fp)
     fp.close()
     
-    ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
+    if pd != None:
+        ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
                                        
     devices = scan()
     
@@ -203,7 +206,8 @@ def handle_root(mntpnt, dev_name, pd = None):
 
         active_mounts.append(extra_mntpnt)
 
-    ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
+    if pd != None:
+        ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
 
     hostname = findHostName(mntpnt)
     os.chdir(mntpnt)
@@ -214,7 +218,8 @@ def handle_root(mntpnt, dev_name, pd = None):
     if not rc == 0:
         raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % rc, out)
     
-    ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
+    if pd != None:
+        ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
     rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
     if rc != 0:
         raise P2VError("Failed to handle root - md5sum failed")
@@ -225,6 +230,49 @@ def handle_root(mntpnt, dev_name, pd = None):
         umount_dev(item)
 
     return (0, base_dirname, tar_basefilename, md5_out)
+
+def handle_root_ssh(mntpnt, dev_name, hostname, target_directory, keyfile, pd = None):
+    rc = 0
+    fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
+    fstab = load_fstab(fp)
+    fp.close()
+    
+    if pd != None:
+        ui_package.displayProgressDialog(1, pd, " - Scanning and mounting devices")
+                                       
+    devices = scan()
+    
+    active_mounts = []
+    p2v_utils.trace_message("* Need to mount:")
+    mounts = find_extra_mounts(fstab, devices)
+    for mount_info in mounts:
+        #p2v_utils.trace_message("  --", mount_info)
+        extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
+
+        rc = mount_dev(mount_info[0], mount_info[2],
+                       extra_mntpnt, mount_info[3] + ",ro")
+        if rc != 0:
+            raise P2VError("Failed to handle root - mount failed.")
+
+        active_mounts.append(extra_mntpnt)
+
+    if pd != None:
+        ui_package.displayProgressDialog(2, pd, " - Transferring root filesystem")
+
+    os.chdir(mntpnt)
+    rc, out = run_command('tar zcf - . | ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i %s %s " cd %s ; tar zxf - "' % 
+                         (keyfile, hostname, target_directory))
+    if not rc == 0:
+        raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % (rc, out))
+    
+    os.chdir("/")
+    for item in active_mounts:
+        # assume the umount works
+        umount_dev(item)
+
+    return 0
+
+
 
 def mount_os_root(dev_name, dev_attrs):
     mntbase = "/var/mnt"

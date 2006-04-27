@@ -13,6 +13,7 @@ import p2v_tui
 import p2v_uicontroller
 import findroot
 import sys
+import time
 import p2v_constants
 import p2v_tui
 import p2v_utils
@@ -21,6 +22,7 @@ import p2v_utils
 ui_package = p2v_tui
 
 from p2v_error import P2VError
+from version import *
 
 #globals
 dropbox_path = "/opt/xensource/packages/xgt/"
@@ -43,6 +45,58 @@ def append_hostname(os_install):
 def setup_networking(os_install):
     findroot.run_command("ifup eth0 > /dev/null 2>&1");
 
+def generate_ssh_key():
+    ssh_key_file = "/ssh_key"
+    rc = 0
+
+    if not os.path.exists(ssh_key_file):
+        rc, out = findroot.run_command('echo "y" | /usr/bin/ssh-keygen -t rsa -P "" -f %s'% ssh_key_file);
+    return (rc, ssh_key_file)
+    
+def prepare_agent(xe_host, os_install, ssh_key_file):
+    ssh_pub_key_file = ssh_key_file + ".pub"
+    root_password = os_install['root-password']
+    
+    # send the public key to the agent
+    rc, out = findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c addkey -p '%s' '%s'" % (xe_host, root_password, ssh_pub_key_file))
+
+    if rc != 0:
+        raise P2VError("Failed to add public ssh key. (%s)" % out)
+
+    os_install_name = os_install[p2v_constants.OS_NAME]
+    os_install_version = os_install[p2v_constants.OS_VERSION]
+    os_install_hostname =  os_install[p2v_constants.HOST_NAME]
+    os_install_distribution = determine_distrib(os_install)
+    total_size = long(os_install[p2v_constants.FS_TOTAL_SIZE])
+    used_size = long(os_install[p2v_constants.FS_USED_SIZE])
+    cpu_count = int(os_install[p2v_constants.CPU_COUNT])
+    rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
+                xe_host,
+                root_password,
+                os_install_name,
+                os_install_version,
+                os_install_hostname,
+                os_install_distribution,
+                total_size,
+                used_size,
+                cpu_count))
+
+    if rc != 0:
+        raise P2VError("Failed to prepare p2v. (%s)" % out)
+
+    for line in out.split('\n'):
+        name, val = line.split('=')
+        if name == 'p2v_path':
+            os_install[name] = val
+        if name == 'uuid':
+            os_install[name] = val
+    
+def finish_agent(os_install, xe_host):
+    #tell the agent that we're done
+    root_password = os_install['root-password']
+    rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c finishp2v -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
+    
+
 def determine_size(os_install):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
@@ -52,8 +106,8 @@ def determine_size(os_install):
     
     # adjust total size to 150% of used size, with a minimum of 4Gb
     total_size_l = (long(used_size) * 3) / 2
-    if total_size_l < (4 * (1024 ** 3)):
-        total_size_l = (4 * (1024 ** 3))
+    if total_size_l < (4 * (1024 ** 2)):
+        total_size_l = (4 * (1024 ** 2))
         
     total_size = str(total_size_l)
         
@@ -69,7 +123,7 @@ def get_cpu_count(os_install):
     cpu_count = findroot.get_cpu_count()
     os_install[p2v_constants.CPU_COUNT] = cpu_count
 
-def perform_p2v( os_install, inbox_path ):
+def perform_p2v( os_install, inbox_path):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
@@ -79,7 +133,16 @@ def perform_p2v( os_install, inbox_path ):
     os_install[p2v_constants.XEN_TAR_DIRNAME] = tardirname
     os_install[p2v_constants.XEN_TAR_MD5SUM] = md5sum
     umount_os_root( os_root_mount_point )
-    
+
+def perform_p2v_ssh( os_install, hostname, keyfile):
+    os_root_device = os_install[p2v_constants.DEV_NAME]
+    dev_attrs = os_install[p2v_constants.DEV_ATTRS]
+    os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
+    pd = os_install['pd']
+    target_directory=os_install['p2v_path']
+
+    rc = findroot.handle_root_ssh(os_root_mount_point, os_root_device, hostname, target_directory, keyfile, pd)
+        
 def nfs_mount( nfs_mount_path ):
     local_mount_path = "/xenpending"
     rc, out = findroot.run_command('grep -q "%s nfs" /proc/mounts' % local_mount_path)
@@ -108,18 +171,43 @@ def mount_dropbox( xe_host ):
 def xe_p2v( xe_host, os_install ):
     dropbox_path = mount_dropbox( xe_host )
     perform_p2v( os_install, dropbox_path )
+
+def ssh_p2v( xe_host, os_install, results, pd ):
+    (rc, ssh_key_file) = generate_ssh_key()
+    if rc != 0:
+        return
+
+    ui_package.displayProgressDialog(0, pd, " - Preparing %s host" % PRODUCT_BRAND)
+    prepare_agent(xe_host, os_install, ssh_key_file)
+
+    perform_p2v_ssh( os_install, xe_host, ssh_key_file)
+
+    ui_package.displayProgressDialog(3, pd, " - Finalizing install on %s host" % PRODUCT_BRAND)
+    finish_agent(os_install, xe_host)
+         
          
 def perform_P2V( results ):
     os_install = results[p2v_constants.OS_INSTALL]
+    if results[p2v_constants.XEN_TARGET] == p2v_constants.XEN_TARGET_SSH:
+        num_steps = 5
+    else:
+        num_steps = 4
+
     pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
                                        'Performing P2V operation...',
-                                       5)
+                                       num_steps)
     os_install['pd'] = pd
+
     setup_networking(os_install)
+
     determine_size(os_install)
+
 #    append_hostname(os_install)
+
     get_mem_info(os_install)
+
     get_cpu_count(os_install)
+
     if results[p2v_constants.XEN_TARGET] == p2v_constants.XEN_TARGET_XE:
         p2v_utils.trace_message( "we're doing a p2v to XE" )
         xe_host = results[p2v_constants.XE_HOST]
@@ -129,13 +217,19 @@ def perform_P2V( results ):
         nfs_host = results[p2v_constants.NFS_HOST]
         nfs_path = results[p2v_constants.NFS_PATH]
         nfs_p2v( nfs_host, nfs_path, os_install )
+    elif results[p2v_constants.XEN_TARGET] == p2v_constants.XEN_TARGET_SSH:
+        p2v_utils.trace_message( "we're doing a p2v over SSH" )
+        xe_host = results[p2v_constants.XE_HOST]
+        ssh_p2v( xe_host, os_install, results, pd )
         
-    ui_package.displayProgressDialog(3, pd, " - Writing template")
-    write_template(os_install)
-    
-    ui_package.displayProgressDialog(4, pd, " - Creating XGT")
-    create_xgt(os_install)
-    ui_package.displayProgressDialog(5, pd, " - Finished")
+    if results[p2v_constants.XEN_TARGET] != p2v_constants.XEN_TARGET_SSH:
+        ui_package.displayProgressDialog(3, pd, " - Writing template")
+        write_template(os_install)
+        
+        ui_package.displayProgressDialog(4, pd, " - Creating XGT")
+        create_xgt(os_install)
+
+    ui_package.displayProgressDialog(num_steps, pd, " - Finished")
     
     ui_package.clearProgressDialog()
     

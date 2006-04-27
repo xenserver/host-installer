@@ -24,8 +24,9 @@ def main():
     results = { 'ui-package': ui_package }
 
     seq = [ ui_package.welcome_screen,
-            ui_package.target_screen,
             ui_package.os_install_screen,
+            ui_package.target_screen,
+            ui_package.get_root_password,
             ui_package.description_screen ]
     try:
         rc = p2v_uicontroller.runUISequence(seq, results)

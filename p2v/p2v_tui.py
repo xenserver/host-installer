@@ -37,6 +37,17 @@ def end_ui():
     if screen:
         screen.finish()
 
+def suspend_ui():
+    global screen
+    if screen:
+        screen.suspend()
+        
+def resume_ui():
+    global screen
+    if screen:
+        screen.resume()
+
+
 # welcome screen:
 def welcome_screen(answers):
     global screen
@@ -67,7 +78,7 @@ def target_screen(answers):
 
     #ask for more info
     if entry == 0:
-        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_XE
+        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
         (button, xehost) = EntryWindow(screen,
                 "%s Host Information" % PRODUCT_BRAND,
                 "Please enter the %s host information: " % PRODUCT_BRAND,
@@ -155,6 +166,69 @@ def description_screen(answers):
         return 1
     else:
         return -1
+
+def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
+                        entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
+    bb = ButtonBar(screen, buttons)
+    t = TextboxReflowed(width, text)
+
+    count = 0
+    for n in prompts:
+        count = count + 1
+
+    sg = Grid(2, count)
+
+    count = 0
+    entryList = []
+    for n in prompts:
+        if (type(n) == types.TupleType):
+            (n, e) = n
+        else:
+            e = Entry(entryWidth, password = 1)
+
+        sg.setField(Label(n), 0, count, padding = (0, 0, 1, 0), anchorLeft = 1)
+        sg.setField(e, 1, count, anchorLeft = 1)
+        count = count + 1
+        entryList.append(e)
+
+    g = GridFormHelp(screen, title, help, 1, 3)
+
+    g.add(t, 0, 0, padding = (0, 0, 0, 1)) 
+    g.add(sg, 0, 1, padding = (0, 0, 0, 1))
+    g.add(bb, 0, 2, growx = 1)
+
+    result = g.runOnce()
+
+    entryValues = []
+    count = 0
+    for n in prompts:
+        entryValues.append(entryList[count].value())
+        count = count + 1
+
+    return (bb.buttonPressed(result), tuple(entryValues))
+
+
+def get_root_password(answers):
+    global screen
+    done = False
+
+    #oh, what a dirty way of skipping unwanted screens
+    if answers[p2v_constants.XEN_TARGET] != p2v_constants.XEN_TARGET_SSH:
+        return 1;
+   
+    (button, result) = PasswordEntryWindow(screen,
+                                 "Enter Password",
+                                "Please enter the root password for the %s host" % PRODUCT_BRAND,
+                                 ['Password'],
+                                 buttons = ['Ok', 'Back'])
+    if button == 'back':
+        return -1
+        
+    # if they didn't select OK we should have returned already
+    assert button == 'ok'
+    osinstall = answers['osinstall']
+    osinstall['root-password'] = result[0]
+    return 1
 
 
 def dump_answers(answers):
