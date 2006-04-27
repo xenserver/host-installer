@@ -61,7 +61,9 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/hosts',
                     '/etc/issue',
                     '/etc/adjtime' ,
-                    '/etc/lvm/.cache']
+                    '/etc/lvm/.cache',
+                    '/etc/sysconfig/iptables',
+                    '/etc/sysconfig/iptables-config']
 
 # directories to be created in the dom0 FS
 asserted_dirs = [ '/etc',
