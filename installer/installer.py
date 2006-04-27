@@ -34,6 +34,7 @@ def main():
     
             entries = [ 
                     ' * Install %s Managed Host' % PRODUCT_BRAND,
+                    ' * Upgrade %s Managed Host' % PRODUCT_BRAND,
                     ' * P2V (convert existing OS on this host into a VM template)'
                      ]
             (button, entry) = ListboxChoiceWindow(screen,
@@ -50,6 +51,13 @@ def main():
                      else:
                          sys.exit(rc)
                 elif entry == 1:
+                     rc = os.system("/opt/xensource/clean-installer/clean-installer --upgrade --clog /dev/tty3")
+                     if rc == 0: 
+                         os.system("reboot")
+                         sys.exit(0)
+                     else:
+                         sys.exit(rc)
+                elif entry == 2:
                     rc = os.system("/opt/xensource/clean-installer/p2v.py")
                     os.system("reboot")
                     sys.exit(0)
