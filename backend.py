@@ -20,6 +20,7 @@ import pickle
 
 import util
 from util import runCmd
+import shutil
 
 # Product version and constants:
 from version import *
@@ -365,27 +366,31 @@ def installGrub(mounts, disk):
     grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
 
-    # install GrUB - TODO better error handling required here:
-    # - copy GrUB files into place:
-    util.assertDir("%s/grub" % mounts['boot'])
-    files = filter(lambda x: x not in ['menu.lst', 'grub.conf'],
-                   os.listdir("/boot/grub"))
-    for f in files:
-        runCmd("cp /boot/grub/%s %s/grub/" % (f, mounts['boot']))
+    # prepare extra mounts for installing GRUB:
+    util.bindMount("/dev", "%s/dev" % mounts['root'])
+    util.bindMount("/proc", "%s/proc" % mounts['root'])
+    util.bindMount("/sys", "%s/sys" % mounts['root'])
+    util.bindMount("/tmp", "%s/tmp" % mounts['root'])
 
-    # now install GrUB to the MBR of the first disk:
-    # (note GrUB partition numbers start from 0 not 1)
-    boot_grubpart = getBootPartNumber(disk) - 1
-    grubdest = '(%s,%s)' % (getGrUBDevice(disk), boot_grubpart)
-    stage2 = "%s/grub/stage2" % grubdest
-    conf = "%s/grub/menu.lst" % grubdest
-    assert runCmd("echo 'install %s/grub/stage1 d (hd0) %s p %s' | grub --batch"
-              % (grubroot, stage2, conf)) == 0
-    
-    # write the grub.conf file:
+    # ensure there isn't a previous installation in /boot
+    # for any reason:
+    if os.path.isdir("%s/grub" % mounts['boot']):
+        shutil.rmtree("%s/grub" % mounts['boot'])
+
+    # write the GRUB configuration:
+    util.assertDir("%s/grub" % mounts['boot'])
     menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
     menulst_file.write(grubconf)
     menulst_file.close()
+
+    # now perform our own installation, onto the MBR of hd0:
+    assert runCmd("chroot %s grub-install --recheck '(hd0)'" % mounts['root']) == 0
+
+    # done installing - undo our extra mounts:
+    util.umount("%s/dev" % mounts['root'])
+    util.umount("%s/proc" % mounts['root'])
+    util.umount("%s/sys" % mounts['root'])
+    util.umount("%s/tmp" % mounts['root'])
 
 ##########
 # mounting and unmounting of various volumes
@@ -468,10 +473,11 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("%s    /boot    %s    nouser,auto,ro,async    1    2\n" 
-                     % (bootpart, bootfs_type) )
-        fstab.write("%s          /rws  %s     defaults   1  3\n" % (rwspart, rwsfs_type))
-        fstab.write("%s          %s  %s     defaults   1  4\n" % 
+        fstab.write("%s    /boot    %s    nouser,auto,ro,async    0   0\n" %
+                     (bootpart, bootfs_type) )
+        fstab.write("%s          /rws  %s     defaults   0  0\n" %
+                    (rwspart, rwsfs_type))
+        fstab.write("%s          %s  %s     defaults     0  0\n" % 
                      (dropboxpart, DOM0_PKGS_DIR_LOCATION, dropbox_type))
         fstab.write("none        /dev/pts  devpts defaults   0  0\n")
         fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
@@ -622,18 +628,18 @@ def configureNetworking(mounts, answers):
 
 def writeModprobeConf(mounts, answers):
     # mount proc and sys in the filesystem
-    runCmd("mount --bind /proc %s/proc" % mounts['root'])
-    runCmd("mount --bind /sys %s/sys" % mounts['root'])
+    util.bindMount("/proc", "%s/proc" % mounts['root'])
+    util.bindMount("/sys", "%s/sys" % mounts['root'])
     
     #####
     #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
     #####
     assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.kernel_version)) == 0
+    util.umount("%s/proc" % mounts['root'])
+    util.umount("%s/sys" % mounts['root'])
     
     #TODO: hack
     os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
-    
-    runCmd("umount %s/{proc,sys}" % mounts['root'])
     
 def mkLvmDirs(mounts, answers):
     util.assertDir("%s/etc/lvm/archive" % mounts["root"])

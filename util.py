@@ -87,7 +87,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
 
 def bindMount(dir, mountpoint):
     cmd = [ '/bin/mount', '--bind', dir, mountpoint]
-    rc = os.spwanv(os.P_WAIT, cmd[0], cmd)
+    rc = os.spawnv(os.P_WAIT, cmd[0], cmd)
     if rc != 0:
         raise MountFailureException()
 
