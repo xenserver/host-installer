@@ -85,6 +85,12 @@ def mount(dev, mountpoint, options = None, fstype = None):
     if rc != 0:
         raise MountFailureException()
 
+def bindMount(dir, mountpoint):
+    cmd = [ '/bin/mount', dir, mountpoint]
+    rc = os.spwanv(os.P_WAIT, cmd[0], cmd)
+    if rc != 0:
+        raise MountFailureException()
+
 def umount(mountpoint, force = False):
     if not force:
         assert os.path.ismount(mountpoint)

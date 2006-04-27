@@ -153,43 +153,7 @@ def performInstallation(answers, ui_package):
     ui_package.displayProgressDialog(24, pd)
 
     ui_package.clearModelessDialog()
-#    else: 
-#        # Do Upgrade
-#        pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
-#                                           'Upgrading %s, please wait...' % PRODUCT_BRAND,
-#                                           7)
-#
-#        ui_package.displayProgressDialog(0, pd)
-#                                           
-#        if not CheckInstalledVersion(answers):
-#            #do something
-#            return
-#        
-#        createDom0Tmpfs(answers['primary-disk'])
-#        ui_package.displayProgressDialog(1, pd)
-#
-#        extractDom0Filesystem(answers['primary-disk'])
-#        ui_package.displayProgressDialog(2, pd)
-#
-#        mounts = mountVolumes(answers['primary-disk'])
-#        ui_package.displayProgressDialog(3, pd)
-#
-#        installKernels(mounts, answers)
-#        ui_package.displayProgressDialog(4, pd)
-#        
-#        doDepmod(mounts, answers)
-#        ui_package.displayProgressDialog(5, pd)
-#        
-#        removeOldFs(mounts, answers)
-#
-#        umountVolumes(mounts)
-#        ui_package.displayProgressDialog(6, pd)
-#
-#        finalise(answers)
-#        ui_package.displayProgressDialog(7, pd)
-#
-#        ui_package.clearModelessDialog()
-        
+
 
 #will scan all detected harddisks, and pick the first one
 #that has a partition with burbank*.img on it.
@@ -504,13 +468,15 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("%s    /boot    %s    nouser,auto,ro,async    0    0\n" 
+        fstab.write("%s    /boot    %s    nouser,auto,ro,async    1    2\n" 
                      % (bootpart, bootfs_type) )
-        fstab.write("%s          /rws  %s     defaults   0  0\n" % (rwspart, rwsfs_type))
-        fstab.write("%s          %s  %s     defaults   0  0\n" % 
+        fstab.write("%s          /rws  %s     defaults   1  3\n" % (rwspart, rwsfs_type))
+        fstab.write("%s          %s  %s     defaults   1  4\n" % 
                      (dropboxpart, DOM0_PKGS_DIR_LOCATION, dropbox_type))
-        fstab.write("none        /proc proc   defaults   0  0\n")
-        fstab.write("none        /sys  sysfs  defaults   0  0\n")
+        fstab.write("none        /dev/pts  devpts defaults   0  0\n")
+        fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
+        fstab.write("none        /proc     proc   defaults   0  0\n")
+        fstab.write("none        /sys      sysfs  defaults   0  0\n")
         fstab.close()
         
 def writeResolvConf(mounts, answers):
