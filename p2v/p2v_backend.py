@@ -48,9 +48,9 @@ def setup_networking(os_install):
 def generate_ssh_key():
     rc = 0
 
-    if not os.path.exists(ssh_key_file):
+    if not os.path.exists(p2v_constants.SSH_KEY_FILE):
         rc, out = findroot.run_command('echo "y" | /usr/bin/ssh-keygen -t rsa -P "" -f %s'% p2v_constants.SSH_KEY_FILE);
-    return (rc, ssh_key_file)
+    return (rc, p2v_constants.SSH_KEY_FILE)
     
 def prepare_agent(xe_host, os_install, ssh_key_file):
     ssh_pub_key_file = ssh_key_file + ".pub"
