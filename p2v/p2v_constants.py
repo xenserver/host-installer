@@ -58,3 +58,4 @@ TAG_FILESYSTEM_MD5SUM = 'md5sum'
 
 MIN_PASSWD_LEN = 6
 
+SSH_KEY_FILE = "/tmp/ssh_key"

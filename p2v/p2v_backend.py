@@ -46,11 +46,10 @@ def setup_networking(os_install):
     findroot.run_command("ifup eth0 > /dev/null 2>&1");
 
 def generate_ssh_key():
-    ssh_key_file = "/ssh_key"
     rc = 0
 
     if not os.path.exists(ssh_key_file):
-        rc, out = findroot.run_command('echo "y" | /usr/bin/ssh-keygen -t rsa -P "" -f %s'% ssh_key_file);
+        rc, out = findroot.run_command('echo "y" | /usr/bin/ssh-keygen -t rsa -P "" -f %s'% p2v_constants.SSH_KEY_FILE);
     return (rc, ssh_key_file)
     
 def prepare_agent(xe_host, os_install, ssh_key_file):
