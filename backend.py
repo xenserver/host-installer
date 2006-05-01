@@ -731,7 +731,7 @@ def writeDhclientHooks(mounts, answers):
 
 def touchSshAuthorizedKeys(mounts, answers):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
-    assert runCmd("touch %s/root/.ssh/authorized_keys")
+    assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
     
 ###
 # Compress root filesystem and save to disk:
