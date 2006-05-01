@@ -133,6 +133,7 @@ def performInstallation(answers, ui_package):
 
     writeInventory(mounts, answers)
     writeDhclientHooks(mounts, answers)
+    touchSshAuthorizedKeys(mounts, answers)
     ui_package.displayProgressDialog(20, pd)
 
     initNfs(mounts, answers)
@@ -727,6 +728,10 @@ def writeDhclientHooks(mounts, answers):
     hooks = open("%s/etc/dhclient-exit-hooks" % mounts['root'], "w")
     hooks.write(". /etc/rc.local")
     hooks.close()
+
+def touchSshAuthorizedKeys(mounts, answers):
+    assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
+    assert runCmd("touch %s/root/.ssh/authorized_keys")
     
 ###
 # Compress root filesystem and save to disk:
