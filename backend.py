@@ -202,10 +202,6 @@ def getRWSPartName(disk):
     global rws_name, vgname
     return "/dev/%s/%s" % (vgname, rws_name)
 
-def getDropboxPartName(disk):
-    global dropbox_name, vgname
-    return "/dev/%s/%s" % (vgname, dropbox_name)
-
 def getBootPartNumber(disk):
     if hasServicePartition(disk):
         return 2
@@ -290,7 +286,6 @@ def prepareLVM(answers):
     global vgname
     global dom0_size
     global rws_name, rws_size
-    global dropbox_name, dropbox_size
 
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
     partitions += map(lambda x: determinePartitionName(x, 1),
@@ -317,7 +312,6 @@ def prepareLVM(answers):
     assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
 
     assert runCmd("lvcreate -L %s -C y -n %s %s" % (rws_size, rws_name, vgname)) == 0
-    assert runCmd("lvcreate -L %s -C y -n %s %s" % (dropbox_size, dropbox_name, vgname)) == 0
 
     assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
@@ -327,10 +321,9 @@ def prepareLVM(answers):
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    global bootfs_type, rwsfs_type, vgname, dropbox_name, dropbox_type
+    global bootfs_type, rwsfs_type, vgname
     assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
-    assert runCmd("mkfs.%s %s" % (dropbox_type, getDropboxPartName(disk))) == 0
 
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
@@ -401,7 +394,6 @@ def mountVolumes(primary_disk):
     tmprootvol = "/dev/%s/%s" % (vgname, dom0tmpfs_name)
     bootvol = getBootPartName(primary_disk)
     rwsvol = getRWSPartName(primary_disk)
-    dropboxvol = getDropboxPartName(primary_disk)
     
     # work out where to bount things (note that rootVol and bootVol might
     # be equal).  Note the boot volume must be mounted inside the root directory
@@ -421,14 +413,15 @@ def mountVolumes(primary_disk):
     util.assertDir(rwspath)
     util.mount(rwsvol, rwspath)
 
+    util.assertDir(rwspath + "/packages")
     util.assertDir(dropboxpath)
-    util.mount(dropboxvol, dropboxpath)
+    util.bindMount(rwspath + "/packages", dropboxpath)
 
     # ugh - umount-order - what a piece of crap
     return {'boot': bootpath,
+            'dropbox': dropboxpath,
             'rws' : rwspath,
             'root': rootpath,
-            'dropbox': dropboxpath,
             'umount-order': [dropboxpath, bootpath, rwspath, rootpath]}
 
 def umountVolumes(mounts, force = False):
@@ -467,7 +460,6 @@ def writeFstab(mounts, answers):
     # first work out what we're going to write:
     rwspart = getRWSPartName(answers['primary-disk'])
     bootpart = getBootPartName(answers['primary-disk'])
-    dropboxpart = getDropboxPartName(answers['primary-disk'])
 
     # write 
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
@@ -477,8 +469,6 @@ def writeFstab(mounts, answers):
                      (bootpart, bootfs_type) )
         fstab.write("%s          /rws  %s     defaults   0  0\n" %
                     (rwspart, rwsfs_type))
-        fstab.write("%s          %s  %s     defaults     0  0\n" % 
-                     (dropboxpart, DOM0_PKGS_DIR_LOCATION, dropbox_type))
         fstab.write("none        /dev/pts  devpts defaults   0  0\n")
         fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
         fstab.write("none        /proc     proc   defaults   0  0\n")

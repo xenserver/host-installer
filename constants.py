@@ -7,17 +7,13 @@
 
 import version
 
-min_primary_disk_size = 35
+min_primary_disk_size = 16
 
 rws_size = 15000
 rws_name = "RWS"
-dropbox_size = 15000
-dropbox_name = "Files"
-dropbox_type = "ext3"
 
 boot_size = 320
 vgname = "VG_XenSource"
-#xen_version = "3.0.1"
 
 # file system creation constants
 dom0tmpfs_name = "tmp-%s" % version.dom0_name
