@@ -116,9 +116,8 @@ def performInstallation(answers, ui_package):
     writeModprobeConf(mounts, answers)
     ui_package.displayProgressDialog(15, pd)
     
-    if not isUpgradeInstall:
-        copyXgts(mounts, answers)
-        ui_package.displayProgressDialog(16, pd)
+    copyXgts(mounts, answers)
+    ui_package.displayProgressDialog(16, pd)
 
     copyGuestInstallerFiles(mounts, answers)
     ui_package.displayProgressDialog(17, pd)
