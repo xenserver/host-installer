@@ -56,6 +56,7 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/resolv.conf',
                     '/etc/dhclient-exit-hooks',
                     '/etc/hosts',
+                    '/etc/syslog.conf',
                     '/etc/issue',
                     '/etc/adjtime' ,
                     '/etc/lvm/.cache']
