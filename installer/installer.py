@@ -59,8 +59,10 @@ def main():
                          sys.exit(rc)
                 elif entry == 2:
                     rc = os.system("/opt/xensource/clean-installer/p2v.py")
-                    os.system("reboot")
-                    sys.exit(0)
+                    if (rc != 0):
+                        os.system("reboot")
+                        sys.exit(0)
+
             else:
                 screen.finish()
                 os.system("reboot")
