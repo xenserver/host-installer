@@ -289,6 +289,7 @@ def mount_os_root(dev_name, dev_attrs):
 
 def findHostName(mnt):
     hostname = "localhost"
+    #generic
     hnFile = os.path.join(mnt,'etc', 'hostname')
     if os.path.exists(hnFile):
         hn = open(hnFile)
@@ -297,7 +298,35 @@ def findHostName(mnt):
             if not line or line.startswith('#'):
                 continue
             hostname = line
-            break
+            return hostname
+   
+    #red hat
+    hnFile = os.path.join(mnt,'etc', 'sysconfig', 'network')
+    if os.path.exists(hnFile):
+        print "file %s exists" % hnFile
+        hn = open(hnFile)
+        for line in hn.readlines():
+            print "read line : " + line
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            (name, value) = line.split('=')
+            print "name = %s, value = %s" % (name, value)
+            if (name) == 'HOSTNAME':
+                hostname = value
+                return hostname
+
+    # suse
+    hnFile = os.path.join(mnt,'etc', 'HOSTNAME')
+    if os.path.exists(hnFile):
+        hn = open(hnFile)
+        for line in hn.readlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            hostname = line
+            return hostname
+  
     return hostname
     
 def inspect_root(dev_name, dev_attrs, results):
