@@ -58,6 +58,7 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/issue',
                     '/etc/adjtime' ,
                     '/etc/lvm/.cache',
+                    '/etc/syslog.conf',
                     '/etc/sysconfig/iptables',
                     '/etc/sysconfig/iptables-config']
 
