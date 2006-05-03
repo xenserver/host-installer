@@ -133,6 +133,7 @@ def performInstallation(answers, ui_package):
     writeInventory(mounts, answers)
     writeDhclientHooks(mounts, answers)
     touchSshAuthorizedKeys(mounts, answers)
+    copyFirewallFiles(mounts, answers)
     ui_package.displayProgressDialog(20, pd)
 
     initNfs(mounts, answers)
@@ -731,6 +732,11 @@ def writeDhclientHooks(mounts, answers):
 def touchSshAuthorizedKeys(mounts, answers):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
+
+def copyFirewallFiles(mounts, answers):
+    util.copyFile(CD_FIREWALL_SCRIPTS_LOCATION + "/etc/sysctl.conf", "%s/etc/")
+    util.copyFile(CD_FIREWALL_SCRIPTS_LOCATION + "/etc/sysconfig/iptables", "%s/etc/sysconfig/")
+    util.copyFile(CD_FIREWALL_SCRIPTS_LOCATION + "/etc/sysconfig/iptables-config", "%s/etc/sysconfig/")
     
 ###
 # Compress root filesystem and save to disk:

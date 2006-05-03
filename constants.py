@@ -36,6 +36,7 @@ CD_RPMS_LOCATION = "/opt/xensource/rpms/"
 CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
 CD_XEN_KERNEL_LOCATION = "/opt/xensource/xen-kernel"
 CD_README_LOCATION = "/opt/xensource/docs/README"
+CD_FIREWALL_SCRIPTS_LOCATION = "/opt/xensource/firewall-scripts"
 
 # location/destination of files on the dom0 FS
 DOM0_FILES_LOCATION_ROOT = "%s/files/"
