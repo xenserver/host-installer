@@ -53,6 +53,7 @@ def generate_ssh_key():
     return (rc, p2v_constants.SSH_KEY_FILE)
     
 def prepare_agent(xe_host, os_install, ssh_key_file):
+    rc = 0
     ssh_pub_key_file = ssh_key_file + ".pub"
     root_password = os_install['root-password']
     
@@ -89,6 +90,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
             os_install[name] = val
         if name == 'uuid':
             os_install[name] = val
+    return rc
     
 def finish_agent(os_install, xe_host):
     #tell the agent that we're done
@@ -141,6 +143,11 @@ def perform_p2v_ssh( os_install, hostname, keyfile):
     target_directory=os_install['p2v_path']
 
     rc = findroot.handle_root_ssh(os_root_mount_point, os_root_device, hostname, target_directory, keyfile, pd)
+
+    if rc != 0:
+        raise P2VError("Failed to complete P2V operation")
+
+    return rc
         
 def nfs_mount( nfs_mount_path ):
     local_mount_path = "/xenpending"
@@ -177,9 +184,9 @@ def ssh_p2v( xe_host, os_install, results, pd ):
         return
 
     ui_package.displayProgressDialog(0, pd, " - Preparing %s host" % PRODUCT_BRAND)
-    prepare_agent(xe_host, os_install, ssh_key_file)
+    rc = prepare_agent(xe_host, os_install, ssh_key_file)
 
-    perform_p2v_ssh( os_install, xe_host, ssh_key_file)
+    rc = perform_p2v_ssh( os_install, xe_host, ssh_key_file)
 
     ui_package.displayProgressDialog(3, pd, " - Finalizing install on %s host" % PRODUCT_BRAND)
     finish_agent(os_install, xe_host)

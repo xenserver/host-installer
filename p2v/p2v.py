@@ -51,7 +51,7 @@ def main():
         ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
         ui_package.end_ui()
         print "P2V Failed: %s" % e
-        sys.exit(1)
+        sys.exit(0)
     except Exception, e:
         # clean up the screen
         ui_package.end_ui()
