@@ -136,7 +136,6 @@ def performInstallation(answers, ui_package):
     copyFirewallFiles(mounts, answers)
     ui_package.displayProgressDialog(20, pd)
 
-    initNfs(mounts, answers)
     ui_package.displayProgressDialog(21, pd)
     
     # complete the installation:
@@ -696,13 +695,6 @@ def makeSymlinks(mounts, answers):
 
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
         
-
-def initNfs(mounts, answers):
-    exports = open("%s/etc/exports" % mounts['root'] , "w")
-    xgt_dir = DOM0_PKGS_DIR_LOCATION + "/xgt"
-    exports.write("%s    *(rw,async,no_root_squash)" % (xgt_dir))
-    exports.close()
-    runCmd("/bin/chmod -R a+w %s" % mounts['dropbox'])
 
 def copyRpms(mounts, answers):
     util.assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
