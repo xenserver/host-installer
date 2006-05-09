@@ -303,10 +303,8 @@ def findHostName(mnt):
     #red hat
     hnFile = os.path.join(mnt,'etc', 'sysconfig', 'network')
     if os.path.exists(hnFile):
-        print "file %s exists" % hnFile
         hn = open(hnFile)
         for line in hn.readlines():
-            print "read line : " + line
             line = line.strip()
             if not line or line.startswith('#'):
                 continue
