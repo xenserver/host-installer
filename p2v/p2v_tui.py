@@ -221,7 +221,7 @@ def get_root_password(answers):
                                 "Please enter the root password for the %s host" % PRODUCT_BRAND,
                                  ['Password'],
                                  buttons = ['Ok', 'Back'])
-    if button == 'back':
+    if button == 'back' or button == None:
         return -1
         
     # if they didn't select OK we should have returned already
