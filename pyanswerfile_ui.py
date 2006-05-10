@@ -105,7 +105,8 @@ def select_guest_disks(answers):
     return 1
 
 def get_root_password(answers):
-    return sub_ui_package.get_root_password(answers)
+    if sub_ui_package:
+        return sub_ui_package.get_root_password(answers)
 
 def determine_basic_network_config(answers):
     return 1
