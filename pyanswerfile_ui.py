@@ -45,7 +45,9 @@ def init_ui(results, is_subui):
 
     if pyAnswerFileDevice != None:
         assert runCmd("mkdir -p /tmp/mnt/") == 0
-        assert runCmd("mount %s /tmp/mnt/" % pyAnswerFileDevice) == 0
+        rc = runCmd("mount %s /tmp/mnt/" % pyAnswerFileDevice)
+        if rc != 0:
+            raise Exception("Failed to find a previous installation. Upgrade is not supported")
         pyAnswerFile = os.path.join("/tmp/mnt", ANSWERS_FILE)
         if not os.path.isfile(pyAnswerFile):
             runCmd("umount /tmp/mnt")
