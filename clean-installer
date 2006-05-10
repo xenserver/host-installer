@@ -79,6 +79,11 @@ def main():
         logging.log("Starting user interface")
         ui_package.init_ui(results, False)
 
+        if results.has_key('usesettings'):
+            if results['usesettings'] == None or results['usesettings'] == False:
+                # set the ui_package back to the original
+                ui_package = tui
+
         # first, make sure that we have enough disk space:
         disks = generalui.getDiskList()
         logging.log("Found disks: %s" % str(disks))

@@ -9,7 +9,9 @@
 import pickle
 import os
 from constants import ANSWERS_FILE
+from version import *
 from util import runCmd
+from snack import *
 
 # module globals:
 sub_ui_package = None
@@ -37,27 +39,41 @@ def init_ui(results, is_subui):
     global pyAnswerFile
     global pyAnswerFileDevice
     
+    # now pass on initialisation to our sub-UI:
+    if sub_ui_package is not None:
+        sub_ui_package.init_ui(results, True)
+
     if pyAnswerFileDevice != None:
         assert runCmd("mkdir -p /tmp/mnt/") == 0
         assert runCmd("mount %s /tmp/mnt/" % pyAnswerFileDevice) == 0
         pyAnswerFile = os.path.join("/tmp/mnt", ANSWERS_FILE)
-    
-    assert pyAnswerFile
-    
-    fd = open(pyAnswerFile, "r")
-    answers = pickle.load(fd)
-    fd.close()
+        if not os.path.isfile(pyAnswerFile):
+            runCmd("umount /tmp/mnt")
+            raise Exception("Failed to find a previous installation. Upgrade is not supported")
+        else:
+            #lets ask the user if they want to use it
+            button = ButtonChoiceWindow(sub_ui_package.screen, "Use existing settings",
+            """%s Setup can use existing settings to upgrade your %s host. You will only be asked to enter a new root password.
 
-    if pyAnswerFileDevice != None:
-        runCmd("umount /tmp/mnt")
+Do you want to use existing settings?
+            """ % (PRODUCT_BRAND, PRODUCT_BRAND), 
+            ['Ok', 'Cancel'], width=60)
+
+            if button == "cancel":
+                pyAnswerFile = None
+                results['usesettings'] = False
+                return
+            else:
+                fd = open(pyAnswerFile, "r")
+                answers = pickle.load(fd)
+                fd.close()
+            runCmd("umount /tmp/mnt")
 
     for key in answers:
-        results[key] = answers[key]
+        if key != "root-password":
+            results[key] = answers[key]
+    results['usesettings'] = True
 
-    # now pass on initialisation to our sub-UI:
-    if sub_ui_package is not None:
-        sub_ui_package.init_ui(results, True)
-        
 
 def end_ui():
     if sub_ui_package is not None:
@@ -85,8 +101,10 @@ def select_primary_disk(answers):
     return 1
 def select_guest_disks(answers):
     return 1
+
 def get_root_password(answers):
-    return 1
+    return sub_ui_package.get_root_password(answers)
+
 def determine_basic_network_config(answers):
     return 1
 def get_timezone(answers):
@@ -102,12 +120,13 @@ def upgrade_complete(answers):
     return 1
 
 def error_dialog(message):
-    return
+    if sub_ui_package:
+        sub_ui_package.error_dialog(message)
 
 # progress dialogs:
 def initProgressDialog(title, text, total):
     if sub_ui_package:
-        sub_ui_package.initProgressDialog(title, text, total)
+        return sub_ui_package.initProgressDialog(title, text, total)
 
 def displayProgressDialog(current, pd):
     if sub_ui_package:
@@ -115,4 +134,4 @@ def displayProgressDialog(current, pd):
 
 def clearModelessDialog():
     if sub_ui_package:
-        sub_ui_package.clearProgressDialog()
+        sub_ui_package.clearModelessDialog()

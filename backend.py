@@ -434,6 +434,7 @@ def cleanup_umount():
         umountVolumes(mounts, True)
     # now remove the temporary volume
     runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name))
+    runCmd("umount /tmp/mnt || true")
     
 
 
