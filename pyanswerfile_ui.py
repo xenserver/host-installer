@@ -69,10 +69,10 @@ Do you want to use existing settings?
                 fd.close()
             runCmd("umount /tmp/mnt")
 
-    for key in answers:
-        if key != "root-password":
-            results[key] = answers[key]
-    results['usesettings'] = True
+            for key in answers:
+                if key != "root-password":
+                    results[key] = answers[key]
+            results['usesettings'] = True
 
 
 def end_ui():
