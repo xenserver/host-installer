@@ -68,8 +68,8 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     os_install_hostname =  os_install[p2v_constants.HOST_NAME]
     os_install_distribution = determine_distrib(os_install)
     # agent expects size in KB. We internally store in bytes
-    total_size = long(os_install[p2v_constants.FS_TOTAL_SIZE] / 1024) 
-    used_size = long(os_install[p2v_constants.FS_USED_SIZE] / 1024)
+    total_size = long(os_install[p2v_constants.FS_TOTAL_SIZE]) / 1024
+    used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
     rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
                 xe_host,
