@@ -309,7 +309,6 @@ def findHostName(mnt):
             if not line or line.startswith('#'):
                 continue
             (name, value) = line.split('=')
-            print "name = %s, value = %s" % (name, value)
             if (name) == 'HOSTNAME':
                 hostname = value
                 return hostname
