@@ -71,10 +71,12 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     total_size = long(os_install[p2v_constants.FS_TOTAL_SIZE]) / 1024
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
-    rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
+    description = os_install[p2v_constants.DESCRIPTION]
+    rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
                 xe_host,
                 root_password,
                 os_install_name,
+                description,
                 os_install_version,
                 os_install_hostname,
                 os_install_distribution,
