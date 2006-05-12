@@ -188,7 +188,7 @@ def hasBootPartition(disk):
     except:
         rc = False
     else:
-        if os.path.exists(os.path.join(mountPoint, "xen.gz")):
+        if os.path.exists(os.path.join(mountPoint, "xen-3.gz")):
             rc = True
         util.umount(mountPoint)
         
