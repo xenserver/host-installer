@@ -1,0 +1,266 @@
+#!/usr/bin/env python
+###
+# XEN CLEAN INSTALLER
+# Boot script
+#
+# written by Mark Nijmeijer and Andrew Peace
+# Copyright XenSource Inc. 2006
+
+import commands
+import sys
+import os
+import os.path
+from getopt import getopt, GetoptError
+import shutil
+
+import init_tui
+import xelogging
+import netutil
+import util
+
+from version import *
+
+base_modules = ['sd-mod',
+                'sr-mod',
+                'dm-mod',
+                'loop',
+                'ata_piix',
+                'rtc']
+
+MODE_INTERACTIVE = 0
+MODE_INSTALL = 1
+MODE_UPGRADE = 2
+MODE_P2V = 3
+
+# Exception that is thrown if we detect that the user has
+# tried to use two consoles to perform an installation
+class AlreadyActivated(Exception):
+    pass
+
+# Specify the current console as the one that is to be used
+# for installation - after this is called the user will be
+# given an error message if they try to run the installer on
+# a different console.
+def activateScreen():
+    lock_filename = "/tmp/.install-activated"
+    if os.path.exists(lock_filename):
+        raise AlreadyActivated()
+    else:
+        rc, tty = commands.getstatusoutput("/usr/bin/tty")
+        assert rc == 0
+        activefile = open(lock_filename, 'w')
+        activefile.write(tty)
+        activefile.close()
+
+# Use the 'usb-discover' tool to detect USB hardware and load
+# needed modules:
+def discoverUSBHardware():
+    assert util.runCmd("/usr/sbin/usb-discover") == 0
+
+# Use the 'discover' tool to detect hardware and load needed
+# modules;
+def discoverHardware():
+    rc, out = commands.getstatusoutput("discover --enable-all --module ide scsi ethernet video")
+    assert rc == 0
+    out = out.split('\n')
+    
+    modules = []
+    for m in out:
+        if m not in modules:
+            modules.append(m)
+
+    for i in range(len(modules)):
+        xelogging.log("Loading module %s..." % modules[i])
+        rc = util.runCmd("/sbin/modprobe %s" % modules[i])
+        if rc != 0:
+            xelogging.log("Failed to load %s." % modules[i])
+
+    xelogging.log("All discovered modules have been loaded.")
+
+    # load base modules
+    for m in base_modules:
+        os.system("modprobe %s" % m)
+
+    # make device nodes:
+    os.system("udevstart")
+
+# Attempt to configure the network:
+def configureNetworking():
+    # do we need to make the network directory writeable?
+    if not os.path.ismount('/etc/network/'):
+        shutil.copytree('/etc/network', '/tmp/network')
+        util.bindMount('/tmp/network', '/etc/network')
+
+    interfaces = netutil.getNetifList()
+    netcfg = {}
+    for i in interfaces:
+        netcfg[i] = { 'use-dhcp': True }
+
+    netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
+
+    for i in interfaces:
+        netutil.ifup(i)
+
+def main():
+    # disable all kernel printing
+    pk = open('/proc/sys/kernel/printk', 'w')
+    pk.write('1')
+    pk.close()
+
+    # make sure USB keyboards work:
+    discoverUSBHardware()
+
+    # start portmap so NFS mounting works:
+    util.runCmd('portmap')
+
+    # parse options:
+    try:
+        (opts, _) = getopt(sys.argv[1:],
+                           "",
+                           ["install",
+                            "upgrade",
+                            "p2v",
+                            "answerfile=",
+                            "verbose-answerfile=",
+                            "modules=",
+                            "output="])
+    except GetoptError:
+        print "Incorrect arguments."
+        sys.exit(1)
+
+    mode = MODE_INTERACTIVE
+    modules = []
+    active_output = None
+    answerfile = None
+    verbose_answerfile = None
+    for (opt, val) in opts:
+        if opt == "--install":
+            mode = MODE_INSTALL
+        if opt == "--upgrade":
+            mode = MODE_UPGRADE
+        if opt == "--p2v":
+            mode = MODE_P2V
+        if opt == "--answerfile":
+            answerfile = val
+        if opt == "--verbose-answerfile":
+            verbose_answerfile = val
+        if opt == "--modules":
+            modules = val.split(",")
+        if opt == "--output":
+            active_output = val
+
+    ui_package = init_tui
+
+    # start the user interface:
+    xelogging.log("Starting 'init' user interface")
+    ui_package.init_ui()
+
+    # activate the installer on a console:
+    rc, my_tty = commands.getstatusoutput("tty")
+    my_tty = my_tty.strip('\n')
+    try:
+        if active_output:
+            # activate just on serial
+            if os.path.basename(my_tty) == active_output:
+                activateScreen()
+            else:
+                init_tui.already_activated()
+        else:
+            # activate interactively.
+            ui_package.startup_screen()
+            activateScreen()
+    except AlreadyActivated:
+        init_tui.already_activated()
+
+    # detect hardware:
+    ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
+    discoverHardware()
+    ui_package.clearModelessDialog()
+
+    for m in modules:
+        util.runCmd('modprobe %s' % m)
+
+    # try to configure the network:
+    ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
+    configureNetworking()
+    ui_package.clearModelessDialog()
+
+    # let the user choose what they would like to do:
+    if mode == MODE_INTERACTIVE:
+        try:
+            while True:
+                operation = ui_package.choose_operation()
+                
+                # reboot:
+                if operation == -1:
+                    ui_package.end_ui()
+                    os.system("reboot")
+                    sys.exit(0)
+
+                # clean install:
+                elif operation == 0:
+                    xelogging.log("Starting clean installation")
+                    rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+                    if rc == 0: 
+                        os.system("reboot")
+                        sys.exit(0)
+                    else:
+                        sys.exit(rc)
+
+                # upgrade install:
+                elif operation == 1:
+                    xelogging.log("Starting upgrade installation")
+                    rc = os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
+                    if rc == 0: 
+                        os.system("reboot")
+                        sys.exit(0)
+                    else:
+                        sys.exit(rc)
+
+                # P2V:
+                elif operation == 2:
+                    xelogging.log("Starting P2V")
+                    rc = os.system("/opt/xensource/installer/p2v.py")
+                    os.system("reboot")
+                    sys.exit(0)
+
+        except Exception:
+            ui_package.end_ui()
+            raise
+
+    elif mode == MODE_INSTALL:
+        if answerfile:
+            os.system("/opt/xensource/installer/clean-installer --pyanswerfile %s --clog /dev/tty3" % answerfile)
+        elif verbose_answerfile:
+            os.system("/opt/xensource/installer/clean-installer --verbose-pyanswerfile %s" % verbose_answerfile)
+        else:
+            os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+        os.system("reboot")
+
+    elif mode == MODE_UPGRADE:
+        if answerfile:
+            os.system("/opt/xensource/installer/clean-installer --pyanswerfile %s --upgrade --clog /dev/tty3" % answerfile)
+        elif verbose_answerfile:
+            ui_package.end_ui()
+            os.system("/opt/xensource/installer/clean-installer --verbose-pyanswerfile %s --upgrade" % verbose_answerfile)
+        else:
+            os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
+        os.system("reboot")
+
+    elif mode == MODE_P2V:
+        if answerfile:
+            pass
+        else:
+            os.system("/opt/xensource/installer/p2v.py")
+        os.system("reboot")
+
+    if not verbose_answerfile:
+        ui_package.end_ui()
+
+    if os.path.ismount('/etc/network'):
+        util.umount('/etc/network')
+
+
+if __name__ == "__main__":
+    main()
+    

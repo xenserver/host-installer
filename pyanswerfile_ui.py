@@ -28,7 +28,10 @@ def specifySubUI(subui):
 def specifyAnswerFile(file):
     global pyAnswerFile
     assert type(file) == str
-    pyAnswerFile = file
+
+    util.fetchFile(file, "/tmp/pyanswerfile")
+    
+    pyAnswerFile = "/tmp/pyanswerfile"
 
 def specifyAnswerFileDevice(file):
     global pyAnswerFileDevice
@@ -89,15 +92,23 @@ def resume_ui():
     pass
 
 # stubs:
-###
-# - stage 1 install:
 def welcome_screen(answers):
     return 1
 def upgrade_screen(answers):
     return 1
+def no_disks():
+    return 1
+def no_netifs():
+    return 1
 def confirm_installation_one_disk(answers):
     return 1
 def confirm_installation_multiple_disks(answers):
+    return 1
+def select_installation_source(answers, other):
+    return 1
+def get_http_source(answers):
+    return 1
+def get_nfs_source(answers):
     return 1
 def select_primary_disk(answers):
     return 1

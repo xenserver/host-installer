@@ -10,19 +10,20 @@ import os.path
 import subprocess
 import datetime
 import time
+import pickle
 
 import tui
 import generalui
 import uicontroller
-import version
-import logging
-import pickle
-
+import xelogging
 import util
+import diskutil
 from util import runCmd
 import shutil
+import packaging
 
 # Product version and constants:
+import version
 from version import *
 from constants import *
 
@@ -35,26 +36,44 @@ mounts = {}
 # entire UI component.
 def performInstallation(answers, ui_package):
     global mounts
-    if answers.has_key('upgrade'):
-        isUpgradeInstall = answers['upgrade']
-    else:
-        isUpgradeInstall = False
 
-    if isUpgradeInstall:
-        pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
-                                   'Upgrading %s, please wait...' % PRODUCT_BRAND,
-                                   24)
-    else:
-        pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
-                                       'Installing %s, please wait...' % PRODUCT_BRAND,
-                                       24)
+    # create an installation source object for our installation:
+    try:
+        xelogging.log("Attempting to configure install method: type %s" % answers['source-media'])
+        if answers['source-media'] == 'url':
+            installmethod = packaging.HTTPInstallMethod(answers['source-address'])
+        elif answers['source-media'] == 'local':
+            installmethod = packaging.LocalInstallMethod()
+        elif answers['source-media'] == 'nfs':
+            installmethod = packaging.NFSInstallMethod(answers['source-address'])
+    except Exception, e:
+        xelogging.log("Failed to configure install method.")
+        xelogging.log(e)
+        raise
 
-    ui_package.displayProgressDialog(0, pd)
+    # wrap everything in a try block so we can close the
+    # install method if anything fails.
+    try:
+        if answers.has_key('upgrade'):
+            isUpgradeInstall = answers['upgrade']
+        else:
+            isUpgradeInstall = False
+            
+        if isUpgradeInstall:
+            pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
+                                               'Upgrading %s, please wait...' % PRODUCT_BRAND,
+                                               22)
+        else:
+            pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
+                                               'Installing %s, please wait...' % PRODUCT_BRAND,
+                                               22)
 
-    if isUpgradeInstall == False:    
-        # Dom0 Disk partition table
-        writeDom0DiskPartitions(answers['primary-disk'])
-        ui_package.displayProgressDialog(1, pd)
+        ui_package.displayProgressDialog(0, pd)
+            
+        if isUpgradeInstall == False:    
+            # Dom0 Disk partition table
+            writeDom0DiskPartitions(answers['primary-disk'])
+            ui_package.displayProgressDialog(1, pd)
     
         # Guest disk partition table
         for gd in answers['guest-disks']:
@@ -64,102 +83,112 @@ def performInstallation(answers, ui_package):
         # Create volume group and any needed logical volumes:
         prepareLVM(answers)
         ui_package.displayProgressDialog(3, pd)
-
+        
         # Put filesystems on Dom0 Disk
         createDom0DiskFilesystems(answers['primary-disk'])
-#    else:
-#       if not CheckInstalledVersion(answers):
-#            return
 
-    createDom0Tmpfs(answers['primary-disk'])
-    ui_package.displayProgressDialog(4, pd)
+        createDom0Tmpfs(answers['primary-disk'])
+        ui_package.displayProgressDialog(4, pd)
+        
+        # Customise the installation:
+        mounts = mountVolumes(answers['primary-disk'])
+        ui_package.displayProgressDialog(5, pd)
 
-    # Customise the installation:
-    mounts = mountVolumes(answers['primary-disk'])
-    ui_package.displayProgressDialog(5, pd)
+        # Extract Dom0 onto disk:
+        packaging.installPackage("dom0fs-%s-%s" % (dom0_name, dom0_version),
+                                 installmethod, mounts['root'])
+        ui_package.displayProgressDialog(6, pd)
+        
+        # Install grub and grub configuration to read-write partition
+        installGrub(mounts, answers['primary-disk'])
+        ui_package.displayProgressDialog(7, pd)
+        
+        # put kernel in /boot and prepare it for use:
+        packaging.installPackage("kernels", installmethod, mounts['root'])
+        doDepmod(mounts, answers)
+        ui_package.displayProgressDialog(8, pd)
+        
+        packaging.installPackage("xgts", installmethod, mounts['root'])
+        ui_package.displayProgressDialog(9, pd)
 
-    # Extract Dom0 onto disk:
-    extractDom0Filesystem(mounts, answers['primary-disk'])
-    ui_package.displayProgressDialog(6, pd)
+        packaging.installPackage("rhel41-guest-installer", installmethod, mounts['root'])
+        ui_package.displayProgressDialog(10, pd)
+        
+        packaging.installPackage("vendor-kernels", installmethod, mounts['root'])
+        packaging.installPackage("xen-kernel", installmethod, mounts['root'])
+        packaging.installPackage("documentation", installmethod, mounts['root'])
+        ui_package.displayProgressDialog(11, pd)
+        
+        packaging.installPackage("rpms", installmethod, mounts['root'])
+        ui_package.displayProgressDialog(12, pd)
+        
+        # perform dom0 file system customisations:
+        mkLvmDirs(mounts, answers)
+        writeResolvConf(mounts, answers)
+        ui_package.displayProgressDialog(13, pd)
+        
+        configureNetworking(mounts, answers)
+        ui_package.displayProgressDialog(14, pd)
+        
+        writeFstab(mounts, answers)
+        ui_package.displayProgressDialog(15, pd)
+        
+        writeModprobeConf(mounts, answers)
+        ui_package.displayProgressDialog(16, pd)
+        
+        writeInventory(mounts, answers)
+        writeDhclientHooks(mounts, answers)
+        ui_package.displayProgressDialog(17, pd)
+        
+        #initNfs(mounts, answers)
+        ui_package.displayProgressDialog(18, pd)
+        
+        # set the root password:
+        ui_package.suspend_ui()
+        setRootPassword(mounts, answers)
+        ui_package.resume_ui()
+        ui_package.displayProgressDialog(19, pd)
+        
+        # set system time
+        setTime(mounts, answers)
+        ui_package.displayProgressDialog(20, pd)
+        
+        # complete the installation:
+        makeSymlinks(mounts, answers)    
+#TODO in the new world    copyFirewallFiles(mounts, answers)
+        ui_package.displayProgressDialog(21, pd)
+        
+        if isUpgradeInstall:
+            removeOldFs(mounts, answers)
 
-    # Install grub and grub configuration to read-write partition
-    installGrub(mounts, answers['primary-disk'])
-    ui_package.displayProgressDialog(7, pd)
+        if not isUpgradeInstall:
+            writeAnswersFile(mounts, answers)
 
-    # put kernel in /boot and prepare it for use:
-    installKernels(mounts, answers)
-    ui_package.displayProgressDialog(8, pd)
-    doDepmod(mounts, answers)
-    ui_package.displayProgressDialog(9, pd)
+        # run any required post installation scripts:
+        try:
+            if answers.has_key('post-install-script'):
+                xelogging.log("Detected user post-install script - attempting to fetch from %s" % answers['post-install-script'])
+                util.fetchFile(answers['post-install-script'], '/tmp/postinstall')
+                os.system('chmod a+x /tmp/postinstall')
+                util.runCmd('/tmp/postinstall %s' % mounts['root'])
+                os.unlink('/tmp/postinstall')
+        except Exception, e:
+            xelogging.log("Failed to run post install script")
+            xelogging.log(e)
 
-    # set the root password:
-    ui_package.suspend_ui()
-    setRootPassword(mounts, answers)
-    ui_package.resume_ui()
-    ui_package.displayProgressDialog(10, pd)
-
-    # set system time
-    setTime(mounts, answers)
-    ui_package.displayProgressDialog(11, pd)
-
-    # perform dom0 file system customisations:
-    mkLvmDirs(mounts, answers)
-    writeResolvConf(mounts, answers)
-    ui_package.displayProgressDialog(12, pd)
-    
-    configureNetworking(mounts, answers)
-    ui_package.displayProgressDialog(13, pd)
-    
-    writeFstab(mounts, answers)
-    ui_package.displayProgressDialog(14, pd)
-    
-    writeModprobeConf(mounts, answers)
-    ui_package.displayProgressDialog(15, pd)
-    
-    copyXgts(mounts, answers)
-    ui_package.displayProgressDialog(16, pd)
-
-    copyGuestInstallerFiles(mounts, answers)
-    ui_package.displayProgressDialog(17, pd)
-
-    copyVendorKernels(mounts, answers)
-    copyXenKernel(mounts, answers)
-    copyDocs(mounts, answers)
-    ui_package.displayProgressDialog(18, pd)
-
-    copyRpms(mounts, answers)
-    ui_package.displayProgressDialog(19, pd)
-
-    writeInventory(mounts, answers)
-    writeDhclientHooks(mounts, answers)
-    touchSshAuthorizedKeys(mounts, answers)
-    copyFirewallFiles(mounts, answers)
-    ui_package.displayProgressDialog(20, pd)
-
-    ui_package.displayProgressDialog(21, pd)
-    
-    # complete the installation:
-    makeSymlinks(mounts, answers)    
-    ui_package.displayProgressDialog(23, pd)
-
-    if isUpgradeInstall:
-        removeOldFs(mounts, answers)
-
-    if not isUpgradeInstall:
-        writeAnswersFile(mounts, answers)
-
-    
-    umountVolumes(mounts)
-    finalise(answers)
-    ui_package.displayProgressDialog(24, pd)
-
-    ui_package.clearModelessDialog()
-
+        umountVolumes(mounts)
+        finalise(answers)
+        ui_package.displayProgressDialog(22, pd)
+        ui_package.clearModelessDialog()
+        
+    finally:
+        installmethod.finished()
+        
 
 #will scan all detected harddisks, and pick the first one
 #that has a partition with burbank*.img on it.
 def CheckInstalledVersion(answers):
-    disks = generalui.getDiskList()
+    disks = diskutil.getQualifiedDiskList()
     answers['guest-disks'] = []
     for disk in disks:
         if hasBootPartition(disk):
@@ -231,18 +260,8 @@ def writeDom0DiskPartitions(disk):
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    # for some reason sfdisk wants to run interactively when we do
-    # this using pipes, so for now we'll just write the partitions
-    # to a file and then use '<' to get sfdisk to read the file.
-
-    parts = open("/tmp/dom0disk_parts", "w")
-    parts.write(",%s,L,*\n" % boot_size)
-    parts.write(",,8e\n")
-    parts.write("\n")
-    parts.write("\n")
-    parts.close()
-
-    assert runCmd("sfdisk -q -uM %s </tmp/dom0disk_parts" % disk) == 0
+    # partition the disk:
+    diskutil.writePartitionTable(disk, [boot_size, -1])
 
 def writeGuestDiskPartitions(disk):
     global dom0_size
@@ -291,6 +310,12 @@ def prepareLVM(answers):
     partitions += map(lambda x: determinePartitionName(x, 1),
                       answers['guest-disks'])
 
+    # We don't want an lvm state directory so set the environment
+    # up appropraitely:
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
+    if not os.path.exists('/tmp/lvm'):
+    	os.mkdir('/tmp/lvm')
+
     rc = 0
     # TODO - better error handling
     for x in partitions:
@@ -311,7 +336,7 @@ def prepareLVM(answers):
         runCmd("rm -rf /dev/%s" % vgname)
     assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
 
-    assert runCmd("lvcreate -L %s -C y -n %s %s" % (rws_size, rws_name, vgname)) == 0
+    assert runCmd("lvcreate -L %s -n %s %s" % (rws_size, rws_name, vgname)) == 0
 
     assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
@@ -328,13 +353,19 @@ def createDom0DiskFilesystems(disk):
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
     assert runCmd("vgscan") == 0
-    assert runCmd("lvcreate -L %s -C y -n %s %s" % (dom0tmpfs_size, dom0tmpfs_name, vgname)) == 0
+    assert runCmd("lvcreate -L %s -n %s %s" % (dom0tmpfs_size, dom0tmpfs_name, vgname)) == 0
     assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
     assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
     
 def installGrub(mounts, disk):
     grubroot = '(hd0,0)'
+
+    # prepare extra mounts for installing GRUB:
+    util.bindMount("/dev", "%s/dev" % mounts['root'])
+    util.bindMount("/proc", "%s/proc" % mounts['root'])
+    util.bindMount("/sys", "%s/sys" % mounts['root'])
+    util.bindMount("/tmp", "%s/tmp" % mounts['root'])
 
     # grub configuration - placed here for easy editing.  Written to
     # the menu.lst file later in this function.
@@ -344,26 +375,20 @@ def installGrub(mounts, disk):
     grubconf += "terminal --timeout=10 console serial\n"
     grubconf += "timeout 10\n"
     grubconf += "title %s\n" % PRODUCT_BRAND
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
+    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz lowmem_emergency_pool=16M\n" % version.xen_version
     grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
-    grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty lowmem_emergency_pool=16m\n" % version.xen_version
+    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
+    grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty lowmem_emergency_pool=16M\n" % version.xen_version
     grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk), getBootPartNumber(disk) - 1)
+    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
     grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot com1=115200,8n1 console=com1,tty\n" % version.xen_version
     grubconf += "   module /vmlinuz-%s ramdisk_size=65000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-
-    # prepare extra mounts for installing GRUB:
-    util.bindMount("/dev", "%s/dev" % mounts['root'])
-    util.bindMount("/proc", "%s/proc" % mounts['root'])
-    util.bindMount("/sys", "%s/sys" % mounts['root'])
-    util.bindMount("/tmp", "%s/tmp" % mounts['root'])
 
     # ensure there isn't a previous installation in /boot
     # for any reason:
@@ -453,7 +478,7 @@ def installKernels(mounts, answers):
     assert runCmd("tar -C %s -xzf %s" % (mounts['boot'], CD_KERNEL_TGZ_LOCATION)) == 0
     
 def doDepmod(mounts, answers):
-    runCmd("chroot %s depmod %s" % (version.kernel_version, version.kernel_version))
+    runCmd("chroot %s depmod %s" % (mounts['root'], version.kernel_version))
 
 def writeFstab(mounts, answers):
     util.assertDir("%s/etc" % mounts['rws'])
@@ -509,7 +534,9 @@ def setTime(mounts, answers):
         
         # now set the local time zone variable and use it:
         os.environ['TZ'] = answers['timezone']
-        time.tzset()
+
+        # TODO - tzset not compiled into Python for uclibc
+        #time.tzset()
         
         # set the local time according to newtime:
         year = str(newtime.year)[2:]
@@ -752,20 +779,22 @@ def finalise(answers):
     util.umount("/tmp/boot")
 
     # now remove the temporary volume
-    assert runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name)) == 0
+    assert runCmd("lvremove -f /dev/%s/%s" % (vgname, dom0tmpfs_name)) == 0
 
 
 ################################################################################
 # OTHER HELPERS
 
-def getGrUBDevice(disk):
+def getGrUBDevice(disk, mounts):
     devicemap_path = "/tmp/device.map"
+    outerpath = "%s%s" % (mounts['root'], devicemap_path)
     
-    # first, make sure the device.map file exists:
+    # if the device map doesn't exist, make one up:
     if not os.path.isfile(devicemap_path):
-        runCmd("echo '' | grub --device-map %s --batch" % devicemap_path)
+        runCmd("echo '' | chroot %s grub --device-map %s --batch" %
+               (mounts['root'], devicemap_path))
 
-    devmap = open(devicemap_path)
+    devmap = open(outerpath)
     for line in devmap:
         if line[0] != '#':
             # (we get e.g. ['a','','','','','b'] due to multiple spaces unless
@@ -782,7 +811,7 @@ def writeLog(answers):
     try: 
         bootnode = getBootPartName(answers['primary-disk'])
         util.mount(bootnode, "/tmp")
-        logging.writeLog("/tmp/install-log")
+        xelogging.writeLog("/tmp/install-log")
         util.umount("/tmp")
     except:
         pass

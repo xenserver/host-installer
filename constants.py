@@ -25,19 +25,6 @@ rwsfs_type = 'ext3'
 
 MIN_PASSWD_LEN=6
 
-# location of files on the CDROM
-CD_DOM0FS_TGZ_LOCATION = "/opt/xensource/clean-installer/dom0fs-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-CD_KERNEL_TGZ_LOCATION = "/opt/xensource/clean-installer/kernels-%s-%s.tgz" % (version.dom0_name, version.dom0_version)
-
-CD_XGT_LOCATION = "/opt/xensource/xgt/"
-CD_RHEL41_GUEST_INSTALLER_LOCATION = CD_XGT_LOCATION + "install/rhel41/"
-CD_RHEL41_INSTALL_INITRD = CD_RHEL41_GUEST_INSTALLER_LOCATION + "rhel41-install-initrd.img"
-CD_RPMS_LOCATION = "/opt/xensource/rpms/"
-CD_VENDOR_KERNELS_LOCATION = "/opt/xensource/vendor-kernels"
-CD_XEN_KERNEL_LOCATION = "/opt/xensource/xen-kernel"
-CD_README_LOCATION = "/opt/xensource/docs/README"
-CD_FIREWALL_SCRIPTS_LOCATION = "/opt/xensource/firewall-scripts"
-
 # location/destination of files on the dom0 FS
 DOM0_FILES_LOCATION_ROOT = "%s/files/"
 DOM0_VENDOR_KERNELS_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
@@ -49,6 +36,9 @@ DOM0_XGT_LOCATION = "%s/xgt"
 DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
 
 ANSWERS_FILE = "upgrade_answers"
+
+# location of the timezone data file in the installation environment
+timezone_data_file = '/opt/xensource/installer/timezones'
 
 # files that should be writeable in the dom0 FS
 writeable_files = [ '/etc/yp.conf',

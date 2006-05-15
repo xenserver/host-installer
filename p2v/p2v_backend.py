@@ -41,9 +41,6 @@ def umount_os_root( mnt ):
 
 def append_hostname(os_install): 
     os_install[p2v_constants.HOST_NAME] = os.uname()[1]
-    
-def setup_networking(os_install):
-    findroot.run_command("ifup eth0 > /dev/null 2>&1");
 
 def generate_ssh_key():
     rc = 0
@@ -206,8 +203,6 @@ def perform_P2V( results ):
                                        'Performing P2V operation...',
                                        num_steps)
     os_install['pd'] = pd
-
-    setup_networking(os_install)
 
     determine_size(os_install)
 

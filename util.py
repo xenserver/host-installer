@@ -7,8 +7,11 @@
 
 import os
 import os.path
-import logging
+import xelogging
 import commands
+import subprocess
+import urllib2
+import shutil
 
 ###
 # directory/tree management
@@ -53,12 +56,37 @@ def rmtree(path):
 
 def runCmd(command):
     (rv, output) = commands.getstatusoutput(command)
-    logging.logOutput(command, output)
+    xelogging.logOutput(command, output)
+    return rv
+
+def runCmd2(command):
+    cmd = subprocess.Popen(command,
+                           stdout = subprocess.PIPE,
+                           stderr = subprocess.PIPE)
+    rv = cmd.wait()
+
+    out = ""
+    err = ""
+
+    nextout = cmd.stdout.read()
+    while nextout:
+        out += nextout
+        nextout = cmd.stdout.read()
+
+    nexterr = cmd.stderr.read()
+    while nexterr:
+        err += nexterr
+        nexterr = cmd.stderr.read()
+
+    output = "STANDARD OUT:\n" + out + \
+             "STANDARD ERR:\n" + err
+    
+    xelogging.logOutput(command, output)
     return rv
 
 def runCmdWithOutput(command):
     (rv, output) = commands.getstatusoutput(command)
-    logging.logOutput(command, output)
+    xelogging.logOutput(command, output)
     return (rv, output)
 
 ###
@@ -69,6 +97,8 @@ class MountFailureException(Exception):
 
 def mount(dev, mountpoint, options = None, fstype = None):
     cmd = ['/bin/mount']
+    if options:
+        assert type(options) == list
 
     if fstype:
         cmd.append('-t')
@@ -81,20 +111,77 @@ def mount(dev, mountpoint, options = None, fstype = None):
     cmd.append(dev)
     cmd.append(mountpoint)
 
-    rc = os.spawnv(os.P_WAIT, cmd[0], cmd)
+    rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
+                          stderr = subprocess.PIPE).wait()
     if rc != 0:
         raise MountFailureException()
 
-def bindMount(dir, mountpoint):
-    cmd = [ '/bin/mount', '--bind', dir, mountpoint]
-    rc = os.spawnv(os.P_WAIT, cmd[0], cmd)
+def bindMount(source, mountpoint):
+    cmd = [ '/bin/mount', '--bind', source, mountpoint]
+    rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
+                          stderr = subprocess.PIPE).wait()
     if rc != 0:
         raise MountFailureException()
 
 def umount(mountpoint, force = False):
-    if not force:
+    if force:
         assert os.path.ismount(mountpoint)
     elif not os.path.ismount(mountpoint):
         return
-        
-    os.spawnv(os.P_WAIT, '/bin/umount', ['/bin/umount', mountpoint])
+
+    rc = subprocess.Popen(['/bin/umount', mountpoint],
+                          stdout = subprocess.PIPE,
+                          stderr = subprocess.PIPE).wait()
+    assert rc == 0
+
+###
+# fetching of remote files
+
+class InvalidSource(Exception):
+    pass
+
+# source may be
+#  http://blah
+#  ftp://blah
+#  file://blah
+#  nfs://server:/path/blah
+def fetchFile(source, dest):
+    unmount = []
+    
+    try:
+        # if it's NFS, then mount the NFS server then treat like
+        # file://:
+        if source[:4] == 'nfs:':
+            # work out the components:
+            [_, server, path] = source.split(':')
+            if server[:2] != '//':
+                raise InvalidSource("Did not start {ftp,http,file,nfs}://")
+            server = server[2:]
+            dirpart = os.path.dirname(path)
+            if dirpart[0] != '/':
+                raise InvalidSource("Directory part of NFS path was not an absolute path.")
+            filepart = os.path.basename(path)
+
+            # make sure the mountpoint exists
+            if not os.path.exists("/tmp/nfsmount"):
+                os.mkdir("/tmp/nfsmount")
+
+            mount('%s:%s' % (server, dirpart), "/tmp/nfsmount")
+            source = 'file:///tmp/nfsmount/%s' % filepart
+
+        if source[:5] == 'http:' or \
+               source[:5] == 'file:' or \
+               source[:4] == 'ftp:':
+            # This something that can be fetched using urllib2:
+            fd = urllib2.urlopen(source)
+            fd_dest = open(dest, 'w')
+            shutil.copyfileobj(fd, fd_dest)
+            fd_dest.close()
+            fd.close()
+        else:
+            raise InvalidSource("Unknown source type.")
+
+    finally:
+        # make sure we unmount anything we mounted:
+        for m in unmount:
+            umount(m)

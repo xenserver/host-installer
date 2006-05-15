@@ -1,4 +1,3 @@
-#!/usr/bin/python
 ###
 # XEN CLEAN INSTALLER
 # Text user interface functions
@@ -13,6 +12,7 @@ import generalui
 import uicontroller
 import sys
 import constants
+import diskutil
 from version import *
 
 import datetime
@@ -58,6 +58,32 @@ This install will overwrite data on any hard drives you select to use during the
     # advance to next screen:
     return 1
 
+def no_disks():
+    global screen
+
+    ButtonChoiceWindow(screen,
+                       "Fatal error",
+                       """No disks have been found on your system.
+
+Please refer to the user guide or XenSource technical support for more information on this problem.""",
+                       ['Exit'], width=60)
+
+    # advance to next screen:
+    return 1
+
+def no_netifs():
+    global screen
+
+    ButtonChoiceWindow(screen,
+                       "Fatal error",
+                       """No network interfaces have been found on your system.
+
+Please refer to the user guide or XenSource technical support for more information on this problem.""",
+                       ['Exit'], width=60)
+
+    # advance to next screen:
+    return 1
+
 def not_enough_space_screen(answers):
     global screen
 
@@ -68,7 +94,6 @@ def not_enough_space_screen(answers):
 
     # leave the installer:
     return 1
-
 
 def upgrade_screen(answers):
     global screen
@@ -85,13 +110,65 @@ def upgrade_screen(answers):
     else:
         return 1
 
+def select_installation_source(answers, other):
+    global screen
+
+    entries = [ ('Local XenSource media', 'local'),
+                ('HTTP or FTP', 'url'),
+                ('NFS', 'nfs') ]
+    (button, entry) = ListboxChoiceWindow(screen,
+                                          "Select Installation Source",
+                                          "Please select the type of source you would like to use for this installation",
+                                          entries,
+                                          ['Ok', 'Back'])
+
+    answers['source-media'] = entry
+
+    if button == "ok" or button == None: return 1
+    if button == "back": return -1
+
+def get_http_source(answers):
+    if answers['source-media'] == 'url':
+        (button, result) = EntryWindow(screen,
+                                       "Specify HTTP Source",
+                                       "Please enter URL for your HTTP repository",
+                                       ['URL'],
+                                       buttons = ['Ok', 'Back'])
+        
+        answers['source-address'] = result[0]
+
+        # TODO: validate URL
+
+        if button == 'ok': return 1
+        if button == 'back': return -1
+    else:
+        # we don't need this screen
+        return uicontroller.SKIP_SCREEN
+
+def get_nfs_source(answers):
+    if answers['source-media'] == 'nfs':
+        (button, result) = EntryWindow(screen,
+                                       "Specify NFS Source",
+                                       "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)",
+                                       ['NFS Path'],
+                                       buttons = ['Ok', 'Back'])
+        
+        answers['source-address'] = result
+
+        # TODO: validate URL
+
+        if button == 'ok': return 1
+        if button == 'back': return -1
+    else:
+        # we don't need this screen
+        return uicontroller.SKIP_SCREEN
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     global screen
     entries = []
     
-    diskEntries = generalui.getDiskList()
+    diskEntries = diskutil.getQualifiedDiskList()
     for de in diskEntries:
         (vendor, model, size) = generalui.getExtendedDiskInfo(de)
         if generalui.getDiskSizeGB(size) >= constants.min_primary_disk_size:
@@ -118,7 +195,7 @@ def select_guest_disks(answers):
     
     entries = []
 
-    diskEntries = generalui.getDiskList()
+    diskEntries = diskutil.getQualifiedDiskList()
     diskEntries.remove(answers['primary-disk'])
     for de in diskEntries:
         (vendor, model, size) = generalui.getExtendedDiskInfo(de)

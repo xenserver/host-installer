@@ -6,23 +6,27 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
+import sys
+import traceback
+import string
+
 # user-interface stuff:
 import tui
 import generalui
 import util
 import pyanswerfile_ui
 import uicontroller
-import sys
-import traceback
-import string
-
 import constants
+
+# hardware
+import diskutil
+import netutil
 
 # backend
 import backend
 
 # general
-import logging
+import xelogging
 from getopt import getopt, GetoptError
 
 def main():
@@ -59,7 +63,7 @@ def main():
         if opt == "--verbose-pyanswerfile":
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
-            logging.continuous_logs.append(sys.stdout)
+            xelogging.continuous_logs.append(sys.stdout)
         if opt == "--upgrade-answerdev":
             pyanswerfile_ui.specifySubUI(ui_package)
             pyanswerfile_ui.specifyAnswerFileDevice(val)
@@ -68,15 +72,19 @@ def main():
             try:
                 fd = open(val, "w")
                 clog_fds.append(fd)
-                logging.continuous_logs.append(fd)
+                xelogging.continuous_logs.append(fd)
             except:
                 print "Error adding continuous log %s." % val
         if opt == "--upgrade":
             results['upgrade'] = True
             isUpgrade = True
 
+    # log the modules that we loaded:
+    xelogging.log("All needed modules should now be loaded. We have loaded:")
+    util.runCmd("lsmod")
+
     try:
-        logging.log("Starting user interface")
+        xelogging.log("Starting user interface")
         ui_package.init_ui(results, False)
 
         if results.has_key('usesettings'):
@@ -84,14 +92,28 @@ def main():
                 # set the ui_package back to the original
                 ui_package = tui
 
-        # first, make sure that we have enough disk space:
-        disks = generalui.getDiskList()
-        logging.log("Found disks: %s" % str(disks))
-        diskInfo = map(lambda x: generalui.getExtendedDiskInfo(x), disks)
-        logging.log("Extended disk info: %s" % str(diskInfo))
+        disks = diskutil.getQualifiedDiskList()
+        netifs = netutil.getNetifList()
 
-        if len(filter(lambda x: generalui.getDiskSizeGB(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
-            logging.log("Not enough disk space to proceed.")
+        # make sure we have discovered at least one disk and
+        # at lesat one network interface:
+        if len(disks) == 0:
+            xelogging.log("INSTALL FAILURE: No disks found on this host.")
+            ui_package.no_disks()
+            raise Exception("No disks found on this host.")
+
+        if len(netifs) == 0:
+            xelogging.log("INSTALL FAILURE: No network interfaces found on this host.")
+            ui_package.no_netifs()
+            raise Exception("No network interfaces found on this host.")
+
+        # make sure that we have enough disk space:
+        xelogging.log("Found disks: %s" % str(disks))
+        diskInfo = map(lambda x: diskutil.getExtendedDiskInfo(x), disks)
+        xelogging.log("Extended disk info: %s" % str(diskInfo))
+
+        if len(filter(lambda x: diskutil.getHumanDiskSize(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
+            xelogging.log("Not enough disk space to proceed.")
             seq = [ ui_package.not_enough_space_screen ]
             uicontroller.runUISequence(seq, results)
         else:
@@ -103,6 +125,10 @@ def main():
                     ( generalui.confirm_installation,
                       { 'ui-package': ui_package }) ]
                 
+            seq = [ (ui_package.select_installation_source, { 'cd-available': True}),
+                    ui_package.get_http_source,
+                    ui_package.get_nfs_source ] + seq
+
             if not isUpgrade:
                 seq.insert(0, ( generalui.disk_selection, { 'ui-package': ui_package  }) )
                 seq.insert(0, ui_package.welcome_screen)
@@ -114,7 +140,7 @@ def main():
 
             uicontroller.runUISequence(seq, results)
 
-            logging.log("Starting actual installation")       
+            xelogging.log("Starting actual installation")       
             backend.performInstallation(results, ui_package)
         
             if not isUpgrade:
@@ -132,25 +158,28 @@ def main():
         ui_package.end_ui()
 
         #umount volumes
-        backend.cleanup_umount()
+        try:
+            backend.cleanup_umount()
+        except Exception:
+            pass
 
         # close continuous logs:
         for logfd in clog_fds:
             try:
-                logging.continuous_logs.remove(logfd)
+                xelogging.continuous_logs.remove(logfd)
             except:
                 pass
             logfd.close()
             
         raise
 
-    logging.log("Shutting down user interface")
+    xelogging.log("Shutting down user interface")
     ui_package.end_ui()
 
     # close continuous logs:
     for logfd in clog_fds:
         try:
-            logging.continuous_logs.remove(logfd)
+            xelogging.continuous_logs.remove(logfd)
         except:
             pass
         logfd.close()

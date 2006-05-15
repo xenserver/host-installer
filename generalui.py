@@ -10,80 +10,10 @@ import uicontroller
 import time
 import datetime
 import util
+import diskutil
+import constants
 
 from util import runCmdWithOutput
-
-timezone_data_file = '/opt/xensource/clean-installer/timezones'
-
-def getDiskList():
-    pipe = os.popen("blockdev --report | grep -v '.*[0-9]$' | awk '{ print $7 }'")
-    devices = []
-    for dev in pipe:
-        dev = dev.strip("\n")
-        if dev != "Device":
-            devices.append(dev)
-
-    pipe.close()
-
-    # CCISS disks:
-    pipe = os.popen("blockdev --report | grep -v '/dev/hd' | grep -v '/dev/sd' | grep -v '.*p[0-9]$' | awk '{ print $7 }'")
-    for dev in pipe:
-        dev = dev.strip("\n")
-        if dev != "Device":
-            devices.append(dev)
-
-    pipe.close()
-    
-    return devices
-
-def getDiskDeviceVendor(deviceName):
-    rc, output = runCmdWithOutput('cat /sys/block/%s/device/vendor' % deviceName)
-    if rc == 0:
-        return output.strip()
-    else:
-        return None
-        
-
-def getDiskDeviceModel(deviceName):
-    rc, output = runCmdWithOutput('cat /sys/block/%s/device/model' % deviceName)
-    if rc == 0:
-        return output.strip()
-    else:
-        return None
-
-def getDiskDeviceSize(deviceName):
-    rc, output = runCmdWithOutput('cat /sys/block/%s/size' % deviceName)
-    if rc == 0:
-        return output.strip()
-    else:
-        return None
-    
-def getHumanDiskSize(rawDiskSize):
-    longSize = long(rawDiskSize)
-    gbSize = (longSize * 512) / (1024 * 1024 * 1024)
-    return "%d GB" % gbSize
-
-def getDiskSizeGB(rawDiskSize):
-    longSize = long(rawDiskSize)
-    gbSize = (longSize * 512) / (1024 * 1024 * 1024)
-    return gbSize
-
-
-def getExtendedDiskInfo(disk):
-    deviceNameParts = disk.split('/')
-    if len(deviceNameParts) == 3:
-        deviceName = deviceNameParts[2]
-    elif len(deviceNameParts) == 4:
-        deviceName = deviceNameParts[2] + "!" + deviceNameParts[3]
-    else:
-        #unsupported
-        return None
-    
-    deviceVendor = getDiskDeviceVendor(deviceName)
-    deviceModel = getDiskDeviceModel(deviceName)
-    deviceSize = getDiskDeviceSize(deviceName)
-    
-    return (deviceVendor, deviceModel, deviceSize)
 
 def getNetifList():
     pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }' | grep '^eth.*'")
@@ -95,9 +25,7 @@ def getNetifList():
     return interfaces
 
 def getTimeZones():
-    global timezone_data_file
-
-    tzf = open(timezone_data_file)
+    tzf = open(constants.timezone_data_file)
     lines = tzf.readlines()
     tzf.close()
 
@@ -110,7 +38,7 @@ def getHWAddr(iface):
 
 def disk_selection(answers, args):
     ui_package = args['ui-package']
-    disks = getDiskList()
+    disks = diskutil.getQualifiedDiskList()
 
     if len(disks) == 1:
         answers['primary-disk'] = disks[0]
@@ -123,7 +51,7 @@ def disk_selection(answers, args):
 
 def confirm_installation(answers, args):
     ui_package = args['ui-package']
-    disks = getDiskList()
+    disks = diskutil.getQualifiedDiskList()
 
     if len(disks) == 1:
         sequence = [ ui_package.confirm_installation_one_disk ]
@@ -144,6 +72,10 @@ def makeHumanList(list):
 
 # Hack to get the time in a different timezone
 def translateDateTime(dt, tzname):
+    return dt
+
+    # TODO - tzset not compiled into Python for uclibc
+    
     localtz = "utc"
     if os.environ.has_key('TZ'):
         localtz = os.environ['TZ']
