@@ -543,7 +543,7 @@ def setTime(mounts, answers):
         timestr = "%s-%s-%s %s:%s" % (year, newtime.month,
                                       newtime.day, newtime.hour,
                                       newtime.minute)
-        assert runCmd("date --set='%s'" % timestr) == 0
+        assert runCmd("chroot %s date --set='%s'" % (mounts['root'], timestr)) == 0
         assert runCmd("hwclock --utc --systohc") == 0
 
     # write the time configuration to the /etc/sysconfig/clock

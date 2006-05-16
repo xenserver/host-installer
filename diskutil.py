@@ -74,7 +74,10 @@ def getDiskDeviceModel(dev):
     return __readOneLineFile__("/sys/block/%s/device/model" % dev)
     
 def getDiskDeviceSize(dev):
-    return int(__readOneLineFile__("/sys/block/%s/device/block/size" % dev))
+    if os.path.exists("/sys/block/%s/device/block/size" % dev):
+        return int(__readOneLineFile__("/sys/block/%s/device/block/size" % dev))
+    elif os.path.exists("/sys/block/%s/size" % dev):
+        return int(__readOneLineFile__("/sys/block/%s/size" % dev))
     
 def blockSizeToGBSize(blocks):
     return (long(blocks) * 512) / (1024 * 1024 * 1024)

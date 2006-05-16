@@ -8,6 +8,7 @@
 
 import pickle
 import os
+import util
 from constants import ANSWERS_FILE
 from version import *
 from util import runCmd
@@ -114,11 +115,9 @@ def select_primary_disk(answers):
     return 1
 def select_guest_disks(answers):
     return 1
-
 def get_root_password(answers):
-    if sub_ui_package:
+    if not answers.has_key('root-password') and sub_ui_package:
         return sub_ui_package.get_root_password(answers)
-
 def determine_basic_network_config(answers):
     return 1
 def get_timezone(answers):
