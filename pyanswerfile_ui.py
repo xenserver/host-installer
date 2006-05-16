@@ -118,6 +118,8 @@ def select_guest_disks(answers):
 def get_root_password(answers):
     if not answers.has_key('root-password') and sub_ui_package:
         return sub_ui_package.get_root_password(answers)
+    else:
+        return 1
 def determine_basic_network_config(answers):
     return 1
 def get_timezone(answers):
