@@ -300,6 +300,18 @@ def findHostName(mnt):
             hostname = line
             return hostname
    
+    # suse before red hat, coz etc/sysconfig/network is a 
+    # directory on suse
+    hnFile = os.path.join(mnt,'etc', 'HOSTNAME')
+    if os.path.exists(hnFile):
+        hn = open(hnFile)
+        for line in hn.readlines():
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            hostname = line
+            return hostname
+
     #red hat
     hnFile = os.path.join(mnt,'etc', 'sysconfig', 'network')
     if os.path.exists(hnFile):
@@ -313,17 +325,7 @@ def findHostName(mnt):
                 hostname = value
                 return hostname
 
-    # suse
-    hnFile = os.path.join(mnt,'etc', 'HOSTNAME')
-    if os.path.exists(hnFile):
-        hn = open(hnFile)
-        for line in hn.readlines():
-            line = line.strip()
-            if not line or line.startswith('#'):
-                continue
-            hostname = line
-            return hostname
-  
+ 
     return hostname
     
 def inspect_root(dev_name, dev_attrs, results):
