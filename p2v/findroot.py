@@ -275,7 +275,7 @@ def handle_root_ssh(mntpnt, dev_name, hostname, target_directory, keyfile, pd = 
 
 
 def mount_os_root(dev_name, dev_attrs):
-    mntbase = "/var/mnt"
+    mntbase = "/tmp/mnt"
     mnt = mntbase + "/" + os.path.basename(dev_name)
     rc, out = run_command("mkdir -p %s" % (mnt))
     if rc != 0:
@@ -386,7 +386,7 @@ def get_cpu_count():
     return out
 
 if __name__ == '__main__':
-    mntbase = "/var/mnt"
+    mntbase = "/tmp/mnt"
 
     devices = scan()
 
