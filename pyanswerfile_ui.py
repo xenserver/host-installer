@@ -74,12 +74,15 @@ Do you want to use existing settings?
                 answers = pickle.load(fd)
                 fd.close()
             runCmd("umount /tmp/mnt")
-
-            for key in answers:
-                if key != "root-password":
-                    results[key] = answers[key]
             results['usesettings'] = True
 
+    elif pyAnswerFile is not None:
+        fd = open(pyAnswerFile, 'r')
+        answers = pickle.load(fd)
+        fd.close()
+
+    for key in answers:
+        results[key] = answers[key]
 
 def end_ui():
     if sub_ui_package is not None:
