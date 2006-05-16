@@ -127,6 +127,7 @@ def get_cpu_count(os_install):
 def perform_p2v( os_install, inbox_path):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp'
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
     pd = os_install['pd']
     rc, tardirname, tarfilename, md5sum = findroot.handle_root( os_root_mount_point, os_root_device, pd)

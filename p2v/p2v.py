@@ -19,6 +19,7 @@ from snack import *
 ui_package = p2v_tui
 
 def main():
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp'
     ui_package.init_ui()
 
     results = { 'ui-package': ui_package }
