@@ -13,6 +13,8 @@ import uicontroller
 import sys
 import constants
 import diskutil
+import netutil
+
 from version import *
 
 import datetime
@@ -170,9 +172,9 @@ def select_primary_disk(answers):
     
     diskEntries = diskutil.getQualifiedDiskList()
     for de in diskEntries:
-        (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        if generalui.getDiskSizeGB(size) >= constants.min_primary_disk_size:
-            stringEntry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
+        if diskutil.getHumanDiskSize(size) >= constants.min_primary_disk_size:
+            stringEntry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
 
@@ -198,8 +200,8 @@ def select_guest_disks(answers):
     diskEntries = diskutil.getQualifiedDiskList()
     diskEntries.remove(answers['primary-disk'])
     for de in diskEntries:
-        (vendor, model, size) = generalui.getExtendedDiskInfo(de)
-        entry = "%s - %s [%s %s]" % (de, generalui.getHumanDiskSize(size), vendor, model)
+        (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
+        entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
         entries.append(entry)
         
     text = TextboxReflowed(50, "Please select any additional disks you would like to use for guest storage")
@@ -402,7 +404,7 @@ def get_name_service_configuration(answers):
 def get_autoconfig_ifaces(answers):
     global screen
 
-    entries = generalui.getNetifList()
+    entries = netutil.getNetifList()
 
     text = TextboxReflowed(50, "Which network interfaces need to be configured manually?  (Interfaces you do not select here will be brought up by DHCP.)")
     buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])

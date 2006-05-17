@@ -63,9 +63,9 @@ def init_ui(results, is_subui):
 
 Do you want to use existing settings?
             """ % (PRODUCT_BRAND, PRODUCT_BRAND), 
-            ['Ok', 'Cancel'], width=60)
+            ['Yes', 'No'], width=60)
 
-            if button == "cancel":
+            if button == "no":
                 pyAnswerFile = None
                 results['usesettings'] = False
                 return
