@@ -11,6 +11,7 @@ import p2v_uicontroller
 import sys
 import findroot
 import p2v_backend
+import os
 
 from p2v_error import P2VError
 from snack import *
