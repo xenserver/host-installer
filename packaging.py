@@ -58,7 +58,7 @@ class NFSInstallMethod(InstallMethod):
         if not os.path.isdir('/tmp/nfs-source'):
             os.mkdir('/tmp/nfs-source')
         try:
-            util.mount(self.nfspath, '/tmp/nfs-source')
+            util.mount(self.nfsPath, '/tmp/nfs-source')
         except util.MountFailureException:
             raise BadSourceAddress()
 
@@ -75,10 +75,10 @@ class LocalInstallMethod(InstallMethod):
         if not os.path.exists("/tmp/cdmnt"):
             os.mkdir("/tmp/cdmnt")
 
-        device = None
+        device = None ; self.device = None
         for dev in ['hda', 'hdb', 'hdc', 'scd1', 'scd2',
                     'sr0', 'sr1', 'sr2', 'cciss/c0d0p0',
-                    'cciss/c0d1p0']:
+                    'cciss/c0d1p0', 'sda', 'sdb']:
             device_path = "/dev/%s" % dev
             if os.path.exists(device_path):
                 try:
@@ -99,6 +99,7 @@ class LocalInstallMethod(InstallMethod):
             raise MediaNotFound()
         else:
             assert os.path.ismount('/tmp/cdmnt')
+            self.device = device
 
     def openPackage(self, package):
         assert os.path.ismount('/tmp/cdmnt')
@@ -107,6 +108,8 @@ class LocalInstallMethod(InstallMethod):
     def finished(self):
         if os.path.ismount('/tmp/cdmnt'):
             util.umount('/tmp/cdmnt')
+            if os.path.exists('/bin/eject') and self.device:
+                util.runCmd('/bin/eject %s' % self.device)
 
 
 ###
