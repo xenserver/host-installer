@@ -243,7 +243,7 @@ def main():
 
     elif mode == MODE_INSTALL:
         if answerfile:
-            os.system("/opt/xensource/installer/clean-installer --pyanswerfile %s --clog /dev/tty3" % answerfile)
+            os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
         elif verbose_answerfile:
             os.system("/opt/xensource/installer/clean-installer --verbose-pyanswerfile %s" % verbose_answerfile)
         else:
@@ -252,10 +252,10 @@ def main():
 
     elif mode == MODE_UPGRADE:
         if answerfile:
-            os.system("/opt/xensource/installer/clean-installer --pyanswerfile %s --upgrade --clog /dev/tty3" % answerfile)
+            os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
         elif verbose_answerfile:
             ui_package.end_ui()
-            os.system("/opt/xensource/installer/clean-installer --verbose-pyanswerfile %s --upgrade" % verbose_answerfile)
+            os.system("/opt/xensource/installer/clean-installer --upgrade")
         else:
             os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
         os.system("reboot")

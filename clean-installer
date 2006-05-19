@@ -15,6 +15,7 @@ import tui
 import generalui
 import util
 import pyanswerfile_ui
+import answerfile_ui
 import uicontroller
 import constants
 
@@ -43,6 +44,7 @@ def main():
         (opts, _) = getopt(sys.argv[1:],
                            "",
                            ["pyanswerfile=",
+                            "answerfile=",
                             "verbose-pyanswerfile=",
                             "upgrade-answerdev=",
                             "upgrade",
@@ -60,6 +62,10 @@ def main():
             pyanswerfile_ui.specifySubUI(ui_package)
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
+        if opt == "--answerfile":
+            answerfile_ui.specifySubUI(ui_package)
+            answerfile_ui.specifyAnswerFile(val)
+            ui_package = answerfile_ui
         if opt == "--verbose-pyanswerfile":
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui

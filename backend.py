@@ -759,11 +759,7 @@ def touchSshAuthorizedKeys(mounts, answers):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
 
-def copyFirewallFiles(mounts, answers):
-    util.copyFile(CD_FIREWALL_SCRIPTS_LOCATION + "/etc/sysctl.conf", "%s/etc/" % mounts['root'])
-    util.copyFile(CD_FIREWALL_SCRIPTS_LOCATION + "/etc/sysconfig/iptables", "%s/etc/sysconfig/" % mounts['root'])
-    util.copyFile(CD_FIREWALL_SCRIPTS_LOCATION + "/etc/sysconfig/iptables-config", "%s/etc/sysconfig/" % mounts['root'])
-    
+
 ###
 # Compress root filesystem and save to disk:
 def finalise(answers):
