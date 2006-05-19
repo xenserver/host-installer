@@ -68,10 +68,10 @@ def __readOneLineFile__(filename):
         raise e
 
 def getDiskDeviceVendor(dev):
-    return __readOneLineFile__("/sys/block/%s/device/vendor" % dev)
+    return __readOneLineFile__("/sys/block/%s/device/vendor" % dev).strip(' \n')
 
 def getDiskDeviceModel(dev):
-    return __readOneLineFile__("/sys/block/%s/device/model" % dev)
+    return __readOneLineFile__("/sys/block/%s/device/model" % dev).strip('  \n')
     
 def getDiskDeviceSize(dev):
     if os.path.exists("/sys/block/%s/device/block/size" % dev):
