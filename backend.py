@@ -75,17 +75,19 @@ def performInstallation(answers, ui_package):
             writeDom0DiskPartitions(answers['primary-disk'])
             ui_package.displayProgressDialog(1, pd)
     
-        # Guest disk partition table
-        for gd in answers['guest-disks']:
-            writeGuestDiskPartitions(gd)
-        ui_package.displayProgressDialog(2, pd)
-    
-        # Create volume group and any needed logical volumes:
-        prepareLVM(answers)
-        ui_package.displayProgressDialog(3, pd)
+            # Guest disk partition table
+            for gd in answers['guest-disks']:
+                writeGuestDiskPartitions(gd)
+            ui_package.displayProgressDialog(2, pd)
         
-        # Put filesystems on Dom0 Disk
-        createDom0DiskFilesystems(answers['primary-disk'])
+            # Create volume group and any needed logical volumes:
+            prepareLVM(answers)
+            ui_package.displayProgressDialog(3, pd)
+            
+            # Put filesystems on Dom0 Disk
+            createDom0DiskFilesystems(answers['primary-disk'])
+        else:
+            initLVM(answers) 
 
         createDom0Tmpfs(answers['primary-disk'])
         ui_package.displayProgressDialog(4, pd)
@@ -209,7 +211,7 @@ def writeAnswersFile(mounts, answers):
     fd.close()
 
 def hasBootPartition(disk):
-    mountPoint = os.path.join("tmp", "mnt")
+    mountPoint = os.path.join("/tmp", "mnt")
     rc = False
     util.assertDir(mountPoint)
     try:
@@ -301,6 +303,14 @@ def determinePartitionName(guestdisk, partitionNumber):
     else:
         return guestdisk + "%d" % partitionNumber
 
+def initLVM(answers):
+    # We don't want an lvm state directory so set the environment
+    # up appropraitely:
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
+    if not os.path.exists('/tmp/lvm'):
+    	os.mkdir('/tmp/lvm')
+
+
 def prepareLVM(answers):
     global vgname
     global dom0_size
@@ -310,11 +320,7 @@ def prepareLVM(answers):
     partitions += map(lambda x: determinePartitionName(x, 1),
                       answers['guest-disks'])
 
-    # We don't want an lvm state directory so set the environment
-    # up appropraitely:
-    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
-    if not os.path.exists('/tmp/lvm'):
-    	os.mkdir('/tmp/lvm')
+    initLVM(answers)
 
     rc = 0
     # TODO - better error handling
