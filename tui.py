@@ -232,12 +232,25 @@ def confirm_installation_multiple_disks(answers):
     disks = [ answers['primary-disk'] ] + answers['guest-disks']
     disks_used = generalui.makeHumanList(disks)
 
-    button = ButtonChoiceWindow(screen,
+    if answers.has_key('upgrade'):
+        isUpgradeInstall = answers['upgrade']
+    else:
+        isUpgradeInstall = False
+
+    if not isUpgradeInstall:
+        button = ButtonChoiceWindow(screen,
                                 "Confirm Installation",
                                 """We have collected all the information required to install %s.
 
 If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
                                 ['Ok', 'Back'])
+    else:
+        button = ButtonChoiceWindow(screen,
+                                "Confirm Installation",
+                                """We have collected all the information required to upgrade %s.
+""" % (PRODUCT_BRAND),
+                                ['Ok', 'Back'])
+ 
 
     if button == "ok": return 1
     if button == "back": return -1
@@ -245,12 +258,25 @@ If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (
 def confirm_installation_one_disk(answers):
     global screen
 
-    button = ButtonChoiceWindow(screen,
+    if answers.has_key('upgrade'):
+        isUpgradeInstall = answers['upgrade']
+    else:
+        isUpgradeInstall = False
+
+    if not isUpgradeInstall:
+        button = ButtonChoiceWindow(screen,
                                 "Confirm Installation",
                                 """Since your server only has a single disk, this will be used to install %s.
 
 Please confirm you wish to proceed; all data on this disk will be destroyed (vendor service partitions will be left intact)""" % PRODUCT_BRAND,
                                 ['Ok', 'Back'])
+    else:
+        button = ButtonChoiceWindow(screen,
+                                "Confirm Installation",
+                                """We have collected all the information required to upgrade %s.
+""" % (PRODUCT_BRAND),
+                                ['Ok', 'Back'])
+ 
 
     if button == "ok": return 1
     if button == "back": return -1
