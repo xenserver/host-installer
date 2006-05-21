@@ -273,21 +273,7 @@ def writeGuestDiskPartitions(disk):
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    # for some reason sfdisk wants to run interactively when we do
-    # this using pipes, so for now we'll just write the partitions
-    # to a file and then use '<' to get sfdisk to read the file.
-
-    parts = open("/tmp/guestdisk_parts", "w")
-    parts.write(",,8e\n")                # LVM guest storage
-    parts.write("\n")                    # no second partition
-    parts.write("\n")                    # no third partition
-    parts.write("\n")                    # no fourth partition
-    parts.close()
-
-    result = runCmd("sfdisk  -q -uM %s </tmp/guestdisk_parts" % disk)
-
-    # clean up:
-    assert result == 0
+    diskutil.writePartitionTable(disk, [ -1 ])
     
 def determinePartitionName(guestdisk, partitionNumber):
     if guestdisk.find("cciss") != -1 or \
