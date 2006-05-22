@@ -55,7 +55,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     root_password = os_install['root-password']
     
     # send the public key to the agent
-    rc, out = findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c addkey -p '%s' '%s'" % (xe_host, root_password, ssh_pub_key_file))
+    rc, out = findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c addkey -p '%s' '%s'" % (xe_host, root_password, ssh_pub_key_file))
 
     if rc != 0:
         raise P2VError("Failed to add public ssh key. (%s)" % out)
@@ -69,7 +69,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
     description = os_install[p2v_constants.DESCRIPTION]
-    rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
+    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
                 xe_host,
                 root_password,
                 os_install_name,
@@ -95,7 +95,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
 def finish_agent(os_install, xe_host):
     #tell the agent that we're done
     root_password = os_install['root-password']
-    rc, out =  findroot.run_command("/opt/xensource/clean-installer/xecli -h '%s' -c finishp2v -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
+    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c finishp2v -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
     
 
 def determine_size(os_install):

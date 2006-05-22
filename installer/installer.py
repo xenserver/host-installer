@@ -44,21 +44,21 @@ def main():
                             ['Ok', 'Exit and reboot'], width=70)
             if button == 'ok' or button == None:
                 if entry == 0:
-                     rc = os.system("/opt/xensource/clean-installer/clean-installer --clog /dev/tty3")
+                     rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
                      if rc == 0: 
                          os.system("reboot")
                          sys.exit(0)
                      else:
                          sys.exit(rc)
                 elif entry == 1:
-                     rc = os.system("/opt/xensource/clean-installer/clean-installer --upgrade --upgrade-answerdev /dev/sda1 --clog /dev/tty3")
+                     rc = os.system("/opt/xensource/installer/clean-installer --upgrade --upgrade-answerdev /dev/sda1 --clog /dev/tty3")
                      if rc == 0: 
                          os.system("reboot")
                          sys.exit(0)
                      else:
                          sys.exit(rc)
                 elif entry == 2:
-                    rc = os.system("/opt/xensource/clean-installer/p2v.py")
+                    rc = os.system("/opt/xensource/installer/p2v.py")
                     if (rc != 0):
                         os.system("reboot")
                         sys.exit(0)
