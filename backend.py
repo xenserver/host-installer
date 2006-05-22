@@ -18,6 +18,7 @@ import uicontroller
 import xelogging
 import util
 import diskutil
+import netutil
 from util import runCmd
 import shutil
 import packaging
@@ -440,7 +441,7 @@ def mountVolumes(primary_disk):
             'rws' : rwspath,
             'root': rootpath,
             'umount-order': [dropboxpath, bootpath, rwspath, rootpath]}
-
+ 
 def umountVolumes(mounts, force = False):
      for m in mounts['umount-order']: # hack!
         util.umount(m, force)
@@ -452,8 +453,6 @@ def cleanup_umount():
     # now remove the temporary volume
     runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name))
     runCmd("umount /tmp/mnt || true")
-    
-
 
 ##########
 # second stage install helpers:
@@ -500,6 +499,12 @@ def writeResolvConf(mounts, answers):
     if manual_nameservers:
         resolvconf = open("%s/etc/resolv.conf" % mounts['root'], 'w')
         if manual_hostname:
+            # /etc/hostname:
+            eh = open('%s/etc/hostname' % mounts['root'], 'w')
+            eh.write(hostname + "\n")
+            eh.close()
+
+            # 'search' option in resolv.conf
             try:
                 dot = hostname.index('.')
                 if dot + 1 != len(hostname):
@@ -571,6 +576,13 @@ def configureNetworking(mounts, answers):
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
+    def writeDisabledConfigFile(fd, device, hwaddr = None):
+        fd.write("DEVICE=%s\n" % device)
+        fd.write("ONBOOT=no\n")
+        fd.write("TYPE=ethernet\n")
+        if hwaddr:
+            fd.write("HWADDR=%s\n" % hwaddr)
+
     # make sure the directories in rws exist to write to:
     util.assertDir("%s/etc/sysconfig/network-scripts" %
                   mounts['rws'])
@@ -581,7 +593,7 @@ def configureNetworking(mounts, answers):
         ifaces = generalui.getNetifList()
         for i in ifaces:
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
-            writeDHCPConfigFile(ifcfd, i, generalui.getHWAddr(i))
+            writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
             ifcfd.close()
 
             # this is a writeable file:
@@ -591,20 +603,23 @@ def configureNetworking(mounts, answers):
         for i in mancfg:
             iface = mancfg[i]
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
-            if iface['use-dhcp']:
-                writeDHCPConfigFile(ifcfd, i, generalui.getHWAddr(i))
+            if not iface['enabled']:
+                writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
             else:
-                ifcfd.write("DEVICE=%s\n" % i)
-                ifcfd.write("BOOTPROTO=none\n")
-                hwaddr = generalui.getHWAddr(i)
-                if hwaddr:
-                    ifcfd.write("HWADDR=%s\n" % hwaddr)
-                ifcfd.write("ONBOOT=yes\n")
-                ifcfd.write("TYPE=Ethernet\n")
-                ifcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
-                ifcfd.write("IPADDR=%s\n" % iface['ip'])
-                ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
-                ifcfd.write("PEERDNS=yes\n")
+                if iface['use-dhcp']:
+                    writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
+                else:
+                    ifcfd.write("DEVICE=%s\n" % i)
+                    ifcfd.write("BOOTPROTO=none\n")
+                    hwaddr = netutil.getHWAddr(i)
+                    if hwaddr:
+                        ifcfd.write("HWADDR=%s\n" % hwaddr)
+                    ifcfd.write("ONBOOT=yes\n")
+                    ifcfd.write("TYPE=Ethernet\n")
+                    ifcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
+                    ifcfd.write("IPADDR=%s\n" % iface['ip'])
+                    ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
+                    ifcfd.write("PEERDNS=yes\n")
 
             # this is a writeable file:
             writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)

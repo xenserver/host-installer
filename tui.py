@@ -346,25 +346,22 @@ def get_name_service_configuration(answers):
         for entry in entries:
             entry.setFlags(FLAG_DISABLED, cb.value())
 
-    def auto_hostname_change((cb, entry)):
+    def manual_hostname_change((cb, entry)):
         entry.setFlags(FLAG_DISABLED, cb.value())
-
-    ask_autohostname = not answers['iface-configuration'][0]
 
     gf = GridFormHelp(screen, 'Name Service Configuration', None, 1, 8)
         
     text = TextboxReflowed(50, "How should the name service be configured?")
     buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
 
-    if ask_autohostname:
-        auto_hostname = Checkbox("Set hostname manually?", 0)
-        hostname_text = Textbox(15, 1, "Hostname:")
-        hostname = Entry(30)
-        hostname.setFlags(FLAG_DISABLED, 0)
-        hostname_grid = Grid(2, 1)
-        hostname_grid.setField(hostname_text, 0, 0)
-        hostname_grid.setField(hostname, 1, 0)
-        auto_hostname.setCallback(auto_hostname_change, (auto_hostname, hostname))
+    manual_hostname = Checkbox("Specify hostname manually?", 0)
+    hostname_text = Textbox(15, 1, "Hostname:")
+    hostname = Entry(30)
+    hostname.setFlags(FLAG_DISABLED, 0)
+    hostname_grid = Grid(2, 1)
+    hostname_grid.setField(hostname_text, 0, 0)
+    hostname_grid.setField(hostname, 1, 0)
+    manual_hostname.setCallback(manual_hostname_change, (manual_hostname, hostname))
 
     ns1_text = Textbox(15, 1, "Nameserver 1:")
     ns1_entry = Entry(30)
@@ -387,16 +384,15 @@ def get_name_service_configuration(answers):
     for entry in [ns1_entry, ns2_entry, ns3_entry]:
         entry.setFlags(FLAG_DISABLED, 0)
 
-    auto_nameservers = Checkbox("Enter DNS server manually?", 0)
-    auto_nameservers.setCallback(auto_nameserver_change, (auto_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
+    manual_nameservers = Checkbox("Specify DNS servers manually?", 0)
+    manual_nameservers.setCallback(auto_nameserver_change, (manual_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
 
-    if ask_autohostname:
-        gf.add(auto_hostname, 0, 1)
-        gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
+    gf.add(manual_hostname, 0, 1)
+    gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
         
-    gf.add(auto_nameservers, 0, 3)
+    gf.add(manual_nameservers, 0, 3)
     gf.add(ns1_grid, 0, 4)
     gf.add(ns2_grid, 0, 5)
     gf.add(ns3_grid, 0, 6, padding = (0,0,0,1))
@@ -406,23 +402,20 @@ def get_name_service_configuration(answers):
     result = gf.runOnce()
 
     if buttons.buttonPressed(result) == "ok":
-        if ask_autohostname:
-            # manual hostname?
-            if auto_hostname.value():
-                answers['manual-hostname'] = (False, None)
-            else:
-                answers['manual-hostname'] = (True, hostname.value())
+        # manual hostname?
+        if manual_hostname.value():
+            answers['manual-hostname'] = (True, hostname.value())
         else:
             answers['manual-hostname'] = (False, None)
 
         # manual nameservers?
-        if auto_nameservers.value():
-            answers['manual-nameservers'] = (False, None)
-        else:
+        if manual_nameservers.value():
             answers['manual-nameservers'] = (True, [ns1_entry.value(),
                                                     ns2_entry.value(),
                                                     ns3_entry.value()])
-
+        else:
+            answers['manual-nameservers'] = (False, None)
+            
         return 1
     else:
         return -1
@@ -430,27 +423,8 @@ def get_name_service_configuration(answers):
 def get_autoconfig_ifaces(answers):
     global screen
 
-    entries = netutil.getNetifList()
-
-    text = TextboxReflowed(50, "Which network interfaces need to be configured manually?  (Interfaces you do not select here will be brought up by DHCP.)")
-    buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
-    cbt = CheckboxTree(4, 1)
-    for x in entries:
-        cbt.append(x)
-    
-    gf = GridFormHelp(screen, 'Network Configuration', None, 1, 3)
-    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
-    gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(buttons, 0, 2)
-    
-    result = gf.runOnce()
-
-    if buttons.buttonPressed(result) == 'back': return -1
-
     seq = []
-    manually_configured = cbt.getSelection()
-
-    for x in manually_configured:
+    for x in netutil.getNetifList():
         seq.append((get_iface_configuration, { 'iface': x }))
 
     if len(seq) == 0:
@@ -459,13 +433,7 @@ def get_autoconfig_ifaces(answers):
         if buttons.buttonPressed(result) == 'ok': return 1
 
     subdict = {}
-
     rv = uicontroller.runUISequence(seq, subdict)
-
-    for x in entries:
-        if x not in manually_configured:
-            subdict[x] = {"use-dhcp": True}
-
     answers['iface-configuration'] = (False, subdict)
     
     if rv == -1: return 0
@@ -475,21 +443,62 @@ def get_autoconfig_ifaces(answers):
 def get_iface_configuration(answers, args):
     global screen
 
+    def enabled_change():
+        for x in [ ip_field, gateway_field, subnet_field ]:
+            x.setFlags(FLAG_DISABLED,
+                           (enabled_cb.value() and not dhcp_cb.value()))
+        dhcp_cb.setFlags(FLAG_DISABLED, enabled_cb.value())
+    def dhcp_change():
+        for x in [ ip_field, gateway_field, subnet_field ]:
+            x.setFlags(FLAG_DISABLED,
+                           (enabled_cb.value() and not dhcp_cb.value()))
+
     iface = args['iface']
+    gf = GridFormHelp(screen, 'Network Configuration', None, 1, 5)
+    text = TextboxReflowed(60, "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface)))
+    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
 
-    (button, (ip, snm, gw)) = EntryWindow(screen,
-                                          "Configuration for %s" % iface,
-                                          "Please give configuration details for the interface %s" % iface,
-                                          ['IP Address:', 'Subnet mask:', 'Gateway:'],
-                                          buttons = ['Ok', 'Back'])
+    enabled_cb = Checkbox("Enable interface", 1)
+    dhcp_cb = Checkbox("Configure with DHCP", 1)
+    enabled_cb.setCallback(enabled_change, ())
+    dhcp_cb.setCallback(dhcp_change, ())
 
-    answers[iface] = {'use-dhcp': False,
-                      'ip': ip,
-                      'subnet-mask': snm,
-                      'gateway': gw }
-    
-    if button == 'ok': return 1
-    if button == 'back': return -1
+    ip_field = Entry(16)
+    ip_field.setFlags(FLAG_DISABLED, False)
+    subnet_field = Entry(16)
+    subnet_field.setFlags(FLAG_DISABLED, False)
+    gateway_field = Entry(16)
+    gateway_field.setFlags(FLAG_DISABLED, False)
+
+    ip_text = Textbox(15, 1, "IP Address:")
+    subnet_text = Textbox(15, 1, "Subnet mask:")
+    gateway_text = Textbox(15, 1, "Gateway:")
+
+    entry_grid = Grid(2, 3)
+    entry_grid.setField(ip_text, 0, 0)
+    entry_grid.setField(ip_field, 1, 0)
+    entry_grid.setField(subnet_text, 0, 1)
+    entry_grid.setField(subnet_field, 1, 1)
+    entry_grid.setField(gateway_text, 0, 2)
+    entry_grid.setField(gateway_field, 1, 2)
+
+    gf.add(text, 0, 0, padding = (0,0,0,1))
+    gf.add(enabled_cb, 0, 1)
+    gf.add(dhcp_cb, 0, 2)
+    gf.add(entry_grid, 0, 3, padding = (0,0,0,1))
+    gf.add(buttons, 0, 4)
+
+    result = gf.runOnce()
+
+    if buttons.buttonPressed(result) == 'ok':
+        answers[iface] = {'use-dhcp': dhcp_cb.value(),
+                          'enabled': enabled_cb.value(),
+                          'ip': ip_field.value(),
+                          'subnet-mask': subnet_field.value(),
+                          'gateway': gateway_field.value() }
+        return 1
+    elif buttons.buttonPressed(result) == 'back':
+        return -1
 
 def get_timezone(answers):
     global screen

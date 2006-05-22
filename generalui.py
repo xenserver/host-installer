@@ -32,10 +32,6 @@ def getTimeZones():
     # strip trailing newlines:
     return map(lambda x: x.strip('\n'), lines)
 
-# TODO
-def getHWAddr(iface):
-    return None
-
 def disk_selection(answers, args):
     ui_package = args['ui-package']
     disks = diskutil.getQualifiedDiskList()

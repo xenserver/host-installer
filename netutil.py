@@ -39,3 +39,15 @@ def writeDebStyleInterfaceFile(configuration, filename):
 def ifup(interface):
     assert interface in getNetifList()
     return util.runCmd("ifup %s" % interface)
+
+def __readOneLineFile__(filename):
+    try:
+        f = open(filename)
+        value = f.readline().strip('\n')
+        f.close()
+        return value
+    except Exception, e:
+        raise e
+
+def getHWAddr(iface):
+    return __readOneLineFile__('/sys/class/net/%s/address' % iface)
