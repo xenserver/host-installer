@@ -288,7 +288,7 @@ def get_root_password(answers):
     while not done:
         (button, result) = PasswordEntryWindow(screen,
                                      "Set Password",
-                                     "Please specify the root password for this installation",
+                                     "Please specify the root password for this installation. \n\n(This is the password used when connecting to the managed host from the GUI.)",
                                      ['Password', 'Confirm'],
                                      buttons = ['Ok', 'Back'])
         if button == 'back':
