@@ -127,6 +127,11 @@ def __parse_answerfile__(answerdoc, results):
 
         netifs[name] = netif
 
+    # post-install-script
+    pis_nodes = n.getElementsByTagName('post-install-script')
+    if len(pis_nodes) == 1:
+        results['post-install-script'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
+    
     results['iface-configuration'] = (False, netifs)
     
 
