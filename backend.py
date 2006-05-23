@@ -141,6 +141,7 @@ def performInstallation(answers, ui_package):
         
         writeInventory(mounts, answers)
         writeDhclientHooks(mounts, answers)
+        touchSshAuthorizedKeys(mounts, answers)
         ui_package.displayProgressDialog(17, pd)
         
         #initNfs(mounts, answers)
