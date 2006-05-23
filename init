@@ -25,7 +25,8 @@ base_modules = ['sd-mod',
                 'dm-mod',
                 'loop',
                 'ata_piix',
-                'rtc']
+                'rtc',
+                'ext3']
 
 module_map = { 'mptscsih': ['mptspi', 'mptscsih'] }
 
