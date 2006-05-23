@@ -49,7 +49,8 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/hostname',
                     '/etc/syslog.conf',
                     '/etc/issue',
-                    '/etc/adjtime' ,
+                    '/etc/adjtime',
+                    '/etc/passwd',
                     '/etc/lvm/.cache']
 
 # directories to be created in the dom0 FS
