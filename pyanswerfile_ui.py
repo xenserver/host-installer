@@ -68,13 +68,14 @@ Do you want to use existing settings?
             if button == "no":
                 pyAnswerFile = None
                 results['usesettings'] = False
+                runCmd("umount /tmp/mnt")
                 return
             else:
                 fd = open(pyAnswerFile, "r")
                 answers = pickle.load(fd)
                 fd.close()
-            runCmd("umount /tmp/mnt")
-            results['usesettings'] = True
+                runCmd("umount /tmp/mnt")
+                results['usesettings'] = True
 
     elif pyAnswerFile is not None:
         fd = open(pyAnswerFile, 'r')
