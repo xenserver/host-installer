@@ -108,8 +108,8 @@ class LocalInstallMethod(InstallMethod):
     def finished(self):
         if os.path.ismount('/tmp/cdmnt'):
             util.umount('/tmp/cdmnt')
-            if os.path.exists('/bin/eject') and self.device:
-                util.runCmd('/bin/eject %s' % self.device)
+            if os.path.exists('/usr/bin/eject') and self.device:
+                util.runCmd('/usr/bin/eject %s' % self.device)
 
 
 ###
