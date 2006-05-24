@@ -59,6 +59,25 @@ def getQualifiedDeviceName(disk):
         # TODO we should throw an exception here instead:
         return None
 
+# Given a partition (e.g. /dev/sda1), get a disk name:
+def diskFromPartition(partition):
+    numlen = 1
+    while 1:
+        try:
+            partnum = int(partition[len(partition) - numlen:])
+        except:
+            # move back one as this value failed.
+            numlen -= 1 
+            break
+        else:
+            numlen += 1
+
+    # is it a cciss?
+    if partition[:10] == '/dev/cciss':
+        numlen += 1 # need to get rid of trailing 'p'
+    return partition[:len(partition) - numlen]
+        
+
 def __readOneLineFile__(filename):
     try:
         f = open(filename)
@@ -138,3 +157,48 @@ def writePartitionTable(disk, partitions):
     if os.path.exists('/sbin/udevstart'):
         os.system('/sbin/udevstart')
     
+# get a mapping of partitions to the volume group they are part of:
+def getVGPVMap():
+    pipe = popen2.Popen3("pvscan 2>/dev/null | egrep '*[ \t]*PV' | awk '{print $2,$4;}'")
+    volumes = pipe.fromchild.readlines()
+    pipe.wait()
+
+    volumes = map(lambda x: x.strip('\n').split(' '), volumes)
+    rv = {}
+    for [vg, pv] in volumes:
+        if rv.has_key(pv):
+            rv[pv].append[vg]
+        else:
+            rv[pv] = [vg]
+
+    return rv
+
+# given a list of disks, work out which ones are part of volume
+# groups that will cause a problem if we install XE to those disks:
+def findProblematicVGs(disks):
+    vgmap = getVGPVMap()
+
+    problems = []
+    for vg in vgmap:
+        # are we looking at wiping out only part of a volume
+        # group here?
+        _vgdisks = map(lambda x: diskFromPartition(x), vgmap[vg])
+        vgdisks = []
+        for disk in _vgdisks:
+            if disk not in vgdisks:
+                vgdisks.append(disk)
+
+        # if the disks in the volume group is not a subset of the
+        # disks we are installing to, but the the volume group
+        # resides on at least one disk that we're installing to
+        # then there is a problem associated with that VG:
+        if not util.subset(vgdisks, disks) and \
+           len(util.intersect(vgdisks, disks)) != 0:
+            problems.append(vg)
+
+    return problems
+
+# does VG_XenSource already exist?
+def detectExistingInstallation():
+    # yuck
+    return os.system("vgscan 2>/dev/null | grep -q 'VG_XenSource'") == 0

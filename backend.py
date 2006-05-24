@@ -70,8 +70,11 @@ def performInstallation(answers, ui_package):
                                                22)
 
         ui_package.displayProgressDialog(0, pd)
-            
+
         if isUpgradeInstall == False:    
+            # remove any volume groups 
+            removeBlockingVGs([answers['primary-disk']] + answers['guest-disks'])
+
             # Dom0 Disk partition table
             writeDom0DiskPartitions(answers['primary-disk'])
             ui_package.displayProgressDialog(1, pd)
@@ -87,8 +90,6 @@ def performInstallation(answers, ui_package):
             
             # Put filesystems on Dom0 Disk
             createDom0DiskFilesystems(answers['primary-disk'])
-        else:
-            initLVM(answers) 
 
         createDom0Tmpfs(answers['primary-disk'])
         ui_package.displayProgressDialog(4, pd)
@@ -200,6 +201,15 @@ def CheckInstalledVersion(answers):
             return True
     return False
 
+def removeBlockingVGs(disks):
+    if diskutil.detectExistingInstallation():
+        util.runCmd2(['lvremove', 'VG_XenSource'])
+        util.runCmd2(['vgremove', 'VG_XenSource'])
+
+    for vg in diskutil.findProblematicVGs(disks):
+        util.runCmd2(['lvremove', vg])
+        util.runCmd2(['vgremove', vg])
+
 def removeOldFs(mounts, answers):
     fsname = "%s/%s-%s.img" % (mounts['boot'],
                                version.dom0_name,
@@ -291,14 +301,6 @@ def determinePartitionName(guestdisk, partitionNumber):
     else:
         return guestdisk + "%d" % partitionNumber
 
-def initLVM(answers):
-    # We don't want an lvm state directory so set the environment
-    # up appropraitely:
-    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
-    if not os.path.exists('/tmp/lvm'):
-    	os.mkdir('/tmp/lvm')
-
-
 def prepareLVM(answers):
     global vgname
     global dom0_size
@@ -307,8 +309,6 @@ def prepareLVM(answers):
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
     partitions += map(lambda x: determinePartitionName(x, 1),
                       answers['guest-disks'])
-
-    initLVM(answers)
 
     rc = 0
     # TODO - better error handling

@@ -112,6 +112,49 @@ def upgrade_screen(answers):
     else:
         return 1
 
+def confirm_wipe_existing(answers):
+    global screen
+
+    if not diskutil.detectExistingInstallation():
+        return 1
+
+    button = ButtonChoiceWindow(screen,
+                       "Existing installations detected",
+                       """There appear to be existing or incomplete installations of %s already present on your system.
+
+If you continue with this installation, you will lose any data associated with old installations of %s""" % (PRODUCT_BRAND, PRODUCT_BRAND),
+                       ['Continue', 'Back'], width=60)
+
+    if button == 'continue':
+        return 1
+    elif button == 'back':
+        return -1
+
+def confirm_erase_volume_groups(answers):
+    global screen
+
+    problems = diskutil.findProblematicVGs(answers['guest-disks'] + [answers['primary-disk']])
+    if len(problems) == 0:
+        return 1
+
+    if len(problems) == 1:
+        affected = "The volume group affected is %s.  Are you sure you wish to continue?" % problems[0]
+    else:
+        affected = "The volume groups affected are %s.  Are you sure you wish to continue?" % generalui.makeHumanList(problems)
+
+    button = ButtonChoiceWindow(screen,
+                                "Conflicting LVM Volume Gruops",
+                                """Some or all of the disks you selected to install %s onto contain parts of LVM volume groups.  Proceeding with the installation will cause these volume groups to be deleted.
+
+%s""" % (PRODUCT_BRAND, affected),
+                                ['Continue', 'Back'], width=60)
+
+    if button == 'continue':
+        return 1
+    elif button == 'back':
+        return -1
+
+
 def select_installation_source(answers, other):
     global screen
 

@@ -6,6 +6,7 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
+import os
 import sys
 import traceback
 import string
@@ -52,6 +53,10 @@ def main():
     except GetoptError:
         print "This program takes no arguments."
         sys.exit(1)
+
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
+    if not os.path.exists('/tmp/lvm'):
+    	os.mkdir('/tmp/lvm')
 
     clog_fds = []
 
@@ -123,26 +128,27 @@ def main():
             seq = [ ui_package.not_enough_space_screen ]
             uicontroller.runUISequence(seq, results)
         else:
-            seq = [ ui_package.get_root_password,
-                    ui_package.get_timezone,
-                    ui_package.set_time,
-                    ui_package.determine_basic_network_config,
-                    ui_package.get_name_service_configuration,
-                    ( generalui.confirm_installation,
-                      { 'ui-package': ui_package }) ]
-                
-            seq = [ (ui_package.select_installation_source, { 'cd-available': True}),
-                    ui_package.get_http_source,
-                    ui_package.get_nfs_source ] + seq
-
-            if not isUpgrade:
-                seq.insert(0, ( generalui.disk_selection, { 'ui-package': ui_package  }) )
-                seq.insert(0, ui_package.welcome_screen)
-            else:
-                seq.insert(0, ui_package.upgrade_screen )
+            if isUpgrade:
+                seq = [ ui_package.upgrade_screen ]
                 if not backend.CheckInstalledVersion(results):
                     ui_package.error_dialog("Upgrade Failed. Can't find an old installation to upgrade")
                     raise Exception("Failed to upgrade")
+            else:
+                seq = [ ui_package.welcome_screen,
+                        ( generalui.disk_selection, { 'ui-package': ui_package  }) ]
+
+            seq += [ ui_package.confirm_erase_volume_groups,
+                     ui_package.confirm_wipe_existing,
+                     (ui_package.select_installation_source, { 'cd-available': True}),
+                     ui_package.get_http_source,
+                     ui_package.get_nfs_source,
+                     ui_package.get_root_password,
+                     ui_package.get_timezone,
+                     ui_package.set_time,
+                     ui_package.determine_basic_network_config,
+                     ui_package.get_name_service_configuration,
+                     ( generalui.confirm_installation,
+                       { 'ui-package': ui_package }) ]
 
             uicontroller.runUISequence(seq, results)
 
