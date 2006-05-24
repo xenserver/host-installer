@@ -159,6 +159,10 @@ def confirm_installation_one_disk(answers):
     return 1
 def confirm_installation_multiple_disks(answers):
     return 1
+def confirm_erase_volume_groups(answers):
+    return 1
+def confirm_wipe_existing(answers):
+    return 1
 def select_installation_source(answers, other):
     return 1
 def get_http_source(answers):
