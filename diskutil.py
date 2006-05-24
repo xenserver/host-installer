@@ -9,6 +9,7 @@ import re
 import os.path
 import subprocess
 import util
+import popen2
 
 disk_nodes = [
     # sda -> sdh:
@@ -68,10 +69,16 @@ def __readOneLineFile__(filename):
         raise e
 
 def getDiskDeviceVendor(dev):
-    return __readOneLineFile__("/sys/block/%s/device/vendor" % dev).strip(' \n')
+    if os.path.exists("/sys/block/%s/device/vendor" % dev):
+        return __readOneLineFile__("/sys/block/%s/device/vendor" % dev).strip(' \n')
+    else:
+        return ""
 
 def getDiskDeviceModel(dev):
-    return __readOneLineFile__("/sys/block/%s/device/model" % dev).strip('  \n')
+    if os.path.exists("/sys/block/%s/device/model" % dev):
+        return __readOneLineFile__("/sys/block/%s/device/model" % dev).strip('  \n')
+    else:
+        return ""
     
 def getDiskDeviceSize(dev):
     if os.path.exists("/sys/block/%s/device/block/size" % dev):
@@ -130,3 +137,4 @@ def writePartitionTable(disk, partitions):
     # XXX - hack to make device nodes appear
     if os.path.exists('/sbin/udevstart'):
         os.system('/sbin/udevstart')
+    
