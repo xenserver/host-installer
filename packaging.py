@@ -58,17 +58,17 @@ class NFSInstallMethod(InstallMethod):
         if not os.path.isdir('/tmp/nfs-source'):
             os.mkdir('/tmp/nfs-source')
         try:
-            util.mount(self.nfsPath, '/tmp/nfs-source')
+            util.mount(self.nfsPath, '/tmp/nfs-source', fstype = 'nfs')
         except util.MountFailureException:
             raise BadSourceAddress()
 
     def openPackage(self, package):
-        assert os.path.ismount('/tmp/nfs-mount')
-        return open('/tmp/nfs-mount/%s.tar.bz2' % package, 'r')
+        assert os.path.ismount('/tmp/nfs-source')
+        return open('/tmp/nfs-source/%s.tar.bz2' % package, 'r')
 
     def finished(self):
-        assert os.path.ismount('/tmp/nfs-mount')
-        util.umount('/tmp/nfs-mount')
+        assert os.path.ismount('/tmp/nfs-source')
+        util.umount('/tmp/nfs-source')
 
 class LocalInstallMethod(InstallMethod):
     def __init__(self, *args):
@@ -117,8 +117,8 @@ class LocalInstallMethod(InstallMethod):
 
 def installPackage(packagename, method, dest):
     package = method.openPackage(packagename)
-    
-    pipe = popen2.Popen3('tar -C %s -xjf -' % dest, bufsize = 1024 * 1024)
+
+    pipe = popen2.Popen3('tar -C %s -xjf - 2>&1' % dest, bufsize = 1024 * 1024)
     
     data = ''
     while True:

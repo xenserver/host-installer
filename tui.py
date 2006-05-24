@@ -155,7 +155,7 @@ def get_nfs_source(answers):
                                        ['NFS Path'],
                                        buttons = ['Ok', 'Back'])
         
-        answers['source-address'] = result
+        answers['source-address'] = result[0]
 
         # TODO: validate URL
 
