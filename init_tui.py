@@ -20,6 +20,10 @@ def end_ui():
     if screen:
         screen.finish()
 
+def refresh():
+    if screen:
+        screen.refresh()
+
 def startup_screen():
     ButtonChoiceWindow(screen,
                        "Welcome to %s" % PRODUCT_BRAND,

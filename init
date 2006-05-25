@@ -28,7 +28,10 @@ base_modules = ['sd-mod',
                 'rtc',
                 'ext3']
 
-module_map = { 'mptscsih': ['mptspi', 'mptscsih'] }
+module_map = { 'mptscsih': ['mptspi', 'mptscsih'],
+               'i810-tco': None,
+               'ide-scsi': 'ide-generic'
+               }
 
 MODE_INTERACTIVE = 0
 MODE_INSTALL = 1
@@ -62,28 +65,43 @@ def discoverUSBHardware():
 
 # Use the 'discover' tool to detect hardware and load needed
 # modules;
-def discoverHardware():
-    rc, out = commands.getstatusoutput("discover --enable-all --module ide scsi ethernet video")
-    assert rc == 0
-    out = out.split('\n')
+#
+# This has turned into a bit of a hack.  The 'hwdetect' script
+# uses information directly from the kernel build to find hardware
+# (i.e. modules.pcimap), but I don't entirely understand where
+# these come from or oif they're complete.
+def discoverHardware(ui = None):
+    rc, out = commands.getstatusoutput("discover --enable-all --module all")
+    rc2, out2 = commands.getstatusoutput("/opt/xensource/installer/hwdetect")
+    assert rc == 0 and rc2 == 0
+    out = out + out2
+    out = out.split("\n")
+
+    # Hack to get rid of 'AT' characters on screen when using
+    # serial console
+    if ui:
+        ui.refresh()
     
     modules = []
     for m in out:
-        if m not in modules:
+        if m not in modules and m != "":
             modules.append(m)
 
     for mod in modules:
         # do we have different ideas about the required modules
         # than Discover?
         if module_map.has_key(mod):
-            xelogging.log("Discover found %s - we think we need %s" % (mod, module_map[mod]))
-            if type(module_map) == str:
-                xelogging.log("Loading %s" % module_map[mod])
-                util.runCmd("modprobe %s" % module_map[mod])
+            if module_map[mod] == None:
+                xelogging.log("Ignoring module %s" % mod)
             else:
-                for mymod in module_map[mod]:
+                xelogging.log("Discover found %s - we think we need %s" % (mod, module_map[mod]))
+                if type(module_map[mod]) == str:
                     xelogging.log("Loading %s" % module_map[mod])
-                    util.runCmd("modprobe %s" % mymod)
+                    util.runCmd("modprobe %s" % module_map[mod])
+                else:
+                    for mymod in module_map[mod]:
+                        xelogging.log("Loading %s" % module_map[mod])
+                        util.runCmd("modprobe %s" % mymod)
         else:
             # just continue loading the module
             xelogging.log('Loading %s' % mod)
@@ -188,7 +206,7 @@ def main():
 
     # detect hardware:
     ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
-    discoverHardware()
+    discoverHardware(ui_package)
     ui_package.clearModelessDialog()
 
     for m in modules:

@@ -6,6 +6,7 @@
 # Copyright XenSource Inc. 2006
 
 SKIP_SCREEN = -100
+EXIT = -101
 
 def runUISequence(seq, answers, previous_delta = 1):
     assert type(seq) == list
@@ -33,6 +34,8 @@ def runUISequence(seq, answers, previous_delta = 1):
 
         if delta == SKIP_SCREEN:
             delta = previous_delta
+        if delta == EXIT:
+            break
         current += delta
 
     return delta

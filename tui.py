@@ -123,12 +123,12 @@ def confirm_wipe_existing(answers):
                        """There appear to be existing or incomplete installations of %s already present on your system.
 
 If you continue with this installation, you will lose any data associated with old installations of %s""" % (PRODUCT_BRAND, PRODUCT_BRAND),
-                       ['Continue', 'Back'], width=60)
+                       ['Continue', 'Cancel Installation'], width=60)
 
     if button == 'continue':
         return 1
-    elif button == 'back':
-        return -1
+    elif button == 'cancel installation':
+        return uicontroller.EXIT
 
 def confirm_erase_volume_groups(answers):
     global screen
@@ -147,12 +147,12 @@ def confirm_erase_volume_groups(answers):
                                 """Some or all of the disks you selected to install %s onto contain parts of LVM volume groups.  Proceeding with the installation will cause these volume groups to be deleted.
 
 %s""" % (PRODUCT_BRAND, affected),
-                                ['Continue', 'Back'], width=60)
+                                ['Continue', 'Cancel Installation'], width=60)
 
     if button == 'continue':
         return 1
-    elif button == 'back':
-        return -1
+    elif button == 'cancel installation':
+        return uicontroller.EXIT
 
 
 def select_installation_source(answers, other):

@@ -54,6 +54,7 @@ def main():
         print "This program takes no arguments."
         sys.exit(1)
 
+    # prepare LVM - we need this very early now.
     os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
     if not os.path.exists('/tmp/lvm'):
     	os.mkdir('/tmp/lvm')
@@ -150,17 +151,20 @@ def main():
                      ( generalui.confirm_installation,
                        { 'ui-package': ui_package }) ]
 
-            uicontroller.runUISequence(seq, results)
+            uiexit = uicontroller.runUISequence(seq, results)
 
-            xelogging.log("Starting actual installation")       
-            backend.performInstallation(results, ui_package)
+            if uiexit != uicontroller.EXIT:
+                xelogging.log("Starting actual installation")       
+                backend.performInstallation(results, ui_package)
+                
+                if not isUpgrade:
+                    seq = [ ui_package.installation_complete ]
+                else:
+                    seq = [ ui_package.upgrade_complete ]
         
-            if not isUpgrade:
-                seq = [ ui_package.installation_complete ]
+                uicontroller.runUISequence(seq, results)
             else:
-                seq = [ ui_package.upgrade_complete ]
-        
-            uicontroller.runUISequence(seq, results)
+                xelogging.log("The user aborted the installation from within the user interface.")    
     except Exception:
         (t, v, tb) = sys.exc_info()
         err = traceback.format_exception(t,v,tb)
