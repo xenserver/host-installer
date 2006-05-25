@@ -167,7 +167,7 @@ def getVGPVMap():
     rv = {}
     for [vg, pv] in volumes:
         if rv.has_key(pv):
-            rv[pv].append[vg]
+            rv[pv].append(vg)
         else:
             rv[pv] = [vg]
 
