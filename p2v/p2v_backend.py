@@ -85,11 +85,14 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
         raise P2VError("Failed to prepare p2v. (%s)" % out)
 
     for line in out.split('\n'):
-        name, val = line.split('=')
-        if name == 'p2v_path':
-            os_install[name] = val
-        if name == 'uuid':
-            os_install[name] = val
+        try:
+            name, val = line.split('=')
+            if name == 'p2v_path':
+                os_install[name] = val
+            if name == 'uuid':
+                os_install[name] = val
+        except ValueError:
+            pass
     return rc
     
 def finish_agent(os_install, xe_host):
@@ -103,6 +106,10 @@ def determine_size(os_install):
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
 
+    used_size = long(0)
+    total_size = long(0)
+
+    #findroot.determine_size returns in bytes
     (total_size, used_size) = findroot.determine_size(os_root_mount_point, os_root_device )
     
     # adjust total size to 150% of used size, with a minimum of 4Gb

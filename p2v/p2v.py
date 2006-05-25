@@ -11,6 +11,7 @@ import p2v_uicontroller
 import sys
 import findroot
 import p2v_backend
+import xelogging
 import os
 
 from p2v_error import P2VError
@@ -22,6 +23,8 @@ ui_package = p2v_tui
 def main():
     os.environ['LVM_SYSTEM_DIR'] = '/tmp'
     ui_package.init_ui()
+    fd = open('/dev/tty3', "w")
+    xelogging.continuous_logs.append(fd)
 
     results = { 'ui-package': ui_package }
 

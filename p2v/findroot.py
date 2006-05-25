@@ -121,6 +121,7 @@ def find_extra_mounts(fstab, devices):
         mounts.append(mount_info)
     return mounts
 
+#returns in bytes
 def determine_size(mntpnt, dev_name):
     fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
     fstab = load_fstab(fp)
@@ -143,6 +144,7 @@ def determine_size(mntpnt, dev_name):
 
         active_mounts.append(extra_mntpnt)
 
+    #df reports in 1K blocks
     # get the used size
     command = "df -k | grep %s | awk '{print $3}'" % mntpnt
     p2v_utils.trace_message("going to run : %s" % command)
@@ -178,7 +180,7 @@ def determine_size(mntpnt, dev_name):
         # assume the umount works
         umount_dev(item)
 
-    return str(used_size), str(total_size)
+    return str(used_size * 1024), str(total_size * 1024)
 
 
 def handle_root(mntpnt, dev_name, pd = None):
