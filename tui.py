@@ -470,10 +470,11 @@ def get_autoconfig_ifaces(answers):
     for x in netutil.getNetifList():
         seq.append((get_iface_configuration, { 'iface': x }))
 
+    # when this was written this branch would never be taken
+    # since we require at least one NIC at setup time:
     if len(seq) == 0:
         answers['iface-configuration']  = (True, None)
-        if buttons.buttonPressed(result) == 'back': return -1
-        if buttons.buttonPressed(result) == 'ok': return 1
+        return 1
 
     subdict = {}
     rv = uicontroller.runUISequence(seq, subdict)
