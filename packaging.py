@@ -38,6 +38,11 @@ class HTTPInstallMethod(InstallMethod):
     def __init__(self, *args):
         self.baseURL = args[0].rstrip('/')
 
+        if not self.baseURL.startswith('http://') or \
+           not self.baseURL.startswith('https://') or \
+           not self.baseURL.startswith('ftp://'):
+            self.baseURL = "http://" + self.baseURL
+
     def openPackage(self, package):
         xelogging.log("Opening package %s" % package)
         assert self.baseURL != None and self.baseURL != ""
