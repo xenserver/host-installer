@@ -38,8 +38,8 @@ class HTTPInstallMethod(InstallMethod):
     def __init__(self, *args):
         self.baseURL = args[0].rstrip('/')
 
-        if not self.baseURL.startswith('http://') or \
-           not self.baseURL.startswith('https://') or \
+        if not self.baseURL.startswith('http://') and \
+           not self.baseURL.startswith('https://') and \
            not self.baseURL.startswith('ftp://'):
             self.baseURL = "http://" + self.baseURL
 
