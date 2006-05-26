@@ -544,19 +544,37 @@ def get_iface_configuration(answers, args):
     elif buttons.buttonPressed(result) == 'back':
         return -1
 
-def get_timezone(answers):
+def get_timezone_region(answers):
     global screen
 
-    entries = generalui.getTimeZones()
+    entries = generalui.getTimeZoneRegions()
 
     (button, entry) = ListboxChoiceWindow(screen,
                                           "Select Time Zone",
-                                          "Which time zone is the managed host in?",
+                                          "Please select the geographical area that the managed host is in.",
                                           entries,
                                           ['Ok', 'Back'], height = 8, scroll = 1)
 
     if button == "ok" or button == None:
-        answers['timezone'] = entries[entry]
+        answers['timezone-region'] = entries[entry]
+        return 1
+    
+    if button == "back": return -1
+
+def get_timezone_city(answers):
+    global screen
+
+    entries = generalui.getTimeZoneCities(answers['timezone-region'])
+
+    (button, entry) = ListboxChoiceWindow(screen,
+                                          "Select Time Zone",
+                                          "Please select the localised area that the managed host is in (press a letter to jump to that place in the list).",
+                                          map(lambda x: x.replace('_', ' '), entries),
+                                          ['Ok', 'Back'], height = 8, scroll = 1)
+
+    if button == "ok" or button == None:
+        answers['timezone-city'] = entries[entry]
+        answers['timezone'] = "%s/%s" % (answers['timezone-region'], answers['timezone-city'])
         return 1
     
     if button == "back": return -1

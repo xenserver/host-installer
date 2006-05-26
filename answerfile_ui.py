@@ -180,7 +180,9 @@ def get_root_password(answers):
         return 1
 def determine_basic_network_config(answers):
     return 1
-def get_timezone(answers):
+def get_timezone_region(answers):
+    return 1
+def get_timezone_city(answers):
     return 1
 def set_time(answers):
     answers['set-time'] = False

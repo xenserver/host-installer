@@ -24,13 +24,34 @@ def getNetifList():
 
     return interfaces
 
-def getTimeZones():
+def getTimeZoneRegions():
     tzf = open(constants.timezone_data_file)
     lines = tzf.readlines()
     tzf.close()
 
-    # strip trailing newlines:
-    return map(lambda x: x.strip('\n'), lines)
+    lines = map(lambda x: x.strip('\n').split('/'), lines)
+
+    regions = []
+    for zone in lines:
+        if zone[0] not in regions:
+            regions.append(zone[0])
+
+    return regions
+
+def getTimeZoneCities(desired_region):
+    tzf = open(constants.timezone_data_file)
+    lines = tzf.readlines()
+    tzf.close()
+
+    lines = map(lambda x: x.strip('\n').split('/'), lines)
+
+    cities = []
+    for zone in lines:
+        city = "/".join(zone[1:])
+        if zone[0] == desired_region:
+            cities.append(city)
+
+    return cities
 
 def disk_selection(answers, args):
     ui_package = args['ui-package']
