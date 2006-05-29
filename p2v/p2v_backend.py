@@ -58,7 +58,8 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     rc, out = findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c addkey -p '%s' '%s'" % (xe_host, root_password, ssh_pub_key_file))
 
     if rc != 0:
-        raise P2VError("Failed to add public ssh key. (%s)" % out)
+        p2v_utils.trace_message("Failed to add public key (%s)" % out)
+        raise P2VError("Failed to add public ssh key. Please verify your hostname and password.")
 
     os_install_name = os_install[p2v_constants.OS_NAME]
     os_install_version = os_install[p2v_constants.OS_VERSION]
