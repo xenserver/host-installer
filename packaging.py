@@ -15,6 +15,9 @@ import util
 class NoSuchPackage(Exception):
     pass
 
+class ErrorInstallingPackage(Exception):
+    pass
+
 class MediaNotFound(Exception):
     pass
 
@@ -57,6 +60,7 @@ class NFSInstallMethod(InstallMethod):
         self.nfsPath = args[0]
 
         if ':' not in self.nfsPath:
+            xelogging.log("NFS path was '%s', which did not contain a ':' character, which indicates a malformed path." % self.nfsPath)
             raise BadSourceAddress()
 
         # attempt a mount:
@@ -69,7 +73,9 @@ class NFSInstallMethod(InstallMethod):
 
     def openPackage(self, package):
         assert os.path.ismount('/tmp/nfs-source')
-        return open('/tmp/nfs-source/%s.tar.bz2' % package, 'r')
+        path = '/tmp/nfs-source/%s.tar.bz2' % package
+        xelogging.log("Opening package %s, which is located at %s in our filesystem." % (package, path))
+        return open(path, 'r')
 
     def finished(self):
         assert os.path.ismount('/tmp/nfs-source')
@@ -100,14 +106,19 @@ class LocalInstallMethod(InstallMethod):
                         util.umount('/tmp/cdmnt')
 
         if not device:
+            xelogging.log("ERROR: Install media not found.")
             assert not os.path.ismount('/tmp/cdmnt')
             raise MediaNotFound()
         else:
+            xelogging.log("Install media found on %s" % device)
             assert os.path.ismount('/tmp/cdmnt')
             self.device = device
 
     def openPackage(self, package):
         assert os.path.ismount('/tmp/cdmnt')
+        if not os.path.exists('/tmp/cdmnt/packages/%s.tar.bz2' % package):
+            xelogging.log("Package %s not found on source media (local)" % package)
+            raise NoSuchPackage, "Package %s not found on source media" % package
         return open('/tmp/cdmnt/packages/%s.tar.bz2' % package, 'r')
 
     def finished(self):
@@ -123,6 +134,8 @@ class LocalInstallMethod(InstallMethod):
 def installPackage(packagename, method, dest):
     package = method.openPackage(packagename)
 
+    xelogging.log("Starting installation of package %s" % packagename)
+
     pipe = popen2.Popen3('tar -C %s -xjf - &>/dev/null' % dest, bufsize = 1024 * 1024)
     
     data = ''
@@ -136,6 +149,8 @@ def installPackage(packagename, method, dest):
     
     pipe.tochild.close()
     pipe.fromchild.close()
-    assert pipe.wait() == 0
+
+    if pipe.wait() != 0:
+        raise ErrorInstallingPackage, "The decompressor returned an error processing package %s" % packagename
     
     package.close()

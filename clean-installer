@@ -72,6 +72,10 @@ def main():
             answerfile_ui.specifySubUI(ui_package)
             answerfile_ui.specifyAnswerFile(val)
             ui_package = answerfile_ui
+        if opt == "--verbose-answerfile":
+            answerfile_ui.specifyAnswerFile(val)
+            ui_package = answerfile_ui
+            xelogging.continuous_logs.append(sys.stdout)
         if opt == "--verbose-pyanswerfile":
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui

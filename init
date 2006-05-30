@@ -264,7 +264,7 @@ def main():
         if answerfile:
             os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
         elif verbose_answerfile:
-            os.system("/opt/xensource/installer/clean-installer --verbose-pyanswerfile %s" % verbose_answerfile)
+            os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
         else:
             os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
         os.system("reboot")
