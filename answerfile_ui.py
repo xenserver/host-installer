@@ -102,6 +102,12 @@ def __parse_answerfile__(answerdoc, results):
     # timezone:
     results['timezone'] = getText(n.getElementsByTagName('timezone')[0].childNodes)
 
+    # ntp-servers:
+    results['ntp-servers'] = []
+    for disk in n.getElementsByTagName('ntp-servers'):
+        results['ntp-servers'].append(getText(disk.childNodes))
+    results['time-config-method'] = 'ntp'
+
     # iface-configuration
     netifs = { }
     for netifnode in n.getElementsByTagName('interface'):
@@ -184,8 +190,11 @@ def get_timezone_region(answers):
     return 1
 def get_timezone_city(answers):
     return 1
-def set_time(answers):
-    answers['set-time'] = False
+def get_time_configuration_method(answers):
+    return 1
+def get_ntp_servers(answers):
+    return 1
+def set_time(answers, now):
     return 1
 def get_name_service_configuration(answers):
     return 1

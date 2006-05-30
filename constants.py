@@ -40,6 +40,18 @@ ANSWERS_FILE = "upgrade_answers"
 # location of the timezone data file in the installation environment
 timezone_data_file = '/opt/xensource/installer/timezones'
 
+# packages to be installed
+packages = [ "dom0fs-%s-%s" % (version.dom0_name, version.dom0_version),
+             "kernels",
+             "xgts",
+             "rhel41-guest-installer",
+             "vendor-kernels",
+             "xen-kernel",
+             "documentation",
+             "rpms",
+             'timeutil'
+            ]
+
 # files that should be writeable in the dom0 FS
 writeable_files = [ '/etc/yp.conf',
                     '/etc/ntp.conf',

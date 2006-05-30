@@ -123,7 +123,7 @@ class LocalInstallMethod(InstallMethod):
 def installPackage(packagename, method, dest):
     package = method.openPackage(packagename)
 
-    pipe = popen2.Popen3('tar -C %s -xjf -' % dest, bufsize = 1024 * 1024)
+    pipe = popen2.Popen3('tar -C %s -xjf - &>/dev/null' % dest, bufsize = 1024 * 1024)
     
     data = ''
     while True:

@@ -12,6 +12,8 @@ import commands
 import subprocess
 import urllib2
 import shutil
+import re
+import datetime
 
 ###
 # directory/tree management
@@ -56,7 +58,7 @@ def rmtree(path):
 
 def runCmd(command):
     (rv, output) = commands.getstatusoutput(command)
-    xelogging.logOutput(command, output)
+    xelogging.logOutput(command + " (rc %d)" % rv, output)
     return rv
 
 def runCmd2(command):
@@ -81,7 +83,7 @@ def runCmd2(command):
     output = "STANDARD OUT:\n" + out + \
              "STANDARD ERR:\n" + err
     
-    xelogging.logOutput(command, output)
+    xelogging.logOutput(" ".join(command) + " (rc %d)" % rv, output)
     return rv
 
 def runCmdWithOutput(command):
@@ -133,6 +135,13 @@ def umount(mountpoint, force = False):
                           stdout = subprocess.PIPE,
                           stderr = subprocess.PIPE).wait()
     assert rc == 0
+
+def parseTime(timestr):
+    match = re.match('(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', timestr)
+    (year, month, day, hour, minute, second) = map(lambda x: int(x), match.groups())
+    time = datetime.datetime(year, month, day, hour, minute, second)
+
+    return time
 
 ###
 # list utilities

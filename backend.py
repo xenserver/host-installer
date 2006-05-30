@@ -22,6 +22,7 @@ import netutil
 from util import runCmd
 import shutil
 import packaging
+import constants
 
 # Product version and constants:
 import version
@@ -63,11 +64,11 @@ def performInstallation(answers, ui_package):
         if isUpgradeInstall:
             pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
                                                'Upgrading %s, please wait...' % PRODUCT_BRAND,
-                                               22)
+                                               25)
         else:
             pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
                                                'Installing %s, please wait...' % PRODUCT_BRAND,
-                                               22)
+                                               25)
 
         ui_package.displayProgressDialog(0, pd)
 
@@ -94,80 +95,70 @@ def performInstallation(answers, ui_package):
         createDom0Tmpfs(answers['primary-disk'])
         ui_package.displayProgressDialog(4, pd)
         
-        # Customise the installation:
+        # Mount the system image:
         mounts = mountVolumes(answers['primary-disk'])
         ui_package.displayProgressDialog(5, pd)
 
-        # Extract Dom0 onto disk:
-        packaging.installPackage("dom0fs-%s-%s" % (dom0_name, dom0_version),
-                                 installmethod, mounts['root'])
-        ui_package.displayProgressDialog(6, pd)
-        
-        # Install grub and grub configuration to read-write partition
-        installGrub(mounts, answers['primary-disk'])
-        ui_package.displayProgressDialog(7, pd)
-        
-        # put kernel in /boot and prepare it for use:
-        packaging.installPackage("kernels", installmethod, mounts['root'])
-        doDepmod(mounts, answers)
-        ui_package.displayProgressDialog(8, pd)
-        
-        packaging.installPackage("xgts", installmethod, mounts['root'])
-        ui_package.displayProgressDialog(9, pd)
+        # Install packages:
+        progress = 5
+        for package in constants.packages:
+            packaging.installPackage(package, installmethod, mounts['root'])
+            progress += 1
+            ui_package.displayProgressDialog(progress, pd)
 
-        packaging.installPackage("rhel41-guest-installer", installmethod, mounts['root'])
-        ui_package.displayProgressDialog(10, pd)
-        
-        packaging.installPackage("vendor-kernels", installmethod, mounts['root'])
-        packaging.installPackage("xen-kernel", installmethod, mounts['root'])
-        packaging.installPackage("documentation", installmethod, mounts['root'])
-        ui_package.displayProgressDialog(11, pd)
-        
-        packaging.installPackage("rpms", installmethod, mounts['root'])
-        ui_package.displayProgressDialog(12, pd)
+        # Install the bootloader:
+        installGrub(mounts, answers['primary-disk'])
+        ui_package.displayProgressDialog(14, pd)
+
+        # Depmod the kernel:
+        doDepmod(mounts, answers)
+        ui_package.displayProgressDialog(15, pd)
         
         # perform dom0 file system customisations:
         mkLvmDirs(mounts, answers)
         writeResolvConf(mounts, answers)
-        ui_package.displayProgressDialog(13, pd)
+        ui_package.displayProgressDialog(16, pd)
         
         configureNetworking(mounts, answers)
-        ui_package.displayProgressDialog(14, pd)
+        ui_package.displayProgressDialog(17, pd)
         
         writeFstab(mounts, answers)
-        ui_package.displayProgressDialog(15, pd)
+        ui_package.displayProgressDialog(18, pd)
         
         writeModprobeConf(mounts, answers)
-        ui_package.displayProgressDialog(16, pd)
+        ui_package.displayProgressDialog(19, pd)
         
         writeInventory(mounts, answers)
         writeDhclientHooks(mounts, answers)
         touchSshAuthorizedKeys(mounts, answers)
-        ui_package.displayProgressDialog(17, pd)
+        ui_package.displayProgressDialog(20, pd)
         
         #initNfs(mounts, answers)
-        ui_package.displayProgressDialog(18, pd)
+        ui_package.displayProgressDialog(21, pd)
         
         # set the root password:
         ui_package.suspend_ui()
         setRootPassword(mounts, answers)
         ui_package.resume_ui()
-        ui_package.displayProgressDialog(19, pd)
+        ui_package.displayProgressDialog(22, pd)
         
-        # set system time
-        setTime(mounts, answers)
-        ui_package.displayProgressDialog(20, pd)
+        # configure NTP:
+        configureNTP(mounts, answers)
+        ui_package.displayProgressDialog(23, pd)
         
         # complete the installation:
         makeSymlinks(mounts, answers)    
-#TODO in the new world    copyFirewallFiles(mounts, answers)
-        ui_package.displayProgressDialog(21, pd)
+        ui_package.displayProgressDialog(24, pd)
         
         if isUpgradeInstall:
             removeOldFs(mounts, answers)
 
         if not isUpgradeInstall:
             writeAnswersFile(mounts, answers)
+
+        # set local time:
+        setTimeZone(mounts, answers)
+        setTime(mounts, answers, ui_package)
 
         # run any required post installation scripts:
         try:
@@ -183,7 +174,7 @@ def performInstallation(answers, ui_package):
 
         umountVolumes(mounts)
         finalise(answers)
-        ui_package.displayProgressDialog(22, pd)
+        ui_package.displayProgressDialog(25, pd)
         ui_package.clearModelessDialog()
         
     finally:
@@ -518,32 +509,26 @@ def writeResolvConf(mounts, answers):
                 resolvconf.write("nameserver %s\n" % ns)
         resolvconf.close()
 
-def setTime(mounts, answers):
+def setTime(mounts, answers, ui_package):
     global writeable_files
 
     # are we dealing with setting the time?
-    if answers['set-time']:
-        # first, calculate the difference between the current time
-        # and the time when the user entered their desired time, and
-        # find the actual desired time:
-        now = datetime.datetime.now()
-        delta = now - answers['set-time-dialog-dismissed']
-        newtime = answers['localtime'] + delta
-        
-        # now set the local time zone variable and use it:
-        os.environ['TZ'] = answers['timezone']
+    if (answers.has_key('set-time') and answers['set-time']) or \
+       (answers['time-config-method'] == 'manual'):
+        # display the Set TIme dialog in the chosen UI:
+        rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
+        ui_package.set_time(answers, util.parseTime(time))
 
-        # TODO - tzset not compiled into Python for uclibc
-        #time.tzset()
-        
-        # set the local time according to newtime:
-        year = str(newtime.year)[2:]
-        timestr = "%s-%s-%s %s:%s" % (year, newtime.month,
-                                      newtime.day, newtime.hour,
-                                      newtime.minute)
-        assert runCmd("chroot %s date --set='%s'" % (mounts['root'], timestr)) == 0
+        newtime = answers['localtime']
+        timestr = "%04d-%02d-%02d %02d:%02d:00" % \
+                  (newtime.year, newtime.month, newtime.day,
+                   newtime.hour, newtime.minute)
+
+        # chroot into the dom0 and set the time:
+        assert runCmd('chroot %s timeutil setLocalTime "%s"' % (mounts['root'], timestr)) == 0
         assert runCmd("hwclock --utc --systohc") == 0
 
+def setTimeZone(mounts, answers):
     # write the time configuration to the /etc/sysconfig/clock
     # file in dom0:
     timeconfig = open("%s/etc/sysconfig/clock" % mounts['root'], 'w')
@@ -558,6 +543,27 @@ def setTime(mounts, answers):
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
            (answers['timezone'], mounts['root']))
     
+def configureNTP(mounts, answers):
+    if answers['time-config-method'] == 'ntp':
+        # read in the old NTP configuration, remove the server
+        # lines and write out a new one:
+        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
+        lines = ntpsconf.readlines()
+        ntpsconf.close()
+
+        lines = filter(lambda x: not x.startswith('server '), lines)
+
+        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
+        for line in lines:
+            ntpsconf.write(line + "\n")
+        if answers.has_key('ntp-servers'):
+            for server in answers['ntp-servers']:
+                ntpsconf.write("server %s\n" % server)
+        ntpsconf.close()
+
+        # now turn on the ntp service:
+        util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
+            
 
 def setRootPassword(mounts, answers):
     # avoid using shell here to get around potential security issues.

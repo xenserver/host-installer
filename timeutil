@@ -38,8 +38,8 @@ def setLocal(timestring, timezone = None):
     os.system("date --set='%s'" % timestring)
 
 def usage():
-    print "Usage: timeutil getLocalNow [timezone]"
-    print "    or timeutil setLocal <time> [timezone]"
+    print "Usage: timeutil getLocalTime [timezone]"
+    print "    or timeutil setLocalTime <time> [timezone]"
     print
     print "<time> is YYYY-MM-DD HH:mm:SS"    
     

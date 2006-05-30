@@ -134,7 +134,11 @@ def get_timezone_region(answers):
     return 1
 def get_timezone_city(answers):
     return 1
-def set_time(answers):
+def get_time_configuration_method(answers):
+    return 1
+def get_ntp_servers(answers):
+    return 1
+def set_time(answers, now):
     answers['set-time'] = False
     return 1
 def get_name_service_configuration(answers):

@@ -177,7 +177,7 @@ def get_http_source(answers):
         (button, result) = EntryWindow(screen,
                                        "Specify HTTP Source",
                                        "Please enter URL for your HTTP repository",
-                                       ['URL'],
+                                       ['URL'], entryWidth = 50,
                                        buttons = ['Ok', 'Back'])
         
         answers['source-address'] = result[0]
@@ -195,7 +195,7 @@ def get_nfs_source(answers):
         (button, result) = EntryWindow(screen,
                                        "Specify NFS Source",
                                        "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)",
-                                       ['NFS Path'],
+                                       ['NFS Path'], entryWidth = 50,
                                        buttons = ['Ok', 'Back'])
         
         answers['source-address'] = result[0]
@@ -225,7 +225,7 @@ def select_primary_disk(answers):
                         "Select Primary Disk",
                         """Please select the disk you would like to use as the primary %s disk (the list below only shows disks with enough capacity to act as primary disks).
 
-Xen will be installed onto this disk, requiring 120MB, and the remaining space used for guest virtual machines.""" % PRODUCT_BRAND,
+%s will be installed onto this disk, requiring %s GB, and the remaining space used for guest virtual machines.""" % (PRODUCT_BRAND, PRODUCT_BRAND, constants.min_primary_disk_size),
                         entries,
                         ['Ok', 'Back'])
 
@@ -311,7 +311,7 @@ def confirm_installation_one_disk(answers):
                                 "Confirm Installation",
                                 """Since your server only has a single disk, this will be used to install %s.
 
-Please confirm you wish to proceed; all data on this disk will be destroyed (vendor service partitions will be left intact)""" % PRODUCT_BRAND,
+Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" % PRODUCT_BRAND,
                                 ['Ok', 'Back'])
     else:
         button = ButtonChoiceWindow(screen,
@@ -579,14 +579,92 @@ def get_timezone_city(answers):
     
     if button == "back": return -1
 
-def set_time(answers):
+def get_time_configuration_method(answers):
+    global screen
+
+    entries = [ "Using NTP",
+                "Manual time entry" ]
+
+    (button, entry) = ListboxChoiceWindow(screen,
+                                          "System Time",
+                                          "How should the local time be determined?\n\n(Note that if you choose to enter it manually, you will need to respond to a prompt at the end of the installation.)",
+                                          entries,
+                                          ['Ok', 'Back'])
+
+    if button == "ok" or button == None:
+        if entry == 0:
+            answers['time-config-method'] = 'ntp'
+        elif entry == 1:
+            answers['time-config-method'] = 'manual'
+        return 1
+    if button == "back": return -1
+
+def get_ntp_servers(answers):
+    global screen
+
+    if answers['time-config-method'] != 'ntp':
+        return 1
+
+    def dhcp_change():
+        for x in [ ntp1_field, ntp2_field, ntp3_field ]:
+            x.setFlags(FLAG_DISABLED, not dhcp_cb.value())
+
+    gf = GridFormHelp(screen, 'NTP Configuration', None, 1, 4)
+    text = TextboxReflowed(60, "Please specify details of the NTP servers you wish to use?")
+    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+
+    dhcp_cb = Checkbox("NTP is configured by my DHCP server", 1)
+    dhcp_cb.setCallback(dhcp_change, ())
+
+    ntp1_field = Entry(50)
+    ntp1_field.setFlags(FLAG_DISABLED, False)
+    ntp2_field = Entry(50)
+    ntp2_field.setFlags(FLAG_DISABLED, False)
+    ntp3_field = Entry(50)
+    ntp3_field.setFlags(FLAG_DISABLED, False)
+
+    ntp1_text = Textbox(15, 1, "NTP Server 1:")
+    ntp2_text = Textbox(15, 1, "NTP Server 2:")
+    ntp3_text = Textbox(15, 1, "NTP Server 3:")
+
+    entry_grid = Grid(2, 3)
+    entry_grid.setField(ntp1_text, 0, 0)
+    entry_grid.setField(ntp1_field, 1, 0)
+    entry_grid.setField(ntp2_text, 0, 1)
+    entry_grid.setField(ntp2_field, 1, 1)
+    entry_grid.setField(ntp3_text, 0, 2)
+    entry_grid.setField(ntp3_field, 1, 2)
+
+    gf.add(text, 0, 0, padding = (0,0,0,1))
+    gf.add(dhcp_cb, 0, 1)
+    gf.add(entry_grid, 0, 2, padding = (0,0,0,1))
+    gf.add(buttons, 0, 3)
+
+    result = gf.runOnce()
+
+    if buttons.buttonPressed(result) == 'ok':
+        if not dhcp_cb.value():
+            servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
+            if len(servers) == 0:
+                ButtonChoiceWindow(screen,
+                                   "NTP Configuration",
+                                   "You didn't specify any NTP servers!",
+                                   ["Ok"])
+                return 0
+            else:
+                answers['ntp-servers'] = servers
+        else:
+            if answers.has_key('ntp-servers'):
+                del answers['ntp-servers']
+        return 1
+    elif buttons.buttonPressed(result) == 'back':
+        return -1
+
+# this is used directly by backend.py - 'now' is localtime
+def set_time(answers, now):
     global screen
 
     done = False
-
-    # translate the current time to the selected timezone:
-    now = generalui.translateDateTime(datetime.datetime.now(),
-                                      answers['timezone'])
 
     # set these outside the loop so we don't overwrite them in the
     # case that the user enters a bad value.
