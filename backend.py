@@ -178,7 +178,13 @@ def performInstallation(answers, ui_package):
         ui_package.clearModelessDialog()
         
     finally:
-        installmethod.finished()
+        # if this fails there is nothing we can do anyway
+        # except log the failure:
+        try:
+            installmethod.finished()
+        except Exception, e:
+            xelogging.log("An exception was encountered when attempt to close the installation source.")
+            xelogging.log(str(e))
         
 
 #will scan all detected harddisks, and pick the first one
