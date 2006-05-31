@@ -22,9 +22,9 @@ disk_nodes = [
     ]
 
 # c{0,1,2}d0 -> c{0,1,2}d15
-disk_nodes.append(map(lambda x: (104, x * 16), range(0, 15)))
-disk_nodes.append(map(lambda x: (105, x * 16), range(0, 15)))
-disk_nodes.append(map(lambda x: (106, x * 16), range(0, 15)))
+disk_nodes += map(lambda x: (104, x * 16), range(0, 15))
+disk_nodes += map(lambda x: (105, x * 16), range(0, 15))
+disk_nodes += map(lambda x: (106, x * 16), range(0, 15))
 
 def getDiskList():
     # read the partition tables:
@@ -40,7 +40,7 @@ def getDiskList():
            (major, minor, size, name) = l.split(" ")
            (major, minor, size) = (int(major), int(minor), int(size))
            if (major, minor) in disk_nodes:
-               disks.append(name)
+               disks.append(name.replace("!", "/"))
         except:
             # it wasn't an actual entry, maybe the headers or something:
             continue
@@ -51,10 +51,10 @@ def getQualifiedDiskList():
     return map(lambda x: getQualifiedDeviceName(x), getDiskList())
 
 def getQualifiedDeviceName(disk):
-    if disk[:2] == "sd" or disk[:2] == "hd":
+    if disk.startswith('sd') or \
+       disk.startswith('hd') or \
+       disk.startswith('cciss'):
         return "/dev/%s" % disk
-    elif disk[0] == "c" and disk[2] == "d":
-        return "/dev/cciss/%s" % disk
     else:
         # TODO we should throw an exception here instead:
         return None
@@ -88,18 +88,21 @@ def __readOneLineFile__(filename):
         raise e
 
 def getDiskDeviceVendor(dev):
+    dev = dev.replace("/", "!")
     if os.path.exists("/sys/block/%s/device/vendor" % dev):
         return __readOneLineFile__("/sys/block/%s/device/vendor" % dev).strip(' \n')
     else:
         return ""
 
 def getDiskDeviceModel(dev):
+    dev = dev.replace("/", "!")
     if os.path.exists("/sys/block/%s/device/model" % dev):
         return __readOneLineFile__("/sys/block/%s/device/model" % dev).strip('  \n')
     else:
         return ""
     
 def getDiskDeviceSize(dev):
+    dev = dev.replace("/", "!")
     if os.path.exists("/sys/block/%s/device/block/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/device/block/size" % dev))
     elif os.path.exists("/sys/block/%s/size" % dev):
@@ -112,7 +115,7 @@ def getHumanDiskSize(blocks):
     return "%d GB" % blockSizeToGBSize(blocks)
 
 def getExtendedDiskInfo(disk):
-    devname = os.path.basename(disk)
+    devname = disk.replace("/dev/", "")
 
     return (getDiskDeviceVendor(devname),
             getDiskDeviceModel(devname),
