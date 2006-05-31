@@ -17,11 +17,12 @@ import time
 import p2v_constants
 import p2v_tui
 import p2v_utils
+import util
 
 
 ui_package = p2v_tui
 
-from p2v_error import P2VError
+from p2v_error import P2VError, P2VPasswordError
 from version import *
 
 #globals
@@ -58,8 +59,11 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     rc, out = findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c addkey -p '%s' '%s'" % (xe_host, root_password, ssh_pub_key_file))
 
     if rc != 0:
-        p2v_utils.trace_message("Failed to add public key (%s)" % out)
-        raise P2VError("Failed to add public ssh key. Please verify your hostname and password.")
+        p2v_utils.trace_message("Failed to add public key (%d, %s)" % (rc, out))
+        if "Authentication failure" in out:
+            raise P2VPasswordError("Failed to add public ssh key. Please verify your hostname and password.")
+        else:
+            raise P2VError("Failed to add public ssh key. Please verify your hostname and password.")
 
     os_install_name = os_install[p2v_constants.OS_NAME]
     os_install_version = os_install[p2v_constants.OS_VERSION]
@@ -83,7 +87,8 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
                 cpu_count))
 
     if rc != 0:
-        raise P2VError("Failed to prepare p2v. (%s)" % out)
+        p2v_utils.trace_message("Failed to prepare_p2v (%s)" % out)
+        raise P2VError("Failed to prepare the %s host for this P2V. There might not be enough free space(%s)" % PRODUCT_BRAND)
 
     for line in out.split('\n'):
         try:
@@ -100,6 +105,11 @@ def finish_agent(os_install, xe_host):
     #tell the agent that we're done
     root_password = os_install['root-password']
     rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c finishp2v -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
+
+    if rc != 0:
+        p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
+        raise P2VError("Failed to finish this P2V to the %s host. Please contact XenSource support." % PRODUCT_BRAND)
+    return rc
     
 
 def determine_size(os_install):
@@ -177,6 +187,7 @@ def nfs_p2v( nfs_host, nfs_path, os_install ):
     nfs_mount_path = nfs_host + ":" + nfs_path
     inbox_path = nfs_mount( nfs_mount_path )
     perform_p2v( os_install, inbox_path )
+    return 0
         
 def mount_dropbox( xe_host ):    
     global dropbox_path
@@ -190,16 +201,21 @@ def xe_p2v( xe_host, os_install ):
 def ssh_p2v( xe_host, os_install, results, pd ):
     (rc, ssh_key_file) = generate_ssh_key()
     if rc != 0:
-        return
+        return rc
 
     ui_package.displayProgressDialog(0, pd, " - Preparing %s host" % PRODUCT_BRAND)
     rc = prepare_agent(xe_host, os_install, ssh_key_file)
+    if rc != 0:
+        return rc
 
     rc = perform_p2v_ssh( os_install, xe_host, ssh_key_file)
+    if rc != 0:
+        return rc
 
     ui_package.displayProgressDialog(3, pd, " - Finalizing install on %s host" % PRODUCT_BRAND)
-    finish_agent(os_install, xe_host)
-         
+    rc = finish_agent(os_install, xe_host)
+    if rc != 0:
+        return rc
          
 def perform_P2V( results ):
     os_install = results[p2v_constants.OS_INSTALL]
@@ -229,11 +245,11 @@ def perform_P2V( results ):
         p2v_utils.trace_message( "we're doing a p2v to NFS" )
         nfs_host = results[p2v_constants.NFS_HOST]
         nfs_path = results[p2v_constants.NFS_PATH]
-        nfs_p2v( nfs_host, nfs_path, os_install )
+        rc = nfs_p2v( nfs_host, nfs_path, os_install )
     elif results[p2v_constants.XEN_TARGET] == p2v_constants.XEN_TARGET_SSH:
         p2v_utils.trace_message( "we're doing a p2v over SSH" )
         xe_host = results[p2v_constants.XE_HOST]
-        ssh_p2v( xe_host, os_install, results, pd )
+        rc = ssh_p2v( xe_host, os_install, results, pd )
         
     if results[p2v_constants.XEN_TARGET] != p2v_constants.XEN_TARGET_SSH:
         ui_package.displayProgressDialog(3, pd, " - Writing template")
@@ -468,3 +484,29 @@ def create_xgt(os_install):
     
     
     
+#stolen from packaging.py
+def ejectCD():
+    if not os.path.exists("/tmp/cdmnt"):
+        os.mkdir("/tmp/cdmnt")
+
+    device = None
+    for dev in ['hda', 'hdb', 'hdc', 'scd1', 'scd2',
+                'sr0', 'sr1', 'sr2', 'cciss/c0d0p0',
+                'cciss/c0d1p0', 'sda', 'sdb']:
+        device_path = "/dev/%s" % dev
+        if os.path.exists(device_path):
+            try:
+                util.mount(device_path, '/tmp/cdmnt', ['ro'], 'iso9660')
+                if os.path.isfile('/tmp/cdmnt/REVISION'):
+                    device = device_path
+                    # (leaving the mount there)
+                    break
+            except util.MountFailureException:
+                # clearly it wasn't that device...
+                pass
+            else:
+                if os.path.ismount('/tmp/cdmnt'):
+                    util.umount('/tmp/cdmnt')
+
+    if os.path.exists('/usr/bin/eject') and device != None:
+        findroot.run_command('/usr/bin/eject %s' % device)
