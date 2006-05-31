@@ -8,16 +8,16 @@
 ### TODO: Validation of IP addresses
 
 from snack import *
+import sys
+import string
+import datetime
+
 import generalui
 import uicontroller
-import sys
 import constants
 import diskutil
 import netutil
-
 from version import *
-
-import datetime
 
 screen = None
 
@@ -27,7 +27,7 @@ def init_ui(results, is_subui):
     global screen
     
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s Installer - Version %s" % (PRODUCT_BRAND, PRODUCT_VERSION))
+    screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
     screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
 
 def end_ui():
@@ -50,15 +50,19 @@ def resume_ui():
 def welcome_screen(answers):
     global screen
 
-    ButtonChoiceWindow(screen,
-                       "Welcome to %s Setup" % PRODUCT_BRAND,
-                       """This CD will install %s on your server.
+    button = ButtonChoiceWindow(screen,
+                                "Welcome to %s Setup" % PRODUCT_BRAND,
+                                """This CD will install %s on your server.
 
 This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install.""" % PRODUCT_BRAND,
-                       ['Ok'], width=60)
+                                ['Ok', 'Cancel Installation'], width=60)
 
     # advance to next screen:
-    return 1
+    if button == 'ok':
+        return 1
+    else:
+        return uicontroller.EXIT
+
 
 def no_disks():
     global screen
@@ -104,13 +108,13 @@ def upgrade_screen(answers):
                        "Welcome to %s Setup" % PRODUCT_BRAND,
                        """This CD will upgrade %s on your server to version %s.""" % 
                            (PRODUCT_BRAND, PRODUCT_VERSION),
-                       ['Ok', 'Exit'], width=60)
+                       ['Ok', 'Cancel Installation'], width=60)
 
     # advance to next screen:
-    if button == "exit":
-        sys.exit(0)
-    else:
+    if button == 'ok':
         return 1
+    else:
+        return uicontroller.EXIT
 
 def confirm_wipe_existing(answers):
     global screen
@@ -281,21 +285,22 @@ def confirm_installation_multiple_disks(answers):
         isUpgradeInstall = False
 
     if not isUpgradeInstall:
-        button = ButtonChoiceWindow(screen,
+        ok = 'Install %s' % PRODUCT_BRAND
+        button = ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
                                 """We have collected all the information required to install %s.
 
 If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
-                                ['Ok', 'Back'])
+                                [ok, 'Back'], default = 1)
     else:
-        button = ButtonChoiceWindow(screen,
+        ok = 'Upgrade %s' % PRODUCT_BRAND
+        button = ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
-                                """We have collected all the information required to upgrade %s.
-""" % (PRODUCT_BRAND),
-                                ['Ok', 'Back'])
- 
+                                "We have collected all the information required to upgrade %s." % PRODUCT_BRAND,
+                                [ok, 'Back'], default = 1)
+        
 
-    if button == "ok": return 1
+    if button == string.lower(ok): return 1
     if button == "back": return -1
 
 def confirm_installation_one_disk(answers):
@@ -307,21 +312,22 @@ def confirm_installation_one_disk(answers):
         isUpgradeInstall = False
 
     if not isUpgradeInstall:
-        button = ButtonChoiceWindow(screen,
+        ok = 'Install %s' % PRODUCT_BRAND
+        button = ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
                                 """Since your server only has a single disk, this will be used to install %s.
 
 Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" % PRODUCT_BRAND,
-                                ['Ok', 'Back'])
+                                [ok, 'Back'], default = 1)
     else:
-        button = ButtonChoiceWindow(screen,
+        ok = 'Upgrade %s' % PRODUCT_BRAND
+        button = ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
-                                """We have collected all the information required to upgrade %s.
-""" % (PRODUCT_BRAND),
-                                ['Ok', 'Back'])
+                                "We have collected all the information required to upgrade %s." % (PRODUCT_BRAND),
+                                [ok, 'Back'], default = 1)
  
 
-    if button == "ok": return 1
+    if button == string.lower(ok): return 1
     if button == "back": return -1
 
 def get_root_password(answers):
@@ -773,6 +779,22 @@ def error_dialog(message):
 
 ###
 # Helper functions
+def ButtonChoiceWindowEx(screen, title, text, 
+               buttons = [ 'Ok', 'Cancel' ], 
+               width = 40, x = None, y = None, help = None,
+               default = 0):
+    bb = ButtonBar(screen, buttons)
+    t = TextboxReflowed(width, text, maxHeight = screen.height - 12)
+
+    g = GridFormHelp(screen, title, help, 1, 2)
+    g.add(t, 0, 0, padding = (0, 0, 0, 1))
+    g.add(bb, 0, 1, growx = 1)
+
+    g.draw()
+    g.setCurrent(bb.list[default][0])
+    
+    return bb.buttonPressed(g.runOnce(x, y))
+
 def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
                         entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
     bb = ButtonBar(screen, buttons)

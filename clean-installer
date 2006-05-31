@@ -195,8 +195,7 @@ def main():
             logfd.close()
             
         raise
-    else:
-        xelogging.log("Installation completed successfully.")
+
     xelogging.log("Shutting down user interface")
     ui_package.end_ui()
 
@@ -208,6 +207,10 @@ def main():
             pass
         logfd.close()
 
+    # put the log in /tmp:
+    xelogging.writeLog("/tmp/install-log")
+
+    # and now on the disk if possible:
     backend.writeLog(results)
 
 
