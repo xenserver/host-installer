@@ -88,9 +88,10 @@ class LocalInstallMethod(InstallMethod):
             os.mkdir("/tmp/cdmnt")
 
         device = None ; self.device = None
-        for dev in ['hda', 'hdb', 'hdc', 'scd1', 'scd2',
-                    'sr0', 'sr1', 'sr2', 'cciss/c0d0p0',
-                    'cciss/c0d1p0', 'sda', 'sdb']:
+        for dev in ['hda', 'hdb', 'hdc', 'hdd', 'scd0', 'scd1',
+                    'scd2', 'sr0', 'sr1', 'sr2', 'cciss/c0d0p0',
+                    'cciss/c0d1p0', 'cciss/c0d0', 'cciss/c0d1',
+                    'sda', 'sdb', 'sdc', 'sdd']:
             device_path = "/dev/%s" % dev
             if os.path.exists(device_path):
                 try:
