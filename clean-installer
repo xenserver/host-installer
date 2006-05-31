@@ -47,6 +47,7 @@ def main():
                            ["pyanswerfile=",
                             "answerfile=",
                             "verbose-pyanswerfile=",
+                            "verbose-answerfile=",
                             "upgrade-answerdev=",
                             "upgrade",
                             "clog="])
@@ -194,7 +195,8 @@ def main():
             logfd.close()
             
         raise
-
+    else:
+        xelogging.log("Installation completed successfully.")
     xelogging.log("Shutting down user interface")
     ui_package.end_ui()
 
