@@ -65,6 +65,11 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/passwd',
                     '/etc/lvm/.cache']
 
+# files that need to be readable before RWS comes online
+pre_rws_dirs = [ '/etc' ]
+pre_rws_files = [ '/etc/adjtime',
+                 '/etc/passwd' ]
+
 # directories to be created in the dom0 FS
 asserted_dirs = [ '/etc',
                   '/etc/sysconfig',

@@ -711,7 +711,26 @@ def copyDocs(mounts, answers):
 def makeSymlinks(mounts, answers):
     global writeable_dirs, writeable_files
 
-    # make sure required directories exist:
+    # now copy files for pre-rws
+    # first, umount rws
+    util.umount(mounts['rws'], False)
+
+     # make sure required directories exist:
+    for dir in pre_rws_dirs:
+        util.assertDir("%s%s" % (mounts['rws'], dir))
+
+    for f in pre_rws_files:
+        rws_file = "%s%s" % (mounts['rws'], f)
+        dom0_file = "%s%s" % (mounts['root'], f)
+        runCmd("cp %s %s" % (dom0_file, rws_file))
+
+    # and remount rws
+    rwspath = "/tmp/root/rws"
+    rwsvol = getRWSPartName(answers['primary-disk'])
+    util.assertDir(rwspath)
+    util.mount(rwsvol, rwspath)
+
+     # make sure required directories exist:
     for dir in asserted_dirs:
         util.assertDir("%s%s" % (mounts['root'], dir))
         util.assertDir("%s%s" % (mounts['rws'], dir))
@@ -742,7 +761,8 @@ def makeSymlinks(mounts, answers):
                 fd.close()
 
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
-        
+
+       
 
 def copyRpms(mounts, answers):
     util.assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
