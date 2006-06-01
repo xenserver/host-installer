@@ -36,9 +36,10 @@ def main():
         if firstrun:
             seq = [ ui_package.welcome_screen,
                 ui_package.os_install_screen,
+                ui_package.description_screen,
+                ui_package.size_screen,
                 ui_package.target_screen,
-                ui_package.get_root_password,
-                ui_package.description_screen ]
+                ui_package.get_root_password ]
         else:
             seq = [ ui_package.get_root_password ]
             

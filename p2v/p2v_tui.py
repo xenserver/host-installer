@@ -15,9 +15,51 @@ import os
 import sys
 import p2v_constants
 import p2v_utils
+import p2v_backend
 import time
 
 screen = None
+
+def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
+		entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
+    bb = ButtonBar(screen, buttons);
+    t = TextboxReflowed(width, text)
+
+    count = 0
+    for n in prompts:
+	count = count + 1
+
+    sg = Grid(2, count)
+
+    count = 0
+    entryList = []
+    for n in prompts:
+	if (type(n) == types.TupleType):
+	    (n, e) = n
+	    e = Entry(entryWidth, e)
+	else:
+	    e = Entry(entryWidth)
+
+	sg.setField(Label(n), 0, count, padding = (0, 0, 1, 0), anchorLeft = 1)
+	sg.setField(e, 1, count, anchorLeft = 1)
+	count = count + 1
+	entryList.append(e)
+
+    g = GridFormHelp(screen, title, help, 1, 3)
+
+    g.add(t, 0, 0, padding = (0, 0, 0, 1))
+    g.add(sg, 0, 1, padding = (0, 0, 0, 1))
+    g.add(bb, 0, 2, growx = 1)
+
+    result = g.runOnce()
+
+    entryValues = []
+    count = 0
+    for n in prompts:
+	entryValues.append(entryList[count].value())
+	count = count + 1
+
+    return (bb.buttonPressed(result), tuple(entryValues))
 
 # functions to start and end the GUI - these create and destroy a snack screen as
 # appropriate.
@@ -166,6 +208,42 @@ def description_screen(answers):
         return 1
     else:
         return -1
+
+def size_screen(answers):
+    global screen
+    p2v_backend.determine_size(answers['osinstall'])
+    total_size = str(long(answers['osinstall'][p2v_constants.FS_TOTAL_SIZE]) / 1024**2)
+    used_size = str(long(answers['osinstall'][p2v_constants.FS_USED_SIZE]) / 1024**2)
+    new_size = long(0)
+    success = False
+    while not success:
+        (button, size) = MyEntryWindow(screen,
+                "Enter size",
+                """Please enter the size of the volume that will be created on the %s host.
+The default is 150%% of the minimum.  Minimum size is %s MiB.""" % (PRODUCT_BRAND, used_size),
+                [('Size in MiB:', total_size)],
+                buttons = ['Ok', 'Back'])
+        try:
+            l = long(size[0])
+        except ValueError:
+            continue
+
+        if long(size[0]) < long(used_size):
+            ButtonChoiceWindow(screen,
+                "Size too small",
+                "Minimum size = %s MiB." % used_size,
+                buttons = ['Ok'])
+        else:
+            new_size = long(size[0]) * 1024**2
+            success = True
+
+    if button == "ok" or button == None:
+        answers['osinstall'][p2v_constants.FS_TOTAL_SIZE] = str(new_size)
+        return 1
+    else:
+        return -1
+
+
 
 def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
                         entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):

@@ -231,7 +231,7 @@ def perform_P2V( results ):
                                        num_steps)
     os_install['pd'] = pd
 
-    determine_size(os_install)
+    #determine_size(os_install)
 
 #    append_hostname(os_install)
 
