@@ -214,7 +214,7 @@ def handle_root(mntpnt, dev_name, pd = None):
     hostname = findHostName(mntpnt)
     os.chdir(mntpnt)
     tar_basefilename = "p2v%s.%s.tar.bz2" % (hostname, os.path.basename(dev_name))
-    base_dirname = "/xenpending/"
+    base_dirname = "/tmp/xenpending/"
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
     rc, out = run_command("tar cjvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
     if not rc == 0:

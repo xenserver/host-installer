@@ -22,7 +22,7 @@ import util
 
 ui_package = p2v_tui
 
-from p2v_error import P2VError, P2VPasswordError
+from p2v_error import P2VError, P2VPasswordError, P2VMountError
 from version import *
 
 #globals
@@ -171,18 +171,22 @@ def perform_p2v_ssh( os_install, hostname, keyfile):
     return rc
         
 def nfs_mount( nfs_mount_path ):
-    local_mount_path = "/xenpending"
+    local_mount_path = "/tmp/xenpending"
     rc, out = findroot.run_command('grep -q "%s nfs" /proc/mounts' % local_mount_path)
     if rc == 0:
-        return #already mounted
+        return local_mount_path #already mounted
     
-    rc, out = findroot.run_command( "mkdir -p /xenpending" )
+    rc, out = findroot.run_command( "mkdir -p %s"  % local_mount_path)
     if rc != 0: 
         raise P2VError("Failed to nfs mount - mkdir failed")
     rc, out = findroot.run_command( "mount %s %s %s" % ( nfs_mount_path, local_mount_path, p2v_utils.show_debug_output() ) )
     if rc != 0: 
-        raise P2VError("Failed to nfs mount - mount failed")
+        raise P2VMountError("Failed to nfs mount - mount failed")
     return local_mount_path
+
+def validate_nfs_path(nfs_host, nfs_path):
+    nfs_mount_path = nfs_host + ":" + nfs_path
+    inbox_path = nfs_mount( nfs_mount_path )
 
 #TODO : validation of nfs_path?         
 def nfs_p2v( nfs_host, nfs_path, os_install ):

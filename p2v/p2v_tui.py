@@ -18,6 +18,8 @@ import p2v_utils
 import p2v_backend
 import time
 
+from p2v_error import P2VMountError
+
 screen = None
 
 def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
@@ -130,17 +132,30 @@ def target_screen(answers):
         if button == 'back':
             return 0;
     elif entry == 1:
-        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_NFS
-        (button, (nfshost, nfspath)) = EntryWindow(screen,
+        complete = False
+        while not complete:
+            answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_NFS
+            (button, (nfshost, nfspath)) = EntryWindow(screen,
                  "NFS Server Information",
                 "Please enter the NFS server information: ",
                 ['Hostname or IP:', 'Path:'],
                 buttons= ['Ok', 'Back'])
-        answers[p2v_constants.NFS_HOST] = nfshost
-        answers[p2v_constants.NFS_PATH] = nfspath
-        
-        if button == 'back':
-            return 0;
+            answers[p2v_constants.NFS_HOST] = nfshost
+            answers[p2v_constants.NFS_PATH] = nfspath
+
+            if button == 'back':
+                return 0;
+
+            try:
+                p2v_backend.validate_nfs_path(nfshost, nfspath)
+            except P2VMountError, e:
+                ButtonChoiceWindow(screen,
+                    "Cannot Connect",
+                    "Failed to connect to %s:%s. Please re-enter the correct information." % (nfshost, nfspath),
+                    buttons = ['Ok'])
+            else:
+                complete = True
+  
 
     #dump_answers(answers)
     #advance to next screen:
