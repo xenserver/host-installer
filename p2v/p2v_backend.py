@@ -77,7 +77,6 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
     description = os_install[p2v_constants.DESCRIPTION]
-    print "t = %d, u = %s" % (total_size, used_size)
     rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
                 xe_host,
                 root_password,
