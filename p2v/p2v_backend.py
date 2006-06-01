@@ -65,6 +65,9 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
         else:
             raise P2VError("Failed to add public ssh key. Please verify your hostname and password.")
 
+    total_size = long(0)
+    used_size = long(0)
+
     os_install_name = os_install[p2v_constants.OS_NAME]
     os_install_version = os_install[p2v_constants.OS_VERSION]
     os_install_hostname =  os_install[p2v_constants.HOST_NAME]
@@ -74,6 +77,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
     description = os_install[p2v_constants.DESCRIPTION]
+    print "t = %d, u = %s" % (total_size, used_size)
     rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
                 xe_host,
                 root_password,
@@ -117,11 +121,10 @@ def determine_size(os_install):
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
 
-    used_size = long(0)
-    total_size = long(0)
+    total_size_l = long(0)
 
     #findroot.determine_size returns in bytes
-    (total_size, used_size) = findroot.determine_size(os_root_mount_point, os_root_device )
+    (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
     
     # adjust total size to 150% of used size, with a minimum of 4Gb
     total_size_l = (long(used_size) * 3) / 2
@@ -129,7 +132,7 @@ def determine_size(os_install):
         total_size_l = (4 * (1024 ** 3))
         
     total_size = str(total_size_l)
-        
+    
     os_install[p2v_constants.FS_USED_SIZE] = used_size
     os_install[p2v_constants.FS_TOTAL_SIZE] = total_size
     umount_os_root( os_root_mount_point )

@@ -168,10 +168,10 @@ def determine_size(mntpnt, dev_name):
     split_total_size = total_out.split('\n')
     for o in split_used_size:
         p2v_utils.trace_message("\n\nFS used Usage : %s\n\n" % o)
-        used_size += int(o)
+        used_size += long(o)
     for o in split_total_size:
         p2v_utils.trace_message("\n\nFS total Usage : %s\n\n" % o)
-        total_size += int(o)
+        total_size += long(o)
         
     p2v_utils.trace_message("\n\nFinal FS used Usage : %d\n\n" % used_size)
     p2v_utils.trace_message("\n\nFinal FS total Usage : %d\n\n" % total_size)
