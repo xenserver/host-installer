@@ -148,6 +148,7 @@ def main():
                      (ui_package.select_installation_source, { 'cd-available': True}),
                      ui_package.get_http_source,
                      ui_package.get_nfs_source,
+                     ui_package.verify_source,
                      ui_package.get_root_password,
                      ui_package.get_timezone_region,
                      ui_package.get_timezone_city,
