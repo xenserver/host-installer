@@ -236,8 +236,6 @@ def main():
                     if rc == 0: 
                         os.system("reboot")
                         sys.exit(0)
-                    else:
-                        sys.exit(rc)
 
                 # upgrade install:
                 elif operation == 1:
@@ -246,8 +244,6 @@ def main():
                     if rc == 0: 
                         os.system("reboot")
                         sys.exit(0)
-                    else:
-                        sys.exit(rc)
 
                 # P2V:
                 elif operation == 2:
