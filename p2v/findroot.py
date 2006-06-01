@@ -216,7 +216,7 @@ def handle_root(mntpnt, dev_name, pd = None):
     tar_basefilename = "p2v%s.%s.tar.bz2" % (hostname, os.path.basename(dev_name))
     base_dirname = "/tmp/xenpending/"
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
-    rc, out = run_command("tar cjvf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
+    rc, out = run_command("tar cjvSf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
     if not rc == 0:
         raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % rc, out)
     
@@ -262,7 +262,7 @@ def handle_root_ssh(mntpnt, dev_name, hostname, target_directory, keyfile, pd = 
         ui_package.displayProgressDialog(2, pd, " - Transferring root filesystem")
 
     os.chdir(mntpnt)
-    rc, out = run_command('tar zcf - . | ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i %s %s " cd %s ; tar zxf - "' % 
+    rc, out = run_command('tar zScf - . | ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i %s %s " cd %s ; tar zxf - "' % 
                          (keyfile, hostname, target_directory))
     if not rc == 0:
         raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % (rc, out))
