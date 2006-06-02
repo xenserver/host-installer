@@ -175,8 +175,6 @@ def get_http_source(answers):
     return 1
 def get_nfs_source(answers):
     return 1
-def verify_source(answers):
-    return 1
 def select_primary_disk(answers):
     return 1
 def select_guest_disks(answers):
