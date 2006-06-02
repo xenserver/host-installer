@@ -49,6 +49,7 @@ packages = [ "dom0fs-%s-%s" % (version.dom0_name, version.dom0_version),
              "xen-kernel",
              "documentation",
              "rpms",
+             "firewall",
              'timeutil'
             ]
 
