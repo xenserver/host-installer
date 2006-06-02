@@ -8,7 +8,6 @@
 import os.path
 import urllib2
 import popen2
-import threading
 
 import xelogging
 import util
@@ -134,27 +133,12 @@ class LocalInstallMethod(InstallMethod):
 # PACKAGING
 
 def installPackage(packagename, method, dest):
-    def logInput(infile, prefix):
-        try:
-            while 1:
-                line = infile.readline().rstrip('\n')
-                if line == "":
-                    break
-                else:
-                    xelogging.log("%s: %s" % (prefix, line))
-        except Exception:
-            # this thread is only responsible for logging output,
-            # and we did the best we could:
-            pass
-
     package = method.openPackage(packagename)
 
     xelogging.log("Starting installation of package %s" % packagename)
 
-    pipe = popen2.Popen3('tar -C %s -xjf - 2>&1' % dest, bufsize = 1024 * 1024)
-
-    thread = threading.Thread(target = logInput, args = (pipe.fromchild, 'Tar output: '))
-    thread.start()
+    pipe = popen2.Popen3('tar -C %s -xjf - &>/dev/null' % dest, bufsize = 1024 * 1024)
+    
     data = ''
     while True:
         data = package.read()
@@ -163,14 +147,11 @@ def installPackage(packagename, method, dest):
         pipe.tochild.write(data)
 
     pipe.tochild.flush()
+    
     pipe.tochild.close()
+    pipe.fromchild.close()
 
     if pipe.wait() != 0:
         raise ErrorInstallingPackage, "The decompressor returned an error processing package %s" % packagename
-    else:
-        xelogging.log("Package %s successfully installed." % packagename)
-
-    pipe.fromchild.close()
-    thread.join()
-
+    
     package.close()
