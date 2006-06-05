@@ -422,6 +422,13 @@ def add_used_size(os_install):
     template_string += close_tag( p2v_constants.TAG_FILESYSTEM_USED_SIZE)
     return template_string
 
+def add_kernel(os_install):
+    template_string = ""
+    template_string += open_tag(p2v_constants.TAG_KERNEL, "")
+    template_string += close_tag( p2v_constants.TAG_KERNEL)
+    return template_string
+
+
 def add_filesystem(os_install):
     template_string = ""
     os_root_device = os_install[p2v_constants.DEV_NAME]
@@ -453,6 +460,7 @@ def write_template(os_install):
     template_string += add_cpu_count(os_install)
     template_string += add_description(os_install)
     template_string += add_filesystem(os_install)
+    template_string += add_kernel(os_install)
     template_string += close_tag(p2v_constants.TAG_XGT)
     
     template_dir= os_install[p2v_constants.XEN_TAR_DIRNAME]
