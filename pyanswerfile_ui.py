@@ -146,7 +146,10 @@ def get_name_service_configuration(answers):
 def installation_complete(answers):
     return 1
 def upgrade_complete(answers):
-    return 1
+    if sub_ui_package:
+        return sub_ui_package.upgrade_complete(answers)
+    else:
+        return 1
 
 def error_dialog(message):
     if sub_ui_package:

@@ -153,8 +153,7 @@ def performInstallation(answers, ui_package):
         if isUpgradeInstall:
             removeOldFs(mounts, answers)
 
-        if not isUpgradeInstall:
-            writeAnswersFile(mounts, answers)
+        writeAnswersFile(mounts, answers)
 
         # set local time:
         setTimeZone(mounts, answers)
@@ -216,6 +215,7 @@ def removeOldFs(mounts, answers):
         
 def writeAnswersFile(mounts, answers):
     fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
+    del answers['root-password']
     pickle.dump(answers, fd)
     fd.close()
 
