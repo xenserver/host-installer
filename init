@@ -283,7 +283,7 @@ def main():
         if answerfile:
             pass
         else:
-            os.system("/opt/xensource/installer/p2v.py")
+            os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
         os.system("reboot")
 
     if not verbose_answerfile:
