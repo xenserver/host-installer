@@ -8,7 +8,6 @@
 
 from snack import *
 from version import *
-#import generalui
 import p2v_uicontroller
 import findroot
 import os

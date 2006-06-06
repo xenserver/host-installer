@@ -1,15 +1,18 @@
 # constants, for key values etc
+UUID = "uuid"
 DEV_NAME = "dev_name"
 DEV_ATTRS = "dev_attrs"
 FS_USED_SIZE  = "fs_used_size"
 FS_TOTAL_SIZE  = "fs_total_size"
 TOTAL_MEM = "total_mem"
-CPU_COUNT = "cpu count"
+CPU_COUNT = "cpu_count"
 OS_INSTALL = 'osinstall'
 OS_NAME = 'osname'
 OS_VERSION = 'osversion'
 HOST_NAME = 'hostname'
 DESCRIPTION = 'description'
+P2V_PATH = "p2v_path"
+ROOT_PASSWORD = 'root-password'
 
 XEN_TARGET = 'xen-target'
 XEN_TARGET_XE =  'xe'

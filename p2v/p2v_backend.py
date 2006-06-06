@@ -19,7 +19,6 @@ import p2v_tui
 import p2v_utils
 import util
 
-
 ui_package = p2v_tui
 
 from p2v_error import P2VError, P2VPasswordError, P2VMountError
@@ -27,6 +26,11 @@ from version import *
 
 #globals
 dropbox_path = "/opt/xensource/packages/xgt/"
+
+def specifyUI(ui):
+    global ui_package
+    ui_package = ui
+
 
 def print_results( results ):
     if p2v_utils.is_debug():

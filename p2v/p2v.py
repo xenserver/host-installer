@@ -8,29 +8,64 @@
 
 import p2v_tui
 import p2v_uicontroller
+import p2v_answerfile_ui
 import sys
 import findroot
 import p2v_backend
 import xelogging
 import os
+import getopt
 
 from p2v_error import P2VError, P2VPasswordError
 from snack import *
-
+from getopt import getopt, GetoptError
 
 ui_package = p2v_tui
 
+def closeClogs(clog_fds) {
+    # close continuous logs:
+    for logfd in clog_fds:
+        try:
+            xelogging.continuous_logs.remove(logfd)
+        except:
+            pass
+        logfd.close()
+
+
 def main():
+    global ui_package
+    clog_fds = []
+
+    try:
+        (opts, _) = getopt(sys.argv[1:],
+                           "",
+                           [ "answerfile=",
+                            "clog="])
+    except GetoptError:
+        print "This program takes no arguments."
+        sys.exit(1)
+
+    for (opt, val) in opts:
+        if opt == "--answerfile":
+            #p2v_answerfile_ui.specifySubUI(ui_package)
+            ui_package = p2v_answerfile_ui
+            p2v_backend.specifyUI(ui_package)
+            p2v_answerfile_ui.specifyAnswerFile(val)
+        if opt == "--clog":
+            try:
+                fd = open(val, "w")
+                clog_fds.append(fd)
+                xelogging.continuous_logs.append(fd)
+            except:
+                print "Error adding continuous log %s." % val
+ 
+    results = { 'ui-package': ui_package }
+
     os.environ['LVM_SYSTEM_DIR'] = '/tmp'
-    ui_package.init_ui()
-    fd = open('/dev/tty3', "w")
-    xelogging.continuous_logs.append(fd)
+    ui_package.init_ui(results)
 
     firstrun = True
     finished = False
-
-    results = { 'ui-package': ui_package }
-
     
     while finished == False:
         if firstrun:
@@ -48,8 +83,11 @@ def main():
         
             if rc != -1:
                 rc = p2v_backend.perform_P2V(results)
+                print "All done"
+                sys.exit(0)
             else:
                 ui_package.end_ui()
+                closeClogs(clog_fds)
                 sys.exit(1)
         
             if rc == 0: 
@@ -74,6 +112,7 @@ def main():
             print "P2V Failed: %s" % e
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
+            closeClogs(clog_fds)
             sys.exit(2)
         except Exception, e:
             # clean up the screen
@@ -81,11 +120,12 @@ def main():
             print "P2V Failed: %s" % e
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
+            closeClogs(clog_fds)
             sys.exit(1)
 
     #eject CD if success
     p2v_backend.ejectCD()
+    closeClogs(clog_fds)
 
 if __name__ == "__main__":
     main()
-2
