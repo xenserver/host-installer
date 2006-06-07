@@ -8,9 +8,12 @@
 import os.path
 import urllib2
 import popen2
+import md5
 
 import xelogging
 import util
+import constants
+import version
 
 class NoSuchPackage(Exception):
     pass
@@ -19,7 +22,9 @@ class ErrorInstallingPackage(Exception):
     pass
 
 class MediaNotFound(Exception):
-    pass
+    def __init__(self, medianame):
+        Exception.__init__("Setup could not find the media labelled %s.  Please ensure it is loaded and that the drive is closed as appropriate.  If the media is installed and you still see this error, please refer to your user guide or XenSource technical support." % \
+                           medianame)
 
 class BadSourceAddress(Exception):
     pass
@@ -34,7 +39,13 @@ class InstallMethod:
     def openPackage(self, package):
         pass
 
-    def finished(self):
+    def getRecordedMd5(self, package):
+        pass
+
+    def checkPackageExistance(self, package):
+        pass
+
+    def finished(self, eject = True):
         pass
 
 class HTTPInstallMethod(InstallMethod):
@@ -52,7 +63,26 @@ class HTTPInstallMethod(InstallMethod):
         package_url = "%s/%s.tar.bz2" % (self.baseURL, package)
         return urllib2.urlopen(package_url)
 
-    def finished(self):
+    def getRecordedMd5(self, package):
+        assert self.baseURL != None and self.baseURL != ""
+        md5_url = "%s/%s.md5" % (self.baseURL, package)
+        f = urllib2.urlopen(md5_url)
+        csum = f.readline().strip()
+        f.close()
+        return csum
+
+    def checkPackageExistance(self, package):
+        assert self.baseURL != None and self.baseURL != ""
+        try:
+            package_url = "%s/%s.tar.bz2" % (self.baseURL, package)
+            p = urllib2.urlopen(package_url)
+            p.close()
+        except:
+            return False
+        else:
+            return True
+
+    def finished(self, eject = False):
         pass
 
 class NFSInstallMethod(InstallMethod):
@@ -77,7 +107,26 @@ class NFSInstallMethod(InstallMethod):
         xelogging.log("Opening package %s, which is located at %s in our filesystem." % (package, path))
         return open(path, 'r')
 
-    def finished(self):
+    def getRecordedMd5(self, package):
+        assert os.path.ismount('/tmp/nfs-source')
+        path = '/tmp/nfs-source/%s.md5' % package
+        f = open(path, 'r')
+        csum = f.readline().strip()
+        f.close()
+        return csum
+
+    def checkPackageExistance(self, package):
+        assert os.path.ismount('/tmp/nfs-source')
+        try:
+            path = '/tmp/nfs-source/%s.tar.bz2' % package
+            p = open(path, 'r')
+            p.close()
+        except:
+            return False
+        else:
+            return True
+
+    def finished(self, eject = False):
         assert os.path.ismount('/tmp/nfs-source')
         util.umount('/tmp/nfs-source')
 
@@ -109,7 +158,7 @@ class LocalInstallMethod(InstallMethod):
         if not device:
             xelogging.log("ERROR: Install media not found.")
             assert not os.path.ismount('/tmp/cdmnt')
-            raise MediaNotFound()
+            raise MediaNotFound("%s Install CD" % version.PRODUCT_BRAND)
         else:
             xelogging.log("Install media found on %s" % device)
             assert os.path.ismount('/tmp/cdmnt')
@@ -122,10 +171,30 @@ class LocalInstallMethod(InstallMethod):
             raise NoSuchPackage, "Package %s not found on source media" % package
         return open('/tmp/cdmnt/packages/%s.tar.bz2' % package, 'r')
 
-    def finished(self):
+    def getRecordedMd5(self, package):
+        assert os.path.ismount('/tmp/cdmnt')
+        path = '/tmp/cdmnt/packages/%s.md5' % package
+        f = open(path, 'r')
+        csum = f.readline().strip()
+        f.close()
+        return csum
+
+    def checkPackageExistance(self, package):
+        assert os.path.ismount('/tmp/cdmnt')
+        try:
+            path = '/tmp/cdmnt/packages/%s.tar.bz2' % package
+            p = open(path, 'r')
+            p.close()
+        except:
+            return False
+        else:
+            return True
+
+    def finished(self, eject = True):
         if os.path.ismount('/tmp/cdmnt'):
             util.umount('/tmp/cdmnt')
-            if os.path.exists('/usr/bin/eject') and self.device:
+            if os.path.exists('/usr/bin/eject') and self.device and \
+                   eject:
                 util.runCmd('/usr/bin/eject %s' % self.device)
 
 
@@ -144,7 +213,8 @@ def installPackage(packagename, method, dest):
         data = package.read()
         if data == '':
             break
-        pipe.tochild.write(data)
+        else:
+            pipe.tochild.write(data)
 
     pipe.tochild.flush()
     
@@ -155,3 +225,52 @@ def installPackage(packagename, method, dest):
         raise ErrorInstallingPackage, "The decompressor returned an error processing package %s" % packagename
     
     package.close()
+
+def md5CheckPackage(packagename, method):
+    try:
+        package = method.openPackage(packagename)
+    except:
+         return False   
+
+    xelogging.log("Starting md5 check of package %s" % packagename)
+
+    m = md5.new()
+
+    date = ''
+    while True:
+        data = package.read()
+        if data == '':
+            break
+        else:
+            m.update(data)
+
+    package.close()
+
+    newsum = m.hexdigest()
+    try:
+        recordedsum = method.getRecordedMd5(packagename)
+    except:
+        return False
+    
+    xelogging.log("Computed md5 as: %s" % newsum)
+    xelogging.log("Excpected md5:   %s" % recordedsum)
+
+    return (recordedsum == newsum)
+
+# Returns a list of problematic packages
+def quickSourceVerification(source):
+    problems = []
+    for package in constants.packages:
+        if not source.checkPackageExistance(package):
+            problems.append(package)
+
+    return problems
+
+# Returns a list of problematic packages
+def md5SourceVerification(source):
+    problems = []
+    for package in constants.packages:
+        if not md5CheckPackage(package, source):
+            problems.append(package)
+
+    return problems

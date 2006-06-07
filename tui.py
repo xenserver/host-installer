@@ -17,6 +17,7 @@ import uicontroller
 import constants
 import diskutil
 import netutil
+import packaging
 from version import *
 
 screen = None
@@ -162,32 +163,74 @@ def confirm_erase_volume_groups(answers):
 def select_installation_source(answers, other):
     global screen
 
-    entries = [ ('Local XenSource media', 'local'),
-                ('HTTP or FTP', 'url'),
-                ('NFS', 'nfs') ]
-    (button, entry) = ListboxChoiceWindow(screen,
-                                          "Select Installation Source",
-                                          "Please select the type of source you would like to use for this installation",
-                                          entries,
-                                          ['Ok', 'Back'])
+    done = False
+    while not done:
+        entries = [ ('Local XenSource media', 'local'),
+                    ('HTTP or FTP', 'url'),
+                    ('NFS', 'nfs') ]
+        (button, entry) = ListboxChoiceWindow(screen,
+                                              "Select Installation Source",
+                                              "Please select the type of source you would like to use for this installation",
+                                              entries,
+                                              ['Ok', 'Back'])
 
-    answers['source-media'] = entry
+        # if it's local media, verify that stuff exists:
+        if entry == 'local' and button == 'ok':
+            im = None
+            try:
+                im = packaging.LocalInstallMethod()
+            except packaging.MediaNotFound, m:
+                ButtonChoiceWindow(screen, "Problem with Media",
+                                   str(m),  ['Back'])
+            else:
+                problems = packaging.quickSourceVerification(im)
+                if problems == []:
+                    done = True
+                else:
+                    ButtonChoiceWindow(screen, "Problem with Media",
+                                       "The following required packages were not found on your media: \n\n%s" % \
+                                       generalui.makeHumanList(problems),
+                                       ['Back'])
+                    
+                im.finished(eject = False)
+        else:
+            # either they pressed 'back', or pressed 'ok' with
+            # a non-local source:
+            done = True
+
+        answers['source-media'] = entry
 
     if button == "ok" or button == None: return 1
     if button == "back": return -1
 
 def get_http_source(answers):
     if answers['source-media'] == 'url':
-        (button, result) = EntryWindow(screen,
-                                       "Specify HTTP Source",
-                                       "Please enter URL for your HTTP repository",
-                                       ['URL'], entryWidth = 50,
-                                       buttons = ['Ok', 'Back'])
-        
-        answers['source-address'] = result[0]
-
-        # TODO: validate URL
-
+        done = False
+        while not done:
+            (button, result) = EntryWindow(screen,
+                                           "Specify HTTP Source",
+                                           "Please enter URL for your HTTP repository",
+                                           ['URL'], entryWidth = 50,
+                                           buttons = ['Ok', 'Back'])
+            
+            answers['source-address'] = result[0]
+            im = None
+            try:
+                im = packaging.HTTPInstallMethod(result[0])
+            except packaging.MediaNotFound, m:
+                ButtonChoiceWindow(screen, "Problem with repository",
+                                   str(m),  ['Back'])
+            else:
+                problems = packaging.quickSourceVerification(im)
+                if problems == []:
+                    done = True
+                else:
+                   ButtonChoiceWindow(screen, "Problem with repository",
+                                       "The following required packages were not found in your repository: \n\n%s" % \
+                                       generalui.makeHumanList(problems),
+                                       ['Back'])
+                im.finished()
+            
         if button == 'ok': return 1
         if button == 'back': return -1
     else:
@@ -196,21 +239,80 @@ def get_http_source(answers):
 
 def get_nfs_source(answers):
     if answers['source-media'] == 'nfs':
-        (button, result) = EntryWindow(screen,
-                                       "Specify NFS Source",
-                                       "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)",
-                                       ['NFS Path'], entryWidth = 50,
-                                       buttons = ['Ok', 'Back'])
+        done = False
+        while not done:
+            (button, result) = EntryWindow(screen,
+                                           "Specify NFS Source",
+                                           "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)",
+                                           ['NFS Path'], entryWidth = 50,
+                                           buttons = ['Ok', 'Back'])
         
-        answers['source-address'] = result[0]
-
-        # TODO: validate URL
+            answers['source-address'] = result[0]
+            if button == 'ok':
+                im = None
+                try:
+                    im = packaging.NFSInstallMethod(result[0])
+                except packaging.MediaNotFound, m:
+                    ButtonChoiceWindow(screen, "Problem with repository",
+                                       str(m),  ['Back'])
+                else:
+                    problems = packaging.quickSourceVerification(im)
+                    if problems == []:
+                        done = True
+                    else:
+                        ButtonChoiceWindow(screen, "Problem with repository",
+                                           "The following required packages were not found in your repository: \n\n%s" % \
+                                           generalui.makeHumanList(problems),
+                                           ['Back'])
+                    im.finished()
 
         if button == 'ok': return 1
         if button == 'back': return -1
     else:
         # we don't need this screen
         return uicontroller.SKIP_SCREEN
+
+# verify the installation source?
+def verify_source(answers):
+    done = False
+    while not done:
+        (button, entry) = ListboxChoiceWindow(screen,
+                                              "Verify Installation Source",
+                                              "Would you like to verify the integrity of your installation repository/media?  (This may take a while to complete and could cause significant network traffic if performing a network installation.)",
+                                              ['Skip verification', 'Verify installation source'],
+                                              ['Ok', 'Back'])
+        if entry == 0:
+            done = True
+        elif button != 'back' and entry == 1:
+            # we need to do the verification:
+            try:
+                if answers['source-media'] == 'url':
+                    installmethod = packaging.HTTPInstallMethod(answers['source-address'])
+                elif answers['source-media'] == 'local':
+                    installmethod = packaging.LocalInstallMethod()
+                elif answers['source-media'] == 'nfs':
+                    installmethod = packaging.NFSInstallMethod(answers['source-address'])
+            except Exception, e:
+                ButtonChoiceWindow(screen, "Problem with repository",
+                                   str(e),  ['Back'])
+            else:
+                displayInfoDialog("Verify Installation Source", "Package verficiation is in progress, please wait...")
+                problems = packaging.md5SourceVerification(installmethod)
+                if len(problems) == 0:
+                    done = True
+                else:
+                    ButtonChoiceWindow(screen, "Problem with repository",
+                                       "The following required packages did not pass verification: \n\n%s" % \
+                                       generalui.makeHumanList(problems),
+                                       ['Back'])
+                clearModelessDialog()
+                installmethod.finished(eject = False)
+
+    if button == 'back':
+        return -1
+    else:
+        return 1
+            
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
