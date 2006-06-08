@@ -64,7 +64,7 @@ def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
 
 # functions to start and end the GUI - these create and destroy a snack screen as
 # appropriate.
-def init_ui():
+def init_ui(results):
     global screen
 
     screen = SnackScreen()
