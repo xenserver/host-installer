@@ -17,6 +17,8 @@ import init_tui
 import xelogging
 import netutil
 import util
+import hardware
+from hardware import module_map
 
 from version import *
 
@@ -27,11 +29,6 @@ base_modules = ['sd-mod',
                 'ata_piix',
                 'rtc',
                 'ext3']
-
-module_map = { 'mptscsih': ['mptspi', 'mptscsih'],
-               'i810-tco': None,
-               'ide-scsi': 'ide-generic'
-               }
 
 MODE_INTERACTIVE = 0
 MODE_INSTALL = 1
@@ -86,7 +83,7 @@ def discoverHardware(ui = None):
         # do we have different ideas about the required modules
         # than Discover?
         if module_map.has_key(mod):
-            if module_map[mod] == None:
+            if module_map[mod] == None or module_map == []:
                 xelogging.log("Ignoring module %s" % mod)
             else:
                 xelogging.log("Discover found %s - we think we need %s" % (mod, module_map[mod]))
