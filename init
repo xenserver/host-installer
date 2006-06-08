@@ -28,6 +28,7 @@ base_modules = ['sd-mod',
                 'loop',
                 'ata_piix',
                 'rtc',
+                'reiserfs',
                 'ext3']
 
 MODE_INTERACTIVE = 0
