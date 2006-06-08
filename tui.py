@@ -53,7 +53,7 @@ def welcome_screen(answers):
 
     button = ButtonChoiceWindow(screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
-                                """This CD will install %s on your server.
+                                """This setup tool will install %s on your server.
 
 This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install.""" % PRODUCT_BRAND,
                                 ['Ok', 'Cancel Installation'], width=60)
@@ -776,11 +776,11 @@ def set_time(answers, now):
 
     # set these outside the loop so we don't overwrite them in the
     # case that the user enters a bad value.
-    day = Entry(3, str(now.day))
-    month = Entry(3, str(now.month))
-    year = Entry(5, str(now.year))
-    hour = Entry(3, str(now.hour))
-    minute = Entry(3, str(now.minute))
+    day = Entry(3, "%02d" % now.day)
+    month = Entry(3, "%02d" % now.month)
+    year = Entry(5, "%04d" % now.year)
+    hour = Entry(3, "%02d" % now.hour)
+    minute = Entry(3, "%02d" % now.minute)
 
     # loop until the form validates or they click back:
     while not done:
@@ -853,9 +853,9 @@ def installation_complete(answers):
 
     ButtonChoiceWindow(screen,
                        "Installation Complete",
-                       """The %s installation has completed.  Please press enter to reboot the machine.
-                       
-Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
+                       """The %s installation has completed.
+
+Please remove any local media from the drive, and press enter to reboot.""" % PRODUCT_BRAND,
                        ['Ok'])
 
     return 1
@@ -865,9 +865,9 @@ def upgrade_complete(answers):
 
     ButtonChoiceWindow(screen,
                        "Upgrade Complete",
-                       """The %s upgrade has completed.  Please press enter to reboot the machine.
-                       
-Please manually eject the install media upon reboot.""" % PRODUCT_BRAND,
+                       """The %s upgrade has completed.
+
+Please remove any local media from the drive, and press enter to reboot.""" % PRODUCT_BRAND,
                        ['Ok'])
 
     return 1
