@@ -540,10 +540,10 @@ def get_name_service_configuration(answers):
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
 
-    gf.add(manual_hostname, 0, 1)
+    gf.add(manual_hostname, 0, 1, anchorLeft = True)
     gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
         
-    gf.add(manual_nameservers, 0, 3)
+    gf.add(manual_nameservers, 0, 3, anchorLeft = True)
     gf.add(ns1_grid, 0, 4)
     gf.add(ns2_grid, 0, 5)
     gf.add(ns3_grid, 0, 6, padding = (0,0,0,1))
@@ -607,9 +607,10 @@ def get_iface_configuration(answers, args):
 
     iface = args['iface']
     gf = GridFormHelp(screen, 'Network Configuration', None, 1, 5)
-    text = TextboxReflowed(60, "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface)))
+    text = TextboxReflowed(45, "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface)))
     buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
 
+    # note spaces exist to line checkboxes up:
     enabled_cb = Checkbox("Enable interface", 1)
     dhcp_cb = Checkbox("Configure with DHCP", 1)
     enabled_cb.setCallback(enabled_change, ())
@@ -635,8 +636,8 @@ def get_iface_configuration(answers, args):
     entry_grid.setField(gateway_field, 1, 2)
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
-    gf.add(enabled_cb, 0, 1)
-    gf.add(dhcp_cb, 0, 2)
+    gf.add(enabled_cb, 0, 1, anchorLeft = True)
+    gf.add(dhcp_cb, 0, 2, anchorLeft = True)
     gf.add(entry_grid, 0, 3, padding = (0,0,0,1))
     gf.add(buttons, 0, 4)
 
