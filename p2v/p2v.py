@@ -22,7 +22,7 @@ from getopt import getopt, GetoptError
 
 ui_package = p2v_tui
 
-def closeClogs(clog_fds) {
+def closeClogs(clog_fds):
     # close continuous logs:
     for logfd in clog_fds:
         try:
