@@ -23,7 +23,9 @@ class ErrorInstallingPackage(Exception):
 
 class MediaNotFound(Exception):
     def __init__(self, medianame):
-        Exception.__init__("Setup could not find the media labelled %s.  Please ensure it is loaded and that the drive is closed as appropriate.  If the media is installed and you still see this error, please refer to your user guide or XenSource technical support." % \
+        Exception.__init__(self, """Setup could not find the media labelled '%s'.  Please ensure it is loaded and that the drive is closed as appropriate.
+
+ If the media is present and you still see this error, please refer to your user guide or XenSource technical support.""" % \
                            medianame)
 
 class BadSourceAddress(Exception):

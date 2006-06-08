@@ -58,11 +58,6 @@ def activateScreen():
         activefile.write(tty)
         activefile.close()
 
-# Use the 'usb-discover' tool to detect USB hardware and load
-# needed modules:
-def discoverUSBHardware():
-    assert util.runCmd("/usr/sbin/usb-discover") == 0
-
 # Use the 'discover' tool to detect hardware and load needed
 # modules;
 #
@@ -138,9 +133,6 @@ def main():
     pk = open('/proc/sys/kernel/printk', 'w')
     pk.write('1')
     pk.close()
-
-    # make sure USB keyboards work:
-    discoverUSBHardware()
 
     # start portmap so NFS mounting works:
     util.runCmd('portmap')
