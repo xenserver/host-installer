@@ -146,14 +146,14 @@ def determine_size(mntpnt, dev_name):
 
     #df reports in 1K blocks
     # get the used size
-    command = "df -k | grep %s | awk '{print $3}'" % mntpnt
+    command = "df -kP | grep %s | awk '{print $3}'" % mntpnt
     p2v_utils.trace_message("going to run : %s" % command)
     rc, used_out = run_command(command);
     if rc != 0:
         raise P2VError("Failed to determine used size - df failed")
 
     #get the total size
-    command = "df -k | grep %s | awk '{print $2}'" % mntpnt
+    command = "df -kP | grep %s | awk '{print $2}'" % mntpnt
     p2v_utils.trace_message("going to run : %s" % command)
     rc, total_out = run_command(command);
     if rc != 0:
