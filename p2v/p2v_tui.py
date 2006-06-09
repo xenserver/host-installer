@@ -232,9 +232,10 @@ def size_screen(answers):
     success = False
     while not success:
         (button, size) = MyEntryWindow(screen,
-                "Enter size",
-                """Please enter the size of the volume that will be created on the %s host.
-The default is 150%% of the minimum.  Minimum size is %s MB.""" % (PRODUCT_BRAND, used_size),
+                "Enter Volume Size",
+                """Please enter the size of the volume that will be created on the %s host. 
+                
+Currently, %s MB is in use by the chosen operating system.  The default size of the volume is 150%% of the used size or 4096 MB, whichever is bigger.""" % (PRODUCT_BRAND, used_size),
                 [('Size in MB:', total_size)],
                 buttons = ['Ok', 'Back'])
         try:
