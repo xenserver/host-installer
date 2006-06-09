@@ -74,6 +74,7 @@ def discoverHardware(ui = None):
     for m in out:
         if m not in modules and m != "":
             modules.append(m)
+    modules = [x.replace('_', '-') for x in modules]
 
     # Load our modules, applying the mapping from the hardware module:
     for mod in modules:
