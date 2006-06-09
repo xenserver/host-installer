@@ -81,7 +81,11 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
     description = os_install[p2v_constants.DESCRIPTION]
-    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%d'" % (
+
+    dev_attrs = os_install[p2v_constants.DEV_ATTRS]
+    rootfs_type = dev_attrs[p2v_constants.DEV_ATTRS_TYPE]
+
+    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%s' '%d'" % (
                 xe_host,
                 root_password,
                 os_install_name,
@@ -91,6 +95,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
                 os_install_distribution,
                 total_size,
                 used_size,
+                rootfs_type,
                 cpu_count))
 
     if rc != 0:
@@ -118,7 +123,16 @@ def finish_agent(os_install, xe_host):
         raise P2VError("Failed to finish this P2V to the %s host. Please contact XenSource support." % PRODUCT_BRAND)
     return rc
     
+def finish_agent_error(os_install, xe_host):
+    #tell the agent that we're done
+    root_password = os_install['root-password']
+    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c vm_uninstall -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
 
+    if rc != 0:
+        p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
+        raise P2VError("Failed to finish this P2V to the %s host. Please contact XenSource support." % PRODUCT_BRAND)
+    return rc
+ 
 def determine_size(os_install):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
@@ -214,13 +228,17 @@ def ssh_p2v( xe_host, os_install, results, pd ):
         return rc
 
     ui_package.displayProgressDialog(0, pd, " - Preparing %s host" % PRODUCT_BRAND)
-    rc = prepare_agent(xe_host, os_install, ssh_key_file)
-    if rc != 0:
-        return rc
+    try:
+        rc = prepare_agent(xe_host, os_install, ssh_key_file)
+        if rc != 0:
+            return rc
 
-    rc = perform_p2v_ssh( os_install, xe_host, ssh_key_file)
-    if rc != 0:
-        return rc
+        rc = perform_p2v_ssh( os_install, xe_host, ssh_key_file)
+        if rc != 0:
+            return rc
+    except P2VError:
+        finish_agent_error(os_install, xe_host)
+        raise
 
     ui_package.displayProgressDialog(3, pd, " - Finalizing install on %s host" % PRODUCT_BRAND)
     rc = finish_agent(os_install, xe_host)
