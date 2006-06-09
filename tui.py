@@ -214,22 +214,28 @@ def get_http_source(answers):
                                            buttons = ['Ok', 'Back'])
             
             answers['source-address'] = result[0]
-            im = None
-            try:
-                im = packaging.HTTPInstallMethod(result[0])
-            except packaging.MediaNotFound, m:
-                ButtonChoiceWindow(screen, "Problem with repository",
-                                   str(m),  ['Back'])
-            else:
-                problems = packaging.quickSourceVerification(im)
-                if problems == []:
-                    done = True
+
+            # 'not button' covers the user pressing F12
+            if button == "ok" or not button:
+                im = None
+                try:
+                    im = packaging.HTTPInstallMethod(result[0])
+                except packaging.MediaNotFound, m:
+                    ButtonChoiceWindow(screen, "Problem with repository",
+                                       str(m),  ['Back'])
                 else:
-                   ButtonChoiceWindow(screen, "Problem with repository",
-                                       "The following required packages were not found in your repository: \n\n%s" % \
-                                       generalui.makeHumanList(problems),
-                                       ['Back'])
-                im.finished()
+                    problems = packaging.quickSourceVerification(im)
+                    if problems == []:
+                        done = True
+                    else:
+                        ButtonChoiceWindow(screen, "Problem with repository",
+                                           "The following required packages were not found in your repository: \n\n%s" % \
+                                           generalui.makeHumanList(problems),
+                                           ['Back'])
+                if im:
+                    im.finished()
+            elif button == "back":
+                done = True
             
         if button == 'ok': return 1
         if button == 'back': return -1
@@ -248,7 +254,7 @@ def get_nfs_source(answers):
                                            buttons = ['Ok', 'Back'])
         
             answers['source-address'] = result[0]
-            if button == 'ok':
+            if button == 'ok' or not button:
                 im = None
                 try:
                     im = packaging.NFSInstallMethod(result[0])
@@ -264,8 +270,11 @@ def get_nfs_source(answers):
                                            "The following required packages were not found in your repository: \n\n%s" % \
                                            generalui.makeHumanList(problems),
                                            ['Back'])
+                
                     im.finished()
-
+            elif button == 'back':
+                done = True
+                
         if button == 'ok': return 1
         if button == 'back': return -1
     else:
