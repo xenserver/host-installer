@@ -234,8 +234,8 @@ def size_screen(answers):
         (button, size) = MyEntryWindow(screen,
                 "Enter size",
                 """Please enter the size of the volume that will be created on the %s host.
-The default is 150%% of the minimum.  Minimum size is %s MiB.""" % (PRODUCT_BRAND, used_size),
-                [('Size in MiB:', total_size)],
+The default is 150%% of the minimum.  Minimum size is %s MB.""" % (PRODUCT_BRAND, used_size),
+                [('Size in MB:', total_size)],
                 buttons = ['Ok', 'Back'])
         try:
             l = long(size[0])
@@ -245,7 +245,7 @@ The default is 150%% of the minimum.  Minimum size is %s MiB.""" % (PRODUCT_BRAN
         if long(size[0]) < long(used_size):
             ButtonChoiceWindow(screen,
                 "Size too small",
-                "Minimum size = %s MiB." % used_size,
+                "Minimum size = %s MB." % used_size,
                 buttons = ['Ok'])
         else:
             new_size = long(size[0]) * 1024**2
