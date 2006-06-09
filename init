@@ -69,32 +69,22 @@ def discoverHardware(ui = None):
     assert rc == 0 and rc2 == 0
     out = out + out2
     out = out.split("\n")
-
-    # Hack to get rid of 'AT' characters on screen when using
-    # serial console
-    if ui:
-        ui.refresh()
     
     modules = []
     for m in out:
         if m not in modules and m != "":
             modules.append(m)
 
+    # Load our modules, applying the mapping from the hardware module:
     for mod in modules:
-        # do we have different ideas about the required modules
-        # than Discover?
         if module_map.has_key(mod):
-            if module_map[mod] == None or module_map == []:
+            if module_map[mod] == []:
                 xelogging.log("Ignoring module %s" % mod)
             else:
                 xelogging.log("Discover found %s - we think we need %s" % (mod, module_map[mod]))
-                if type(module_map[mod]) == str:
-                    xelogging.log("Loading %s" % module_map[mod])
-                    util.runCmd("modprobe %s" % module_map[mod])
-                else:
-                    for mymod in module_map[mod]:
-                        xelogging.log("Loading %s" % module_map[mod])
-                        util.runCmd("modprobe %s" % mymod)
+                for mymod in module_map[mod]:
+                    xelogging.log("Loading %s" % mymod)
+                    util.runCmd("modprobe %s" % mymod)
         else:
             # just continue loading the module
             xelogging.log('Loading %s' % mod)
