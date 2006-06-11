@@ -88,6 +88,8 @@ def __readOneLineFile__(filename):
         raise e
 
 def getDiskDeviceVendor(dev):
+    if dev.startswith("/dev/"):
+        dev = re.match("/dev/(.*)", dev).group(1)
     dev = dev.replace("/", "!")
     if os.path.exists("/sys/block/%s/device/vendor" % dev):
         return __readOneLineFile__("/sys/block/%s/device/vendor" % dev).strip(' \n')
@@ -95,6 +97,8 @@ def getDiskDeviceVendor(dev):
         return ""
 
 def getDiskDeviceModel(dev):
+    if dev.startswith("/dev/"):
+        dev = re.match("/dev/(.*)", dev).group(1)
     dev = dev.replace("/", "!")
     if os.path.exists("/sys/block/%s/device/model" % dev):
         return __readOneLineFile__("/sys/block/%s/device/model" % dev).strip('  \n')
@@ -102,6 +106,8 @@ def getDiskDeviceModel(dev):
         return ""
     
 def getDiskDeviceSize(dev):
+    if dev.startswith("/dev/"):
+        dev = re.match("/dev/(.*)", dev).group(1)
     dev = dev.replace("/", "!")
     if os.path.exists("/sys/block/%s/device/block/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/device/block/size" % dev))
