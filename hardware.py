@@ -14,7 +14,9 @@ module_map = {
     # general:
     'mptscsih'     : ['mptspi', 'mptscsih'],
     'i810-tco'     : [],
+    'usb-uhci'     : [],
     'ide-scsi'     : ['ide-generic'],
+    'piix'         : ['ata-piix', 'piix'],
 
     # blacklist framebuffer drivers (we don't need them):
     "arcfb"        : [],
