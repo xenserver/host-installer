@@ -208,6 +208,9 @@ def upgrade_complete(answers):
 def error_dialog(message):
     if sub_ui_package:
         sub_ui_package.error_dialog(message)
+    else:
+        print "ERROR:"
+        print message
 
 # progress dialogs:
 def initProgressDialog(title, text, total):

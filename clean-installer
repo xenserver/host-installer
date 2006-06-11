@@ -115,24 +115,21 @@ def main():
         # make sure we have discovered at least one disk and
         # at lesat one network interface:
         if len(disks) == 0:
-            xelogging.log("INSTALL FAILURE: No disks found on this host.")
-            ui_package.no_disks()
-            raise Exception("No disks found on this host.")
+            raise Exception, "No disks found on this host."
 
         if len(netifs) == 0:
-            xelogging.log("INSTALL FAILURE: No network interfaces found on this host.")
-            ui_package.no_netifs()
-            raise Exception("No network interfaces found on this host.")
+            raise Exception, "No network interfaces found on this host."
 
         # make sure that we have enough disk space:
         xelogging.log("Found disks: %s" % str(disks))
-        diskInfo = map(lambda x: diskutil.getExtendedDiskInfo(x), disks)
-        xelogging.log("Extended disk info: %s" % str(diskInfo))
+        diskSizes = [diskutil.getDiskDeviceSize(x) for x in disks]
+        diskSizesGB = [diskutil.blockSizeToGBSize(x) for x in diskSizes]
+        xelogging.log("Disk sizes: %s" % str(diskSizesGB))
 
-        if len(filter(lambda x: diskutil.getHumanDiskSize(x[2]) >= constants.min_primary_disk_size, diskInfo)) == 0:
-            xelogging.log("Not enough disk space to proceed.")
-            seq = [ ui_package.not_enough_space_screen ]
-            uicontroller.runUISequence(seq, results)
+        bigdisks = filter(lambda x: x >= constants.min_primary_disk_size,
+                          diskSizesGB)
+        if bigdisks == []:
+            raise Exception, "Not enough disk space to proceed."
         else:
             if isUpgrade:
                 seq = [ ui_package.upgrade_screen ]
@@ -171,21 +168,35 @@ def main():
                     seq = [ ui_package.upgrade_complete ]
         
                 uicontroller.runUISequence(seq, results)
+
+                xelogging.log("The installation completed successfully.")
             else:
                 xelogging.log("The user aborted the installation from within the user interface.")    
-    except Exception:
+    except Exception, e:
+        # first thing to do is to get the traceback and log it:
         (t, v, tb) = sys.exc_info()
-        err = traceback.format_exception(t,v,tb)
-        ui_package.error_dialog(string.join(err))
+        err = string.join(traceback.format_exception(t,v,tb))
+        xelogging.log("INSTALL FAILED.")
+        xelogging.log("A fatal exception occurred:")
+        xelogging.log(err)
 
-        # clean up the screen
-        ui_package.end_ui()
+        # now write out logs where possible:
+        xelogging.writeLog("/tmp/install-log")
 
-        #umount volumes
+        # now display a friendly error dialog:
+        ui_package.error_dialog("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or XenSource technical support, for further details." % str(e))
+
+        # try to clean up any mounted volumes:
         try:
             backend.cleanup_umount()
         except Exception:
             pass
+
+        # clean up the screen
+        ui_package.end_ui()
+
+        # and now on the disk if possible:
+        backend.writeLog(results)
 
         # close continuous logs:
         for logfd in clog_fds:
@@ -194,26 +205,31 @@ def main():
             except:
                 pass
             logfd.close()
-            
-        raise
 
-    xelogging.log("Shutting down user interface")
-    ui_package.end_ui()
+        # exit with failure status:
+        return 1
 
-    # close continuous logs:
-    for logfd in clog_fds:
-        try:
-            xelogging.continuous_logs.remove(logfd)
-        except:
-            pass
-        logfd.close()
+    else:
+        xelogging.log("Shutting down user interface")
+        ui_package.end_ui()
+        
+        # close continuous logs:
+        for logfd in clog_fds:
+            try:
+                xelogging.continuous_logs.remove(logfd)
+            except:
+                pass
+            logfd.close()
 
-    # put the log in /tmp:
-    xelogging.writeLog("/tmp/install-log")
+        # put the log in /tmp:
+        xelogging.writeLog("/tmp/install-log")
 
-    # and now on the disk if possible:
-    backend.writeLog(results)
+        # and now on the disk if possible:
+        backend.writeLog(results)
+
+        # exit with success status:
+        return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

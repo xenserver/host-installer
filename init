@@ -14,6 +14,7 @@ from getopt import getopt, GetoptError
 import shutil
 
 import init_tui
+import init_simpleui
 import xelogging
 import netutil
 import util
@@ -97,8 +98,15 @@ def discoverHardware(ui = None):
     for m in base_modules:
         os.system("modprobe %s" % m)
 
-    # make device nodes:
-    os.system("udevstart")
+    # if we're in an older (pre udev-091) filesystem, we need
+    # to call udevstart as udevd wasn't working correctly:
+    if os.path.exists("/sbin/udevstart"):
+        os.system("udevstart")
+
+    # we should wait for all udev events to complete if we have
+    # that capability:
+    if os.path.exists("/sbin/udevsettle"):
+        os.system("udevsettle --timeout 10")
 
 # Attempt to configure the network:
 def configureNetworking():
@@ -118,10 +126,24 @@ def configureNetworking():
         netutil.ifup(i)
 
 def main():
+    # clog fds: add tty3
+    clog_fds = []
+    try:
+        ttylog = open('/dev/tty3', 'w')
+        clog_fds.append(ttylog)
+        xelogging.continuous_logs.append(ttylog)
+    except:
+        xelogging.log("Error opening tty3 as a log output.")
+
     # disable all kernel printing
     pk = open('/proc/sys/kernel/printk', 'w')
     pk.write('1')
     pk.close()
+
+    # mount all fstab filesystems if they're not already mounted:
+    util.runCmd('mount -a')
+    if os.system("grep -q 'sysfs' /proc/mounts") != 0:
+        util.runCmd('mount -t sysfs none /sys')
 
     # start portmap so NFS mounting works:
     util.runCmd('portmap')
@@ -142,6 +164,7 @@ def main():
         sys.exit(1)
 
     mode = MODE_INTERACTIVE
+    ui_package = init_tui
     modules = []
     active_output = None
     answerfile = None
@@ -156,13 +179,13 @@ def main():
         if opt == "--answerfile":
             answerfile = val
         if opt == "--verbose-answerfile":
+            ui_package = init_simpleui
+            xelogging.continuous_logs.append(sys.stdout)
             verbose_answerfile = val
         if opt == "--modules":
             modules = val.split(",")
         if opt == "--output":
             active_output = val
-
-    ui_package = init_tui
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
@@ -273,6 +296,13 @@ def main():
     if os.path.ismount('/etc/network'):
         util.umount('/etc/network')
 
+    # stop logging to tty3:
+    for logfd in clog_fds:
+        try:
+            xelogging.continuous_logs.remove(logfd)
+        except:
+            pass
+        logfd.close()
 
 if __name__ == "__main__":
     main()
