@@ -200,13 +200,13 @@ def main():
             if os.path.basename(my_tty) == active_output:
                 activateScreen()
             else:
-                init_tui.already_activated()
+                ui_package.already_activated()
         else:
             # activate interactively.
             ui_package.startup_screen()
             activateScreen()
     except AlreadyActivated:
-        init_tui.already_activated()
+        ui_package.already_activated()
 
     # detect hardware:
     ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
