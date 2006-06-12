@@ -14,6 +14,16 @@ import xelogging
 import util
 import constants
 import version
+import diskutil
+
+# the devices the we check if we can find the appropriate media
+# in any devices with 'removable' set in /sys:
+__static_devices__ = [
+    'hda', 'hdb', 'hdc', 'hdd', 'hde', 'hdf',
+    'sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf',
+    'scd0', 'scd1', 'scd2', 'scd3', 'scd4',
+    'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7'
+    ]
 
 class NoSuchPackage(Exception):
     pass
@@ -25,7 +35,7 @@ class MediaNotFound(Exception):
     def __init__(self, medianame):
         Exception.__init__(self, """Setup could not find the media labelled '%s'.  Please ensure it is loaded and that the drive is closed as appropriate.
 
- If the media is present and you still see this error, please refer to your user guide or XenSource technical support.""" % \
+If the media is present and you still see this error, please refer to your user guide or XenSource technical support.""" % \
                            medianame)
 
 class BadSourceAddress(Exception):
@@ -138,10 +148,15 @@ class LocalInstallMethod(InstallMethod):
             os.mkdir("/tmp/cdmnt")
 
         device = None ; self.device = None
-        for dev in ['hda', 'hdb', 'hdc', 'hdd', 'scd0', 'scd1',
-                    'scd2', 'sr0', 'sr1', 'sr2', 'cciss/c0d0p0',
-                    'cciss/c0d1p0', 'cciss/c0d0', 'cciss/c0d1',
-                    'sda', 'sdb', 'sdc', 'sdd']:
+
+        devices_to_check = [diskutil.getQualifiedDeviceName(x) \
+                            for x in diskutil.getRemovableDeviceList() ]
+        devices_to_check.extend(__static_devices__)
+
+        xelogging.log("Checking for media at the following device nodes in the order listed:")
+        xelogging.log(str(devices_to_check))
+
+        for dev in devices_to_check:
             device_path = "/dev/%s" % dev
             if os.path.exists(device_path):
                 try:

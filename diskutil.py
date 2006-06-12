@@ -51,14 +51,17 @@ def getDiskList():
 def getQualifiedDiskList():
     return map(lambda x: getQualifiedDeviceName(x), getDiskList())
 
+def getRemovableDeviceList():
+    devs = os.listdir('/sys/block')
+    removable_devs = []
+    for d in devs:
+        if isRemovable(d):
+            removable_devs.append(d)
+
+    return removable_devs
+
 def getQualifiedDeviceName(disk):
-    if disk.startswith('sd') or \
-       disk.startswith('hd') or \
-       disk.startswith('cciss'):
-        return "/dev/%s" % disk
-    else:
-        # TODO we should throw an exception here instead:
-        return None
+    return "/dev/%s" % disk
 
 # Given a partition (e.g. /dev/sda1), get a disk name:
 def diskFromPartition(partition):
@@ -114,7 +117,16 @@ def getDiskDeviceSize(dev):
         return int(__readOneLineFile__("/sys/block/%s/device/block/size" % dev))
     elif os.path.exists("/sys/block/%s/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/size" % dev))
-    
+
+def isRemovable(dev):
+    if dev.startswith("/dev/"):
+        dev = re.match("/dev/(.*)", dev).group(1)
+    dev = dev.replace("/", "!")
+    if os.path.exists("/sys/block/%s/removable" % dev):
+        return int(__readOneLineFile__("/sys/block/%s/removable" % dev)) == 1
+    else:
+        return False
+
 def blockSizeToGBSize(blocks):
     return (long(blocks) * 512) / (1024 * 1024 * 1024)
     
