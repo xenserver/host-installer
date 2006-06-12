@@ -47,23 +47,25 @@ def init_ui(results, is_subui):
 
 # get data from a DOM object representing the answerfile:
 def __parse_answerfile__(answerdoc, results):
+    xelogging.log("Importing XML answerfile.")
+
     # get text from a node:
     def getText(nodelist):
         rc = ""
         for node in nodelist:
             if node.nodeType == node.TEXT_NODE:
                 rc = rc + node.data
-        return rc
+        return rc.encode()
 
     n = answerdoc.documentElement
 
     # primary-disk:
-    results['primary-disk'] = getText(n.getElementsByTagName('primary-disk')[0].childNodes)
+    results['primary-disk'] = "/dev/%s" % getText(n.getElementsByTagName('primary-disk')[0].childNodes)
 
     # guest-disks:
     results['guest-disks'] = []
     for disk in n.getElementsByTagName('guest-disks'):
-        results['guest-disks'].append(getText(disk.childNodes))
+        results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
     # source-media, source-address:
     source = n.getElementsByTagName('source')[0]
@@ -139,7 +141,7 @@ def __parse_answerfile__(answerdoc, results):
         results['post-install-script'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
     
     results['iface-configuration'] = (False, netifs)
-    
+        
 
 def end_ui():
     if sub_ui_package is not None:

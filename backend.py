@@ -60,17 +60,29 @@ def performInstallation(answers, ui_package):
             isUpgradeInstall = answers['upgrade']
         else:
             isUpgradeInstall = False
-            
+
         if isUpgradeInstall:
+            xelogging.log("Performing UPGRADE installation")
             pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
                                                'Upgrading %s, please wait...' % PRODUCT_BRAND,
                                                25)
         else:
+            xelogging.log("Performing CLEAN installation")
             pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
                                                'Installing %s, please wait...' % PRODUCT_BRAND,
                                                25)
 
         ui_package.displayProgressDialog(0, pd)
+
+        # write out the data we're using for the installation to
+        # the log, excluding the root password:
+        xelogging.log("Data being used for installation:")
+        for k in answers:
+            if k == "root-password":
+                val = "<not printed>"
+            else:
+                val = str(answers[k])
+            xelogging.log("%s = %s (type: %s)" % (k, val, str(type(answers[k]))))
 
         if isUpgradeInstall == False:    
             # remove any volume groups 
@@ -358,6 +370,21 @@ def installGrub(mounts, disk):
     util.bindMount("/sys", "%s/sys" % mounts['root'])
     util.bindMount("/tmp", "%s/tmp" % mounts['root'])
 
+    rootdisk = "(%s,%s)" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
+
+    # move the splash screen to a safe location so we don't delete it
+    # when removing a previous installation of GRUB:
+    hasSplash = False
+    if os.path.exists("%s/grub/xs-splash.xpm.gz" % mounts['boot']):
+        shutil.move("%s/grub/xs-splash.xpm.gz" % mounts['boot'],
+                    "%s/xs-splash.xpm.gz" % mounts['boot'])
+        hasSplash = True
+
+    # ensure there isn't a previous installation in /boot
+    # for any reason:
+    if os.path.isdir("%s/grub" % mounts['boot']):
+        shutil.rmtree("%s/grub" % mounts['boot'])
+
     # grub configuration - placed here for easy editing.  Written to
     # the menu.lst file later in this function.
     grubconf = ""
@@ -365,26 +392,29 @@ def installGrub(mounts, disk):
     grubconf += "serial --unit=0 --speed=115200\n"
     grubconf += "terminal --timeout=10 console serial\n"
     grubconf += "timeout 10\n"
+
+    # splash screen?
+    if hasSplash:
+        grubconf += "\n"
+        grubconf += "foreground = 000000\n"
+        grubconf += "background = cccccc\n"
+        grubconf += "splashimage = %s/xs-splash.xpm.gz\n\n" % rootdisk
+    
     grubconf += "title %s\n" % PRODUCT_BRAND
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
+    grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /xen-%s.gz lowmem_emergency_pool=16M\n" % version.xen_version
     grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
+    grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty lowmem_emergency_pool=16M\n" % version.xen_version
     grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
-    grubconf += "   root (%s,%s)\n" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
+    grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot com1=115200,8n1 console=com1,tty\n" % version.xen_version
     grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
     grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
-
-    # ensure there isn't a previous installation in /boot
-    # for any reason:
-    if os.path.isdir("%s/grub" % mounts['boot']):
-        shutil.rmtree("%s/grub" % mounts['boot'])
 
     # write the GRUB configuration:
     util.assertDir("%s/grub" % mounts['boot'])
@@ -809,6 +839,7 @@ def finalise(answers):
     util.mount(getBootPartName(answers['primary-disk']),
                "/tmp/boot")
 
+    xelogging.log("About to compress root filesystem...")
     assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
 
     util.umount("/tmp/root")

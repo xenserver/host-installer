@@ -58,8 +58,14 @@ def disk_selection(answers, args):
     disks = diskutil.getQualifiedDiskList()
 
     if len(disks) == 1:
-        answers['primary-disk'] = disks[0]
-        answers['guest-disks'] = []
+        if not answers.has_key('primary-disk'):
+            answers['primary-disk'] = disks[0]
+        if not answers.has_key('guest-disks'):
+            answers['guest-disks'] = []
+
+        assert answers['primary-disk'].startswith('/dev/')
+        for x in answers['guest-disks']:
+            assert x.startswith('/dev/')
         return 1
     else:
         sequence = [ ui_package.select_primary_disk,

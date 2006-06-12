@@ -331,7 +331,7 @@ def select_primary_disk(answers):
     diskEntries = diskutil.getQualifiedDiskList()
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        if diskutil.getHumanDiskSize(size) >= constants.min_primary_disk_size:
+        if diskutil.blockSizeToGBSize(size) >= constants.min_primary_disk_size:
             stringEntry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)

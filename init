@@ -106,7 +106,7 @@ def discoverHardware(ui = None):
     # we should wait for all udev events to complete if we have
     # that capability:
     if os.path.exists("/sbin/udevsettle"):
-        os.system("udevsettle --timeout 10")
+        os.system("udevsettle --timeout=10")
 
 # Attempt to configure the network:
 def configureNetworking():
@@ -200,13 +200,19 @@ def main():
             if os.path.basename(my_tty) == active_output:
                 activateScreen()
             else:
+                xelogging.log("Stopping installation in this process because this tty isn't the one that the installation should proceed on.")
+                xelogging.log("(Current tty is    : %s)" % os.path.basename(my_tty))
+                xelogging.log("(Requested tty was : %s)" % active_output)
+                xelogging.log("Note that you should either specify tty1 or ttyS0 as your install TTY if you are using the output= option.")
                 ui_package.already_activated()
+                sys.exit(0)
         else:
             # activate interactively.
             ui_package.startup_screen()
             activateScreen()
     except AlreadyActivated:
         ui_package.already_activated()
+        sys.exit(0)
 
     # detect hardware:
     ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
