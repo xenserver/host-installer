@@ -56,7 +56,7 @@ def getRemovableDeviceList():
     removable_devs = []
     for d in devs:
         if isRemovable(d):
-            removable_devs.append(d)
+            removable_devs.append(d.replace("!", "/"))
 
     return removable_devs
 
