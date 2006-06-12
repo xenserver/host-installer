@@ -83,8 +83,6 @@ def main():
         
             if rc != -1:
                 rc = p2v_backend.perform_P2V(results)
-                print "All done"
-                sys.exit(0)
             else:
                 ui_package.end_ui()
                 closeClogs(clog_fds)
