@@ -9,7 +9,7 @@ import version
 
 min_primary_disk_size = 16
 
-rws_size = 11000
+rws_size = 1000
 rws_name = "RWS"
 
 vmstate_size = 4000
