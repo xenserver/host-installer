@@ -341,6 +341,7 @@ def prepareLVM(answers):
     assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
 
     assert runCmd("lvcreate -L %s -n %s %s" % (rws_size, rws_name, vgname)) == 0
+    assert runCmd("lvcreate -L %s -n %s %s" % (vmstate_size, vmstate_name, vgname)) == 0
 
     assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
@@ -353,6 +354,7 @@ def createDom0DiskFilesystems(disk):
     global bootfs_type, rwsfs_type, vgname
     assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
+    assert runCmd("mkfs.%s %s" % (vmstatefs_type, "/dev/VG_XenSource/%s" % vmstate_name)) == 0
 
 def createDom0Tmpfs(disk):
     global vgname, dom0tmpfs_name, dom0tmpfs_size
@@ -441,6 +443,7 @@ def mountVolumes(primary_disk):
     tmprootvol = "/dev/%s/%s" % (vgname, dom0tmpfs_name)
     bootvol = getBootPartName(primary_disk)
     rwsvol = getRWSPartName(primary_disk)
+    vmstatevol = "/dev/VG_XenSource/%s" % vmstate_name
     
     # work out where to bount things (note that rootVol and bootVol might
     # be equal).  Note the boot volume must be mounted inside the root directory
@@ -449,6 +452,7 @@ def mountVolumes(primary_disk):
     bootpath = '/tmp/root/boot'
     rwspath = "/tmp/root/rws"
     dropboxpath = "/tmp/root%s"  % DOM0_PKGS_DIR_LOCATION
+    vmstate_path = "/tmp/root/var/opt/xen/vm"
 
     # mount the volumes (must assertDir in mounted filesystem...)
     util.assertDir(rootpath)
@@ -464,12 +468,16 @@ def mountVolumes(primary_disk):
     util.assertDir(dropboxpath)
     util.bindMount(rwspath + "/packages", dropboxpath)
 
+    util.assertDir(vmstate_path)
+    util.mount(vmstatevol, vmstate_path)
+
     # ugh - umount-order - what a piece of crap
     return {'boot': bootpath,
             'dropbox': dropboxpath,
             'rws' : rwspath,
             'root': rootpath,
-            'umount-order': [dropboxpath, bootpath, rwspath, rootpath]}
+            'vmstate': vmstate_path,
+            'umount-order': [vmstate_path, dropboxpath, bootpath, rwspath, rootpath]}
  
 def umountVolumes(mounts, force = False):
      for m in mounts['umount-order']: # hack!

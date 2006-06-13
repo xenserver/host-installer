@@ -12,6 +12,10 @@ min_primary_disk_size = 16
 rws_size = 11000
 rws_name = "RWS"
 
+vmstate_size = 4000
+vmstate_name = "VMState"
+vmstatefs_type = "ext3"
+
 boot_size = 320
 vgname = "VG_XenSource"
 
