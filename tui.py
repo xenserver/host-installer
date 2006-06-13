@@ -305,7 +305,7 @@ def verify_source(answers):
                 ButtonChoiceWindow(screen, "Problem with repository",
                                    str(e),  ['Back'])
             else:
-                displayInfoDialog("Verify Installation Source", "Package verficiation is in progress, please wait...")
+                displayInfoDialog("Verify Installation Source", "Package verification is in progress, please wait...")
                 problems = packaging.md5SourceVerification(installmethod)
                 if len(problems) == 0:
                     done = True
