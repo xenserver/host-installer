@@ -129,6 +129,7 @@ def performInstallation(answers, ui_package):
         # perform dom0 file system customisations:
         mkLvmDirs(mounts, answers)
         writeResolvConf(mounts, answers)
+        writeKeyboardConfiguration(mounts, answers)
         ui_package.displayProgressDialog(16, pd)
         
         configureNetworking(mounts, answers)
@@ -498,6 +499,17 @@ def installKernels(mounts, answers):
     
 def doDepmod(mounts, answers):
     runCmd("chroot %s depmod %s" % (mounts['root'], version.kernel_version))
+
+def writeKeyboardConfiguration(mounts, answers):
+    util.assertDir("%s/etc/sysconfig/" % mounts['root'])
+    if not answers.has_key('keymap'):
+        answers['keymap'] = 'us'
+        xelogging.log("No keymap specified, defaulting to 'us'")
+
+    kbdfile = open("%s/etc/sysconfig/keyboard" % mounts['root'], 'w')
+    kbdfile.write("KEYBOARDTYPE=pc\n")
+    kbdfile.write("KEYTABLE=%s\n" % answers['keymap'])
+    kbdfile.close()
 
 def writeFstab(mounts, answers):
     util.assertDir("%s/etc" % mounts['rws'])

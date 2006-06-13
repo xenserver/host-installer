@@ -9,7 +9,7 @@ import version
 
 min_primary_disk_size = 16
 
-rws_size = 15000
+rws_size = 11000
 rws_name = "RWS"
 
 boot_size = 320
@@ -39,6 +39,7 @@ ANSWERS_FILE = "upgrade_answers"
 
 # location of the timezone data file in the installation environment
 timezone_data_file = '/opt/xensource/installer/timezones'
+kbd_data_file = '/opt/xensource/installer/keymaps'
 
 # packages to be installed
 packages = [ "dom0fs-%s-%s" % (version.dom0_name, version.dom0_version),
@@ -54,7 +55,8 @@ packages = [ "dom0fs-%s-%s" % (version.dom0_name, version.dom0_version),
             ]
 
 # files that should be writeable in the dom0 FS
-writeable_files = [ '/etc/yp.conf',
+writeable_files = [ '/etc/sysconfig/keyboard',
+                    '/etc/yp.conf',
                     '/etc/ntp.conf',
                     '/etc/resolv.conf',
                     '/etc/dhclient-exit-hooks',

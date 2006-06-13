@@ -135,6 +135,11 @@ def __parse_answerfile__(answerdoc, results):
 
         netifs[name] = netif
 
+    # keymap:
+    keymap_nodes = n.getElementsByTagName('post-install-script')
+    if len(keymap_nodes) == 1:
+        results['keymap'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
+
     # post-install-script
     pis_nodes = n.getElementsByTagName('post-install-script')
     if len(pis_nodes) == 1:
@@ -162,6 +167,10 @@ def upgrade_screen(answers):
 def no_disks():
     return 1
 def no_netifs():
+    return 1
+def get_keyboard_type(answers):
+    return 1
+def get_keymap(answers):
     return 1
 def confirm_installation_one_disk(answers):
     return 1

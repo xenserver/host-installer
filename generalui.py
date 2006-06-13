@@ -53,6 +53,36 @@ def getTimeZoneCities(desired_region):
 
     return cities
 
+def getKeyboardTypes():
+    kbdfile = open(constants.kbd_data_file, 'r')
+    lines = kbdfile.readlines()
+    kbdfile.close()
+
+    lines = map(lambda x: x.strip('\n').split('/'), lines)
+
+    kbdtypes = []
+    for kbdtype in lines:
+        if kbdtype[0] not in kbdtypes:
+            kbdtypes.append(kbdtype[0])
+
+    return kbdtypes
+
+def getKeymaps(kbdtype):
+    kbdfile = open(constants.kbd_data_file, 'r')
+    lines = kbdfile.readlines()
+    kbdfile.close()
+
+    lines = map(lambda x: x.strip('\n').split('/'), lines)
+
+    keymaps = []
+    for keymap in lines:
+        if keymap[0] == kbdtype:
+            keymapname = "/".join(keymap[1:])
+            keymaps.append(keymapname)
+
+    return keymaps
+    
+
 def disk_selection(answers, args):
     ui_package = args['ui-package']
     disks = diskutil.getQualifiedDiskList()

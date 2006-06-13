@@ -102,6 +102,41 @@ def not_enough_space_screen(answers):
     # leave the installer:
     return 1
 
+def get_keyboard_type(answers):
+    global screen
+
+    entries = generalui.getKeyboardTypes()
+
+    (button, entry) = ListboxChoiceWindow(screen,
+                                          "Select Keymap",
+                                          "Please choose which type of keyboard you have.  (Note that you can tell by looking at the characters in the top-left corner of the keyboard - they should match one of the items listed below.)",
+                                          entries,
+                                          ['Ok', 'Back'])
+
+    if button == "ok" or button == None:
+        answers['keyboard-type'] = entries[entry]
+        return 1
+    
+    if button == "back": return -1
+
+def get_keymap(answers):
+    global screen
+
+    entries = generalui.getKeymaps(answers['keyboard-type'])
+
+    (button, entry) = ListboxChoiceWindow(screen,
+                                          "Select Keymap",
+                                          "Please select the keymap you would like to use (note that, in this version of the installer, this will only take effect when you reboot into %s)." % PRODUCT_BRAND,
+                                          entries,
+                                          ['Ok', 'Back'], height = 8, scroll = 1)
+
+    if button == "ok" or button == None:
+        answers['keymap'] = entries[entry]
+        return 1
+    
+    if button == "back": return -1
+
+
 def upgrade_screen(answers):
     global screen
 
@@ -158,7 +193,6 @@ def confirm_erase_volume_groups(answers):
         return 1
     elif button == 'cancel installation':
         return uicontroller.EXIT
-
 
 def select_installation_source(answers, other):
     global screen
@@ -887,7 +921,7 @@ def error_dialog(message):
     
     ButtonChoiceWindow(screen, "Error occurred",
                                message,
-                               ['Ok'])
+                               ['Ok'], width=50)
 
 ###
 # Helper functions
