@@ -258,9 +258,9 @@ def get_nfs_source(answers):
                 im = None
                 try:
                     im = packaging.NFSInstallMethod(result[0])
-                except packaging.MediaNotFound, m:
+                except packaging.BadSourceAddress:
                     ButtonChoiceWindow(screen, "Problem with repository",
-                                       str(m),  ['Back'])
+                                       "The installer was unable to access the address you specified.  Please check that it is well-formed, and that you have read permission for the path you specified.",  ['Back'])
                 else:
                     problems = packaging.quickSourceVerification(im)
                     if problems == []:

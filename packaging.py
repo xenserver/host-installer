@@ -109,7 +109,7 @@ class NFSInstallMethod(InstallMethod):
         if not os.path.isdir('/tmp/nfs-source'):
             os.mkdir('/tmp/nfs-source')
         try:
-            util.mount(self.nfsPath, '/tmp/nfs-source', fstype = 'nfs')
+            util.mount(self.nfsPath, '/tmp/nfs-source', fstype = 'nfs', options=['ro'])
         except util.MountFailureException:
             raise BadSourceAddress()
 
