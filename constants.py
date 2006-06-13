@@ -64,6 +64,7 @@ writeable_files = [ '/etc/yp.conf',
                     '/etc/issue',
                     '/etc/adjtime',
                     '/etc/passwd',
+                    '/etc/.pwd.lock',
                     '/etc/lvm/.cache']
 
 # files that need to be readable before RWS comes online
