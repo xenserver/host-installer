@@ -22,7 +22,8 @@ __static_devices__ = [
     'hda', 'hdb', 'hdc', 'hdd', 'hde', 'hdf',
     'sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf',
     'scd0', 'scd1', 'scd2', 'scd3', 'scd4',
-    'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7'
+    'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7',
+    'cciss/c0d0', 'cciss/c0d1'
     ]
 
 class NoSuchPackage(Exception):
@@ -149,9 +150,10 @@ class LocalInstallMethod(InstallMethod):
 
         device = None ; self.device = None
 
-        devices_to_check = [diskutil.getQualifiedDeviceName(x) \
-                            for x in diskutil.getRemovableDeviceList() ]
+        devices_to_check = diskutil.getRemovableDeviceList()
         devices_to_check.extend(__static_devices__)
+        if 'fd0' in devices_to_check:
+            devices_to_check.remove('fd0')
 
         xelogging.log("Checking for media at the following device nodes in the order listed:")
         xelogging.log(str(devices_to_check))
