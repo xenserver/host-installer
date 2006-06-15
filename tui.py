@@ -543,73 +543,112 @@ def get_name_service_configuration(answers):
     def manual_hostname_change((cb, entry)):
         entry.setFlags(FLAG_DISABLED, cb.value())
 
-    gf = GridFormHelp(screen, 'Name Service Configuration', None, 1, 8)
+    done = False
+    while not done:
+        gf = GridFormHelp(screen, 'Name Service Configuration', None, 1, 8)
+
+        text = TextboxReflowed(50, "How should the name service be configured?")
+        buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
         
-    text = TextboxReflowed(50, "How should the name service be configured?")
-    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+        manual_hostname = Checkbox("Specify hostname manually?", answers.has_key('manual-hostname') and answers['manual-hostname'][0])
+        hostname_text = Textbox(15, 1, "Hostname:")
+        hostname = Entry(30, text = answers.has_key('manual-hostname') and answers['manual-hostname'][1] or "")
+        hostname.setFlags(FLAG_DISABLED, answers.has_key('manual-hostname') and answers['manual-hostname'][0])
+        hostname_grid = Grid(2, 1)
+        hostname_grid.setField(hostname_text, 0, 0)
+        hostname_grid.setField(hostname, 1, 0)
+        manual_hostname.setCallback(manual_hostname_change, (manual_hostname, hostname))
 
-    manual_hostname = Checkbox("Specify hostname manually?", 0)
-    hostname_text = Textbox(15, 1, "Hostname:")
-    hostname = Entry(30)
-    hostname.setFlags(FLAG_DISABLED, 0)
-    hostname_grid = Grid(2, 1)
-    hostname_grid.setField(hostname_text, 0, 0)
-    hostname_grid.setField(hostname, 1, 0)
-    manual_hostname.setCallback(manual_hostname_change, (manual_hostname, hostname))
+        def nsvalue(answers, id):
+            if not answers.has_key('manual-nameservers'):
+                return ""
+            (mns, nss) = answers['manual-nameservers']
+            if not mns:
+                return ""
+            else:
+                return nss[id]
 
-    ns1_text = Textbox(15, 1, "Nameserver 1:")
-    ns1_entry = Entry(30)
-    ns1_grid = Grid(2, 1)
-    ns1_grid.setField(ns1_text, 0, 0)
-    ns1_grid.setField(ns1_entry, 1, 0)
+        ns1_text = Textbox(15, 1, "Nameserver 1:")
+        ns1_entry = Entry(30, nsvalue(answers, 0))
+        ns1_grid = Grid(2, 1)
+        ns1_grid.setField(ns1_text, 0, 0)
+        ns1_grid.setField(ns1_entry, 1, 0)
     
-    ns2_text = Textbox(15, 1, "Nameserver 2:")
-    ns2_entry = Entry(30)
-    ns2_grid = Grid(2, 1)
-    ns2_grid.setField(ns2_text, 0, 0)
-    ns2_grid.setField(ns2_entry, 1, 0)
+        ns2_text = Textbox(15, 1, "Nameserver 2:")
+        ns2_entry = Entry(30, nsvalue(answers, 1))
+        ns2_grid = Grid(2, 1)
+        ns2_grid.setField(ns2_text, 0, 0)
+        ns2_grid.setField(ns2_entry, 1, 0)
 
-    ns3_text = Textbox(15, 1, "Nameserver 3:")
-    ns3_entry = Entry(30)
-    ns3_grid = Grid(2, 1)
-    ns3_grid.setField(ns3_text, 0, 0)
-    ns3_grid.setField(ns3_entry, 1, 0)
+        ns3_text = Textbox(15, 1, "Nameserver 3:")
+        ns3_entry = Entry(30, nsvalue(answers, 1))
+        ns3_grid = Grid(2, 1)
+        ns3_grid.setField(ns3_text, 0, 0)
+        ns3_grid.setField(ns3_entry, 1, 0)
 
-    for entry in [ns1_entry, ns2_entry, ns3_entry]:
-        entry.setFlags(FLAG_DISABLED, 0)
+        if not (answers.has_key('manual-nameservers') and \
+                answers['manual-nameservers'][0]):
+            for entry in [ns1_entry, ns2_entry, ns3_entry]:
+                entry.setFlags(FLAG_DISABLED, 0)
 
-    manual_nameservers = Checkbox("Specify DNS servers manually?", 0)
-    manual_nameservers.setCallback(auto_nameserver_change, (manual_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
+        manual_nameservers = Checkbox("Specify DNS servers manually?", answers.has_key('manual-nameservers') and answers['manual-nameservers'][0])
+        manual_nameservers.setCallback(auto_nameserver_change, (manual_nameservers, [ns1_entry, ns2_entry, ns3_entry]))
 
-    gf.add(text, 0, 0, padding = (0,0,0,1))
+        gf.add(text, 0, 0, padding = (0,0,0,1))
 
-    gf.add(manual_hostname, 0, 1, anchorLeft = True)
-    gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
+        gf.add(manual_hostname, 0, 1, anchorLeft = True)
+        gf.add(hostname_grid, 0, 2, padding = (0,0,0,1))
         
-    gf.add(manual_nameservers, 0, 3, anchorLeft = True)
-    gf.add(ns1_grid, 0, 4)
-    gf.add(ns2_grid, 0, 5)
-    gf.add(ns3_grid, 0, 6, padding = (0,0,0,1))
+        gf.add(manual_nameservers, 0, 3, anchorLeft = True)
+        gf.add(ns1_grid, 0, 4)
+        gf.add(ns2_grid, 0, 5)
+        gf.add(ns3_grid, 0, 6, padding = (0,0,0,1))
     
-    gf.add(buttons, 0, 7)
+        gf.add(buttons, 0, 7)
 
-    result = gf.runOnce()
+        result = gf.runOnce()
+
+        if buttons.buttonPressed(result) == 'back':
+            done = True
+        else:
+            # manual hostname?
+            if manual_hostname.value():
+                answers['manual-hostname'] = (True, hostname.value())
+            else:
+                answers['manual-hostname'] = (False, None)
+
+            # manual nameservers?
+            if manual_nameservers.value():
+                answers['manual-nameservers'] = (True, [ns1_entry.value(),
+                                                        ns2_entry.value(),
+                                                        ns3_entry.value()])
+            else:
+                answers['manual-nameservers'] = (False, None)
+            
+            # validate before allowing the user to continue:
+            done = True
+
+            def valid_hostname(x, emptyValid = False):
+                return (x != "" or emptyValid) and \
+                       " " not in x
+            if manual_hostname.value():
+                if not valid_hostname(hostname.value()):
+                    done = False
+                    ButtonChoiceWindow(screen,
+                                       "Name Service Configuration",
+                                       "The hostname you entered was not valid.",
+                                       ["Back"])
+            if manual_nameservers.value():
+                if not valid_hostname(ns1_entry.value(), False) or \
+                   not valid_hostname(ns2_entry.value(), True) or \
+                   not valid_hostname(ns3_entry.value(), True):
+                    done = False
+                    ButtonChoiceWindow(screen,
+                                       "Name Service Configuration",
+                                       "Please check that you have entered at least one nameserver, and that the nameservers you specified are valid.",
+                                       ["Back"])
 
     if buttons.buttonPressed(result) == "ok":
-        # manual hostname?
-        if manual_hostname.value():
-            answers['manual-hostname'] = (True, hostname.value())
-        else:
-            answers['manual-hostname'] = (False, None)
-
-        # manual nameservers?
-        if manual_nameservers.value():
-            answers['manual-nameservers'] = (True, [ns1_entry.value(),
-                                                    ns2_entry.value(),
-                                                    ns3_entry.value()])
-        else:
-            answers['manual-nameservers'] = (False, None)
-            
         return 1
     else:
         return -1
