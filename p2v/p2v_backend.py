@@ -149,6 +149,10 @@ def determine_size(os_install):
         total_size_l = (4 * (1024 ** 3))
         
     total_size = str(total_size_l)
+
+    #now increase used_size by 100MB, because installing our RPMs during 
+    #the p2v process will take up that extra room.
+    used_size += 100 * (1024 ** 3)
     
     os_install[p2v_constants.FS_USED_SIZE] = used_size
     os_install[p2v_constants.FS_TOTAL_SIZE] = total_size
