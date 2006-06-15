@@ -107,11 +107,11 @@ def __parse_answerfile__(answerdoc, results):
                 p2v_constants.XEN_TAR_MD5SUM ]
 
     os_install_node = n.getElementsByTagName(p2v_constants.OS_INSTALL)
+    results[p2v_constants.OS_INSTALL] = {}
     for os_install in os_install_node:
         for key in keyList:
             r = getValue(n, key)
             if r is not None:
-                results[p2v_constants.OS_INSTALL] = {}
                 results[p2v_constants.OS_INSTALL][key] = r
                 print "  " + key + " = " + results[p2v_constants.OS_INSTALL][key]
             else:
