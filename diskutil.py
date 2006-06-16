@@ -233,4 +233,4 @@ def findProblematicVGs(disks):
 # does VG_XenSource already exist?
 def detectExistingInstallation():
     # yuck
-    return os.system("vgscan 2>/dev/null | grep -q 'VG_XenSource'") == 0
+    return os.system("vgscan -P 2>/dev/null | grep -q 'VG_XenSource'") == 0

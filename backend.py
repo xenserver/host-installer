@@ -31,6 +31,9 @@ from constants import *
 
 mounts = {}
 
+class InvalidInstallerConfiguration(Exception):
+    pass
+
 ################################################################################
 # FIRST STAGE INSTALLATION:
 
@@ -38,6 +41,13 @@ mounts = {}
 # entire UI component.
 def performInstallation(answers, ui_package):
     global mounts
+
+    # do some rudimentary checks to make sure the answers we've
+    # been given make sense:
+    if not os.path.exists(answers['primary-disk']):
+        raise InvalidInstallerConfiguration, "The primary disk you specified for installation could not be found."
+    if not answers.has_key('source-media'):
+        raise InvalidInstallerConfiguration, "You did not fully specify an installation source."
 
     # create an installation source object for our installation:
     try:
@@ -212,6 +222,7 @@ def CheckInstalledVersion(answers):
 
 def removeBlockingVGs(disks):
     if diskutil.detectExistingInstallation():
+        util.runCmd2(['vgreduce', '--removemissing', 'VG_XenSource'])
         util.runCmd2(['lvremove', 'VG_XenSource'])
         util.runCmd2(['vgremove', 'VG_XenSource'])
 
