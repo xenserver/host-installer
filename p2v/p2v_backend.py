@@ -139,6 +139,7 @@ def determine_size(os_install):
     os_root_mount_point = mount_os_root( os_root_device, dev_attrs )
 
     total_size_l = long(0)
+    used_size_l = long(0)
 
     #findroot.determine_size returns in bytes
     (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
@@ -152,7 +153,9 @@ def determine_size(os_install):
 
     #now increase used_size by 100MB, because installing our RPMs during 
     #the p2v process will take up that extra room.
-    used_size += 100 * (1024 ** 3)
+    used_size_l = long(used_size)
+    used_size_l += 100 * (1024 ** 2)
+    used_size = str(used_size_l)
     
     os_install[p2v_constants.FS_USED_SIZE] = used_size
     os_install[p2v_constants.FS_TOTAL_SIZE] = total_size
