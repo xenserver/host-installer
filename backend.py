@@ -397,7 +397,9 @@ def installGrub(mounts, disk):
     grubconf += "timeout 10\n"
 
     # splash screen?
-    if hasSplash:
+    # (Disabled for now since GRUB messes up on the serial line when
+    # this is enabled.)
+    if hasSplash and False:
         grubconf += "\n"
         grubconf += "foreground = 000000\n"
         grubconf += "background = cccccc\n"
