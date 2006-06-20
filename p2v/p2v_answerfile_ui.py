@@ -122,12 +122,11 @@ def __parse_answerfile__(answerdoc, results):
                     p2v_constants.DEV_ATTRS_LABEL ]
 
         dev_attr_node = os_install.getElementsByTagName(p2v_constants.DEV_ATTRS)
-        print "dan = " + str(len(dev_attr_node))
+        results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS] = {}
         for dev_attr in dev_attr_node:
              for key in keyList:
                 r = getValue(n, key)
                 if r is not None:
-                    results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS] = {}
                     results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key] = r
                     print "    " + key + " = " + results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key]
                 else:
