@@ -55,7 +55,16 @@ def performInstallation(answers, ui_package):
         if answers['source-media'] == 'url':
             installmethod = packaging.HTTPInstallMethod(answers['source-address'])
         elif answers['source-media'] == 'local':
-            installmethod = packaging.LocalInstallMethod()
+            found = False
+            while not found:
+                try:
+                    installmethod = packaging.LocalInstallMethod()
+                except packaging.MediaNotFound, m:
+                    retry = ui_package.request_media(m.media_name)
+                    if not retry:
+                        raise
+                else:
+                    found = True
         elif answers['source-media'] == 'nfs':
             installmethod = packaging.NFSInstallMethod(answers['source-address'])
     except Exception, e:

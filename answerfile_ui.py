@@ -216,6 +216,9 @@ def installation_complete(answers):
 def upgrade_complete(answers):
     return 1
 
+# 0 means don't retry
+def request_media(medianame):
+    return 0
 def error_dialog(message):
     if sub_ui_package:
         sub_ui_package.error_dialog(message)

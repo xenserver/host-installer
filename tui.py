@@ -960,7 +960,16 @@ def error_dialog(message):
     
     ButtonChoiceWindow(screen, "Error occurred",
                                message,
-                               ['Ok'], width=50)
+                               ['Reboot'], width=50)
+
+def request_media(medianame):
+    global screen
+    
+    button = ButtonChoiceWindow(screen, "Media Not Found",
+                                "Please insert the media labelled '%s' into your drive.  If the media is alredy present, then the installer was unable to locate it - please refer to your user guide, or XenSource technical support, for more information" % medianame,
+                                ['Retry', 'Cancel'], width=50)
+
+    return button != "cancel"
 
 ###
 # Helper functions

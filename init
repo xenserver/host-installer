@@ -227,6 +227,10 @@ def main():
     configureNetworking()
     ui_package.clearModelessDialog()
 
+    # we'll write out a log at this point, so that the user can
+    # collect later:
+    xelogging.writeLog("/tmp/startup-log")
+
     # let the user choose what they would like to do:
     if mode == MODE_INTERACTIVE:
         try:
@@ -296,7 +300,7 @@ def main():
             os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3" % answerfile)
         os.system("reboot")
 
-    if not verbose_answerfile:
+    if ui_package:
         ui_package.end_ui()
 
     if os.path.ismount('/etc/network'):
