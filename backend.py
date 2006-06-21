@@ -653,6 +653,8 @@ def setRootPassword(mounts, answers):
 
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, answers):
+    check_link_down_hack = True
+
     def writeDHCPConfigFile(fd, device, hwaddr = None):
         fd.write("DEVICE=%s\n" % device)
         fd.write("BOOTPROTO=dhcp\n")
@@ -679,6 +681,8 @@ def configureNetworking(mounts, answers):
         for i in ifaces:
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
             writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
+            if check_link_down_hack:
+                ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
 
             # this is a writeable file:
@@ -709,6 +713,8 @@ def configureNetworking(mounts, answers):
             # this is a writeable file:
             writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
                           
+            if check_link_down_hack:
+                ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
 
     # write the configuration file for the loopback interface
