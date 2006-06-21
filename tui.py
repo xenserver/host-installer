@@ -801,17 +801,27 @@ def get_ntp_servers(answers):
             x.setFlags(FLAG_DISABLED, not dhcp_cb.value())
 
     gf = GridFormHelp(screen, 'NTP Configuration', None, 1, 4)
-    text = TextboxReflowed(60, "Please specify details of the NTP servers you wish to use?")
+    text = TextboxReflowed(60, "Please specify details of the NTP servers you wish to use (e.g. pool.ntp.org)?")
     buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
 
     dhcp_cb = Checkbox("NTP is configured by my DHCP server", 1)
     dhcp_cb.setCallback(dhcp_change, ())
 
-    ntp1_field = Entry(50)
+    def ntpvalue(answers, sn):
+        if not answers.has_key('ntp-servers'):
+            return ""
+        else:
+            servers = answers['ntp-servers']
+            if sn < len(servers):
+                return servers[sn]
+            else:
+                return ""
+
+    ntp1_field = Entry(40, ntpvalue(answers, 0))
     ntp1_field.setFlags(FLAG_DISABLED, False)
-    ntp2_field = Entry(50)
+    ntp2_field = Entry(40, ntpvalue(answers, 1))
     ntp2_field.setFlags(FLAG_DISABLED, False)
-    ntp3_field = Entry(50)
+    ntp3_field = Entry(40, ntpvalue(answers, 2))
     ntp3_field.setFlags(FLAG_DISABLED, False)
 
     ntp1_text = Textbox(15, 1, "NTP Server 1:")
