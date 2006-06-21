@@ -242,8 +242,8 @@ def get_http_source(answers):
         done = False
         while not done:
             (button, result) = EntryWindow(screen,
-                                           "Specify HTTP Source",
-                                           "Please enter URL for your HTTP repository",
+                                           "Specify Repository",
+                                           "Please enter URL for your HTTP or FTP repository",
                                            ['URL'], entryWidth = 50,
                                            buttons = ['Ok', 'Back'])
             
