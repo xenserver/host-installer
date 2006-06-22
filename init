@@ -65,10 +65,11 @@ def activateScreen():
 # (i.e. modules.pcimap), but I don't entirely understand where
 # these come from or oif they're complete.
 def discoverHardware(ui = None):
-    rc, out = commands.getstatusoutput("discover --enable-all --module all")
-    rc2, out2 = commands.getstatusoutput("/opt/xensource/installer/hwdetect")
-    assert rc == 0 and rc2 == 0
-    out = out + out2
+    rc1, out1 = commands.getstatusoutput("discover --enable-all --module ide")
+    rc2, out2 = commands.getstatusoutput("discover --enable-all --module scsi")
+    rc3, out3 = commands.getstatusoutput("discover --enable-all --module all")
+    rc4, out4 = commands.getstatusoutput("/opt/xensource/installer/hwdetect")
+    out = out1 + out2 + out3 + out4
     out = out.split("\n")
     
     modules = []
@@ -78,6 +79,7 @@ def discoverHardware(ui = None):
     modules = [x.replace('_', '-') for x in modules]
 
     # Load our modules, applying the mapping from the hardware module:
+    modlist_file = open('/tmp/module-order', 'w')
     for mod in modules:
         if module_map.has_key(mod):
             if module_map[mod] == []:
@@ -87,11 +89,14 @@ def discoverHardware(ui = None):
                 for mymod in module_map[mod]:
                     xelogging.log("Loading %s" % mymod)
                     util.runCmd("modprobe %s" % mymod)
+                    modlist_file.write(mymod + "\n")
         else:
             # just continue loading the module
             xelogging.log('Loading %s' % mod)
             util.runCmd('modprobe %s' % mod)
-
+            modlist_file.write(mod + "\n")
+    modlist_file.close()
+    
     xelogging.log("All discovered modules have been loaded.")
 
     # load base modules

@@ -755,7 +755,10 @@ def writeModprobeConf(mounts, answers):
     util.umount("%s/sys" % mounts['root'])
     
     #TODO: hack
-    os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
+    if os.path.exists("/tmp/module-order"):
+        os.system("cp /tmp/module-order %s/etc/modules" % mounts['root'])
+    else:
+        os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
     
 def mkLvmDirs(mounts, answers):
     util.assertDir("%s/etc/lvm/archive" % mounts["root"])
