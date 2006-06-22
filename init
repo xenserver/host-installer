@@ -191,12 +191,84 @@ def main():
     xelogging.log("Starting 'init' user interface")
     ui_package.init_ui()
 
-    # activate the installer on a console:
-    rc, my_tty = commands.getstatusoutput("tty")
-    my_tty = my_tty.strip('\n')
-    try:
-        if active_output:
-            # activate just on serial
+    def doHardwareDetection():
+        # detect hardware:
+        ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
+        discoverHardware(ui_package)
+        ui_package.clearModelessDialog()
+        
+        for m in modules:
+            util.runCmd('modprobe %s' % m)
+
+        # try to configure the network:
+        ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
+        configureNetworking()
+        ui_package.clearModelessDialog()
+                    
+        # we'll write out a log at this point, so that the user can
+        # collect later:
+        xelogging.writeLog("/tmp/startup-log")
+
+    # let the user choose what they would like to do:
+    if mode == MODE_INTERACTIVE:
+        firstTime = True
+        try:
+            operation = ui_package.choose_operation()
+            try:
+                activateScreen()
+            except AlreadyActivated:
+                ui_package.already_activated()
+                sys.exit(0)
+                
+            doHardwareDetection()
+                
+            # reboot:
+            if operation == -1:
+                ui_package.end_ui()
+                os.system("reboot")
+                sys.exit(0)
+
+            # clean install:
+            elif operation == 0:
+                xelogging.log("Starting clean installation")
+                rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+                if rc == 0: 
+                    os.system("reboot")
+                    sys.exit(0)
+                else:
+                    sys.exit(rc)
+
+            # upgrade install:
+            elif operation == 1:
+                xelogging.log("Starting upgrade installation")
+                rc = os.system("/opt/xensource/installer/clean-installer --upgrade --upgrade-answerdev /dev/sda1 --clog /dev/tty3")
+                if rc == 0: 
+                    os.system("reboot")
+                    sys.exit(0)
+                else:
+                    sys.exit(rc)
+
+            # P2V:
+            elif operation == 2:
+                xelogging.log("Starting P2V")
+                rc = os.system("/opt/xensource/installer/p2v.py")
+                os.system("reboot")
+                sys.exit(0)
+
+        except Exception:
+            ui_package.end_ui()
+            raise
+
+    # non-interactive:
+    else:
+        # terminate on any screen that wasn't supposed to be used:
+        if not active_output:
+            active_output = "tty1"
+            xelogging.log("No output TTY specified so defaulting to tty1.")
+        try:
+            rc, my_tty = commands.getstatusoutput("tty")
+            my_tty = my_tty.strip('\n')
+            
             if os.path.basename(my_tty) == active_output:
                 activateScreen()
             else:
@@ -206,99 +278,38 @@ def main():
                 xelogging.log("Note that you should either specify tty1 or ttyS0 as your install TTY if you are using the output= option.")
                 ui_package.already_activated()
                 sys.exit(0)
-        else:
-            # activate interactively.
-            ui_package.startup_screen()
-            activateScreen()
-    except AlreadyActivated:
-        ui_package.already_activated()
-        sys.exit(0)
+        except AlreadyActivated:
+            ui_package.already_activated()
+            sys.exit(0)
 
-    # detect hardware:
-    ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
-    discoverHardware(ui_package)
-    ui_package.clearModelessDialog()
+        if mode == MODE_INSTALL:
+            doHardwareDetection()
+            if answerfile:
+                os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
+            elif verbose_answerfile:
+                os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
+            else:
+                os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+            os.system("reboot")
 
-    for m in modules:
-        util.runCmd('modprobe %s' % m)
-
-    # try to configure the network:
-    ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
-    configureNetworking()
-    ui_package.clearModelessDialog()
-
-    # we'll write out a log at this point, so that the user can
-    # collect later:
-    xelogging.writeLog("/tmp/startup-log")
-
-    # let the user choose what they would like to do:
-    if mode == MODE_INTERACTIVE:
-        try:
-            while True:
-                operation = ui_package.choose_operation()
+        elif mode == MODE_UPGRADE:
+            doHardwareDetection()
+            if answerfile:
+                os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
+            elif verbose_answerfile:
+                ui_package.end_ui()
+                os.system("/opt/xensource/installer/clean-installer --upgrade")
+            else:
+                os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
+            os.system("reboot")
                 
-                # reboot:
-                if operation == -1:
-                    ui_package.end_ui()
-                    os.system("reboot")
-                    sys.exit(0)
-
-                # clean install:
-                elif operation == 0:
-                    xelogging.log("Starting clean installation")
-                    rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
-                    if rc == 0: 
-                        os.system("reboot")
-                        sys.exit(0)
-                    else:
-                        sys.exit(rc)
-
-                # upgrade install:
-                elif operation == 1:
-                    xelogging.log("Starting upgrade installation")
-                    rc = os.system("/opt/xensource/installer/clean-installer --upgrade --upgrade-answerdev /dev/sda1 --clog /dev/tty3")
-                    if rc == 0: 
-                        os.system("reboot")
-                        sys.exit(0)
-                    else:
-                        sys.exit(rc)
-
-                # P2V:
-                elif operation == 2:
-                    xelogging.log("Starting P2V")
-                    rc = os.system("/opt/xensource/installer/p2v.py")
-                    os.system("reboot")
-                    sys.exit(0)
-
-        except Exception:
-            ui_package.end_ui()
-            raise
-
-    elif mode == MODE_INSTALL:
-        if answerfile:
-            os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
-        elif verbose_answerfile:
-            os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
-        else:
-            os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
-        os.system("reboot")
-
-    elif mode == MODE_UPGRADE:
-        if answerfile:
-            os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
-        elif verbose_answerfile:
-            ui_package.end_ui()
-            os.system("/opt/xensource/installer/clean-installer --upgrade")
-        else:
-            os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
-        os.system("reboot")
-
-    elif mode == MODE_P2V:
-        if answerfile:
-            os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
-        else:
-            os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3" % answerfile)
-        os.system("reboot")
+        elif mode == MODE_P2V:
+            doHardwareDetection()
+            if answerfile:
+                os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
+            else:
+                os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3" % answerfile)
+            os.system("reboot")
 
     if ui_package:
         ui_package.end_ui()

@@ -24,25 +24,15 @@ def refresh():
     if screen:
         screen.refresh()
 
-def startup_screen():
-    ButtonChoiceWindow(screen,
-                       "Welcome to %s" % PRODUCT_BRAND,
-                       """From here you may perform a clean host installation, or a P2V operation.
-
-Please select 'Ok' to continue installation on this console.""",
-                       ['Ok'], width = 60)
-
-    return 1
-
 def choose_operation():
     entries = [ 
-        ' * Install %s Managed Host' % PRODUCT_BRAND,
-        ' * Upgrade %s Managed Host' % PRODUCT_BRAND,
+        ' * Install %s' % BRAND_SERVER,
+        ' * Upgrade %s' % BRAND_SERVER,
         ' * P2V (convert existing OS on this host into a VM template)'
         ]
     (button, entry) = ListboxChoiceWindow(screen,
-                                          "Make a choice",
-                                          """Select the install you want to perform:""",
+                                          "Welcome to %s" % PRODUCT_BRAND,
+                                          """Please select an operation:""",
                                           entries,
                                           ['Ok', 'Exit and reboot'], width=70)
 
