@@ -385,13 +385,13 @@ def createDom0Tmpfs(disk):
     assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
     
 def installGrub(mounts, disk):
-    grubroot = getGrUBDevice(disk, mounts)
-
     # prepare extra mounts for installing GRUB:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
     util.bindMount("/tmp", "%s/tmp" % mounts['root'])
+
+    grubroot = getGrUBDevice(disk, mounts)
 
     rootdisk = "(%s,%s)" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
 
