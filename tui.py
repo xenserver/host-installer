@@ -794,7 +794,7 @@ def get_ntp_servers(answers):
     global screen
 
     if answers['time-config-method'] != 'ntp':
-        return 1
+        return uicontroller.SKIP_SCREEN
 
     def dhcp_change():
         for x in [ ntp1_field, ntp2_field, ntp3_field ]:
