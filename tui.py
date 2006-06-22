@@ -374,7 +374,7 @@ def select_primary_disk(answers):
                         "Select Primary Disk",
                         """Please select the disk you would like to use as the primary %s disk (the list below only shows disks with enough capacity to act as primary disks).
 
-%s will be installed onto this disk, requiring %s GB, and the remaining space used for Xen virtual machines.""" % (PRODUCT_BRAND, PRODUCT_BRAND, constants.min_primary_disk_size),
+%s will be installed onto this disk, requiring %s GB, and the remaining space used for %s.""" % (PRODUCT_BRAND, PRODUCT_BRAND, constants.min_primary_disk_size, BRAND_GUESTS),
                         entries,
                         ['Ok', 'Back'])
 
@@ -396,7 +396,7 @@ def select_guest_disks(answers):
         entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
         entries.append(entry)
         
-    text = TextboxReflowed(50, "Please select any additional disks you would like to use for Xen virtual machine storage")
+    text = TextboxReflowed(50, "Please select any additional disks you would like to use for %s storage" % BRAND_GUEST)
     buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
     cbt = CheckboxTree(4, 1)
     for x in entries:
@@ -482,7 +482,7 @@ def get_root_password(answers):
     while not done:
         (button, result) = PasswordEntryWindow(screen,
                                      "Set Password",
-                                     "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s host from the administrator console.)" % PRODUCT_BRAND,
+                                     "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s host from the %s.)" % (PRODUCT_BRAND, BRAND_CONSOLE),
                                      ['Password', 'Confirm'],
                                      buttons = ['Ok', 'Back'])
         if button == 'back':
