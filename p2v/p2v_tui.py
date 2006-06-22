@@ -168,7 +168,9 @@ def get_os_installs(answers):
 def isP2Vable(os):
     if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "4.1":
         return True;
-    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "3.5":
+    #if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "3.5":
+        #return True;
+    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "3.6":
         return True;
     if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION] == "9sp2":
         return True;
