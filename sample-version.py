@@ -15,3 +15,7 @@ PRODUCT_BRAND = "XenEnterprise"
 PRODUCT_NAME = "XenSource Carbon"
 PRODUCT_VERSION = "Burbank Alpha One"
 BUILD_NUMBER = "1"
+
+BRAND_GUEST = "Xen Virtual Machine"
+BRAND_GUESTS = "Xen Virtual Machines"
+BRAND_CONSOLE = "Administrator Console"

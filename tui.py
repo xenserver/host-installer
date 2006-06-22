@@ -372,11 +372,11 @@ def select_primary_disk(answers):
 
     (button, entry) = ListboxChoiceWindow(screen,
                         "Select Primary Disk",
-                        """Please select the disk you would like to use as the primary %s disk (the list below only shows disks with enough capacity to act as primary disks).
+                        """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
 
-%s will be installed onto this disk, requiring %s GB, and the remaining space used for %s.""" % (PRODUCT_BRAND, PRODUCT_BRAND, constants.min_primary_disk_size, BRAND_GUESTS),
+You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
                         entries,
-                        ['Ok', 'Back'])
+                        ['Ok', 'Back'], width = 55)
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry

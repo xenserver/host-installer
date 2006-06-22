@@ -385,7 +385,7 @@ def createDom0Tmpfs(disk):
     assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
     
 def installGrub(mounts, disk):
-    grubroot = '(hd0,0)'
+    grubroot = getGrUBDevice(disk, mounts)
 
     # prepare extra mounts for installing GRUB:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
@@ -448,7 +448,7 @@ def installGrub(mounts, disk):
     menulst_file.close()
 
     # now perform our own installation, onto the MBR of hd0:
-    assert runCmd("chroot %s grub-install --recheck '(hd0)'" % mounts['root']) == 0
+    assert runCmd("chroot %s grub-install --recheck '%s'" % (mounts['root'], grubroot)) == 0
 
     # done installing - undo our extra mounts:
     util.umount("%s/dev" % mounts['root'])
