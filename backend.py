@@ -828,6 +828,12 @@ def makeSymlinks(mounts, answers):
         runCmd("rm -rf %s" % dom0_dir)
         assert runCmd("ln -sf /rws%s %s" % (d, dom0_dir)) == 0
 
+    #special case for rws passwd file
+    #CA-2343
+    passwd_file = "%spasswd" % mounts['rws']
+    if os.path.isfile(passwd_file):
+        os.unlink(passwd_file)
+        
     # now link files:
     for f in writeable_files:
         rws_file = "%s%s" % (mounts['rws'], f)
