@@ -448,7 +448,7 @@ def installGrub(mounts, disk):
     menulst_file.close()
 
     # now perform our own installation, onto the MBR of hd0:
-    assert runCmd("chroot %s grub-install --recheck '%s'" % (mounts['root'], grubroot)) == 0
+    assert runCmd("chroot %s grub-install --recheck '(%s)'" % (mounts['root'], grubroot)) == 0
 
     # done installing - undo our extra mounts:
     util.umount("%s/dev" % mounts['root'])
