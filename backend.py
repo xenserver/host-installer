@@ -756,7 +756,19 @@ def writeModprobeConf(mounts, answers):
     
     #TODO: hack
     if os.path.exists("/tmp/module-order"):
-        os.system("cp /tmp/module-order %s/etc/modules" % mounts['root'])
+        loaded_file = open("/tmp/module-order", "r")
+        toload_file = open("%s/etc/modules" % mounts['root'], "w")
+        loaded = loaded_file.readlines()
+        loaded_file.close()
+        for line in loaded:
+            toload_file.write(line)
+
+        # now add in the USB modules:
+        for usbmod in ['uhci-hcd', 'ohci-hcd', 'ehci-hcd', 'usbhid', 'hid', 'usbkbd']:
+            if os.system("grep -q '%s' /proc/modules" % usbmod) == 0:
+                toload_file.write(usbmod + "\n")
+
+        toload_file.close()
     else:
         os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
     
