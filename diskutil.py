@@ -48,8 +48,33 @@ def getDiskList():
 
     return disks
 
+# this works on this principle that everything that isn't a
+# disk (according to our disk_nodes) is a partition.
+def getPartitionList():
+    # read the partition tables:
+    parts = open("/proc/partitions")
+    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
+                    parts.readlines())
+    parts.close()
+
+    rv = []
+    for l in partlines:
+        try:
+           (major, minor, size, name) = l.split(" ")
+           (major, minor, size) = (int(major), int(minor), int(size))
+           if (major, minor) not in disk_nodes:
+               rv.append(name.replace("!", "/"))
+        except:
+            # it wasn't an actual entry, maybe the headers or something:
+            continue
+
+    return rv
+
 def getQualifiedDiskList():
     return map(lambda x: getQualifiedDeviceName(x), getDiskList())
+
+def getQualifiedPartitionList():
+    return [getQualifiedDeviceName(x) for x in getPartitionList()]
 
 def getRemovableDeviceList():
     devs = os.listdir('/sys/block')

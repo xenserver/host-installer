@@ -510,7 +510,7 @@ def cleanup_umount():
     if mounts.has_key('umount-order'):
         umountVolumes(mounts, True)
     # now remove the temporary volume
-    runCmd("lvremove -f /dev/%s/tmp-%s" % (vgname, version.dom0_name))
+    util.runCmd2(["lvremove", "-f", "/dev/%s/tmp-%s" % (vgname, version.dom0_name)])
     runCmd("umount /tmp/mnt || true")
 
 ##########
@@ -899,6 +899,7 @@ def finalise(answers):
 
     xelogging.log("About to compress root filesystem...")
     assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
+    assert runCmd("touch /tmp/boot/.xensource-boot") == 0
 
     util.umount("/tmp/root")
     util.umount("/tmp/boot")
