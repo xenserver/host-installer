@@ -764,7 +764,7 @@ def writeModprobeConf(mounts, answers):
             toload_file.write(line)
 
         # now add in the USB modules:
-        for usbmod in ['uhci-hcd', 'ohci-hcd', 'ehci-hcd', 'usbhid', 'hid', 'usbkbd']:
+        for usbmod in ['uhci-hcd', 'uhci_hcd', 'ohci-hcd', 'ohci_hcd', 'ehci-hcd', 'ehci_hcd', 'usbhid', 'hid', 'usbkbd']:
             if os.system("grep -q '%s' /proc/modules" % usbmod) == 0:
                 toload_file.write(usbmod + "\n")
 
