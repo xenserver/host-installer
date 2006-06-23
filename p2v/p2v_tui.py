@@ -97,7 +97,7 @@ def welcome_screen(answers):
 
     button = ButtonChoiceWindow(screen,
                        "Welcome to %s P2V" % PRODUCT_BRAND,
-                       """This will copy a locally-installed OS filesystem and convert it into a VM running on a %s Host, or to a template on an NFS share that can be imported to a %s Host""" % (PRODUCT_BRAND, PRODUCT_BRAND),
+                       """This will copy a locally-installed OS filesystem and convert it into a %s running on a %s, or to a template on an NFS share that can be imported to a %s.""" % (BRAND_GUEST_SHORT, BRAND_SERVER, BRAND_SERVER),
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
@@ -108,7 +108,7 @@ def welcome_screen(answers):
 def target_screen(answers):
     global screen
 
-    entries = [ '%s Machine' % PRODUCT_BRAND,
+    entries = [ '%s' % BRAND_SERVER,
                 'NFS Server' ]
 
     (button, entry) = ListboxChoiceWindow(screen,
@@ -123,8 +123,8 @@ def target_screen(answers):
     if entry == 0:
         answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
         (button, xehost) = EntryWindow(screen,
-                "%s Host Information" % PRODUCT_BRAND,
-                "Please enter the %s host information: " % PRODUCT_BRAND,
+                "%s Information" % BRAND_SERVER,
+                "Please enter the %s information: " % BRAND_SERVER,
                 ['Hostname or IP:'],
                 buttons= ['Ok', 'Back'])
         answers[p2v_constants.XE_HOST] = xehost[0]
@@ -235,9 +235,9 @@ def size_screen(answers):
     while not success:
         (button, size) = MyEntryWindow(screen,
                 "Enter Volume Size",
-                """Please enter the size of the volume that will be created on the %s host. 
+                """Please enter the size of the volume that will be created on the %s. 
                 
-Currently, %s MB is in use by the chosen operating system.  The default size of the volume is 150%% of the used size or 4096 MB, whichever is bigger.""" % (PRODUCT_BRAND, used_size),
+Currently, %s MB is in use by the chosen operating system.  The default size of the volume is 150%% of the used size or 4096 MB, whichever is bigger.""" % (BRAND_SERVER, used_size),
                 [('Size in MB:', total_size)],
                 buttons = ['Ok', 'Back'])
         try:
@@ -313,7 +313,7 @@ def get_root_password(answers):
    
     (button, result) = PasswordEntryWindow(screen,
                                  "Enter Password",
-                                "Please enter the root password for the %s host" % PRODUCT_BRAND,
+                                "Please enter the root password for the %s" % BRAND_SERVER,
                                  ['Password'],
                                  buttons = ['Ok', 'Back'])
     if button == 'back' or button == None:
