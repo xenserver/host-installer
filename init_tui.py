@@ -28,7 +28,7 @@ def choose_operation():
     entries = [ 
         ' * Install %s' % BRAND_SERVER,
         ' * Upgrade %s' % BRAND_SERVER,
-        ' * P2V (convert existing OS on this host into a VM template)'
+        ' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT
         ]
     (button, entry) = ListboxChoiceWindow(screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
