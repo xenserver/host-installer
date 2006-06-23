@@ -99,13 +99,14 @@ def main():
             finished = True
 
         except P2VPasswordError, e:
-            ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid password, please enter a valid password", ['Ok'], width = 60)
+            if ui_package == p2v_tui:
+                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid password, please enter a valid password", ['Ok'], width = 60)
             finished = False
             firstrun = False
 
         except P2VError, e:
-            global screen
-            ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
+            if ui_package == p2v_tui:
+                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
             ui_package.end_ui()
             print "P2V Failed: %s" % e
             xelogging.log(e)
