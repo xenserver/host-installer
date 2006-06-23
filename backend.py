@@ -938,6 +938,10 @@ def writeLog(answers):
         bootnode = getBootPartName(answers['primary-disk'])
         util.mount(bootnode, "/tmp")
         xelogging.writeLog("/tmp/install-log")
+        try:
+            xelogging.collectLogs("/tmp")
+        except:
+            pass
         util.umount("/tmp")
     except:
         pass
