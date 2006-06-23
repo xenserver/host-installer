@@ -8,6 +8,7 @@
 
 import pickle
 import os
+import os.path
 import util
 import diskutil
 from constants import ANSWERS_FILE
@@ -43,6 +44,8 @@ def findAnswerFileDevice():
     devices_to_check = diskutil.getQualifiedPartitionList()
     device = None
     check_file = ANSWERS_FILE
+    if not os.path.exists('/tmp/mnt'):
+        os.mkdir('/tmp/mnt')
     for device_path in devices_to_check:
         if os.path.exists(device_path):
             try:
