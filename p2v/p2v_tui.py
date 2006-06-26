@@ -16,6 +16,7 @@ import p2v_constants
 import p2v_utils
 import p2v_backend
 import time
+import xelogging
 
 from p2v_error import P2VMountError
 
@@ -338,6 +339,9 @@ def dump_answers(answers):
 
 def finish_screen(answers):
     global screen
+    xelogging.writeLog("/tmp/install-log")
+    xelogging.collectLogs('/tmp')
+    closeClogs(clog_fds)
     ButtonChoiceWindow(screen, "Finish P2V", """P2V operation successfully completed. Please press enter to reboot the machine.""", ['Ok'], width = 50)
     return 1
     

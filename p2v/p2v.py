@@ -105,13 +105,14 @@ def main():
             firstrun = False
 
         except P2VError, e:
-            if ui_package == p2v_tui:
-                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
             ui_package.end_ui()
             print "P2V Failed: %s" % e
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
+            xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
+            if ui_package == p2v_tui:
+                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
             sys.exit(2)
         except Exception, e:
             # clean up the screen
@@ -119,7 +120,10 @@ def main():
             print "P2V Failed: %s" % e
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
+            xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
+            if ui_package == p2v_tui:
+                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
             sys.exit(1)
 
     #eject CD if success
