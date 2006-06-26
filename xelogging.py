@@ -7,6 +7,7 @@
 # Copyright XenSource Inc. 2006
 
 import os
+import util
 
 continuous_logs = []
 __log__ = ""
@@ -51,7 +52,7 @@ def collectLogs(dir):
     os.system("cat /proc/cmdline >%s/cmdline-log" % dir)
     os.system("dmesg >%s/dmesg-log" % dir)
     os.system("ps axf >%s/processes-log" % dir)
-    os.system("vgscan -P >%s/vgscan-log" % dir)
+    os.system("vgscan -P >%s/vgscan-log 2>&1" % dir)
 
     # tar up contents
-    os.system("tar -cjf %s/support.tar.bz2 %s/*-log" % (dir, dir))
+    os.system("tar -cjf %s/support.tar.bz2 %s/*-log &>/dev/null" % (dir, dir))

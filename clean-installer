@@ -48,7 +48,6 @@ def main():
                             "answerfile=",
                             "verbose-pyanswerfile=",
                             "verbose-answerfile=",
-                            "upgrade-answerdev=",
                             "upgrade",
                             "clog="])
     except GetoptError:
@@ -81,10 +80,11 @@ def main():
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
             xelogging.continuous_logs.append(sys.stdout)
-        if opt == "--upgrade-answerdev":
+        if opt == "--upgrade":
             pyanswerfile_ui.specifySubUI(ui_package)
-            pyanswerfile_ui.specifyAnswerFileDevice(val)
             ui_package = pyanswerfile_ui
+            results['upgrade'] = True
+            isUpgrade = True
         if opt == "--clog":
             try:
                 fd = open(val, "w")
@@ -92,9 +92,6 @@ def main():
                 xelogging.continuous_logs.append(fd)
             except:
                 print "Error adding continuous log %s." % val
-        if opt == "--upgrade":
-            results['upgrade'] = True
-            isUpgrade = True
 
     # log the modules that we loaded:
     xelogging.log("All needed modules should now be loaded. We have loaded:")
@@ -103,6 +100,9 @@ def main():
     try:
         xelogging.log("Starting user interface")
         ui_package.init_ui(results, False)
+
+        if isUpgrade:
+            pyanswerfile_ui.prepareForUpgrade(results)
 
         if results.has_key('usesettings'):
             if results['usesettings'] == None or results['usesettings'] == False:
@@ -231,6 +231,7 @@ def main():
 
         # put the log in /tmp:
         xelogging.writeLog("/tmp/install-log")
+        xelogging.collectLogs('/tmp')
 
         # and now on the disk if possible:
         backend.writeLog(results)

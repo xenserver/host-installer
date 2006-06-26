@@ -968,9 +968,12 @@ Please remove any local media from the drive, and press enter to reboot.""" % PR
 def error_dialog(message):
     global screen
     
-    ButtonChoiceWindow(screen, "Error occurred",
-                               message,
-                               ['Reboot'], width=50)
+    if screen:
+        ButtonChoiceWindow(screen, "Error occurred",
+                           message,
+                           ['Reboot'], width=50)
+    else:
+        xelogging.log("Error dialog requested, but UI not initialised yet.")
 
 def request_media(medianame):
     global screen
