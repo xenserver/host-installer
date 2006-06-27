@@ -18,6 +18,7 @@ import constants
 import diskutil
 import netutil
 import packaging
+import xelogging
 from version import *
 
 screen = None
@@ -141,9 +142,10 @@ def upgrade_screen(answers):
     global screen
 
     button = ButtonChoiceWindow(screen,
-                       "Welcome to %s Setup" % PRODUCT_BRAND,
-                       """This CD will upgrade %s on your server to version %s.""" % 
-                           (PRODUCT_BRAND, PRODUCT_VERSION),
+                                "Welcome to %s Setup" % PRODUCT_BRAND,
+                                """This setup tool will upgrade an existing installation of %s on your server.
+
+Please ensure that you have backed up all data on this host.""" % PRODUCT_BRAND,
                        ['Ok', 'Cancel Installation'], width=60)
 
     # advance to next screen:

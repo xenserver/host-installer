@@ -141,7 +141,10 @@ def resume_ui():
 def welcome_screen(answers):
     return 1
 def upgrade_screen(answers):
-    return 1
+    if sub_ui_package:
+        return sub_ui_package.upgrade_screen(answers)
+    else:
+        return 1
 def no_disks():
     return 1
 def no_netifs():

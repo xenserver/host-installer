@@ -133,9 +133,6 @@ def main():
         else:
             if isUpgrade:
                 seq = [ ui_package.upgrade_screen ]
-                if not backend.CheckInstalledVersion(results):
-                    ui_package.error_dialog("Upgrade Failed. Can't find an old installation to upgrade")
-                    raise Exception("Failed to upgrade")
             else:
                 seq = [ ui_package.welcome_screen,
                         ( generalui.disk_selection, { 'ui-package': ui_package  }) ]
