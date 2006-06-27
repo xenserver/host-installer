@@ -100,7 +100,7 @@ def prepareForUpgrade(results):
             # XXX - we shouldn't assume we have a sub_ui_package
             # here...
             button = ButtonChoiceWindow(sub_ui_package.screen, "Use existing settings",
-            """%s Setup can use existing settings to upgrade your %s host. You will only be asked to enter a new root password.
+            """%s Setup can use existing settings to upgrade your %s host. 
 
 Do you want to use existing settings?""" % (PRODUCT_BRAND, PRODUCT_BRAND), 
             ['Yes', 'No'], width=60)
