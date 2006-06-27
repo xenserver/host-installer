@@ -183,7 +183,7 @@ def description_screen(answers):
 
     if button == "ok" or button == None:
         osinstall = answers['osinstall']
-        osinstall[p2v_constants.DESCRIPTION] = description[0]
+        osinstall[p2v_constants.DESCRIPTION] = description[0].replace ("'", "_")
         return 1
     else:
         return -1
