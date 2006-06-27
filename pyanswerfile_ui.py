@@ -13,7 +13,7 @@ import diskutil
 from constants import ANSWERS_FILE
 from version import *
 from util import runCmd
-from snack import *
+from snack import ButtonChoiceWindow
 
 # module globals:
 sub_ui_package = None
@@ -96,7 +96,9 @@ def prepareForUpgrade(results):
             util.umount('/tmp/mnt')
             raise PreviousInstallationNotFound()
         else:
-            #lets ask the user if they want to use it
+            # lets ask the user if they want to use it
+            # XXX - we shouldn't assume we have a sub_ui_package
+            # here...
             button = ButtonChoiceWindow(sub_ui_package.screen, "Use existing settings",
             """%s Setup can use existing settings to upgrade your %s host. You will only be asked to enter a new root password.
 
@@ -181,10 +183,7 @@ def select_primary_disk(answers):
 def select_guest_disks(answers):
     return 1
 def get_root_password(answers):
-    if not answers.has_key('root-password') and sub_ui_package:
-        return sub_ui_package.get_root_password(answers)
-    else:
-        return 1
+    return 1
 def determine_basic_network_config(answers):
     return 1
 def get_timezone_region(answers):

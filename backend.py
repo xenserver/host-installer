@@ -42,12 +42,19 @@ class InvalidInstallerConfiguration(Exception):
 def performInstallation(answers, ui_package):
     global mounts
 
+    if answers.has_key('upgrade'):
+        isUpgradeInstall = answers['upgrade']
+    else:
+        isUpgradeInstall = False
+
     # do some rudimentary checks to make sure the answers we've
     # been given make sense:
     if not os.path.exists(answers['primary-disk']):
         raise InvalidInstallerConfiguration, "The primary disk you specified for installation could not be found."
     if not answers.has_key('source-media'):
         raise InvalidInstallerConfiguration, "You did not fully specify an installation source."
+    if not isUpgradeInstall and not answers.has_key('root-password'):
+        raise InvalidInstallerConfiguration, "You did not specify an acceptable root password.  You must specify a root password of length %d characters." % constants.MIN_PASSWD_LEN
 
     # create an installation source object for our installation:
     try:
@@ -75,11 +82,6 @@ def performInstallation(answers, ui_package):
     # wrap everything in a try block so we can close the
     # install method if anything fails.
     try:
-        if answers.has_key('upgrade'):
-            isUpgradeInstall = answers['upgrade']
-        else:
-            isUpgradeInstall = False
-
         if isUpgradeInstall:
             xelogging.log("Performing UPGRADE installation")
             pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
@@ -170,10 +172,15 @@ def performInstallation(answers, ui_package):
         #initNfs(mounts, answers)
         ui_package.displayProgressDialog(21, pd)
         
-        # set the root password:
-        ui_package.suspend_ui()
-        setRootPassword(mounts, answers)
-        ui_package.resume_ui()
+        # set the root password: (not if upgrade, because we're preserving the old
+        # passwd file)
+        if not isUpgradeInstall and answers.has_key('root-password'):
+            xelogging.log("Setting root password.")
+            ui_package.suspend_ui()
+            setRootPassword(mounts, answers)
+            ui_package.resume_ui()
+        else:
+            xelogging.log("Not setting root password because we are doing an upgrade.")
         ui_package.displayProgressDialog(22, pd)
         
         # configure NTP:
@@ -250,7 +257,8 @@ def removeOldFs(mounts, answers):
         
 def writeAnswersFile(mounts, answers):
     fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
-    del answers['root-password']
+    if answers.has_key('root-password'):
+        del answers['root-password']
     pickle.dump(answers, fd)
     fd.close()
 
@@ -842,13 +850,13 @@ def makeSymlinks(mounts, answers):
         runCmd("rm -rf %s" % dom0_dir)
         assert runCmd("ln -sf /rws%s %s" % (d, dom0_dir)) == 0
 
-    #special case for rws passwd file
-    #CA-2343
-    passwd_file = "%spasswd" % mounts['rws']
-    if os.path.isfile(passwd_file):
-        os.unlink(passwd_file)
-        
     # now link files:
+    # Note the behaviour here - we always create a symlink from
+    # dom0 to RWS, but we only copy the contents of the dom0 file
+    # in the case that a file does NOT already exists in RWS.
+    #
+    # Think carefully about the upgrade scenario before making
+    # changes here.
     for f in writeable_files:
         rws_file = "%s%s" % (mounts['rws'], f)
         dom0_file = "%s%s" % (mounts['root'], f)
