@@ -141,6 +141,9 @@ def performInstallation(answers, ui_package):
             progress += 1
             ui_package.displayProgressDialog(progress, pd)
 
+        # Create a swap filesystem:
+        createDom0Swap(mounts, answers)
+
         # Install the bootloader:
         installGrub(mounts, answers['primary-disk'])
         ui_package.displayProgressDialog(14, pd)
@@ -372,6 +375,7 @@ def prepareLVM(answers):
 
     assert runCmd("lvcreate -L %s -n %s %s" % (rws_size, rws_name, vgname)) == 0
     assert runCmd("lvcreate -L %s -n %s %s" % (vmstate_size, vmstate_name, vgname)) == 0
+    assert runCmd("lvcreate -L %s -n %s %s" % (swap_size, swap_name, vgname)) == 0
 
     assert runCmd("vgchange -a y %s" % vgname) == 0
     assert runCmd("vgmknodes") == 0
@@ -539,6 +543,16 @@ def installKernels(mounts, answers):
     
 def doDepmod(mounts, answers):
     runCmd("chroot %s depmod %s" % (mounts['root'], version.kernel_version))
+
+# requries dom0fs to be installed so we can use mkswap, at present.
+def createDom0Swap(mounts, answers):
+    # if no swap volume already, create it
+    if not util.runCmd("lvdisplay %s/%s 2>&1" % (vgname, swap_name)) == 0:
+        util.runCmd("lvcreate -L %s -n %s %s" % (swap_size, swap_name, vgname)) == 0
+
+    util.bindMount("/dev", "%s/dev" % mounts['root'])
+    assert util.runCmd2(['chroot', '%s' % mounts['root'], 'mkswap', '/dev/%s/%s' % (vgname, swap_name)]) == 0
+    util.umount("%s/dev" % mounts['root'])
 
 def writeKeyboardConfiguration(mounts, answers):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])

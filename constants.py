@@ -16,6 +16,9 @@ vmstate_size = 4000
 vmstate_name = "VMState"
 vmstatefs_type = "ext3"
 
+swap_size = 1000
+swap_name = "Swap"
+
 boot_size = 320
 vgname = "VG_XenSource"
 
