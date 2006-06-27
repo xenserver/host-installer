@@ -201,7 +201,8 @@ def performInstallation(answers, ui_package):
 
         # set local time:
         setTimeZone(mounts, answers)
-        setTime(mounts, answers, ui_package)
+        if not isUpgradeInstall:
+            setTime(mounts, answers, ui_package)
 
         # run any required post installation scripts:
         try:
