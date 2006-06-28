@@ -484,7 +484,7 @@ def get_root_password(answers):
     while not done:
         (button, result) = PasswordEntryWindow(screen,
                                      "Set Password",
-                                     "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s host from the %s.)" % (PRODUCT_BRAND, BRAND_CONSOLE),
+                                     "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from the %s.)" % (BRAND_SERVER, BRAND_CONSOLE),
                                      ['Password', 'Confirm'],
                                      buttons = ['Ok', 'Back'])
         if button == 'back':
