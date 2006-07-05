@@ -21,6 +21,8 @@ import packaging
 import xelogging
 from version import *
 
+import os.path
+
 screen = None
 
 # functions to start and end the GUI - these create and destroy a snack screen as
@@ -102,6 +104,28 @@ def not_enough_space_screen(answers):
 
     # leave the installer:
     return 1
+
+def eula_screen(answers):
+    global screen
+
+    if not os.path.exists(constants.EULA_PATH):
+        return SKIP_SCREEN
+
+    eula_file = open(constants.EULA_PATH, 'r')
+    eula = string.join(eula_file.readlines())
+    eula_file.close()
+
+    button = ButtonChoiceWindow(screen,
+                                "End User License Agreement",
+                                eula,
+                                ['Accept EULA', 'Back'], width=60)
+
+    # advance to next screen:
+    if button == 'back':
+        return -1
+    else:
+        return 1
+
 
 def get_keyboard_type(answers):
     global screen

@@ -38,6 +38,8 @@ rwsfs_type = 'ext3'
 
 MIN_PASSWD_LEN=6
 
+EULA_PATH = "/opt/xensource/installer/EULA"
+
 # location/destination of files on the dom0 FS
 DOM0_FILES_LOCATION_ROOT = "%s/files/"
 DOM0_VENDOR_KERNELS_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
