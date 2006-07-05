@@ -201,7 +201,7 @@ def select_installation_source(answers, other):
 
     done = False
     while not done:
-        entries = [ ('Local XenSource media', 'local'),
+        entries = [ ('Local media (CD-ROM)', 'local'),
                     ('HTTP or FTP', 'url'),
                     ('NFS', 'nfs') ]
         (button, entry) = ListboxChoiceWindow(screen,
