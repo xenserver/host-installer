@@ -22,6 +22,7 @@ import hardware
 from hardware import module_map
 
 from version import *
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 
 base_modules = ['sd-mod',
                 'sr-mod',
@@ -49,7 +50,13 @@ class AlreadyActivated(Exception):
 def activateScreen():
     lock_filename = "/tmp/.install-activated"
     if os.path.exists(lock_filename):
-        raise AlreadyActivated()
+        rc, tty = commands.getstatusoutput("/usr/bin/tty")
+        assert rc == 0
+        activefile = open(lock_filename, 'r')
+        active_tty = activefile.readline().strip()
+        activefile.close()
+        if active_tty != tty:
+            raise AlreadyActivated()
     else:
         rc, tty = commands.getstatusoutput("/usr/bin/tty")
         assert rc == 0
@@ -219,47 +226,51 @@ def main():
     if mode == MODE_INTERACTIVE:
         firstTime = True
         try:
-            operation = ui_package.choose_operation()
-            try:
-                activateScreen()
-            except AlreadyActivated:
-                ui_package.already_activated()
-                sys.exit(0)
+            while True:
+                operation = ui_package.choose_operation()
+
+                # activate installation on this screen:
+                try:
+                    activateScreen()
+                except AlreadyActivated:
+                    ui_package.already_activated()
+                    break
+
+                # detect hardware if we've not done so already
+                if firstTime:
+                    doHardwareDetection()
+                    firstTime = False
                 
-            doHardwareDetection()
-                
-            # reboot:
-            if operation == -1:
-                ui_package.end_ui()
-                os.system("reboot")
-                sys.exit(0)
+                # reboot:
+                if operation == -1:
+                    break
 
-            # clean install:
-            elif operation == 0:
-                xelogging.log("Starting clean installation")
-                rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
-                if rc == 0: 
-                    os.system("reboot")
-                    sys.exit(0)
-                else:
-                    sys.exit(rc)
+                # clean install:
+                elif operation == 0:
+                    xelogging.log("Starting clean installation")
+                    rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+                    if rc == EXIT_OK or rc == EXIT_ERROR: 
+                        break
+                    else:
+                        pass
 
-            # upgrade install:
-            elif operation == 1:
-                xelogging.log("Starting upgrade installation")
-                rc = os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
-                if rc == 0: 
-                    os.system("reboot")
-                    sys.exit(0)
-                else:
-                    sys.exit(rc)
+                # upgrade install:
+                elif operation == 1:
+                    xelogging.log("Starting upgrade installation")
+                    rc = os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
+                    if rc == EXIT_OK or rc == EXIT_ERROR:
+                        break
+                    else:
+                        pass
 
-            # P2V:
-            elif operation == 2:
-                xelogging.log("Starting P2V")
-                rc = os.system("/opt/xensource/installer/p2v.py")
-                os.system("reboot")
-                sys.exit(0)
+                # P2V:
+                elif operation == 2:
+                    xelogging.log("Starting P2V")
+                    rc = os.system("/opt/xensource/installer/p2v.py")
+                    if rc == EXIT_OK or rc == EXIT_ERROR:
+                        break
+                    else:
+                        pass
 
         except Exception:
             ui_package.end_ui()
@@ -317,6 +328,8 @@ def main():
                 os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3" % answerfile)
             os.system("reboot")
 
+    # Everything finished - from here we just shut down and reboot
+
     if ui_package:
         ui_package.end_ui()
 
@@ -333,4 +346,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    os.system("reboot")
     

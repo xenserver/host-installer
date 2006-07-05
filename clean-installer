@@ -97,6 +97,8 @@ def main():
     xelogging.log("All needed modules should now be loaded. We have loaded:")
     util.runCmd("lsmod")
 
+    status = constants.EXIT_OK
+
     try:
         xelogging.log("Starting user interface")
         ui_package.init_ui(results, False)
@@ -170,7 +172,8 @@ def main():
 
                 xelogging.log("The installation completed successfully.")
             else:
-                xelogging.log("The user aborted the installation from within the user interface.")    
+                xelogging.log("The user aborted the installation from within the user interface.")
+                status = constants.EXIT_USER_CANCEL
     except Exception, e:
         # first thing to do is to get the traceback and log it:
         (t, v, tb) = sys.exc_info()
@@ -212,7 +215,7 @@ def main():
             logfd.close()
 
         # exit with failure status:
-        return 1
+        status = constants.EXIT_ERROR
 
     else:
         xelogging.log("Shutting down user interface")
@@ -233,9 +236,9 @@ def main():
         # and now on the disk if possible:
         backend.writeLog(results)
 
-        # exit with success status:
-        return 0
+        assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
 
+    return status
 
 if __name__ == "__main__":
     sys.exit(main())

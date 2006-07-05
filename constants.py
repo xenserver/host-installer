@@ -7,6 +7,12 @@
 
 import version
 
+# exit status
+EXIT_OK = 0
+EXIT_ERROR = 1
+EXIT_USER_CANCEL = 2
+
+# other:
 min_primary_disk_size = 16
 
 rws_size = 1000
