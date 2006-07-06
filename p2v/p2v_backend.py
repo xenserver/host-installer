@@ -21,7 +21,7 @@ import util
 
 ui_package = p2v_tui
 
-from p2v_error import P2VError, P2VPasswordError, P2VMountError
+from p2v_error import P2VError, P2VPasswordError, P2VMountError, P2VCliError
 from version import *
 
 #globals
@@ -67,7 +67,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
         if "Authentication failure" in out:
             raise P2VPasswordError("Failed to add public ssh key. Please verify your hostname and password.")
         else:
-            raise P2VError("Failed to add public ssh key. Please verify your hostname and password.")
+            raise P2VCliError("Failed to add public ssh key. Please verify your hostname and password.")
 
     total_size = long(0)
     used_size = long(0)

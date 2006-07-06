@@ -19,7 +19,7 @@ import time
 import xelogging
 from p2v import closeClogs
 
-from p2v_error import P2VMountError
+from p2v_error import P2VMountError, P2VCliError
 
 screen = None
 
@@ -109,12 +109,18 @@ def welcome_screen(answers):
 # NFS or XenEnterprise target
 def target_screen(answers):
     global screen
+    
+    hn = ""
+
+    # preset the hostname
+    if answers.has_key(p2v_constants.XE_HOST):
+        hn = answers[p2v_constants.XE_HOST]
 
     answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
-    (button, xehost) = EntryWindow(screen,
+    (button, xehost) = MyEntryWindow(screen,
                 "%s Information" % BRAND_SERVER,
                 "Please enter the %s information: " % BRAND_SERVER,
-                ['Hostname or IP:'],
+                [('Hostname or IP:', hn)],
                 buttons= ['Ok', 'Back'])
     answers[p2v_constants.XE_HOST] = xehost[0]
     if button == 'back':

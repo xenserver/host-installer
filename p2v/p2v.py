@@ -16,7 +16,7 @@ import xelogging
 import os
 import getopt
 
-from p2v_error import P2VError, P2VPasswordError
+from p2v_error import P2VError, P2VPasswordError, P2VCliError
 from snack import *
 from getopt import getopt, GetoptError
 
@@ -76,7 +76,9 @@ def main():
                 ui_package.target_screen,
                 ui_package.get_root_password ]
         else:
-            seq = [ ui_package.get_root_password ]
+            seq = [ 
+                ui_package.target_screen,
+                ui_package.get_root_password ]
             
         try:
             rc = p2v_uicontroller.runUISequence(seq, results)
@@ -98,9 +100,9 @@ def main():
             p2v_backend.print_results(results)
             finished = True
 
-        except P2VPasswordError, e:
+        except (P2VPasswordError, P2VCliError), e:
             if ui_package == p2v_tui:
-                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid password, please enter a valid password", ['Ok'], width = 60)
+                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid hostname and/or password. Please re-enter hostname and password information.", ['Ok'], width = 60)
             finished = False
             firstrun = False
 
