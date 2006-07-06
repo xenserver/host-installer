@@ -4,11 +4,11 @@
  <xehost>10.100.1.108</xehost>
  <nfshost>nfsserver.host.domain.com</nfshost>
  <nfspath>/sample/path</nfspath>
+ <root-password>SampleSecret</root-password>
  <osinstall>
   <uuid>06c0d3e0-ef9e-44c4-ad07-9547794de000</uuid>
   <description>Sample description</description>
   <hostname>sample.host.domain.com</hostname>
-  <root-password>SampleSecret</root-password>
   <osname>Red Hat</osname>
   <osversion>4.1</osversion>
   <fs_used_size>1024000000</fs_used_size>
