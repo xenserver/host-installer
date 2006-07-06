@@ -40,6 +40,12 @@ def ifup(interface):
     assert interface in getNetifList()
     return util.runCmd("ifup %s" % interface)
 
+# work out if an interface is up:
+IFF_UP = 1
+def interfaceUp(interface):
+    flags = int(__readOneLineFile__('/sys/class/net/%s/flags' % interface), 16)
+    return flags & IFF_UP == IFF_UP
+
 def __readOneLineFile__(filename):
     try:
         f = open(filename)
