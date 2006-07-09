@@ -99,7 +99,7 @@ def welcome_screen(answers):
 
     button = ButtonChoiceWindow(screen,
                        "Welcome to %s P2V" % PRODUCT_BRAND,
-                       """This will copy a locally-installed OS filesystem and convert it into a %s running on a %s.""" % (BRAND_GUEST_SHORT, BRAND_SERVER),
+                       """This will copy a locally-installed OS filesystem and convert it into a %s running on a %s, or to a template on an NFS share that can be imported to a %s.""" % (BRAND_GUEST_SHORT, BRAND_SERVER, BRAND_SERVER),
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
@@ -112,20 +112,65 @@ def target_screen(answers):
     
     hn = ""
 
-    # preset the hostname
-    if answers.has_key(p2v_constants.XE_HOST):
-        hn = answers[p2v_constants.XE_HOST]
+    entries = [ '%s' % BRAND_SERVER,
+                'NFS Server' ]
 
-    answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
-    (button, xehost) = MyEntryWindow(screen,
+    (button, entry) = ListboxChoiceWindow(screen,
+                        "Target Choice",
+                        """Please choose the target you want send the P2V image of your machine to.""",
+                        entries,
+                        ['Ok', 'Cancel'], width=50)
+
+    if button == "cancel": return -2
+
+    #ask for more info
+    if entry == 0:
+        # preset the hostname
+        if answers.has_key(p2v_constants.XE_HOST):
+            hn = answers[p2v_constants.XE_HOST]
+
+        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
+        (button, xehost) = MyEntryWindow(screen,
                 "%s Information" % BRAND_SERVER,
                 "Please enter the %s information: " % BRAND_SERVER,
                 [('Hostname or IP:', hn)],
                 buttons= ['Ok', 'Back'])
-    answers[p2v_constants.XE_HOST] = xehost[0]
-    if button == 'back':
-        return 0;
+        answers[p2v_constants.XE_HOST] = xehost[0]
+        if button == 'back':
+            return 0;
+    elif entry == 1:
+        complete = False
+        while not complete:
+            hn = ""
+            p = ""
+            if answers.has_key(p2v_constants.NFS_HOST):
+                hn = answers[p2v_constants.NFS_HOST]
+            if answers.has_key(p2v_constants.NFS_PATH):
+                p = answers[p2v_constants.NFS_PATH]
+            answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_NFS
+            (button, (nfshost, nfspath)) = MyEntryWindow(screen,
+                 "NFS Server Information",
+                "Please enter the NFS server information: ",
+                [('Hostname or IP:', hn), ('Path:', p)],
+                buttons= ['Ok', 'Back'])
+            answers[p2v_constants.NFS_HOST] = nfshost
+            answers[p2v_constants.NFS_PATH] = nfspath
 
+            if button == 'back':
+                return 0;
+
+            try:
+                p2v_backend.validate_nfs_path(nfshost, nfspath)
+            except P2VMountError, e:
+                ButtonChoiceWindow(screen,
+                    "Cannot Connect",
+                    "Failed to connect to %s:%s. Please re-enter the correct information." % (nfshost, nfspath),
+                    buttons = ['Ok'])
+            else:
+                complete = True
+  
+
+    #dump_answers(answers)
     #advance to next screen:
     return 1
 
