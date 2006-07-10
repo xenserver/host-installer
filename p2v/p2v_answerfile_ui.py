@@ -182,3 +182,8 @@ def displayProgressDialog(current, pd, t2_text = ""):
 
 def clearProgressDialog():
     pass
+
+def displayButtonChoiceWindow(screen, title, text, 
+		       buttons = [ 'Ok', 'Cancel' ], 
+		       width = 40, x = None, y = None, help = None):
+    pass

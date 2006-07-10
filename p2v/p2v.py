@@ -101,31 +101,34 @@ def main():
             finished = True
 
         except (P2VPasswordError, P2VCliError), e:
-            if ui_package == p2v_tui:
-                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid hostname and/or password. Please re-enter hostname and password information.", ['Ok'], width = 60)
+            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid hostname and/or password. Please re-enter hostname and password information.", ['Ok'], width = 60)
             finished = False
             firstrun = False
 
         except P2VError, e:
-            ui_package.end_ui()
-            print "P2V Failed: %s" % e
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
             xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
-            if ui_package == p2v_tui:
-                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
+            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact XenSource support. Log files have been collected in /tmp.  
+
+Diagnostic output from the P2V operation follows:
+%s""" % e, ['Ok'], width = 60)
+            ui_package.end_ui()
+            print "P2V Failed: %s" % e
             sys.exit(2)
         except Exception, e:
-            # clean up the screen
-            ui_package.end_ui()
-            print "P2V Failed: %s" % e
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
             xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
-            if ui_package == p2v_tui:
-                ButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "P2V operation failed : \n%s" % e, ['Ok'], width = 60)
+            # clean up the screen
+            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact XenSource support. Log files have been collected in /tmp.  
+
+Diagnostic output from the P2V operation follows:
+%s""" % e, ['Ok'], width = 60)
+            ui_package.end_ui()
+            print "P2V Failed: %s" % e
             sys.exit(1)
 
     #eject CD if success

@@ -404,3 +404,10 @@ def clearProgressDialog():
     global screen
     
     screen.popWindow()
+
+def displayButtonChoiceWindow(screen, title, text, 
+		       buttons = [ 'Ok', 'Cancel' ], 
+		       width = 40, x = None, y = None, help = None):
+    ButtonChoiceWindow(screen, title, text,
+            buttons, width, x, y, help)
+ 
