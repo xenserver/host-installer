@@ -44,6 +44,7 @@ def writeLog(destination):
 
 def collectLogs(dir):
     os.system("cat /proc/bus/pci/devices >%s/pci-log" % dir)
+    os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dir)
     os.system("cat /proc/modules >%s/modules-log" % dir)
     os.system("uname -a >%s/uname-log" % dir)
     os.system("ls /sys/block >%s/blockdevs-log" % dir)
@@ -54,5 +55,8 @@ def collectLogs(dir):
     os.system("ps axf >%s/processes-log" % dir)
     os.system("vgscan -P >%s/vgscan-log 2>&1" % dir)
 
+    logs = filter(lambda x: x.endswith('-log'), os.listdir(dir))
+    logs = " ".join(logs)
+
     # tar up contents
-    os.system("tar -cjf %s/support.tar.bz2 %s/*-log &>/dev/null" % (dir, dir))
+    os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dir, dir, logs))
