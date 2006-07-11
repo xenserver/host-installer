@@ -699,10 +699,19 @@ def get_autoconfig_ifaces(answers):
     if rv == -1: return 0
     if rv == 1: return 1
     
-
 def get_iface_configuration(answers, args):
     global screen
 
+    def identify_interface(iface):
+        global screen
+        ButtonChoiceWindow(screen,
+                           "Identify Interface",
+                           """Name: %s
+
+MAC Address; %s
+
+PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)),
+                           ['Ok'], width=60)
     def enabled_change():
         for x in [ ip_field, gateway_field, subnet_field ]:
             x.setFlags(FLAG_DISABLED,
@@ -716,7 +725,7 @@ def get_iface_configuration(answers, args):
     iface = args['iface']
     gf = GridFormHelp(screen, 'Network Configuration', None, 1, 5)
     text = TextboxReflowed(45, "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface)))
-    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")])
 
     # note spaces exist to line checkboxes up:
     enabled_cb = Checkbox("Enable interface", 1)
@@ -749,7 +758,17 @@ def get_iface_configuration(answers, args):
     gf.add(entry_grid, 0, 3, padding = (0,0,0,1))
     gf.add(buttons, 0, 4)
 
-    result = gf.runOnce()
+    while True:
+        result = gf.run()
+        # do we display a popup then continue, or leave the loop?
+        if not buttons.buttonPressed(result) == 'ok' and \
+           not buttons.buttonPressed(result) == 'back':
+            assert buttons.buttonPressed(result) == 'identify'
+            identify_interface(iface)
+        else:
+            # leave the loop - 'ok' or 'back' was pressed:
+            screen.popWindow()
+            break
 
     if buttons.buttonPressed(result) == 'ok':
         answers[iface] = {'use-dhcp': dhcp_cb.value(),

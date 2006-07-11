@@ -46,6 +46,18 @@ def interfaceUp(interface):
     flags = int(__readOneLineFile__('/sys/class/net/%s/flags' % interface), 16)
     return flags & IFF_UP == IFF_UP
 
+# make a string to help users identify a network interface:
+def getPCIInfo(interface):
+    devpath = os.path.realpath('/sys/class/net/%s/device' % interface)
+    slot = devpath[len(devpath) - 7:]
+
+    rc, output = util.runCmdWithOutput('lspci -i /usr/share/misc/pci.ids -s %s' % slot)
+
+    if rc == 0:
+        return output
+    else:
+        return "<Information unknown.>"
+
 def __readOneLineFile__(filename):
     try:
         f = open(filename)
