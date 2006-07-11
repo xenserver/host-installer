@@ -109,7 +109,7 @@ def eula_screen(answers):
     global screen
 
     if not os.path.exists(constants.EULA_PATH):
-        return SKIP_SCREEN
+        return uicontroller.SKIP_SCREEN
 
     eula_file = open(constants.EULA_PATH, 'r')
     eula = string.join(eula_file.readlines())
