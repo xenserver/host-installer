@@ -160,7 +160,9 @@ def target_screen(answers):
                 return 0;
 
             try:
+                displayPleaseWaitDialog("Validating NFS information")
                 p2v_backend.validate_nfs_path(nfshost, nfspath)
+                removePleaseWaitDialog();
             except P2VMountError, e:
                 ButtonChoiceWindow(screen,
                     "Cannot Connect",
@@ -196,10 +198,11 @@ def isP2Vable(os):
 def os_install_screen(answers):
     global screen
     os_install_strings = []
-    
-    
 
+    displayPleaseWaitDialog("Scanning for installed operating systems")
     os_installs = get_os_installs(answers)
+    removePleaseWaitDialog()
+
     for os in os_installs: 
         if isP2Vable(os):
             os_install_strings.append(os[p2v_constants.OS_NAME] + " " + os[p2v_constants.OS_VERSION] + "  (" + os[p2v_constants.DEV_NAME] + ")")
@@ -241,7 +244,11 @@ def description_screen(answers):
 
 def size_screen(answers):
     global screen
+    
+    displayPleaseWaitDialog("Determining size the selection")
     p2v_backend.determine_size(answers['osinstall'])
+    removePleaseWaitDialog()
+
     total_size = str(long(answers['osinstall'][p2v_constants.FS_TOTAL_SIZE]) / 1024**2)
     used_size = str(long(answers['osinstall'][p2v_constants.FS_USED_SIZE]) / 1024**2)
     new_size = long(0)
@@ -362,11 +369,11 @@ def failed_screen(answers):
     ButtonChoiceWindow(screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
     return 1
 
-def displayPleaseWaitDialog():
+def displayPleaseWaitDialog(wait_text):
     global screen
     form = GridFormHelp(screen, "Please wait...", None, 1, 3)
-    t = Textbox(60, 1, """Please wait while scanning for block devices.
-This can take a long time...""")
+    t = Textbox(60, 1, """Please wait: %s.
+This can take a long time...""" % wait_text)
     form.add(t, 0, 0, padding = (0,0,0,1))
     
 def removePleaseWaitDialog():
