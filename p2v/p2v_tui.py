@@ -245,7 +245,7 @@ def description_screen(answers):
 def size_screen(answers):
     global screen
     
-    displayPleaseWaitDialog("Determining size the selection")
+    displayPleaseWaitDialog("""Determining size of the selected operating system""")
     p2v_backend.determine_size(answers['osinstall'])
     removePleaseWaitDialog()
 
@@ -372,9 +372,12 @@ def failed_screen(answers):
 def displayPleaseWaitDialog(wait_text):
     global screen
     form = GridFormHelp(screen, "Please wait...", None, 1, 3)
-    t = Textbox(60, 1, """Please wait: %s.
+    t = Textbox(60, 3, """Please wait:
+%s.
 This can take a long time...""" % wait_text)
     form.add(t, 0, 0, padding = (0,0,0,1))
+    form.draw()
+    screen.refresh()
     
 def removePleaseWaitDialog():
     global screen
