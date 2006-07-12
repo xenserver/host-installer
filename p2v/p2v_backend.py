@@ -18,6 +18,7 @@ import p2v_constants
 import p2v_tui
 import p2v_utils
 import util
+import xelogging
 
 ui_package = p2v_tui
 
@@ -26,6 +27,7 @@ from version import *
 
 #globals
 dropbox_path = "/opt/xensource/packages/xgt/"
+local_mount_path = "/tmp/xenpending"
 
 def specifyUI(ui):
     global ui_package
@@ -200,7 +202,6 @@ def perform_p2v_ssh( os_install, hostname, keyfile):
     return rc
         
 def nfs_mount( nfs_mount_path ):
-    local_mount_path = "/tmp/xenpending"
     rc, out = findroot.run_command('grep -q "%s nfs" /proc/mounts' % local_mount_path)
     if rc == 0:
         return local_mount_path #already mounted
@@ -213,7 +214,13 @@ def nfs_mount( nfs_mount_path ):
         raise P2VMountError("Failed to nfs mount - mount failed")
     return local_mount_path
 
+def nfs_umount():
+    rc, out = findroot.run_command("umount %s %s" % (local_mount_path, p2v_utils.show_debug_output()))
+    xelogging.log("umount out = %s" % out)
+
 def validate_nfs_path(nfs_host, nfs_path):
+    nfs_umount()
+
     nfs_mount_path = nfs_host + ":" + nfs_path
     inbox_path = nfs_mount( nfs_mount_path )
 
