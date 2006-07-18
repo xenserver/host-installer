@@ -32,7 +32,7 @@ def init_ui(results, is_subui):
     
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
-    screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
+    screen.drawRootText(0, 1, "Copyright %s %s" % (COMPANY_NAME_LEGAL, COPYRIGHT_YEARS))
 
 def end_ui():
     global screen
@@ -75,7 +75,7 @@ def no_disks():
                        "Fatal error",
                        """No disks have been found on your system.
 
-Please refer to the user guide or XenSource technical support for more information on this problem.""",
+Please refer to the user guide or %s technical support for more information on this problem.""" % COMPANY_NAME_SHORT,
                        ['Exit'], width=60)
 
     # advance to next screen:
@@ -88,7 +88,7 @@ def no_netifs():
                        "Fatal error",
                        """No network interfaces have been found on your system.
 
-Please refer to the user guide or XenSource technical support for more information on this problem.""",
+Please refer to the user guide or %s technical support for more information on this problem.""" % COMPANY_NAME_SHORT,
                        ['Exit'], width=60)
 
     # advance to next screen:
@@ -1024,7 +1024,7 @@ def request_media(medianame):
     global screen
     
     button = ButtonChoiceWindow(screen, "Media Not Found",
-                                "Please insert the media labelled '%s' into your drive.  If the media is alredy present, then the installer was unable to locate it - please refer to your user guide, or XenSource technical support, for more information" % medianame,
+                                "Please insert the media labelled '%s' into your drive.  If the media is alredy present, then the installer was unable to locate it - please refer to your user guide, or %s technical support, for more information" % (medianame, COMPANY_NAME_SHORT),
                                 ['Retry', 'Cancel'], width=50)
 
     return button != "cancel"

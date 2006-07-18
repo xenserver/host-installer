@@ -19,6 +19,7 @@ import getopt
 from p2v_error import P2VError, P2VPasswordError, P2VCliError
 from snack import *
 from getopt import getopt, GetoptError
+from version import *
 
 ui_package = p2v_tui
 
@@ -110,10 +111,10 @@ def main():
             xelogging.writeLog("/tmp/install-log")
             xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
-            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact XenSource support. Log files have been collected in /tmp.  
+            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact %s support. Log files have been collected in /tmp.  
 
 Diagnostic output from the P2V operation follows:
-%s""" % e, ['Ok'], width = 60)
+%s""" % (COMPANY_NAME_SHORT, e), ['Ok'], width = 60)
             ui_package.end_ui()
             print "P2V Failed: %s" % e
             sys.exit(2)
@@ -123,10 +124,10 @@ Diagnostic output from the P2V operation follows:
             xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
             # clean up the screen
-            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact XenSource support. Log files have been collected in /tmp.  
+            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact %s support. Log files have been collected in /tmp.  
 
 Diagnostic output from the P2V operation follows:
-%s""" % e, ['Ok'], width = 60)
+%s""" % (COMPANY_NAME_SHORT, e), ['Ok'], width = 60)
             ui_package.end_ui()
             print "P2V Failed: %s" % e
             sys.exit(1)

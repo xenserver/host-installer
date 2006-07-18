@@ -126,7 +126,7 @@ def finish_agent(os_install, xe_host):
 
     if rc != 0:
         p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
-        raise P2VError("Failed to finish this P2V to the %s host. Please contact XenSource support." % PRODUCT_BRAND)
+        raise P2VError("Failed to finish this P2V to the %s host. Please contact %s support." % (PRODUCT_BRAND, COMPANY_NAME_SHORT))
     return rc
     
 def finish_agent_error(os_install, xe_host):
@@ -136,7 +136,7 @@ def finish_agent_error(os_install, xe_host):
 
     if rc != 0:
         p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
-        raise P2VError("Failed to finish this P2V to the %s host. Please contact XenSource support." % PRODUCT_BRAND)
+        raise P2VError("Failed to finish this P2V to the %s host. Please contact %s support." % (PRODUCT_BRAND, COMPANY_NAME_SHORT))
     return rc
  
 def determine_size(os_install):

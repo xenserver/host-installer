@@ -15,6 +15,7 @@ import util
 import constants
 import version
 import diskutil
+from version import *
 
 # the devices the we check if we can find the appropriate media
 # in any devices with 'removable' set in /sys:
@@ -35,8 +36,8 @@ class ErrorInstallingPackage(Exception):
 class MediaNotFound(Exception):
     def __init__(self, medianame):
         self.media_name = medianame
-        Exception.__init__(self, """Setup could not find the media labelled '%s'.  If the media is present and you still see this error, please refer to your user guide or XenSource technical support.""" % \
-                           medianame)
+        Exception.__init__(self, """Setup could not find the media labelled '%s'.  If the media is present and you still see this error, please refer to your user guide or %s technical support.""" % \
+                           (medianame, COMPANY_NAME_SHORT))
 
 class BadSourceAddress(Exception):
     pass

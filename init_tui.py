@@ -14,7 +14,7 @@ def init_ui():
     global screen
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to %s - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
-    screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
+    screen.drawRootText(0, 1, "Copyright %s %s" % (COMPANY_NAME_LEGAL, COPYRIGHT_YEARS))
 
 def end_ui():
     if screen:
