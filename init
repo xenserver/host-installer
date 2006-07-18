@@ -71,7 +71,7 @@ def activateScreen():
 # uses information directly from the kernel build to find hardware
 # (i.e. modules.pcimap), but I don't entirely understand where
 # these come from or oif they're complete.
-def discoverHardware(ui = None):
+def discoverHardware():
     rc1, out1 = commands.getstatusoutput("discover --enable-all --module ide")
     rc2, out2 = commands.getstatusoutput("discover --enable-all --module scsi")
     rc3, out3 = commands.getstatusoutput("discover --enable-all --module all")
@@ -206,8 +206,8 @@ def main():
 
     def doHardwareDetection():
         # detect hardware:
-        ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and initialised...")
-        discoverHardware(ui_package)
+        ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and configured...")
+        discoverHardware()
         ui_package.clearModelessDialog()
         
         for m in modules:
@@ -236,14 +236,16 @@ def main():
                     ui_package.already_activated()
                     break
 
+                # reboot (process this action before hardware
+                # detection to save the weirdness of detecting
+                # hardware to then immediately reboot):
+                if operation == -1:
+                    break
+
                 # detect hardware if we've not done so already
                 if firstTime:
                     doHardwareDetection()
                     firstTime = False
-                
-                # reboot:
-                if operation == -1:
-                    break
 
                 # clean install:
                 elif operation == 0:
