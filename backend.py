@@ -289,6 +289,10 @@ def getRWSPartName(disk):
     global rws_name, vgname
     return "/dev/%s/%s" % (vgname, rws_name)
 
+def getSwapPartName(disk):
+    global swap_name, vgname
+    return "/dev/%s/%s" % (vgname, swap_name)
+
 def getBootPartNumber(disk):
     if hasServicePartition(disk):
         return 2
@@ -572,6 +576,7 @@ def writeFstab(mounts, answers):
     # first work out what we're going to write:
     rwspart = getRWSPartName(answers['primary-disk'])
     bootpart = getBootPartName(answers['primary-disk'])
+    swappart = getSwapPartName(answers['primary-disk'])
 
     # write 
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
@@ -581,6 +586,8 @@ def writeFstab(mounts, answers):
                      (bootpart, bootfs_type) )
         fstab.write("%s          /rws  %s     defaults   0  0\n" %
                     (rwspart, rwsfs_type))
+        fstab.write("%s          swap  swap     defaults   0  0\n" %
+                    (swappart))
         fstab.write("none        /dev/pts  devpts defaults   0  0\n")
         fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
         fstab.write("none        /proc     proc   defaults   0  0\n")
