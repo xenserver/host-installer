@@ -206,6 +206,8 @@ def os_install_screen(answers):
     for os in os_installs: 
         if isP2Vable(os):
             os_install_strings.append(os[p2v_constants.OS_NAME] + " " + os[p2v_constants.OS_VERSION] + "  (" + os[p2v_constants.DEV_NAME] + ")")
+        else:
+            os_installs.remove(os)
     
     if len(os_install_strings) > 0:
         (button, entry) = ListboxChoiceWindow(screen,
@@ -215,6 +217,7 @@ def os_install_screen(answers):
                 ['Ok', 'Back'])
             
         if button == "ok" or button == None:
+            p2v_utils.trace_message("os_install = " + os_installs[entry])
             answers['osinstall'] = os_installs[entry]
             return 1
         else:
