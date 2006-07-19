@@ -181,6 +181,7 @@ def get_os_installs(answers):
     
     return os_installs
 
+# TODO, CA-2747  pull this out of a supported OS list.
 def isP2Vable(os):
     if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "4.1":
         return True;
@@ -223,7 +224,9 @@ def os_install_screen(answers):
         else:
             return -1
     else: 
-        ButtonChoiceWindow(screen, "Error", """No operating systems found""",  ['Ok'], width=50)
+        # TODO, CA-2747  pull this out of a supported OS list.
+        ButtonChoiceWindow(screen, "Error", """No supported operating systems found. 
+Supported operating systems are: RHEL 4.1, RHEL 3.6 and SLES 9sp2.""",  ['Ok'], width=50)
         return -2
     
     if button == "back": 
