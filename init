@@ -248,7 +248,7 @@ def main():
                     firstTime = False
 
                 # clean install:
-                elif operation == 0:
+                if operation == 0:
                     xelogging.log("Starting clean installation")
                     rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
                     if rc == EXIT_OK or rc == EXIT_ERROR: 
