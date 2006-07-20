@@ -83,7 +83,8 @@ writeable_files = [ '/etc/sysconfig/keyboard',
                     '/etc/passwd',
                     '/etc/.pwd.lock',
                     '/etc/lvm/.cache',
-                    '/etc/vendorkernel-inventory']
+                    '/etc/vendorkernel-inventory',
+                    '/usr/sbin/system-info.sh']
 
 # files that need to be readable before RWS comes online
 pre_rws_dirs = [ '/etc' ]
