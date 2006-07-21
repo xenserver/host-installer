@@ -366,11 +366,22 @@ def findroot():
     return results
 
 def create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename):
-    #command = "tar cfv %s/%s -C %s %s %s" % (xgt_create_dir, xgt_filename, xgt_create_dir, template_filename, tar_filename)
-    command = "cd %s && zip %s %s %s" % (xgt_create_dir, xgt_filename, template_filename, tar_filename)
+    old_path = os.getcwd()
+
+    os.chdir(xgt_create_dir)
+    command = "mkdir -p %s" % xgt_filename
     rc, out = run_command(command)
     if rc != 0:
-        raise P2VError("Failed to create xgt - zip failed")
+        os.chdir(old_path)
+        raise P2VError("Failed to create xgt - mkdir %s failed" % xgt_filename)
+
+    command = "mv %s %s %s" % (template_filename, tar_filename, os.path.join(xgt_create_dir, xgt_filename))
+    rc, out = run_command(command)
+    if rc != 0:
+        os.chdir(old_path)
+        raise P2VError("Failed to create xgt - moving failed")
+
+    os.chdir(old_path)
     return
 
 def get_mem_info():

@@ -347,7 +347,7 @@ def add_xgt_version():
 
 def add_xgt_type():
     template_string = ""
-    template_string += open_tag(p2v_constants.TAG_XGT_TYPE, "p2v-archive")
+    template_string += open_tag(p2v_constants.TAG_XGT_TYPE, "archive-dir")
     template_string += close_tag(p2v_constants.TAG_XGT_TYPE)
     return template_string
 
@@ -531,10 +531,6 @@ def create_xgt(os_install):
     assert (os.path.exists(os.path.join(xgt_create_dir, tar_filename)))
     
     findroot.create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename)
-    
-    #and delete the tar and template files
-    os.unlink(os.path.join(xgt_create_dir, template_filename))
-    os.unlink(os.path.join(xgt_create_dir, tar_filename))
     
     
     
