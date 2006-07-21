@@ -50,6 +50,17 @@ If this message is unexpected, please try restarting your machine, and enusre yo
         form.add(tb, 0, 0)
         form.run()
 
+def ask_load_module(m):
+    global screen
+
+    result = ButtonChoiceWindow(screen,
+                                "Interactive Module Loading",
+                                "Load module %s?" % m,
+                                ['Yes', 'No'])
+
+    return result != 'no'
+
+
 ###
 # Progress dialog:
 def initProgressDialog(title, text, total):

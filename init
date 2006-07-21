@@ -22,7 +22,7 @@ import hardware
 from hardware import module_map
 
 from version import *
-from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, INSTALLER_MODULE_LIST_FILE
 
 base_modules = ['sd-mod',
                 'sr-mod',
@@ -64,6 +64,17 @@ def activateScreen():
         activefile.write(tty)
         activefile.close()
 
+def modprobe(module, params = ""):
+    xelogging.log("Loading module %s" % " ".join([module, params]))
+    rc = util.runCmd("modprobe %s %s" % (module, params))
+
+    if rc == 0:
+        modlist_file = open(INSTALLER_MODULE_LIST_FILE, 'a')
+        modlist_file.write("%s %s\n" % (module, params))
+        modlist_file.close()
+
+    return rc
+
 # Use the 'discover' tool to detect hardware and load needed
 # modules;
 #
@@ -85,8 +96,8 @@ def discoverHardware():
             modules.append(m)
     modules = [x.replace('_', '-') for x in modules]
 
-    # Load our modules, applying the mapping from the hardware module:
-    modlist_file = open('/tmp/module-order', 'w')
+    # make a list of modules to load:
+    rv = []
     for mod in modules:
         if module_map.has_key(mod):
             if module_map[mod] == []:
@@ -94,23 +105,38 @@ def discoverHardware():
             else:
                 xelogging.log("Discover found %s - we think we need %s" % (mod, module_map[mod]))
                 for mymod in module_map[mod]:
-                    xelogging.log("Loading %s" % mymod)
-                    util.runCmd("modprobe %s" % mymod)
-                    modlist_file.write(mymod + "\n")
+                    if not mymod in rv:
+                        rv.append(mymod)
         else:
-            # just continue loading the module
-            xelogging.log('Loading %s' % mod)
-            util.runCmd('modprobe %s' % mod)
-            modlist_file.write(mod + "\n")
+            xelogging.log("Discover found %s" % mod)
+            rv.append(mod)
     
-    xelogging.log("All discovered modules have been loaded.")
+    xelogging.log("Hardware disocvery complete.")
+    return rv
 
-    # load base modules
-    for m in base_modules:
-        os.system("modprobe %s" % m)
-        modlist_file.write(m + "\n")
-    modlist_file.close()
 
+# Load all modules etc:
+def configureHardware(extra_modules = [],
+                      blacklist = [],
+                      ui = None,
+                      interactive = False):
+    assert not interactive or (interactive and ui)
+
+    modules = discoverHardware()
+    modules.extend(base_modules)
+    modules.extend(extra_modules)
+
+    # load the modules:
+    for m in modules:
+        if m in blacklist:
+            xelogging.log("Module %s was in the user-specified blacklist - not loading." % m)
+        else:
+            load_m = True
+            if interactive:
+                load_m = ui.ask_load_module(m)
+            if load_m:
+                modprobe(m)
+    
     # if we're in an older (pre udev-091) filesystem, we need
     # to call udevstart as udevd wasn't working correctly:
     if os.path.exists("/sbin/udevstart"):
@@ -168,9 +194,11 @@ def main():
                            ["install",
                             "upgrade",
                             "p2v",
+                            "interactive-modules",
                             "answerfile=",
                             "verbose-answerfile=",
                             "modules=",
+                            "blacklist=",
                             "output="])
     except GetoptError:
         print "Incorrect arguments."
@@ -178,10 +206,12 @@ def main():
 
     mode = MODE_INTERACTIVE
     ui_package = init_tui
-    modules = []
+    extra_modules = []
+    user_blacklist = []
     active_output = None
     answerfile = None
     verbose_answerfile = None
+    interactive_modules = False
     for (opt, val) in opts:
         if opt == "--install":
             mode = MODE_INSTALL
@@ -189,6 +219,8 @@ def main():
             mode = MODE_UPGRADE
         if opt == "--p2v":
             mode = MODE_P2V
+        if opt == '--interactive-modules':
+            interactive_modules = True
         if opt == "--answerfile":
             answerfile = val
         if opt == "--verbose-answerfile":
@@ -196,24 +228,27 @@ def main():
             xelogging.continuous_logs.append(sys.stdout)
             verbose_answerfile = val
         if opt == "--modules":
-            modules = val.split(",")
+            extra_modules = val.split(",")
+        if opt == "--blacklist":
+            user_blacklist = val.split(",")
         if opt == "--output":
             active_output = val
+
+    if not ui_package:
+        interactive_modules = False
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
     ui_package.init_ui()
 
     def doHardwareDetection():
-        # detect hardware:
+        # load modules:
         ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and configured...")
-        discoverHardware()
+        configureHardware(extra_modules, user_blacklist,
+                          ui_package, interactive_modules)
         ui_package.clearModelessDialog()
         
-        for m in modules:
-            util.runCmd('modprobe %s' % m)
-
-        # try to configure the network:
+        # configure network:
         ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
         configureNetworking()
         ui_package.clearModelessDialog()

@@ -51,6 +51,7 @@ DOM0_XGT_LOCATION = "%s/xgt"
 DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
 
 ANSWERS_FILE = "upgrade_answers"
+INSTALLER_MODULE_LIST_FILE = "/tmp/module-order"
 
 # location of the timezone data file in the installation environment
 timezone_data_file = '/opt/xensource/installer/timezones'
