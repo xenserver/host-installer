@@ -95,7 +95,8 @@ pre_rws_files = [ '/etc/adjtime',
 asserted_dirs = [ '/etc',
                   '/etc/sysconfig',
                   '/etc/sysconfig/network-scripts',
-                  '/etc/lvm' ]
+                  '/etc/lvm',
+                  '/usr/sbin' ]
 
 # directories that should be writeable in the dom0 FS
 writeable_dirs = [ '/etc/ntp',
