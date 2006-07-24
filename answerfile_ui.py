@@ -64,7 +64,7 @@ def __parse_answerfile__(answerdoc, results):
 
     # guest-disks:
     results['guest-disks'] = []
-    for disk in n.getElementsByTagName('guest-disks'):
+    for disk in n.getElementsByTagName('guest-disk'):
         results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
     # source-media, source-address:
