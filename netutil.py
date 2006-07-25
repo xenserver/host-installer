@@ -30,8 +30,10 @@ def writeDebStyleInterfaceFile(configuration, filename):
         if settings['use-dhcp']:
             outfile.write("iface %s inet dhcp\n" % iface)
         else:
-            # not coded this bit yet
-            assert False
+            outfile.write("iface %s inet static\n" % iface)
+            outfile.write("   address %s\n" % settings['ip'])
+            outfile.write("   netmask %s\n" % settings['subnet-mask'])
+            outfile.write("   gateway %s\n" % settings['gateway'])
 
     outfile.close()
 
