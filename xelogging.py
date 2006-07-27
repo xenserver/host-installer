@@ -60,3 +60,11 @@ def collectLogs(dir):
 
     # tar up contents
     os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dir, dir, logs))
+
+
+def main():
+    collectLogs("/tmp")
+    
+if __name__ == "__main__":
+    main()
+ 
