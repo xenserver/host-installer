@@ -980,12 +980,14 @@ def getGrUBDevice(disk, mounts):
 def writeLog(answers):
     try: 
         bootnode = getBootPartName(answers['primary-disk'])
-        util.mount(bootnode, "/tmp")
-        xelogging.writeLog("/tmp/install-log")
+        if not os.path.exists("/tmp/boot"):
+           os.mkdir("/tmp/boot")
+        util.mount(bootnode, "/tmp/boot")
+        xelogging.writeLog("/tmp/boot/install-log")
         try:
-            xelogging.collectLogs("/tmp")
+            xelogging.collectLogs("/tmp/boot")
         except:
             pass
-        util.umount("/tmp")
+        util.umount("/tmp/boot")
     except:
         pass
