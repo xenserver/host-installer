@@ -19,6 +19,11 @@ def choose_operation():
 def already_activated():
     pass
 
+def ask_static_config(firstTime):
+    return 0
+def requrie_static_config(firstTime):
+    return 0
+
 ###
 # Progress dialog:
 def initProgressDialog(title, text, total):
