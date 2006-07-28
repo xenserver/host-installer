@@ -35,6 +35,7 @@ bootfs_type = 'ext2'
 dom0tmpfs_type = 'ext3'
 ramdiskfs_type = 'squashfs'
 rwsfs_type = 'ext3'
+bootfs_label = "/boot"
 
 MIN_PASSWD_LEN=6
 

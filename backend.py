@@ -390,8 +390,8 @@ def prepareLVM(answers):
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    global bootfs_type, rwsfs_type, vgname
-    assert runCmd("mkfs.%s %s" % (bootfs_type, getBootPartName(disk))) == 0
+    global bootfs_type, rwsfs_type, vgname, bootfs_label
+    assert runCmd("mkfs.%s -L %s %s" % (bootfs_type, bootfs_label, getBootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (vmstatefs_type, "/dev/VG_XenSource/%s" % vmstate_name)) == 0
 
@@ -582,8 +582,8 @@ def writeFstab(mounts, answers):
     for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
         fstab = open(dest, "w")
         fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("%s    /boot    %s    nouser,auto,ro,async    0   0\n" %
-                     (bootpart, bootfs_type) )
+        fstab.write("LABEL=%s    /boot    %s    nouser,auto,ro,async    0   0\n" %
+                     (bootfs_label, bootfs_type) )
         fstab.write("%s          /rws  %s     defaults   0  0\n" %
                     (rwspart, rwsfs_type))
         fstab.write("%s          swap  swap     defaults   0  0\n" %
