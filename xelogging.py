@@ -55,14 +55,6 @@ def collectLogs(dir):
     os.system("ps axf >%s/processes-log" % dir)
     os.system("vgscan -P >%s/vgscan-log 2>&1" % dir)
 
-    # now, try to get the startup-log (it won't be in the same directory
-    # most likely, but check in case):
-    if not os.path.exists("%s/startup-log" % dir):
-        # it didn't exist, so we need to try and fetch it -it ought to be in
-        # /tmp:
-        if os.path.exists("/tmp/startup-log"):
-            os.system("cp /tmp/startup-log %s/" % dir)
-
     logs = filter(lambda x: x.endswith('-log'), os.listdir(dir))
     logs = " ".join(logs)
 

@@ -19,7 +19,6 @@ COMPANY_NAME_LEGAL = "XenSource, Inc."
 COMPANY_NAME_SHORT = "XenSource"
 COPYRIGHT_YEARS = "2006"
 
-BRAND_SERVER = "%s Server" % PRODUCT_BRAND
 BRAND_GUEST = "Xen Virtual Machine"
 BRAND_GUESTS = "Xen Virtual Machines"
 BRAND_CONSOLE = "Administrator Console"

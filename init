@@ -38,13 +38,6 @@ MODE_INSTALL = 1
 MODE_UPGRADE = 2
 MODE_P2V = 3
 
-ACTION_NONE = -2
-ACTION_REBOOT = -1
-ACTION_INSTALL = 0
-ACTION_UPGRADE = 1
-ACTION_P2V = 2
-
-
 # Exception that is thrown if we detect that the user has
 # tried to use two consoles to perform an installation
 class AlreadyActivated(Exception):
@@ -154,21 +147,22 @@ def configureHardware(extra_modules = [],
     if os.path.exists("/sbin/udevsettle"):
         os.system("udevsettle --timeout=10")
 
-# Configure networking according to a given configuration
-def configureNetworking(netcfg):
+# Attempt to configure the network:
+def configureNetworking():
     # do we need to make the network directory writeable?
     if not os.path.ismount('/etc/network/'):
         shutil.copytree('/etc/network', '/tmp/network')
         util.bindMount('/tmp/network', '/etc/network')
 
+    interfaces = netutil.getNetifList()
+    netcfg = {}
+    for i in interfaces:
+        netcfg[i] = { 'use-dhcp': True }
+
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
 
-    up = False
-    for i in netutil.getNetifList():
-        if netutil.ifup(i) == 0:
-            up = True
-
-    return up
+    for i in interfaces:
+        netutil.ifup(i)
 
 def main():
     # clog fds: add tty3
@@ -185,7 +179,8 @@ def main():
     pk.write('1')
     pk.close()
 
-    # ensure sysfs is available:
+    # mount all fstab filesystems if they're not already mounted:
+    util.runCmd('mount -a')
     if os.system("grep -q 'sysfs' /proc/mounts") != 0:
         util.runCmd('mount -t sysfs none /sys')
 
@@ -220,13 +215,10 @@ def main():
     for (opt, val) in opts:
         if opt == "--install":
             mode = MODE_INSTALL
-            operation = ACTION_INSTALL
         if opt == "--upgrade":
             mode = MODE_UPGRADE
-            operation = ACTION_UPGRADE
         if opt == "--p2v":
             mode = MODE_P2V
-            operation = ACTION_P2V
         if opt == '--interactive-modules':
             interactive_modules = True
         if opt == "--answerfile":
@@ -249,55 +241,21 @@ def main():
     xelogging.log("Starting 'init' user interface")
     ui_package.init_ui()
 
-    # returns True if we should continue, or False if the user
-    # cancelled the operation partway through:
-    def doHardwareDetection(operation):
+    def doHardwareDetection():
         # load modules:
         ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and configured...")
         configureHardware(extra_modules, user_blacklist,
                           ui_package, interactive_modules)
         ui_package.clearModelessDialog()
+        
+        # configure network:
+        ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
+        configureNetworking()
+        ui_package.clearModelessDialog()
                     
         # we'll write out a log at this point, so that the user can
         # collect later:
         xelogging.writeLog("/tmp/startup-log")
-        return True
-
-    def doNetworkConfiguration(operation):
-        rv = True
-        
-        # configure network:
-        ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
-
-        # - first, attempt DHCP:
-        interfaces = netutil.getNetifList()
-        netcfg = {}
-        firstAttempt = True
-        for iface in interfaces:
-            netcfg[iface] = { 'use-dhcp': True}
-
-        # - if it didn't work, we can ask/inform the user:
-        while not configureNetworking(netcfg):
-            if operation == ACTION_P2V:
-                response = init_tui.require_static_config(firstAttempt)
-            else:
-                response = init_tui.ask_static_config(firstAttempt)
-
-            if response == init_tui.CONFIGURE_NETWORK_CANCEL:
-                rv = False
-                break
-            elif response == init_tui.CONFIGURE_NETWORK_NONE:
-                break
-            elif response == init_tui.CONFIGURE_NETWORK_STATICALLY:
-                for iface in interfaces:
-                    init_tui.get_iface_configuration(netcfg, iface, operation != ACTION_P2V)
-
-            firstAttempt = False
-
-        # done configuring network:
-        ui_package.clearModelessDialog()
-
-        return rv
 
     # let the user choose what they would like to do:
     if mode == MODE_INTERACTIVE:
@@ -321,17 +279,8 @@ def main():
 
                 # detect hardware if we've not done so already
                 if firstTime:
-                    rv = doHardwareDetection(operation)
-                    if not rv:
-                        operation = ACTION_NONE
+                    doHardwareDetection()
                     firstTime = False
-
-                # configure networking each time, so that the user
-                # can select different static configurations, etc:
-                if operation != ACTION_NONE:
-                    rv = doNetworkConfiguration(operation)
-                    if not rv:
-                        operation = ACTION_NONE
 
                 # clean install:
                 if operation == 0:
@@ -387,10 +336,8 @@ def main():
             ui_package.already_activated()
             sys.exit(0)
 
-        doHardwareDetection(operation)
-        doNetworkConfiguration(operation)
-
         if mode == MODE_INSTALL:
+            doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
             elif verbose_answerfile:
@@ -400,6 +347,7 @@ def main():
             os.system("reboot")
 
         elif mode == MODE_UPGRADE:
+            doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
             elif verbose_answerfile:
@@ -410,6 +358,7 @@ def main():
             os.system("reboot")
                 
         elif mode == MODE_P2V:
+            doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
             else:
