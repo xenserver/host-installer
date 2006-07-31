@@ -87,10 +87,6 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     rootfs_type = dev_attrs[p2v_constants.DEV_ATTRS_TYPE]
 
-    # FIXME rpersaud CA-2352 hack for rhel36 kernel not supporting SMP
-    if os_install[p2v_constants.OS_NAME] == "Red Hat" and os_install[p2v_constants.OS_VERSION] == "3.6":
-		cpu_count = int(1)
-
     rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%s' '%d'" % (
                 xe_host,
                 root_password,
