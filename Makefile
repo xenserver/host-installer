@@ -8,27 +8,27 @@ clean:
 
 install:
 	mkdir -p $(INSTALLER_DIR)
-	install -m755 -t $(INSTALLER_DIR) clean-installer
-	install -m755 -t $(INSTALLER_DIR) init
-	install -m755 -t $(INSTALLER_DIR) hwdetect
-	install -m755 -t $(INSTALLER_DIR) support.sh
+	install -m755 clean-installer $(INSTALLER_DIR)
+	install -m755 init $(INSTALLER_DIR)
+	install -m755 hwdetect $(INSTALLER_DIR)
+	install -m755 support.sh $(INSTALLER_DIR)
 
-	install -m644 -t $(INSTALLER_DIR) answerfile_ui.py
-	install -m644 -t $(INSTALLER_DIR) backend.py
-	install -m644 -t $(INSTALLER_DIR) constants.py
-	install -m644 -t $(INSTALLER_DIR) diskutil.py
-	install -m644 -t $(INSTALLER_DIR) generalui.py
-	install -m644 -t $(INSTALLER_DIR) hardware.py
-	install -m644 -t $(INSTALLER_DIR) init_simpleui.py
-	install -m644 -t $(INSTALLER_DIR) init_tui.py
-	install -m644 -t $(INSTALLER_DIR) netutil.py
-	install -m644 -t $(INSTALLER_DIR) packaging.py
-	install -m644 -t $(INSTALLER_DIR) pyanswerfile_ui.py
-	install -m644 -t $(INSTALLER_DIR) tui.py
-	install -m644 -t $(INSTALLER_DIR) uicontroller.py
-	install -m644 -t $(INSTALLER_DIR) util.py
-	install -m644 -t $(INSTALLER_DIR) xelogging.py
+	install -m644 answerfile_ui.py $(INSTALLER_DIR)
+	install -m644 backend.py $(INSTALLER_DIR)
+	install -m644 constants.py $(INSTALLER_DIR)
+	install -m644 diskutil.py $(INSTALLER_DIR)
+	install -m644 generalui.py $(INSTALLER_DIR)
+	install -m644 hardware.py $(INSTALLER_DIR)
+	install -m644 init_simpleui.py $(INSTALLER_DIR)
+	install -m644 init_tui.py $(INSTALLER_DIR)
+	install -m644 netutil.py $(INSTALLER_DIR)
+	install -m644 packaging.py $(INSTALLER_DIR)
+	install -m644 pyanswerfile_ui.py $(INSTALLER_DIR)
+	install -m644 tui.py $(INSTALLER_DIR)
+	install -m644 uicontroller.py $(INSTALLER_DIR)
+	install -m644 util.py $(INSTALLER_DIR)
+	install -m644 xelogging.py $(INSTALLER_DIR)
 
-	install -m644 -t $(INSTALLER_DATA_DIR) keymaps
-	install -m644 -t $(INSTALLER_DATA_DIR) timezones
+	install -m644 keymaps $(INSTALLER_DATA_DIR)
+	install -m644 timezones $(INSTALLER_DATA_DIR)
 
