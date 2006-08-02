@@ -213,6 +213,23 @@ def writePartitionTable(disk, partitions):
     if os.path.exists('/sbin/udevsettle'):
         os.system('/sbin/udevsettle --timeout=5')
 
+
+def makeActivePartition(disk, partition_number):
+    xelogging.log("About to make an active partition on disk %s" % disk)
+
+    pipe = subprocess.Popen(['/sbin/fdisk', disk], stdin = subprocess.PIPE,
+                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+
+    pipe.stdin.write('a\n') # new partition
+    pipe.stdin.write('%d\n' % int(partition_number)) # ith partition
+
+    # write the partition table to disk:
+    pipe.stdin.write('w\n')
+
+    # wait for fdisk to finish:
+    assert pipe.wait() == 0
+
+
     
 # get a mapping of partitions to the volume group they are part of:
 def getVGPVMap():

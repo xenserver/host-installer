@@ -324,6 +324,7 @@ def writeDom0DiskPartitions(disk):
 
     # partition the disk:
     diskutil.writePartitionTable(disk, [boot_size, -1])
+    diskutil.makeActivePartition(disk, 1)
 
 def writeGuestDiskPartitions(disk):
     global dom0_size
