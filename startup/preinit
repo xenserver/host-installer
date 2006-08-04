@@ -1,0 +1,72 @@
+#!/bin/bash
+###
+# XEN CLEAN INSTALLER
+# Startup script
+#
+# by Andrew Peace
+# Copyright XenSource Inc. 2006
+
+# make sure /proc is mounted:
+if [ ! -e /proc/cmdline ] ; then
+    mount -a
+    if [ ! -e /proc/cmdline ] ; then
+        mount -t proc none /proc
+    fi
+fi
+
+# work out any commandline args:
+# install type -
+if grep -q ' install' /proc/cmdline ; then
+    TYPEARG='--install'
+elif grep -q ' upgrade' /proc/cmdline ; then
+    TYPEARG='--upgrade'
+elif grep -q ' p2v' /proc/cmdline ; then
+    TYPEARG='--p2v'
+fi
+
+# interactive module loading?
+if grep -q ' interactive-modules' /proc/cmdline ; then
+    TYPEARG="${TYPEARG} --interactive-modules"
+fi
+
+# modules -
+if grep -q 'extramodules=' /proc/cmdline ; then
+    MODULES=`cat /proc/cmdline | sed -n 's/.*extramodules=\([^ ]*\) *.*/\1/p'`
+    MODULES="--modules ${MODULES}"
+fi
+
+# blacklist -
+if grep -q 'blacklist=' /proc/cmdline ; then
+    BLACKLIST=`cat /proc/cmdline | sed -n 's/.*blacklist=\([^ ]*\) *.*/\1/p'`
+    BLACKLIST="--blacklist ${BLACKLIST}"
+fi
+
+# serial -
+if grep -q 'output=' /proc/cmdline ; then
+    OUTPUT=`cat /proc/cmdline | sed -n 's/.*output=\([^ ]*\) *.*/\1/p'`
+    OUTPUT="--output ${OUTPUT}"
+fi
+
+# answerfile -
+if grep -q 'answerfile=' /proc/cmdline ; then
+    ANSWERFILE=`cat /proc/cmdline | sed -n 's/.*answerfile=\([^ ]*\) *.*/\1/p'`
+    ANSWERFILE="--answerfile ${ANSWERFILE}"
+fi
+
+if grep -q 'rt_answerfile=' /proc/cmdline ; then
+    ANSWERFILE=`cat /proc/cmdline | sed -n 's/.*answerfile=\([^ ]*\) *.*/\1/p'`
+    ANSWERFILE="--verbose-answerfile ${ANSWERFILE}"
+fi
+
+# load USB modules before the shell or the installer:
+usb-discover
+
+if grep -q 'bash-shell' /proc/cmdline ; then
+    echo "Exiting this shell will run the installer:"
+    echo "/opt/xensource/installer/init ${TYPEARG} ${ANSWERFILE} ${MODULES} ${BLACKLIST} ${OUTPUT}"
+    echo "---"
+    /bin/bash
+fi
+
+/opt/xensource/installer/init ${TYPEARG} ${ANSWERFILE} ${MODULES} ${BLACKLIST} ${OUTPUT}
+
