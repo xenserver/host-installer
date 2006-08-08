@@ -431,10 +431,17 @@ def installGrub(mounts, disk):
     # grub configuration - placed here for easy editing.  Written to
     # the menu.lst file later in this function.
     grubconf = ""
-    grubconf += "default 0\n"
-    grubconf += "serial --unit=0 --speed=115200\n"
-    grubconf += "terminal --timeout=10 console serial\n"
-    grubconf += "timeout 10\n"
+
+    # select an appropriate default (normal or serial) based on
+    # how we are being installed:
+    rc, tty = util.runCmdWithOutput("tty")
+    if tty.startswith("/dev/ttyS") and rc == 0:
+        grubconf += "default 1\n"
+    else: # not tty.startswith("/dev/ttyS") or rc != 0
+        grubconf += "default 0\n"
+        
+    grubconf += "terminal console\n"
+    grubconf += "timeout 5\n\n"
 
     # splash screen?
     # (Disabled for now since GRUB messes up on the serial line when
