@@ -125,7 +125,7 @@ def performInstallation(answers, ui_package):
             # Put filesystems on Dom0 Disk
             createDom0DiskFilesystems(answers['primary-disk'])
         else:
-            util.runCmd2(["lvremove", "-f", "/dev/%s/tmp-%s" % (vgname, version.dom0_name)])
+            util.runCmd2(["lvremove", "-f", "/dev/%s/%s" % (vgname, constants.dom0tmpfs_name)])
 
         createDom0Tmpfs(answers['primary-disk'])
         ui_package.displayProgressDialog(4, pd)
@@ -229,18 +229,6 @@ def performInstallation(answers, ui_package):
         except Exception, e:
             xelogging.log("An exception was encountered when attempt to close the installation source.")
             xelogging.log(str(e))
-        
-
-#will scan all detected harddisks, and pick the first one
-#that has a partition with burbank*.img on it.
-def CheckInstalledVersion(answers):
-    disks = diskutil.getQualifiedDiskList()
-    answers['guest-disks'] = []
-    for disk in disks:
-        if hasBootPartition(disk):
-            answers['primary-disk'] = disk
-            return True
-    return False
 
 def removeBlockingVGs(disks):
     if diskutil.detectExistingInstallation():
@@ -254,8 +242,8 @@ def removeBlockingVGs(disks):
 
 def removeOldFs(mounts, answers):
     fsname = "%s/%s-%s.img" % (mounts['boot'],
-                               version.dom0_name,
-                               version.dom0_version)
+                               version.PRODUCT_NAME,
+                               version.PRODUCT_VERSION)
     if os.path.isfile(fsname):
         os.unlink(fsname)
         
@@ -265,21 +253,6 @@ def writeAnswersFile(mounts, answers):
         del answers['root-password']
     pickle.dump(answers, fd)
     fd.close()
-
-def hasBootPartition(disk):
-    mountPoint = os.path.join("/tmp", "mnt")
-    rc = False
-    util.assertDir(mountPoint)
-    try:
-        util.mount(getBootPartName(disk), mountPoint)
-    except:
-        rc = False
-    else:
-        if os.path.exists(os.path.join(mountPoint, "xen-3.gz")):
-            rc = True
-        util.umount(mountPoint)
-        
-    return rc
 
 # TODO - get all this right!!
 def hasServicePartition(disk):
@@ -454,19 +427,19 @@ def installGrub(mounts, disk):
     
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /xen-%s.gz dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.xen_version
-    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0\n" % version.kernel_version
-    grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
+    grubconf += "   kernel /xen-%s.gz dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
+    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0\n" % version.KERNEL_VERSION
+    grubconf += "   module /%s-%s.img\n" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.xen_version
-    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
-    grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
+    grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
+    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.KERNEL_VERSION
+    grubconf += "   module /%s-%s.img\n" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot dom0_mem=524288 com1=115200,8n1 console=com1,tty\n" % version.xen_version
-    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.kernel_version
-    grubconf += "   module /%s-%s.img\n" % (version.dom0_name, version.dom0_version)
+    grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot dom0_mem=524288 com1=115200,8n1 console=com1,tty\n" % version.XEN_VERSION
+    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.KERNEL_VERSION
+    grubconf += "   module /%s-%s.img\n" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)
 
     # write the GRUB configuration:
     util.assertDir("%s/grub" % mounts['boot'])
@@ -537,25 +510,14 @@ def cleanup_umount():
     if mounts.has_key('umount-order'):
         umountVolumes(mounts, True)
     # now remove the temporary volume
-    util.runCmd2(["lvremove", "-f", "/dev/%s/tmp-%s" % (vgname, version.dom0_name)])
+    util.runCmd2(["lvremove", "-f", "/dev/%s/tmp-%s" % (vgname, version.PRODUCT_NAME)])
     runCmd("umount /tmp/mnt || true")
 
 ##########
 # second stage install helpers:
-
-def extractDom0Filesystem(mounts, disk):
-    global dom0fs_tgz_location
-
-    # extract tar.gz to filesystem:
-    # TODO - rewrite this using native Python so we have a better progress
-    #        dialog situation :)
-    assert runCmd("tar -C %s -xzf %s" % (mounts['root'], CD_DOM0FS_TGZ_LOCATION)) == 0
-
-def installKernels(mounts, answers):
-    assert runCmd("tar -C %s -xzf %s" % (mounts['boot'], CD_KERNEL_TGZ_LOCATION)) == 0
     
 def doDepmod(mounts, answers):
-    runCmd("chroot %s depmod %s" % (mounts['root'], version.kernel_version))
+    runCmd("chroot %s depmod %s" % (mounts['root'], version.KERNEL_VERSION))
 
 # requries dom0fs to be installed so we can use mkswap, at present.
 def createDom0Swap(mounts, answers):
@@ -790,7 +752,7 @@ def writeModprobeConf(mounts, answers):
     #####
     #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
     #####
-    assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.kernel_version)) == 0
+    assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
     
@@ -815,30 +777,6 @@ def writeModprobeConf(mounts, answers):
 def mkLvmDirs(mounts, answers):
     util.assertDir("%s/etc/lvm/archive" % mounts["root"])
     util.assertDir("%s/etc/lvm/backup" % mounts["root"])
-
-def copyXgts(mounts, answers):
-    util.assertDir(DOM0_XGT_LOCATION % mounts['dropbox'])
-    util.copyFilesFromDir(CD_XGT_LOCATION, 
-                      DOM0_XGT_LOCATION % mounts['dropbox'])
-    
-def copyGuestInstallerFiles(mounts, answers):
-    util.assertDir(DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
-    util.copyFilesFromDir(CD_RHEL41_GUEST_INSTALLER_LOCATION, 
-                      DOM0_GUEST_INSTALLER_LOCATION % mounts['dropbox'])
-
-
-def copyVendorKernels(mounts, answers):
-    util.assertDir(DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
-    util.copyFilesFromDir(CD_VENDOR_KERNELS_LOCATION, 
-                       DOM0_VENDOR_KERNELS_LOCATION % mounts['dropbox'])
-
-def copyXenKernel(mounts, answers):
-    util.assertDir(DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
-    util.copyFilesFromDir(CD_XEN_KERNEL_LOCATION, 
-                       DOM0_XEN_KERNEL_LOCATION % mounts['dropbox'])
-                       
-def copyDocs(mounts, answers):
-    util.copyFile(CD_README_LOCATION, mounts['root'])
    
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):
@@ -901,25 +839,17 @@ def makeSymlinks(mounts, answers):
 
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
-       
-
-def copyRpms(mounts, answers):
-    util.assertDir(DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
-    util.copyFilesFromDir(CD_RPMS_LOCATION, 
-                      DOM0_GLIB_RPMS_LOCATION % mounts['dropbox'])
-
 def writeInventory(mounts, answers):
     inv = open("%s/etc/xensource-inventory" % mounts['root'], "w")
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
     inv.write("BUILD_NUMBER='%s'\n" % BUILD_NUMBER)
-    inv.write("KERNEL_VERSION='%s'\n" % version.kernel_version)
-    inv.write("XEN_VERSION='%s'\n" % version.xen_version)
-    #inv.write("RHEL35_KERNEL_VERSION='%s'\n" % version.rhel35_kernel_version)
-    inv.write("RHEL36_KERNEL_VERSION='%s'\n" % version.rhel36_kernel_version)
-    inv.write("RHEL41_KERNEL_VERSION='%s'\n" % version.rhel41_kernel_version)
-    inv.write("SLES_KERNEL_VERSION='%s'\n" % version.sles_kernel_version)
+    inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
+    inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
+    inv.write("RHEL36_KERNEL_VERSION='%s'\n" % version.RHEL36_KERNEL_VERSION)
+    inv.write("RHEL41_KERNEL_VERSION='%s'\n" % version.RHEL41_KERNEL_VERSION)
+    inv.write("SLES_KERNEL_VERSION='%s'\n" % version.SLES_KERNEL_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.close()
 
@@ -950,7 +880,7 @@ def finalise(answers):
                "/tmp/boot")
 
     xelogging.log("About to compress root filesystem...")
-    assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.dom0_name, version.dom0_version)) == 0
+    assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)) == 0
     assert runCmd("touch /tmp/boot/.xensource-boot") == 0
 
     util.umount("/tmp/root")

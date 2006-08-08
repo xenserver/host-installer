@@ -29,7 +29,7 @@ boot_size = 320
 vgname = "VG_XenSource"
 
 # file system creation constants
-dom0tmpfs_name = "tmp-%s" % version.dom0_name
+dom0tmpfs_name = "tmp-%s" % version.PRODUCT_NAME
 dom0tmpfs_size = 500
 bootfs_type = 'ext2'
 dom0tmpfs_type = 'ext3'
@@ -59,7 +59,7 @@ timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
 
 # packages to be installed
-packages = [ "dom0fs-%s-%s" % (version.dom0_name, version.dom0_version),
+packages = [ "dom0fs-%s-%s" % (version.PRODUCT_NAME, version.PRODUCT_VERSION),
              "kernels",
              "xgts",
              "rhel41-guest-installer",

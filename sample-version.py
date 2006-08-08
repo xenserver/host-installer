@@ -5,11 +5,8 @@
 # AUTOMATICALLY GENERATED (do not edit by hand)
 # Copyright XenSource Inc.
 
-dom0_name = "burbank"
-dom0_version = "0.7"
-kernel_version = "2.6.12.6-xen"
-kernel_name = "vmlinuz"
-xen_version = "3.0.1"
+KERNEL_VERSION = "2.6.12.6-xen"
+XEN_VERSION = "3.0.1"
 
 PRODUCT_BRAND = "XenEnterprise"
 PRODUCT_NAME = "XenSource Carbon"
