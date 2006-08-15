@@ -197,6 +197,14 @@ def perform_p2v_ssh( os_install, hostname, keyfile):
 
     return rc
         
+def check_rw_mount(local_mount_path):
+    rc, out = findroot.run_command('touch %s/rwtest' % local_mount_path)
+    if rc != 0:
+        return rc
+
+    findroot.run_command('rm %s/rwtest' % local_mount_path)
+    return 0
+
 def nfs_mount( nfs_mount_path ):
     rc, out = findroot.run_command('grep -q "%s nfs" /proc/mounts' % local_mount_path)
     if rc == 0:
@@ -208,6 +216,11 @@ def nfs_mount( nfs_mount_path ):
     rc, out = findroot.run_command( "mount %s %s %s" % ( nfs_mount_path, local_mount_path, p2v_utils.show_debug_output() ) )
     if rc != 0: 
         raise P2VMountError("Failed to nfs mount - mount failed")
+
+    rc = check_rw_mount(local_mount_path)
+    if rc != 0:
+        raise P2VMountError("Failed to nfs mount - the specified mount point is not writeable")
+        
     return local_mount_path
 
 def nfs_umount():
