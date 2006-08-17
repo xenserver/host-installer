@@ -6,6 +6,9 @@
 # written by Andrew Peace
 # Copyright XenSource Inc. 2006
 
+import os
+import version
+
 # More of the hardware tools will be moved into here in future.
 
 # module => module list
@@ -45,3 +48,46 @@ module_map = {
     "vfb"          : [],
     "vga16fb"      : [],
     }
+
+
+###
+# Module loading and order retrieval
+
+__MODULE_ORDER_FILE__ = "/tmp/module-order"
+
+class ModuleOrderUnknownException(Exception):
+    pass
+
+def getModuleOrder():
+    def allKoFiles(directory):
+        kofiles = []
+        items = os.listdir(directory)
+        for item in items:
+            if item.endswith(".ko"):
+                kofiles.append(item)
+        itemabs = os.path.join(directory, item)
+        if os.path.isdir(itemabs):
+	    kofiles.extend(allKoFiles(itemabs))
+
+        return kofiles
+
+    try:
+        all_modules = allKoFiles("/lib/modules/%s" % version.KERNEL_VERSION)
+        all_modules = [x.replace(".ko", "") for x in all_modules]
+
+        mo = open(__MODULE_ORDER_FILE__, 'r')
+        lines = [x.strip() for x in mo]
+        mo.close()
+
+        modules = []
+        for module in lines:
+            if module in all_modules:
+                modules.append(module)
+            else:
+                module = module.replace("-", "_")
+                if module in all_modules:
+                    modules.append(module)
+        
+        return modules
+    except Exception, e:
+        raise ModuleOrderUnknownException, e

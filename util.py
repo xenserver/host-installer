@@ -44,15 +44,6 @@ def copyFilesFromDir(sourcedir, dest):
     for f in files:
         assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
 
-def rmtree(path):
-    assert os.path.exists(path)
-    if not os.path.isdir(path):
-        os.unlink(path)
-    else:
-        for f in os.listdir(path):
-            rmtree(os.path.join(path, f))
-        os.rmdir(path)
-
 ###
 # shell
 
@@ -98,6 +89,8 @@ class MountFailureException(Exception):
     pass
 
 def mount(dev, mountpoint, options = None, fstype = None):
+    xelogging.log("Mounting %s to %s, options = %s, fstype = %s" % (dev, mountpoint, options, fstype))
+
     cmd = ['/bin/mount']
     if options:
         assert type(options) == list
@@ -119,6 +112,8 @@ def mount(dev, mountpoint, options = None, fstype = None):
         raise MountFailureException()
 
 def bindMount(source, mountpoint):
+    xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
+    
     cmd = [ '/bin/mount', '--bind', source, mountpoint]
     rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
                           stderr = subprocess.PIPE).wait()
@@ -126,15 +121,11 @@ def bindMount(source, mountpoint):
         raise MountFailureException()
 
 def umount(mountpoint, force = False):
-    if force:
-        assert os.path.ismount(mountpoint)
-    elif not os.path.ismount(mountpoint):
-        return
-
+    xelogging.log("Unmounting %s (force = %s)" % (mountpoint, force))
     rc = subprocess.Popen(['/bin/umount', mountpoint],
                           stdout = subprocess.PIPE,
                           stderr = subprocess.PIPE).wait()
-    assert rc == 0
+    return rc
 
 def parseTime(timestr):
     match = re.match('(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', timestr)
