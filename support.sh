@@ -4,6 +4,7 @@
 # as licensed by XenSource, Inc. All other rights reserved.
 # Xen, XenSource and XenEnterprise are either registered trademarks or 
 # trademarks of XenSource Inc. in the United States and/or other countries.
+
 SUPPORT_FILE="/tmp/support.tar.bz2"
 echo "Collecting logs for submission to Technical Support..."
 /usr/bin/python /opt/xensource/installer/xelogging.py

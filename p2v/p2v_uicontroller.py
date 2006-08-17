@@ -1,9 +1,14 @@
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
+# copyrighted material is governed by and subject to terms and conditions 
+# as licensed by XenSource, Inc. All other rights reserved.
+# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# trademarks of XenSource Inc. in the United States and/or other countries.
+
 ###
 # XEN CLEAN INSTALLER
 # User interface controller
 #
 # written by Andrew Peace
-# Copyright XenSource Inc. 2006
 
 # this will transform dict according to user input and will return a value
 # indication the mode of exit:

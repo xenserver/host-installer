@@ -1,10 +1,15 @@
 #!/usr/bin/env python
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
+# copyrighted material is governed by and subject to terms and conditions 
+# as licensed by XenSource, Inc. All other rights reserved.
+# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# trademarks of XenSource Inc. in the United States and/or other countries.
+
 ###
 # XEN CLEAN INSTALLER
 # Main script
 #
 # written by Mark Nijmeijer
-# Copyright XenSource Inc. 2006
 
 from snack import *
 import commands
@@ -30,7 +35,7 @@ def main():
         while True:
             screen = SnackScreen()
             screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
-            screen.drawRootText(0, 1, "Copyright XenSource, Inc. 2006")
+            screen.drawRootText(0, 1, "Copyright (c) %s %s" % (COPYRIGHT_YEARS, COMPANY_NAME_LEGAL))
     
             entries = [ 
                     ' * Install %s Managed Host' % PRODUCT_BRAND,

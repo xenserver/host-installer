@@ -1,9 +1,14 @@
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
+# copyrighted material is governed by and subject to terms and conditions 
+# as licensed by XenSource, Inc. All other rights reserved.
+# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# trademarks of XenSource Inc. in the United States and/or other countries.
+
 ###
 # XEN CLEAN INSTALLER
 # Version information
 #
 # AUTOMATICALLY GENERATED (do not edit by hand)
-# Copyright XenSource Inc.
 
 KERNEL_VERSION = "2.6.12.6-xen"
 XEN_VERSION = "3.0.1"

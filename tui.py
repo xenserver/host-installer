@@ -1,9 +1,14 @@
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
+# copyrighted material is governed by and subject to terms and conditions 
+# as licensed by XenSource, Inc. All other rights reserved.
+# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# trademarks of XenSource Inc. in the United States and/or other countries.
+
 ###
 # XEN CLEAN INSTALLER
 # Text user interface functions
 #
 # written by Andrew Peace
-# Copyright XenSource Inc. 2006
 
 ### TODO: Validation of IP addresses
 
@@ -32,7 +37,7 @@ def init_ui(results, is_subui):
     
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to the %s Installer - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
-    screen.drawRootText(0, 1, "Copyright %s %s" % (COMPANY_NAME_LEGAL, COPYRIGHT_YEARS))
+    screen.drawRootText(0, 1, "Copyright (c) %s %s" % (COPYRIGHT_YEARS, COMPANY_NAME_LEGAL))
 
 def end_ui():
     global screen

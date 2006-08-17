@@ -1,10 +1,15 @@
 #!/usr/bin/env python
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
+# copyrighted material is governed by and subject to terms and conditions 
+# as licensed by XenSource, Inc. All other rights reserved.
+# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# trademarks of XenSource Inc. in the United States and/or other countries.
+
 ###
 # XEN CLEAN INSTALLER
 # Main script
 #
 # written by Andrew Peace & Mark Nijmeijer
-# Copyright XenSource Inc. 2006
 
 import p2v_tui
 import p2v_uicontroller
