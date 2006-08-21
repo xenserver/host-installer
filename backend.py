@@ -426,7 +426,7 @@ def installGrub(mounts, disk):
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /boot/xen-%s.gz dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
-    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=LAVEL=%s ro console=tty0\n" % (version.KERNEL_VERSION, constants.rootfs_label)
+    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=LABEL=%s ro console=tty0\n" % (version.KERNEL_VERSION, constants.rootfs_label)
     grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
 
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
