@@ -28,6 +28,7 @@ from util import runCmd
 import shutil
 import packaging
 import constants
+import hardware
 
 # Product version and constants:
 import version
@@ -130,11 +131,8 @@ def performInstallation(answers, ui_package):
             # Put filesystems on Dom0 Disk
             createDom0DiskFilesystems(answers['primary-disk'])
         else:
-            util.runCmd2(["lvremove", "-f", "/dev/%s/%s" % (vgname, constants.dom0tmpfs_name)])
+            raise Exception, "Upgrade current broken."
 
-        createDom0Tmpfs(answers['primary-disk'])
-        ui_package.displayProgressDialog(4, pd)
-        
         # Mount the system image:
         mounts = mountVolumes(answers['primary-disk'])
         ui_package.displayProgressDialog(5, pd)
@@ -168,9 +166,11 @@ def performInstallation(answers, ui_package):
         
         writeFstab(mounts, answers)
         ui_package.displayProgressDialog(18, pd)
-        
+
         writeModprobeConf(mounts, answers)
         ui_package.displayProgressDialog(19, pd)
+
+        mkinitrd(mounts, answers)
         
         writeInventory(mounts, answers)
         writeDhclientHooks(mounts, answers)
@@ -222,7 +222,6 @@ def performInstallation(answers, ui_package):
             xelogging.log(e)
 
         umountVolumes(mounts)
-        finalise(answers)
         ui_package.displayProgressDialog(25, pd)
         ui_package.clearModelessDialog()
         
@@ -259,32 +258,23 @@ def writeAnswersFile(mounts, answers):
     pickle.dump(answers, fd)
     fd.close()
 
-# TODO - get all this right!!
-def hasServicePartition(disk):
-    return False
-
-def getRWSPartName(disk):
-    global rws_name, vgname
-    return "/dev/%s/%s" % (vgname, rws_name)
-
 def getSwapPartName(disk):
     global swap_name, vgname
     return "/dev/%s/%s" % (vgname, swap_name)
 
 def getBootPartNumber(disk):
-    if hasServicePartition(disk):
-        return 2
-    else:
-        return 1
+    return 1
 
 def getBootPartName(disk):
     return determinePartitionName(disk, getBootPartNumber(disk))
 
+# XXX boot and root are the same thing now - this mess should be
+# cleaned up.
+getRootPartName = getBootPartName
+getRootPartNumber = getBootPartNumber
+
 def getDom0LVMPartNumber(disk):
-    if hasServicePartition(disk):
-        return 3
-    else:
-        return 2
+    return 3
 
 def getDom0LVMPartName(disk):
     return determinePartitionName(disk, getDom0LVMPartNumber(disk))
@@ -294,20 +284,15 @@ def getDom0LVMPartName(disk):
 
 # TODO - take into account service partitions
 def writeDom0DiskPartitions(disk):
-    global boot_size
-
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
     # partition the disk:
-    diskutil.writePartitionTable(disk, [boot_size, -1])
+    diskutil.writePartitionTable(disk, [root_size, root_size, -1])
     diskutil.makeActivePartition(disk, 1)
 
 def writeGuestDiskPartitions(disk):
-    global dom0_size
-    global rws_size
-
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -330,8 +315,6 @@ def determinePartitionName(guestdisk, partitionNumber):
 
 def prepareLVM(answers):
     global vgname
-    global dom0_size
-    global rws_name, rws_size
 
     partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
     partitions += map(lambda x: determinePartitionName(x, 1),
@@ -357,7 +340,6 @@ def prepareLVM(answers):
         runCmd("rm -rf /dev/%s" % vgname)
     assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
 
-    assert runCmd("lvcreate -L %s -n %s %s" % (rws_size, rws_name, vgname)) == 0
     assert runCmd("lvcreate -L %s -n %s %s" % (vmstate_size, vmstate_name, vgname)) == 0
     assert runCmd("lvcreate -L %s -n %s %s" % (swap_size, swap_name, vgname)) == 0
 
@@ -370,28 +352,38 @@ def prepareLVM(answers):
 
 def createDom0DiskFilesystems(disk):
     global bootfs_type, rwsfs_type, vgname, bootfs_label
-    assert runCmd("mkfs.%s -L %s %s" % (bootfs_type, bootfs_label, getBootPartName(disk))) == 0
-    assert runCmd("mkfs.%s %s" % (rwsfs_type, getRWSPartName(disk))) == 0
+    assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
     assert runCmd("mkfs.%s %s" % (vmstatefs_type, "/dev/VG_XenSource/%s" % vmstate_name)) == 0
 
-def createDom0Tmpfs(disk):
-    global vgname, dom0tmpfs_name, dom0tmpfs_size
-    assert runCmd("vgscan") == 0
-    assert runCmd("lvcreate -L %s -n %s %s" % (dom0tmpfs_size, dom0tmpfs_name, vgname)) == 0
-    assert runCmd("vgchange -a y %s" % vgname) == 0
-    assert runCmd("vgmknodes") == 0
-    assert runCmd("mkfs.%s /dev/%s/%s" % (dom0tmpfs_type, vgname, dom0tmpfs_name)) == 0
+def mkinitrd(mounts, answers):
+    modules_list = ["--with=%s" % x for x in hardware.getModuleOrder()]
+
+    modules_string = " ".join(modules_list)
+    output_file = "/boot/initrd-%s.img" % version.KERNEL_VERSION
+    rev = version.KERNEL_VERSION
     
+    cmd = "mkinitrd %s %s %s" % (modules_string, output_file, rev)
+    
+    util.runCmd("chroot %s %s" % (mounts['root'], cmd))
+
 def installGrub(mounts, disk):
     # prepare extra mounts for installing GRUB:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
-    util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
     util.bindMount("/tmp", "%s/tmp" % mounts['root'])
 
+    # this is a nasty hack but unavoidable (I think): grub-install
+    # uses df to work out what the root device is, but df's output is
+    # incorrect within the chroot.  Therefore, we fake out /proc/mounts
+    # with the correct data, so GRUB will install correctly:
+    f = open("%s/proc/mounts" % mounts['root'], 'w')
+    f.write("%s / %s ew 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
+    f.close()
+
     grubroot = getGrUBDevice(disk, mounts)
 
-    rootdisk = "(%s,%s)" % (getGrUBDevice(disk, mounts), getBootPartNumber(disk) - 1)
+    rootdisk = "(%s,%s)" % (getGrUBDevice(disk, mounts), getRootPartNumber(disk) - 1)
+    bootpart = getRootPartName(disk)
 
     # move the splash screen to a safe location so we don't delete it
     # when removing a previous installation of GRUB:
@@ -432,19 +424,21 @@ def installGrub(mounts, disk):
     
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /xen-%s.gz dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
-    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0\n" % version.KERNEL_VERSION
-    grubconf += "   module /%s-%s.img\n" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)
+    grubconf += "   kernel /boot/xen-%s.gz dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
+    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=%s ro console=tty0\n" % (version.KERNEL_VERSION, bootpart)
+    grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
+
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
-    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.KERNEL_VERSION
-    grubconf += "   module /%s-%s.img\n" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)
+    grubconf += "   kernel /boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
+    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, bootpart)
+    grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
+    
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /xen-%s.gz noacpi nousb nosmp noreboot dom0_mem=524288 com1=115200,8n1 console=com1,tty\n" % version.XEN_VERSION
-    grubconf += "   module /vmlinuz-%s ramdisk_size=75000 root=/dev/ram0 ro console=tty0 console=ttyS0,115200n8\n" % version.KERNEL_VERSION
-    grubconf += "   module /%s-%s.img\n" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)
+    grubconf += "   kernel /boot/xen-%s.gz noacpi nousb nosmp noreboot dom0_mem=524288 com1=115200,8n1 console=com1,tty\n" % version.XEN_VERSION
+    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, bootpart)
+    grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
 
     # write the GRUB configuration:
     util.assertDir("%s/grub" % mounts['boot'])
@@ -457,66 +451,59 @@ def installGrub(mounts, disk):
 
     # done installing - undo our extra mounts:
     util.umount("%s/dev" % mounts['root'])
-    util.umount("%s/proc" % mounts['root'])
+    os.unlink("%s/proc/mounts" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
     util.umount("%s/tmp" % mounts['root'])
 
 ##########
 # mounting and unmounting of various volumes
 
+MOUNT_SOURCE_DEVICE = 1
+MOUNT_SOURCE_BIND = 2
+
 def mountVolumes(primary_disk):
-    global vgname, dom0tmpfs_name
+    base = '/tmp/root'
+
+    # mounts is a list of triples of (name, mount source, mountpoint)
+    # where mountpoint is based off of base, defined above:
+    mounts = [('root', (MOUNT_SOURCE_DEVICE, determinePartitionName(primary_disk, 1)), '/'),
+              ('rws', None, '/rws'),
+              ('vmstate', None, '/var/opt/xen/vmstate'),
+              ('boot', None, '/boot')]
+
+    umount_order = ['root']
+
+    for (name, src, dst) in mounts:
+        dst = os.path.join(base, dst.lstrip('/'))
+
+        util.assertDir(dst)
+        if src:
+            (mnt_type, mnt_source) = src
+
+            if mnt_type == MOUNT_SOURCE_DEVICE:
+                util.mount(mnt_source, dst)
+            elif mnt_type == MOUNT_SOURCE_BIND:
+                mnt_source = os.path.join(base, mnt_source.lstrip('/'))
+                util.assertDir(mnt_source)
+                util.bindMount(mnt_source, dst)
+
+    # later I'll implement a class to do all this properly but
+    # for now we're stuck with this rubbish (including umount-order):
+    rv = {}
+    for (n, s, d) in mounts:
+        rv[n] = os.path.join(base, d.lstrip('/'))
+    rv['umount-order'] = umount_order
     
-    tmprootvol = "/dev/%s/%s" % (vgname, dom0tmpfs_name)
-    bootvol = getBootPartName(primary_disk)
-    rwsvol = getRWSPartName(primary_disk)
-    vmstatevol = "/dev/VG_XenSource/%s" % vmstate_name
-    
-    # work out where to bount things (note that rootVol and bootVol might
-    # be equal).  Note the boot volume must be mounted inside the root directory
-    # as it needs to be accessible from a chroot.    
-    rootpath = '/tmp/root'
-    bootpath = '/tmp/root/boot'
-    rwspath = "/tmp/root/rws"
-    dropboxpath = "/tmp/root%s"  % DOM0_PKGS_DIR_LOCATION
-    vmstate_path = "/tmp/root/var/opt/xen/vm"
-
-    # mount the volumes (must assertDir in mounted filesystem...)
-    util.assertDir(rootpath)
-    util.mount(tmprootvol, rootpath)
-
-    util.assertDir(bootpath)
-    util.mount(bootvol, bootpath)
-
-    util.assertDir(rwspath)
-    util.mount(rwsvol, rwspath)
-
-    util.assertDir(rwspath + "/packages")
-    util.assertDir(dropboxpath)
-    util.bindMount(rwspath + "/packages", dropboxpath)
-
-    util.assertDir(vmstate_path)
-    util.mount(vmstatevol, vmstate_path)
-
-    # ugh - umount-order - what a piece of crap
-    return {'boot': bootpath,
-            'dropbox': dropboxpath,
-            'rws' : rwspath,
-            'root': rootpath,
-            'vmstate': vmstate_path,
-            'umount-order': [vmstate_path, dropboxpath, bootpath, rwspath, rootpath]}
+    return rv
  
 def umountVolumes(mounts, force = False):
-     for m in mounts['umount-order']: # hack!
-        util.umount(m, force)
+    for name in mounts['umount-order']: # hack!
+        util.umount(mounts[name], force)
 
 def cleanup_umount():
     global mounts
     if mounts.has_key('umount-order'):
         umountVolumes(mounts, True)
-    # now remove the temporary volume
-    util.runCmd2(["lvremove", "-f", "/dev/%s/tmp-%s" % (vgname, version.PRODUCT_NAME)])
-    runCmd("umount /tmp/mnt || true")
 
 ##########
 # second stage install helpers:
@@ -549,25 +536,19 @@ def writeFstab(mounts, answers):
     util.assertDir("%s/etc" % mounts['rws'])
 
     # first work out what we're going to write:
-    rwspart = getRWSPartName(answers['primary-disk'])
-    bootpart = getBootPartName(answers['primary-disk'])
     swappart = getSwapPartName(answers['primary-disk'])
 
     # write 
-    for dest in ["%s/etc/fstab" % mounts["rws"], "%s/etc/fstab" % mounts['root']]:
-        fstab = open(dest, "w")
-        fstab.write("/dev/ram0   /     %s     defaults   1  1\n" % ramdiskfs_type)
-        fstab.write("LABEL=%s    /boot    %s    nouser,auto,ro,async    0   0\n" %
-                     (bootfs_label, bootfs_type) )
-        fstab.write("%s          /rws  %s     defaults   0  0\n" %
-                    (rwspart, rwsfs_type))
-        fstab.write("%s          swap  swap     defaults   0  0\n" %
-                    (swappart))
-        fstab.write("none        /dev/pts  devpts defaults   0  0\n")
-        fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
-        fstab.write("none        /proc     proc   defaults   0  0\n")
-        fstab.write("none        /sys      sysfs  defaults   0  0\n")
-        fstab.close()
+    fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
+    fstab.write("LABEL=%s    /        %s    defaults   1  1\n" % (rootfs_label, rootfs_type))
+    fstab.write("%s          /var/opt/xen/vm %s defaults 1 2\n" % (vmstate_vol, vmstatefs_type))
+    fstab.write("%s          swap  swap     defaults   0  0\n" %
+                (swappart))
+    fstab.write("none        /dev/pts  devpts defaults   0  0\n")
+    fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
+    fstab.write("none        /proc     proc   defaults   0  0\n")
+    fstab.write("none        /sys      sysfs  defaults   0  0\n")
+    fstab.close()
         
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
@@ -648,7 +629,6 @@ def configureNTP(mounts, answers):
 
         # now turn on the ntp service:
         util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
-            
 
 def setRootPassword(mounts, answers):
     # avoid using shell here to get around potential security issues.
@@ -787,11 +767,7 @@ def mkLvmDirs(mounts, answers):
 def makeSymlinks(mounts, answers):
     global writeable_dirs, writeable_files
 
-    # now copy files for pre-rws
-    # first, umount rws
-    util.umount(mounts['rws'], False)
-
-     # make sure required directories exist:
+    # make sure required directories exist:
     for dir in pre_rws_dirs:
         util.assertDir("%s%s" % (mounts['rws'], dir))
 
@@ -800,13 +776,7 @@ def makeSymlinks(mounts, answers):
         dom0_file = "%s%s" % (mounts['root'], f)
         runCmd("cp %s %s" % (dom0_file, rws_file))
 
-    # and remount rws
-    rwspath = "/tmp/root/rws"
-    rwsvol = getRWSPartName(answers['primary-disk'])
-    util.assertDir(rwspath)
-    util.mount(rwsvol, rwspath)
-
-     # make sure required directories exist:
+    # make sure required directories exist:
     for dir in asserted_dirs:
         util.assertDir("%s%s" % (mounts['root'], dir))
         util.assertDir("%s%s" % (mounts['rws'], dir))
@@ -867,32 +837,6 @@ def writeDhclientHooks(mounts, answers):
 def touchSshAuthorizedKeys(mounts, answers):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
-
-
-###
-# Compress root filesystem and save to disk:
-def finalise(answers):
-    global dom0tmpfs_name
-
-    # mount the filesystem parts again - this time in different places (since
-    # we are compressing the rootfs into a file in boot, we don't want boot
-    # mounted inside root...):
-    util.assertDir("/tmp/boot")
-
-    util.mount("/dev/%s/%s" % (vgname, dom0tmpfs_name),
-               "/tmp/root")
-    util.mount(getBootPartName(answers['primary-disk']),
-               "/tmp/boot")
-
-    xelogging.log("About to compress root filesystem...")
-    assert runCmd("mksquashfs /tmp/root /tmp/boot/%s-%s.img" % (version.PRODUCT_NAME, version.PRODUCT_VERSION)) == 0
-    assert runCmd("touch /tmp/boot/.xensource-boot") == 0
-
-    util.umount("/tmp/root")
-    util.umount("/tmp/boot")
-
-    # now remove the temporary volume
-    assert runCmd("lvremove -f /dev/%s/%s" % (vgname, dom0tmpfs_name)) == 0
 
 
 ################################################################################

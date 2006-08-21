@@ -20,26 +20,22 @@ EXIT_USER_CANCEL = 2
 # other:
 min_primary_disk_size = 16
 
-rws_size = 1000
-rws_name = "RWS"
+vgname = "VG_XenSource"
+
+root_size = 4096
+rootfs_type = 'ext3'
+rootfs_label = '/-main'
 
 vmstate_size = 4000
 vmstate_name = "VMState"
+vmstate_vol = "/dev/%s/%s" % (vgname, vmstate_name)
 vmstatefs_type = "ext3"
 
 swap_size = 1000
 swap_name = "Swap"
 
-boot_size = 320
-vgname = "VG_XenSource"
-
 # file system creation constants
-dom0tmpfs_name = "tmp-%s" % version.PRODUCT_NAME
-dom0tmpfs_size = 500
 bootfs_type = 'ext2'
-dom0tmpfs_type = 'ext3'
-ramdiskfs_type = 'squashfs'
-rwsfs_type = 'ext3'
 bootfs_label = "/boot"
 
 MIN_PASSWD_LEN=6
