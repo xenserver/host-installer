@@ -66,7 +66,6 @@ packages = [ "dom0fs-%s-%s" % (version.PRODUCT_NAME, version.PRODUCT_VERSION),
              "rhel41-guest-installer",
              "vendor-kernels",
              "xen-kernel",
-             "documentation",
              "rpms",
              "firewall",
              'timeutil'
