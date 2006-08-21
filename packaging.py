@@ -245,7 +245,7 @@ class LocalInstallMethod(InstallMethod):
 
     def getPackageList(self):
         assert os.path.ismount("/tmp/cdmnt")
-        plpath = "%s/%s" % ('/tmp/cdmnt', __package_filename__)
+        plpath = "%s/%s" % ('/tmp/cdmnt/packages', __package_filename__)
         plfile = open(plpath, 'r')
         pl = self.getPackageListFromFile(plfile)
         plfile.close()
@@ -322,7 +322,8 @@ def md5CheckPackage(packagename, method):
 # Returns a list of problematic packages
 def quickSourceVerification(source):
     problems = []
-    for package in constants.packages:
+    packages = source.getPackageList()
+    for package in packages:
         if not source.checkPackageExistance(package):
             problems.append(package)
 
@@ -331,7 +332,8 @@ def quickSourceVerification(source):
 # Returns a list of problematic packages
 def md5SourceVerification(source):
     problems = []
-    for package in constants.packages:
+    packages = source.getPackageList()
+    for package in packages:
         if not md5CheckPackage(package, source):
             problems.append(package)
 
