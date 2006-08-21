@@ -139,7 +139,8 @@ def performInstallation(answers, ui_package):
 
         # Install packages:
         progress = 5
-        for package in constants.packages:
+        packages = installmethod.getPackageList()
+        for package in packages:
             packaging.installPackage(package, installmethod, mounts['root'])
             progress += 1
             ui_package.displayProgressDialog(progress, pd)

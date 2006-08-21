@@ -50,6 +50,8 @@ class BadSourceAddress(Exception):
 ###
 # INSTALL METHODS
 
+__package_filename__ = "PACKAGES"
+
 class InstallMethod:
     def __init__(self, *args):
         pass
@@ -62,6 +64,15 @@ class InstallMethod:
 
     def checkPackageExistance(self, package):
         pass
+
+    def getPackageList(self):
+        pass
+
+    def getPackageListFromFile(self, plfile):
+        pl = plfile.readlines()
+        pl = [x.strip() for x in pl]
+        pl = filter(lambda x: x != "", pl)
+        return pl
 
     def finished(self, eject = True):
         pass
@@ -99,6 +110,15 @@ class HTTPInstallMethod(InstallMethod):
             return False
         else:
             return True
+
+    def getPackageList(self):
+        assert self.baseURL != None and self.baseURL != ""
+        plurl = "%s/%s" % (self.baseURL, __package_filename__)
+        plfile = urllib2.urlopen(plurl)
+        pl = self.getPackageListFromFile(plfile)
+        plfile.close()
+
+        return pl
 
     def finished(self, eject = False):
         pass
@@ -144,6 +164,15 @@ class NFSInstallMethod(InstallMethod):
         else:
             return True
 
+    def getPackageList(self):
+        assert os.path.ismount("/tmp/nfs-source")
+        plpath = "%s/%s" % ('/tmp/nfs-source', __package_filename__)
+        plfile = open(plpath, 'r')
+        pl = self.getPackageListFromFile(plfile)
+        plfile.close()
+
+        return pl
+    
     def finished(self, eject = False):
         assert os.path.ismount('/tmp/nfs-source')
         util.umount('/tmp/nfs-source')
@@ -213,6 +242,15 @@ class LocalInstallMethod(InstallMethod):
             return False
         else:
             return True
+
+    def getPackageList(self):
+        assert os.path.ismount("/tmp/cdmnt")
+        plpath = "%s/%s" % ('/tmp/cdmnt', __package_filename__)
+        plfile = open(plpath, 'r')
+        pl = self.getPackageListFromFile(plfile)
+        plfile.close()
+
+        return pl
 
     def finished(self, eject = True):
         if os.path.ismount('/tmp/cdmnt'):
