@@ -32,6 +32,7 @@ from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, INSTALLER_MODULE_LI
 base_modules = ['sd-mod',
                 'sr-mod',
                 'dm-mod',
+                'ide-cd',
                 'loop',
                 'ata_piix',
                 'rtc',
