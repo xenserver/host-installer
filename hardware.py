@@ -96,3 +96,38 @@ def getModuleOrder():
         return modules
     except Exception, e:
         raise ModuleOrderUnknownException, e
+
+def readCpuInfo():
+    f = open('/proc/cpuinfo', 'r')
+    cpus = []
+    cpu = {}
+    for line in f:
+        if line == "\n":
+            cpus.append(cpu)
+            cpu = {}
+        else:
+            (key, value) = line.split(":")
+            (key, value) = (key.strip(), value.strip())
+            if key == "flags":
+                value = value.split(" ")
+            cpu[key] = value
+    f.close()
+    
+    return cpus
+
+# to explain this monster:
+# - flags is a list of lists containing the flags for each CPU
+# - support is a list of Bool, saying whether one of 'features'
+#   is contained in the equivalent 'flags' entry
+# - vt checks that the required features rae present on at least
+#   one CPU.  They will, in reality, be present on all or none.
+def VTSupportEnabled():
+    features = ['vmx' 'svm']
+    cpuinfo = readCpuInfo()
+    flags = [ x['flags'] for x in cpuinfo ]
+
+    support = [True in [x in f for x in features] for f in flags]
+    vt = reduce(lambda x,y: x or y, support)
+    
+    return vt
+    

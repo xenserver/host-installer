@@ -25,6 +25,7 @@ import netutil
 import packaging
 import xelogging
 from version import *
+import hardware
 
 import os.path
 
@@ -59,11 +60,17 @@ def resume_ui():
 def welcome_screen(answers):
     global screen
 
+    warning = ""
+    if not hardware.VTSupportEnabled ():
+        warning = """
+
+WARNING: VT support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  VT support is required to start Windows virtual machines."""
+
     button = ButtonChoiceWindow(screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
                                 """This setup tool will install %s on your server.
 
-This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install.""" % PRODUCT_BRAND,
+This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install. %s""" % (PRODUCT_BRAND, warning),
                                 ['Ok', 'Cancel Installation'], width=60)
 
     # advance to next screen:
@@ -165,7 +172,6 @@ def get_keymap(answers):
         return 1
     
     if button == "back": return -1
-
 
 def upgrade_screen(answers):
     global screen
