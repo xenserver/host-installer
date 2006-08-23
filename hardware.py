@@ -92,6 +92,14 @@ def getModuleOrder():
                 module = module.replace("-", "_")
                 if module in all_modules:
                     modules.append(module)
+
+        # now we need a hack to get the USB modules in, since
+        # these are modprobed at system startup, before our
+        # hardware detection is run (this will go away when
+        # using dom0's hardware detection):
+        for usbmod in ['uhci-hcd', 'uhci_hcd', 'ohci-hcd', 'ohci_hcd', 'ehci-hcd', 'ehci_hcd', 'usbhid', 'hid', 'usbkbd']:
+            if os.system("grep -q '%s' /proc/modules" % usbmod) == 0:
+                modules.append(usbmod)
         
         return modules
     except Exception, e:
