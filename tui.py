@@ -64,7 +64,7 @@ def welcome_screen(answers):
     if not hardware.VTSupportEnabled ():
         warning = """
 
-WARNING: VT support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  VT support is required to start Windows virtual machines."""
+NOTE: Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This is required to start Windows virtual machines."""
 
     button = ButtonChoiceWindow(screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
