@@ -122,7 +122,7 @@ def readCpuInfo():
 # - vt checks that the required features rae present on at least
 #   one CPU.  They will, in reality, be present on all or none.
 def VTSupportEnabled():
-    features = ['vmx' 'svm']
+    features = ['vmx', 'svm']
     cpuinfo = readCpuInfo()
     flags = [ x['flags'] for x in cpuinfo ]
 
