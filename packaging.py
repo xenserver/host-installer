@@ -315,7 +315,7 @@ def md5CheckPackage(packagename, method):
         return False
     
     xelogging.log("Computed md5 as: %s" % newsum)
-    xelogging.log("Excpected md5:   %s" % recordedsum)
+    xelogging.log("Expected md5:   %s" % recordedsum)
 
     return (recordedsum == newsum)
 
