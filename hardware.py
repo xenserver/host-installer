@@ -24,7 +24,7 @@ module_map = {
     'i810-tco'     : [],
     'usb-uhci'     : [],
     'ide-scsi'     : ['ide-generic'],
-    'piix'         : ['ata-piix', 'piix'],
+    'piix'         : ['ata-piix', 'piix', 'ide-generic'],
 
     # blacklist framebuffer drivers (we don't need them):
     "arcfb"        : [],
@@ -77,6 +77,16 @@ def getModuleOrder():
         return kofiles
 
     try:
+        def findModuleName(module, all_modules):
+            module = module.replace("_", "-") # start with '-'
+            if module in all_modules:
+                return module
+            else:
+                module = module.replace("-", "_")
+                if module in all_modules:
+                    return module
+            return None # not found
+        
         all_modules = allKoFiles("/lib/modules/%s" % version.KERNEL_VERSION)
         all_modules = [x.replace(".ko", "") for x in all_modules]
 
@@ -84,14 +94,12 @@ def getModuleOrder():
         lines = [x.strip() for x in mo]
         mo.close()
 
-        modules = []
-        for module in lines:
-            if module in all_modules:
-                modules.append(module)
-            else:
-                module = module.replace("-", "_")
-                if module in all_modules:
-                    modules.append(module)
+        # we can put all these in, and findModuleName will return
+        # None if they aren't actually loaded.
+        lines.extend(['ohci-hcd', 'uhci-hcd', 'ehci-hcd',
+                      'usbhid', 'hid', 'usbkbd'])
+        modules = [findModuleName(m, all_modules) for m in lines]
+        modules = filter(lambda x: x != None, modules)
         
         return modules
     except Exception, e:

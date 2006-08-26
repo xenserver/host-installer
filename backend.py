@@ -131,7 +131,7 @@ def performInstallation(answers, ui_package):
             # Put filesystems on Dom0 Disk
             createDom0DiskFilesystems(answers['primary-disk'])
         else:
-            raise Exception, "Upgrade current broken."
+            raise Exception, "Upgrade currently broken."
 
         # Mount the system image:
         mounts = mountVolumes(answers['primary-disk'])
