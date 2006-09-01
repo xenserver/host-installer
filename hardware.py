@@ -13,6 +13,9 @@
 
 import os
 import version
+import constants
+import xelogging
+import util
 
 # More of the hardware tools will be moved into here in future.
 
@@ -104,6 +107,17 @@ def getModuleOrder():
         return modules
     except Exception, e:
         raise ModuleOrderUnknownException, e
+
+def modprobe(module, params = ""):
+    xelogging.log("Loading module %s" % " ".join([module, params]))
+    rc = util.runCmd("modprobe %s %s" % (module, params))
+
+    if rc == 0:
+        modlist_file = open(__MODULE_ORDER_FILE__, 'a')
+        modlist_file.write("%s %s\n" % (module, params))
+        modlist_file.close()
+
+    return rc
 
 def readCpuInfo():
     f = open('/proc/cpuinfo', 'r')

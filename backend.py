@@ -157,7 +157,6 @@ def performInstallation(answers, ui_package):
         ui_package.displayProgressDialog(15, pd)
         
         # perform dom0 file system customisations:
-        mkLvmDirs(mounts, answers)
         writeResolvConf(mounts, answers)
         writeKeyboardConfiguration(mounts, answers)
         ui_package.displayProgressDialog(16, pd)
@@ -321,19 +320,14 @@ def prepareLVM(answers):
     partitions += map(lambda x: determinePartitionName(x, 1),
                       answers['guest-disks'])
 
-    rc = 0
-    # TODO - better error handling
     for x in partitions:
-        y = 0
-        while y < 8:
-            rc = runCmd("pvcreate -ff -y %s" % x)
-            if rc == 0:
+        # try multiple times to pvcreate
+        for y in range(1,8):
+            if util.runCmd2(["pvcreate", "-ff", "-y", "%s" % x]) == 0:
                 break
             time.sleep(3)
-            y += 1
-    if rc != 0:
-        raise Exception("Failed to pvcreate on %s. rc = %d" % (x, rc))
-
+        else:
+            raise Exception("Failed to pvcreate on %s" % (x))
 
     # LVM doesn't like creating VGs if a previous volume existed and left
     # behind device nodes...
@@ -361,9 +355,8 @@ def mkinitrd(mounts, answers):
 
     modules_string = " ".join(modules_list)
     output_file = "/boot/initrd-%s.img" % version.KERNEL_VERSION
-    rev = version.KERNEL_VERSION
     
-    cmd = "mkinitrd %s %s %s" % (modules_string, output_file, rev)
+    cmd = "mkinitrd %s %s %s" % (modules_string, output_file, version.KERNEL_VERSION)
     
     util.runCmd("chroot %s %s" % (mounts['root'], cmd))
 
@@ -461,7 +454,6 @@ def installGrub(mounts, disk):
 
 MOUNT_SOURCE_DEVICE = 1
 MOUNT_SOURCE_BIND = 2
-
 def mountVolumes(primary_disk):
     base = '/tmp/root'
 
@@ -503,7 +495,7 @@ def umountVolumes(mounts, force = False):
 
 def cleanup_umount():
     global mounts
-    if mounts.has_key('umount-order'):
+    if mounts and mounts.has_key('umount-order'):
         umountVolumes(mounts, True)
 
 ##########
@@ -550,7 +542,7 @@ def writeFstab(mounts, answers):
     fstab.write("none        /proc     proc   defaults   0  0\n")
     fstab.write("none        /sys      sysfs  defaults   0  0\n")
     fstab.close()
-        
+
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
     (manual_nameservers, nameservers) = answers['manual-nameservers']
@@ -730,39 +722,13 @@ def configureNetworking(mounts, answers):
     # now symlink from dom0:
     writeable_files.append("/etc/sysconfig/network")
 
+# use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts, answers):
-    # mount proc and sys in the filesystem
     util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
-    
-    #####
-    #this only works nicely if the install CD runs the same kernel version as the Carbon host will!!!
-    #####
     assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
-    
-    #TODO: hack
-    if os.path.exists("/tmp/module-order"):
-        loaded_file = open("/tmp/module-order", "r")
-        toload_file = open("%s/etc/modules" % mounts['root'], "w")
-        loaded = loaded_file.readlines()
-        loaded_file.close()
-        for line in loaded:
-            toload_file.write(line)
-
-        # now add in the USB modules:
-        for usbmod in ['uhci-hcd', 'uhci_hcd', 'ohci-hcd', 'ohci_hcd', 'ehci-hcd', 'ehci_hcd', 'usbhid', 'hid', 'usbkbd']:
-            if os.system("grep -q '%s' /proc/modules" % usbmod) == 0:
-                toload_file.write(usbmod + "\n")
-
-        toload_file.close()
-    else:
-        os.system("cat /proc/modules | awk '{print $1}' > %s/etc/modules" % mounts["root"])
-    
-def mkLvmDirs(mounts, answers):
-    util.assertDir("%s/etc/lvm/archive" % mounts["root"])
-    util.assertDir("%s/etc/lvm/backup" % mounts["root"])
    
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):

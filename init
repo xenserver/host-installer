@@ -27,7 +27,7 @@ import hardware
 from hardware import module_map
 
 from version import *
-from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, INSTALLER_MODULE_LIST_FILE
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 
 base_modules = ['sd-mod',
                 'sr-mod',
@@ -72,16 +72,6 @@ def activateScreen():
         activefile.write(tty)
         activefile.close()
 
-def modprobe(module, params = ""):
-    xelogging.log("Loading module %s" % " ".join([module, params]))
-    rc = util.runCmd("modprobe %s %s" % (module, params))
-
-    if rc == 0:
-        modlist_file = open(INSTALLER_MODULE_LIST_FILE, 'a')
-        modlist_file.write("%s %s\n" % (module, params))
-        modlist_file.close()
-
-    return rc
 
 # Use the 'discover' tool to detect hardware and load needed
 # modules;
@@ -143,7 +133,7 @@ def configureHardware(extra_modules = [],
             if interactive:
                 load_m = ui.ask_load_module(m)
             if load_m:
-                modprobe(m)
+                hardware.modprobe(m)
     
     # if we're in an older (pre udev-091) filesystem, we need
     # to call udevstart as udevd wasn't working correctly:
