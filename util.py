@@ -202,3 +202,10 @@ def fetchFile(source, dest):
         # make sure we unmount anything we mounted:
         for m in unmount:
             umount(m)
+
+def getUUID():
+    rc, out = runCmdWithOutput('uuidgen')
+    assert rc == 0
+
+    return out.strip()
+
