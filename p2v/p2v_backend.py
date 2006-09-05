@@ -94,7 +94,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     rootfs_type = dev_attrs[p2v_constants.DEV_ATTRS_TYPE]
 
-    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%s' '%d' '%s', '%s'" % (
+    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%s' '%d' '%s' '%s'" % (
                 xe_host,
                 root_password,
                 os_install_name,
@@ -111,7 +111,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
 
     if rc != 0:
         p2v_utils.trace_message("Failed to prepare_p2v (%s)" % out)
-        raise P2VError("Failed to prepare the %s host for this P2V. There might not be enough free space(%s)" % PRODUCT_BRAND)
+        raise P2VError("Failed to prepare the %s host for this P2V. There might not be enough free space(%s)" % (PRODUCT_BRAND, out))
 
     for line in out.split('\n'):
         try:
