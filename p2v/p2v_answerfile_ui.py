@@ -104,6 +104,7 @@ def __parse_answerfile__(answerdoc, results):
                 p2v_constants.FS_USED_SIZE,
                 p2v_constants.FS_TOTAL_SIZE,
                 p2v_constants.CPU_COUNT,
+                p2v_constants.MAC,
                 p2v_constants.TOTAL_MEM,
                 p2v_constants.P2V_PATH,
                 p2v_constants.DEV_NAME,

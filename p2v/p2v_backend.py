@@ -88,11 +88,13 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
     description = os_install[p2v_constants.DESCRIPTION]
+    uuid = os_install[p2v_constants.UUID]
+    mac = os_install[p2v_constants.MAC]
 
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     rootfs_type = dev_attrs[p2v_constants.DEV_ATTRS_TYPE]
 
-    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%s' '%d'" % (
+    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c preparep2v -p '%s' '%s' '%s' '%s' '%s' '%s' '%d' '%d' '%s' '%d' '%s', '%s'" % (
                 xe_host,
                 root_password,
                 os_install_name,
@@ -103,7 +105,9 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
                 total_size,
                 used_size,
                 rootfs_type,
-                cpu_count))
+                cpu_count, 
+                uuid, 
+                mac))
 
     if rc != 0:
         p2v_utils.trace_message("Failed to prepare_p2v (%s)" % out)

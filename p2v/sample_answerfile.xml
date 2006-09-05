@@ -25,5 +25,6 @@
   <tarfilename>Sample.tar.gz</tarfilename>
   <tardirname>/sample/dir/name/</tardirname>
   <md5sum>1234567890</md5sum>
+  <mac>00:12:3F:AA:00:AA</mac>
  </osinstall>
 </p2v>

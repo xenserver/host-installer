@@ -19,6 +19,7 @@ HOST_NAME = 'hostname'
 DESCRIPTION = 'description'
 P2V_PATH = "p2v_path"
 ROOT_PASSWORD = 'root-password'
+MAC = "mac"
 
 XEN_TARGET = 'xen-target'
 XEN_TARGET_XE =  'xe'
