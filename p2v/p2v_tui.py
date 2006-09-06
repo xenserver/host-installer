@@ -134,15 +134,27 @@ def target_screen(answers):
         if answers.has_key(p2v_constants.XE_HOST):
             hn = answers[p2v_constants.XE_HOST]
 
-        answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
-        (button, xehost) = MyEntryWindow(screen,
-                "%s Information" % BRAND_SERVER,
-                "Please enter the %s information: " % BRAND_SERVER,
-                [('Hostname or IP:', hn)],
-                buttons= ['Ok', 'Back'])
-        answers[p2v_constants.XE_HOST] = xehost[0]
-        if button == 'back':
-            return 0;
+        complete = False
+        while not complete:
+            answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
+            (button, xehost) = MyEntryWindow(screen,
+                    "%s Information" % BRAND_SERVER,
+                    "Please enter the %s information: " % BRAND_SERVER,
+                    [('Hostname or IP:', hn)],
+                    buttons= ['Ok', 'Back'])
+
+            if button == 'back':
+                return 0;
+
+            if len(xehost[0]) > 0:
+                answers[p2v_constants.XE_HOST] = xehost[0]
+                complete = True
+            else:
+                ButtonChoiceWindow(screen,
+                    "Invalid Entry",
+                    "Invalid %s Information. Please review the information you entered." % (BRAND_SERVER),
+                    buttons = ['Ok'])
+                
     elif entry == 1:
         complete = False
         while not complete:
