@@ -20,37 +20,15 @@ EXIT_USER_CANCEL = 2
 # other:
 min_primary_disk_size = 16
 
-vgname = "VG_XenSource"
-
 root_size = 4096
 rootfs_type = 'ext3'
 rootfs_label = '/-main'
 
-vmstate_size = 4000
-vmstate_name = "VMState"
-vmstate_vol = "/dev/%s/%s" % (vgname, vmstate_name)
-vmstatefs_type = "ext3"
-
-swap_size = 1000
-swap_name = "Swap"
-
-# file system creation constants
-bootfs_type = 'ext2'
-bootfs_label = "/boot"
+default_sr_firstpartition = 3
 
 MIN_PASSWD_LEN=6
 
 EULA_PATH = "/opt/xensource/installer/EULA"
-
-# location/destination of files on the dom0 FS
-DOM0_FILES_LOCATION_ROOT = "%s/files/"
-DOM0_VENDOR_KERNELS_LOCATION = DOM0_FILES_LOCATION_ROOT + "vendor-kernels/"
-DOM0_XEN_KERNEL_LOCATION = DOM0_FILES_LOCATION_ROOT + "xen-kernel/"
-DOM0_GUEST_INSTALLER_LOCATION = DOM0_FILES_LOCATION_ROOT + "guest-installer/"
-
-DOM0_GLIB_RPMS_LOCATION = DOM0_FILES_LOCATION_ROOT + "glibc-rpms/"
-DOM0_XGT_LOCATION = "%s/xgt"
-DOM0_PKGS_DIR_LOCATION = "/opt/xensource/packages"
 
 ANSWERS_FILE = "upgrade_answers"
 
