@@ -124,14 +124,16 @@ def performInstallation(answers, ui_package):
                 writeGuestDiskPartitions(gd)
             ui_package.displayProgressDialog(2, pd)
         
-            # Create volume group and any needed logical volumes:
-            prepareLVM(answers)
+            # Create the default storage repository:
+            default_sr = prepareStorageRepository(answers)
             ui_package.displayProgressDialog(3, pd)
             
             # Put filesystems on Dom0 Disk
             createDom0DiskFilesystems(answers['primary-disk'])
         else:
             raise Exception, "Upgrade currently broken."
+
+        assert default_sr is not None
 
         # Mount the system image:
         mounts = mountVolumes(answers['primary-disk'])
@@ -146,13 +148,13 @@ def performInstallation(answers, ui_package):
             ui_package.displayProgressDialog(progress, pd)
 
         # Create a swap filesystem:
-        createDom0Swap(mounts, answers)
+        #createDom0Swap(mounts, answers)
 
         # Install the bootloader:
         installGrub(mounts, answers['primary-disk'])
         ui_package.displayProgressDialog(14, pd)
 
-        # Depmod the kernel:
+        # Create modules.dep:
         doDepmod(mounts, answers)
         ui_package.displayProgressDialog(15, pd)
         
@@ -165,19 +167,19 @@ def performInstallation(answers, ui_package):
         ui_package.displayProgressDialog(17, pd)
         
         writeFstab(mounts, answers)
+        writeSmtab(mounts, answers, default_sr)
+        enableSM(mounts, answers)
         ui_package.displayProgressDialog(18, pd)
 
         writeModprobeConf(mounts, answers)
         ui_package.displayProgressDialog(19, pd)
 
         mkinitrd(mounts, answers)
-        
-        writeInventory(mounts, answers)
-        writeDhclientHooks(mounts, answers)
-        touchSshAuthorizedKeys(mounts, answers)
         ui_package.displayProgressDialog(20, pd)
         
-        #initNfs(mounts, answers)
+        writeInventory(mounts, answers, default_sr)
+        writeDhclientHooks(mounts, answers)
+        touchSshAuthorizedKeys(mounts, answers)
         ui_package.displayProgressDialog(21, pd)
         
         # set the root password: (not if upgrade, because we're preserving the old
@@ -258,9 +260,9 @@ def writeAnswersFile(mounts, answers):
     pickle.dump(answers, fd)
     fd.close()
 
-def getSwapPartName(disk):
-    global swap_name, vgname
-    return "/dev/%s/%s" % (vgname, swap_name)
+#def getSwapPartName(disk):
+#    global swap_name, vgname
+#    return "/dev/%s/%s" % (vgname, swap_name)
 
 def getBootPartNumber(disk):
     return 1
@@ -272,12 +274,6 @@ def getBootPartName(disk):
 # cleaned up.
 getRootPartName = getBootPartName
 getRootPartNumber = getBootPartNumber
-
-def getDom0LVMPartNumber(disk):
-    return 3
-
-def getDom0LVMPartName(disk):
-    return determinePartitionName(disk, getDom0LVMPartNumber(disk))
 
 ###
 # Functions to write partition tables to disk
@@ -313,42 +309,21 @@ def determinePartitionName(guestdisk, partitionNumber):
     else:
         return guestdisk + "%d" % partitionNumber
 
-def prepareLVM(answers):
-    global vgname
-
-    partitions = [ getDom0LVMPartName(answers['primary-disk']) ]
-    partitions += map(lambda x: determinePartitionName(x, 1),
-                      answers['guest-disks'])
-
-    for x in partitions:
-        # try multiple times to pvcreate
-        for y in range(1,8):
-            if util.runCmd2(["pvcreate", "-ff", "-y", "%s" % x]) == 0:
-                break
-            time.sleep(3)
-        else:
-            raise Exception("Failed to pvcreate on %s" % (x))
-
-    # LVM doesn't like creating VGs if a previous volume existed and left
-    # behind device nodes...
-    if os.path.exists("/dev/%s" % vgname):
-        runCmd("rm -rf /dev/%s" % vgname)
-    assert runCmd("vgcreate '%s' %s" % (vgname, " ".join(partitions))) == 0
-
-    assert runCmd("lvcreate -L %s -n %s %s" % (vmstate_size, vmstate_name, vgname)) == 0
-    assert runCmd("lvcreate -L %s -n %s %s" % (swap_size, swap_name, vgname)) == 0
-
-    assert runCmd("vgchange -a y %s" % vgname) == 0
-    assert runCmd("vgmknodes") == 0
-
+def prepareStorageRepository(answers):
+    xelogging.log("Preparing default storage repository...")
+    sr_uuid = util.getUUID()
+    args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid]
+    args.append("%s%d" % (answers['primary-disk'], constants.default_sr_firstpartition))
+    args.extend(["%s1" % disk for disk in answers['guest-disks']])
+    assert util.runCmd2(args) == 0
+    xelogging.log("Storage repository created with UUID %s" % sr_uuid)
+    return sr_uuid
 
 ###
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    global bootfs_type, rwsfs_type, vgname, bootfs_label
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
-    assert runCmd("mkfs.%s %s" % (vmstatefs_type, "/dev/VG_XenSource/%s" % vmstate_name)) == 0
 
 def mkinitrd(mounts, answers):
     modules_list = ["--with=%s" % x for x in hardware.getModuleOrder()]
@@ -461,7 +436,6 @@ def mountVolumes(primary_disk):
     # where mountpoint is based off of base, defined above:
     mounts = [('root', (MOUNT_SOURCE_DEVICE, determinePartitionName(primary_disk, 1)), '/'),
               ('rws', None, '/rws'),
-              ('vmstate', None, '/var/opt/xen/vmstate'),
               ('boot', None, '/boot')]
 
     umount_order = ['root']
@@ -506,13 +480,7 @@ def doDepmod(mounts, answers):
 
 # requries dom0fs to be installed so we can use mkswap, at present.
 def createDom0Swap(mounts, answers):
-    # if no swap volume already, create it
-    if not util.runCmd("lvdisplay %s/%s 2>&1" % (vgname, swap_name)) == 0:
-        util.runCmd("lvcreate -L %s -n %s %s" % (swap_size, swap_name, vgname)) == 0
-
-    util.bindMount("/dev", "%s/dev" % mounts['root'])
-    assert util.runCmd2(['chroot', '%s' % mounts['root'], 'mkswap', '/dev/%s/%s' % (vgname, swap_name)]) == 0
-    util.umount("%s/dev" % mounts['root'])
+    assert False
 
 def writeKeyboardConfiguration(mounts, answers):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
@@ -529,19 +497,29 @@ def writeFstab(mounts, answers):
     util.assertDir("%s/etc" % mounts['rws'])
 
     # first work out what we're going to write:
-    swappart = getSwapPartName(answers['primary-disk'])
+    #swappart = getSwapPartName(answers['primary-disk'])
 
     # write 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
     fstab.write("LABEL=%s    /        %s    defaults   1  1\n" % (rootfs_label, rootfs_type))
-    fstab.write("%s          /var/opt/xen/vm %s defaults 1 2\n" % (vmstate_vol, vmstatefs_type))
-    fstab.write("%s          swap  swap     defaults   0  0\n" %
-                (swappart))
+    #fstab.write("%s          swap  swap     defaults   0  0\n" %
+    #            (swappart))
     fstab.write("none        /dev/pts  devpts defaults   0  0\n")
     fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
     fstab.write("none        /proc     proc   defaults   0  0\n")
     fstab.write("none        /sys      sysfs  defaults   0  0\n")
     fstab.close()
+
+def writeSmtab(mounts, answers, default_sr):
+    smtab = open(os.path.join(mounts['root'], 'etc/smtab'), 'w')
+    smtab.write("%s %s lvm default auto\n" %
+                (default_sr,
+                 "%s%d" % (answers['primary-disk'], constants.default_sr_firstpartition),))
+    smtab.close()
+
+def enableSM(mounts, answers):
+    assert util.runCmd2(['chroot', mounts['root'], 'chkconfig',
+                         '--add', 'smtab']) == 0
 
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
@@ -781,7 +759,7 @@ def makeSymlinks(mounts, answers):
 
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
-def writeInventory(mounts, answers):
+def writeInventory(mounts, answers, default_sr_uuid):
     inv = open("%s/etc/xensource-inventory" % mounts['root'], "w")
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
@@ -793,6 +771,7 @@ def writeInventory(mounts, answers):
     inv.write("RHEL41_KERNEL_VERSION='%s'\n" % version.RHEL41_KERNEL_VERSION)
     inv.write("SLES_KERNEL_VERSION='%s'\n" % version.SLES_KERNEL_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
+    inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
     inv.close()
 
 def writeDhclientHooks(mounts, answers):
