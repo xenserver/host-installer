@@ -262,7 +262,7 @@ def handle_root_ssh(mntpnt, dev_name, hostname, target_directory, keyfile, pd = 
         ui_package.displayProgressDialog(2, pd, " - Transferring root filesystem")
 
     os.chdir(mntpnt)
-    rc, out = run_command('tar zScf - . | ssh -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i %s %s " cd %s ; tar zxf - "' % 
+    rc, out = run_command('tar zScf - . | ssh -oServerAliveInterval=10 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i %s %s " cd %s ; tar zxf - "' % 
                          (keyfile, hostname, target_directory))
     if not rc == 0:
         raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % (rc, out))
