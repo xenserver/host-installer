@@ -123,6 +123,7 @@ Diagnostic output from the P2V operation follows:
             ui_package.end_ui()
             print "P2V Failed: %s" % e
             sys.exit(2)
+        except SystemExit: raise
         except Exception, e:
             xelogging.log(e)
             xelogging.writeLog("/tmp/install-log")
