@@ -17,36 +17,24 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USER_CANCEL = 2
 
-# other:
+# disk sizes
 min_primary_disk_size = 16
 
+# filesystems and partitions (sizes in MB):
 root_size = 4096
 rootfs_type = 'ext3'
 rootfs_label = '/-main'
-
 default_sr_firstpartition = 3
+swap_location = '/var/swap/swap.001'
+swap_size = 512
 
 MIN_PASSWD_LEN=6
 
+# file locations
 EULA_PATH = "/opt/xensource/installer/EULA"
-
 ANSWERS_FILE = "upgrade_answers"
-
-# location of the timezone data file in the installation environment
 timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
-
-# packages to be installed
-packages = [ "dom0fs-%s-%s" % (version.PRODUCT_NAME, version.PRODUCT_VERSION),
-             "kernels",
-             "xgts",
-             "rhel41-guest-installer",
-             "vendor-kernels",
-             "xen-kernel",
-             "rpms",
-             "firewall",
-             'timeutil'
-            ]
 
 # files that should be writeable in the dom0 FS
 writeable_files = [ '/etc/sysconfig/keyboard',
@@ -64,11 +52,6 @@ writeable_files = [ '/etc/sysconfig/keyboard',
                     '/etc/lvm/.cache',
                     '/etc/vendorkernel-inventory',
                     '/usr/sbin/system-info.sh']
-
-# files that need to be readable before RWS comes online
-pre_rws_dirs = [ '/etc' ]
-pre_rws_files = [ '/etc/adjtime',
-                 '/etc/passwd' ]
 
 # directories to be created in the dom0 FS
 asserted_dirs = [ '/etc',

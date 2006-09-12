@@ -165,7 +165,8 @@ def performInstallation(answers, ui_package):
         
         configureNetworking(mounts, answers)
         ui_package.displayProgressDialog(17, pd)
-        
+
+        prepareSwapfile(mounts, answers)
         writeFstab(mounts, answers)
         writeSmtab(mounts, answers, default_sr)
         enableSM(mounts, answers)
@@ -493,6 +494,13 @@ def writeKeyboardConfiguration(mounts, answers):
     kbdfile.write("KEYTABLE=%s\n" % answers['keymap'])
     kbdfile.close()
 
+def prepareSwapfile(mounts, answers):
+    util.assertDir("%s/var/swap" % mounts['root'])
+    util.runCmd2(['dd', 'if=/dev/zero',
+                  'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
+                  'bs=1024', 'count=%d' % (constants.swap_size * 1024)])
+    util.runCmd2(['chroot', mounts['root'], 'mkswap', '/var/swap/swap.001'])
+
 def writeFstab(mounts, answers):
     util.assertDir("%s/etc" % mounts['rws'])
 
@@ -501,9 +509,8 @@ def writeFstab(mounts, answers):
 
     # write 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
-    fstab.write("LABEL=%s    /        %s    defaults   1  1\n" % (rootfs_label, rootfs_type))
-    #fstab.write("%s          swap  swap     defaults   0  0\n" %
-    #            (swappart))
+    fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
+    fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
     fstab.write("none        /dev/pts  devpts defaults   0  0\n")
     fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
     fstab.write("none        /proc     proc   defaults   0  0\n")
@@ -711,15 +718,6 @@ def writeModprobeConf(mounts, answers):
 # make appropriate symlinks according to writeable_files and writeable_dirs:
 def makeSymlinks(mounts, answers):
     global writeable_dirs, writeable_files
-
-    # make sure required directories exist:
-    for dir in pre_rws_dirs:
-        util.assertDir("%s%s" % (mounts['rws'], dir))
-
-    for f in pre_rws_files:
-        rws_file = "%s%s" % (mounts['rws'], f)
-        dom0_file = "%s%s" % (mounts['root'], f)
-        runCmd("cp %s %s" % (dom0_file, rws_file))
 
     # make sure required directories exist:
     for dir in asserted_dirs:
