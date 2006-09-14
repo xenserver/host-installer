@@ -314,8 +314,8 @@ def prepareStorageRepository(answers):
     xelogging.log("Preparing default storage repository...")
     sr_uuid = util.getUUID()
     args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid]
-    args.append("%s%d" % (answers['primary-disk'], constants.default_sr_firstpartition))
-    args.extend(["%s1" % disk for disk in answers['guest-disks']])
+    args.append(determinePartitionName(answers['primary-disk'], constants.default_sr_firstpartition))
+    args.extend([determinePartitionName(disk, 1) for disk in answers['guest-disks']])
     assert util.runCmd2(args) == 0
     xelogging.log("Storage repository created with UUID %s" % sr_uuid)
     return sr_uuid
@@ -521,7 +521,7 @@ def writeSmtab(mounts, answers, default_sr):
     smtab = open(os.path.join(mounts['root'], 'etc/smtab'), 'w')
     smtab.write("%s %s lvm default auto\n" %
                 (default_sr,
-                 "%s%d" % (answers['primary-disk'], constants.default_sr_firstpartition),))
+                 determinePartitionName(answers['primary-disk'], constants.default_sr_firstpartition)))
     smtab.close()
 
 def enableSM(mounts, answers):
