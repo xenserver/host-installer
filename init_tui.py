@@ -13,6 +13,9 @@
 from snack import *
 from version import *
 
+import snackutil
+import init_constants
+
 screen = None
 
 def init_ui():
@@ -31,9 +34,9 @@ def refresh():
 
 def choose_operation():
     entries = [ 
-        ' * Install %s' % BRAND_SERVER,
-        ' * Upgrade %s' % BRAND_SERVER,
-        ' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT
+        (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
+        (' * Export %s' % BRAND_GUESTS_SHORT, init_constants.OPERATION_UPGRADE),
+        (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
     (button, entry) = ListboxChoiceWindow(screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
@@ -65,51 +68,70 @@ def ask_load_module(m):
 
     return result != 'no'
 
+def ask_export_destination_screen(answers):
+    global screen
+
+    valid = False
+    hn = ""
+    while not valid:
+        button, result = EntryWindow(
+            screen,
+            "Export VMs",
+            "Which host would you like to transfer the VMs to?",
+            [("Hostname", Entry(50, hn))], entryWidth = 50,
+            buttons = ["Ok", "Back"])
+        
+        if button == "back":
+            valid = True
+        elif button == "ok":
+            hn = result[0].strip()
+            if hn != "" and " " not in hn:
+                valid = True
+                answers['hostname'] = hn
+            else:
+                ButtonChoiceWindow(
+                    screen,
+                    "Hostname required",
+                    "You must enter a valid hostname",
+                    ["Ok"])
+
+    if button == "back":
+        return -1
+    else:
+        return 1
+
+def ask_host_password_screen(answers):
+    global screen
+
+    button, result = snackutil.PasswordEntryWindow(
+        screen,
+        "Password",
+        "Please enter the password for the host you are connecting to:",
+        ["Password"], entryWidth = 30,
+        buttons = ["Ok", "Back"])
+
+    answers['password'] = result[0]
+
+    if button == "back":
+        return -1
+    else:
+        return 1
+
 
 ###
 # Progress dialog:
+
+def OKDialog(title, text):
+    return snackutil.OKDialog(screen, title, text)
+
 def initProgressDialog(title, text, total):
-    global screen
-    
-    form = GridFormHelp(screen, title, None, 1, 3)
-    
-    t = Textbox(60, 1, text)
-    scale = Scale(60, total)
-    form.add(t, 0, 0, padding = (0,0,0,1))
-    form.add(scale, 0, 1, padding = (0,0,0,0))
-
-    return (form, scale)
-
-def showMessageDialog(title, text):
-    global screen
-    
-    form = GridFormHelp(screen, title, None, 1, 1)
-    
-    t = TextboxReflowed(60, text)
-    form.add(t, 0, 0, padding = (0,0,0,0))
-
-    form.draw()
-    screen.refresh()
+    return snackutil.initProgressDialog(screen, title, text, total)
 
 def displayProgressDialog(current, (form, scale)):
-    global screen
-    
-    scale.set(current)
-
-    form.draw()
-    screen.refresh()
-
-def displayInfoDialog(title, text):
-    global screen
-
-    form = GridFormHelp(screen, title, None, 1, 2)
-    
-    t = TextboxReflowed(60, text)
-    form.add(t, 0, 0)
-    form.draw()
-    screen.refresh()
+    return snackutil.displayProgressDialog(screen, current, (form, scale))
 
 def clearModelessDialog():
-    global screen
-    
-    screen.popWindow()
+    return snackutil.clearModelessDialog(screen)
+
+def showMessageDialog(title, text):
+    return snackutil.showMessageDialog(screen, title, text)

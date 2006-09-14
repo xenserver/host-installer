@@ -20,10 +20,13 @@ import shutil
 
 import init_tui
 import init_simpleui
+import init_constants
 import xelogging
 import netutil
 import util
 import hardware
+import transcribe
+
 from hardware import module_map
 
 from version import *
@@ -41,10 +44,6 @@ base_modules = ['sd-mod',
                 'reiserfs',
                 'ext3']
 
-MODE_INTERACTIVE = 0
-MODE_INSTALL = 1
-MODE_UPGRADE = 2
-MODE_P2V = 3
 
 # Exception that is thrown if we detect that the user has
 # tried to use two consoles to perform an installation
@@ -178,7 +177,6 @@ def main():
     pk.close()
 
     # mount all fstab filesystems if they're not already mounted:
-    util.runCmd('mount -a')
     if os.system("grep -q 'sysfs' /proc/mounts") != 0:
         util.runCmd('mount -t sysfs none /sys')
 
@@ -202,7 +200,7 @@ def main():
         print "Incorrect arguments."
         sys.exit(1)
 
-    mode = MODE_INTERACTIVE
+    mode = init_constants.MODE_INTERACTIVE
     ui_package = init_tui
     extra_modules = []
     user_blacklist = []
@@ -212,11 +210,11 @@ def main():
     interactive_modules = False
     for (opt, val) in opts:
         if opt == "--install":
-            mode = MODE_INSTALL
+            mode = init_constants.MODE_INSTALL
         if opt == "--upgrade":
-            mode = MODE_UPGRADE
+            mode = init_constants.MODE_UPGRADE
         if opt == "--p2v":
-            mode = MODE_P2V
+            mode = init_constants.MODE_P2V
         if opt == '--interactive-modules':
             interactive_modules = True
         if opt == "--answerfile":
@@ -256,7 +254,7 @@ def main():
         xelogging.writeLog("/tmp/startup-log")
 
     # let the user choose what they would like to do:
-    if mode == MODE_INTERACTIVE:
+    if mode == init_constants.MODE_INTERACTIVE:
         firstTime = True
         try:
             while True:
@@ -281,7 +279,7 @@ def main():
                     firstTime = False
 
                 # clean install:
-                if operation == 0:
+                if operation == init_constants.OPERATION_INSTALL:
                     xelogging.log("Starting clean installation")
                     rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
                     if rc == EXIT_OK or rc == EXIT_ERROR: 
@@ -290,16 +288,16 @@ def main():
                         pass
 
                 # upgrade install:
-                elif operation == 1:
+                elif operation == init_constants.OPERATION_UPGRADE:
                     xelogging.log("Starting upgrade installation")
-                    rc = os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
+                    rc = transcribe.run()
                     if rc == EXIT_OK or rc == EXIT_ERROR:
                         break
                     else:
                         pass
 
                 # P2V:
-                elif operation == 2:
+                elif operation == init_constants.OPERATION_P2V:
                     xelogging.log("Starting P2V")
                     rc = os.system("/opt/xensource/installer/p2v.py")
                     if rc == EXIT_OK or rc == EXIT_ERROR:
@@ -334,7 +332,7 @@ def main():
             ui_package.already_activated()
             sys.exit(0)
 
-        if mode == MODE_INSTALL:
+        if mode == init_constants.MODE_INSTALL:
             doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
@@ -344,18 +342,10 @@ def main():
                 os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
             os.system("reboot")
 
-        elif mode == MODE_UPGRADE:
-            doHardwareDetection()
-            if answerfile:
-                os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
-            elif verbose_answerfile:
-                ui_package.end_ui()
-                os.system("/opt/xensource/installer/clean-installer --upgrade")
-            else:
-                os.system("/opt/xensource/installer/clean-installer --upgrade --clog /dev/tty3")
-            os.system("reboot")
+        elif mode == init_constants.MODE_UPGRADE:
+            raise Exception, "Upgrade not supported in this mode."
                 
-        elif mode == MODE_P2V:
+        elif mode == init_constants.MODE_P2V:
             doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)

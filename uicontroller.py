@@ -12,6 +12,7 @@
 
 SKIP_SCREEN = -100
 EXIT = -101
+LEFT_BACKWARDS = -1
 
 def runUISequence(seq, answers, previous_delta = 1):
     assert type(seq) == list

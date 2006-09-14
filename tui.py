@@ -13,6 +13,8 @@
 ### TODO: Validation of IP addresses
 
 from snack import *
+import snackutil
+
 import sys
 import string
 import datetime
@@ -376,7 +378,7 @@ def verify_source(answers):
                 ButtonChoiceWindow(screen, "Problem with repository",
                                    str(e),  ['Back'])
             else:
-                displayInfoDialog("Verify Installation Source", "Package verification is in progress, please wait...")
+                showMessageDialog("Verify Installation Source", "Package verification is in progress, please wait...")
                 problems = packaging.md5SourceVerification(installmethod)
                 if len(problems) == 0:
                     done = True
@@ -468,7 +470,7 @@ def confirm_installation_multiple_disks(answers):
 
     if not isUpgradeInstall:
         ok = 'Install %s' % PRODUCT_BRAND
-        button = ButtonChoiceWindowEx(screen,
+        button = snackutil.ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
                                 """We have collected all the information required to install %s.
 
@@ -476,7 +478,7 @@ If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (
                                 [ok, 'Back'], default = 1)
     else:
         ok = 'Upgrade %s' % PRODUCT_BRAND
-        button = ButtonChoiceWindowEx(screen,
+        button = snackutil.ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
                                 "We have collected all the information required to upgrade %s." % PRODUCT_BRAND,
                                 [ok, 'Back'], default = 1)
@@ -495,7 +497,7 @@ def confirm_installation_one_disk(answers):
 
     if not isUpgradeInstall:
         ok = 'Install %s' % PRODUCT_BRAND
-        button = ButtonChoiceWindowEx(screen,
+        button = snackutil.ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
                                 """Since your server only has a single disk, this will be used to install %s.
 
@@ -503,7 +505,7 @@ Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" 
                                 [ok, 'Back'], default = 1)
     else:
         ok = 'Upgrade %s' % PRODUCT_BRAND
-        button = ButtonChoiceWindowEx(screen,
+        button = snackutil.ButtonChoiceWindowEx(screen,
                                 "Confirm Installation",
                                 "We have collected all the information required to upgrade %s." % (PRODUCT_BRAND),
                                 [ok, 'Back'], default = 1)
@@ -517,11 +519,11 @@ def get_root_password(answers):
     done = False
         
     while not done:
-        (button, result) = PasswordEntryWindow(screen,
-                                     "Set Password",
-                                     "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from the %s.)" % (BRAND_SERVER, BRAND_CONSOLE),
-                                     ['Password', 'Confirm'],
-                                     buttons = ['Ok', 'Back'])
+        (button, result) = snackutil.PasswordEntryWindow(screen,
+                                               "Set Password",
+                                               "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from the %s.)" % (BRAND_SERVER, BRAND_CONSOLE),
+                                               ['Password', 'Confirm'],
+                                               buttons = ['Ok', 'Back'])
         if button == 'back':
             return -1
         
@@ -1060,96 +1062,16 @@ def request_media(medianame):
     return button != "cancel"
 
 ###
-# Helper functions
-def ButtonChoiceWindowEx(screen, title, text, 
-               buttons = [ 'Ok', 'Cancel' ], 
-               width = 40, x = None, y = None, help = None,
-               default = 0):
-    bb = ButtonBar(screen, buttons)
-    t = TextboxReflowed(width, text, maxHeight = screen.height - 12)
-
-    g = GridFormHelp(screen, title, help, 1, 2)
-    g.add(t, 0, 0, padding = (0, 0, 0, 1))
-    g.add(bb, 0, 1, growx = 1)
-
-    g.draw()
-    g.setCurrent(bb.list[default][0])
-    
-    return bb.buttonPressed(g.runOnce(x, y))
-
-def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
-                        entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
-    bb = ButtonBar(screen, buttons)
-    t = TextboxReflowed(width, text)
-
-    count = 0
-    for n in prompts:
-        count = count + 1
-
-    sg = Grid(2, count)
-
-    count = 0
-    entryList = []
-    for n in prompts:
-        if (type(n) == types.TupleType):
-            (n, e) = n
-        else:
-            e = Entry(entryWidth, password = 1)
-
-        sg.setField(Label(n), 0, count, padding = (0, 0, 1, 0), anchorLeft = 1)
-        sg.setField(e, 1, count, anchorLeft = 1)
-        count = count + 1
-        entryList.append(e)
-
-    g = GridFormHelp(screen, title, help, 1, 3)
-
-    g.add(t, 0, 0, padding = (0, 0, 0, 1)) 
-    g.add(sg, 0, 1, padding = (0, 0, 0, 1))
-    g.add(bb, 0, 2, growx = 1)
-
-    result = g.runOnce()
-
-    entryValues = []
-    count = 0
-    for n in prompts:
-        entryValues.append(entryList[count].value())
-        count = count + 1
-
-    return (bb.buttonPressed(result), tuple(entryValues))
-
-###
 # Progress dialog:
-def initProgressDialog(title, text, total):
-    global screen
-    
-    form = GridFormHelp(screen, title, None, 1, 3)
-    
-    t = Textbox(60, 1, text)
-    scale = Scale(60, total)
-    form.add(t, 0, 0, padding = (0,0,0,1))
-    form.add(scale, 0, 1, padding = (0,0,0,0))
 
-    return (form, scale)
+def initProgressDialog(title, text, total):
+    return snackutil.initProgressDialog(screen, title, text, total)
 
 def displayProgressDialog(current, (form, scale)):
-    global screen
-    
-    scale.set(current)
-
-    form.draw()
-    screen.refresh()
-
-def displayInfoDialog(title, text):
-    global screen
-
-    form = GridFormHelp(screen, title, None, 1, 2)
-    
-    t = TextboxReflowed(60, text)
-    form.add(t, 0, 0)
-    form.draw()
-    screen.refresh()
+    return snackutil.displayProgressDialog(screen, current, (form, scale))
 
 def clearModelessDialog():
-    global screen
-    
-    screen.popWindow()
+    return snackutil.clearModelessDialog(screen)
+
+def showMessageDialog(title, text):
+    return snackutil.showMessageDialog(screen, title, text)
