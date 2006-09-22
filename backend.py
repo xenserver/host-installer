@@ -344,10 +344,10 @@ def installGrub(mounts, disk):
 
     # this is a nasty hack but unavoidable (I think): grub-install
     # uses df to work out what the root device is, but df's output is
-    # incorrect within the chroot.  Therefore, we fake out /proc/mounts
+    # incorrect within the chroot.  Therefore, we fake out /etc/mtab
     # with the correct data, so GRUB will install correctly:
-    f = open("%s/proc/mounts" % mounts['root'], 'w')
-    f.write("%s / %s ew 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
+    f = open("%s/etc/mtab" % mounts['root'], 'w')
+    f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
     f.close()
 
     grubroot = getGrUBDevice(disk, mounts)
@@ -421,7 +421,9 @@ def installGrub(mounts, disk):
 
     # done installing - undo our extra mounts:
     util.umount("%s/dev" % mounts['root'])
-    os.unlink("%s/proc/mounts" % mounts['root'])
+    # try to unlink /proc/mounts in case /etc/mtab is a symlink
+    if os.path.exists("%s/proc/mounts" % mounts['root']):
+        os.unlink("%s/proc/mounts" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
     util.umount("%s/tmp" % mounts['root'])
 
