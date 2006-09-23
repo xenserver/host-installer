@@ -346,7 +346,10 @@ def installGrub(mounts, disk):
     # uses df to work out what the root device is, but df's output is
     # incorrect within the chroot.  Therefore, we fake out /etc/mtab
     # with the correct data, so GRUB will install correctly:
-    f = open("%s/etc/mtab" % mounts['root'], 'w')
+    mtab = "%s/proc/mounts" % mounts['root']
+    if not os.path.islink("%s/etc/mtab" % mounts['root']):
+        mtab = "%s/etc/mtab" % mounts['root']
+    f = open(mtab, 'w')
     f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
     f.close()
 
