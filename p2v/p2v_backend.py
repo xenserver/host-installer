@@ -87,7 +87,12 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     total_size = long(os_install[p2v_constants.FS_TOTAL_SIZE]) / 1024
     used_size = long(os_install[p2v_constants.FS_USED_SIZE]) / 1024
     cpu_count = int(os_install[p2v_constants.CPU_COUNT])
-    description = os_install[p2v_constants.DESCRIPTION]
+
+    if os_install.has_key(p2v_constants.DESCRIPTION) and len(os_install[p2v_constants.DESCRIPTION]) > 0:
+        description = os_install[p2v_constants.DESCRIPTION]
+    else:
+        description = '_NONE_'
+
     if os_install.has_key(p2v_constants.UUID):
         uuid = os_install[p2v_constants.UUID]
     else:
@@ -97,6 +102,7 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
         mac = os_install[p2v_constants.MAC]
     else:
         mac = ""
+
 
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
     rootfs_type = dev_attrs[p2v_constants.DEV_ATTRS_TYPE]
