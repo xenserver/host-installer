@@ -170,6 +170,7 @@ def performInstallation(answers, ui_package):
         writeFstab(mounts, answers)
         writeSmtab(mounts, answers, default_sr)
         enableSM(mounts, answers)
+        enableAgent(mounts, answers)
         ui_package.displayProgressDialog(18, pd)
 
         writeModprobeConf(mounts, answers)
@@ -532,6 +533,14 @@ def writeSmtab(mounts, answers, default_sr):
 def enableSM(mounts, answers):
     assert util.runCmd2(['chroot', mounts['root'], 'chkconfig',
                          '--add', 'smtab']) == 0
+
+def enableAgent(mounts, answers):
+    util.runCmd2(['chroot', mounts['root'],
+                  'chkconfig', 'xend', 'on'])
+    util.runCmd2(['chroot', mounts['root'],
+                  'chkconfig', 'xendomains', 'on'])
+    util.runCmd2(['chroot', mounts['root'],
+                  'chkconfig', 'xenagentd', 'on'])
 
 def writeResolvConf(mounts, answers):
     (manual_hostname, hostname) = answers['manual-hostname']
