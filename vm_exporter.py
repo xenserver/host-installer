@@ -162,7 +162,6 @@ def do_vm_upload(vm, hostname, username, password, progress_function, log_functi
     template_filename = tf[1]
     # XXX: missing username
     cmd_line = B2_PATH + " " + template_filename + " " + hostname + " " + password
-    print cmd_line
     # out becomes both stdout and stderr
     out = os.popen4(cmd_line, 'r')[1]
     # interesting lines of output have this prefix:
