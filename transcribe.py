@@ -1,3 +1,16 @@
+#!/usr/bin/env python
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
+# copyrighted material is governed by and subject to terms and conditions 
+# as licensed by XenSource, Inc. All other rights reserved.
+# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# trademarks of XenSource Inc. in the United States and/or other countries.
+
+###
+# XEN CLEAN INSTALLER
+# Code wrapping the vm-export stuff from Dave Scott
+#
+# written by Andrew Peace
+
 import uicontroller
 import init_tui
 import util
