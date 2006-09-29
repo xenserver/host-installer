@@ -147,9 +147,6 @@ def performInstallation(answers, ui_package):
             progress += 1
             ui_package.displayProgressDialog(progress, pd)
 
-        # Create a swap filesystem:
-        #createDom0Swap(mounts, answers)
-
         # Install the bootloader:
         installGrub(mounts, answers['primary-disk'])
         ui_package.displayProgressDialog(14, pd)
@@ -485,10 +482,6 @@ def cleanup_umount():
     
 def doDepmod(mounts, answers):
     runCmd("chroot %s depmod %s" % (mounts['root'], version.KERNEL_VERSION))
-
-# requries dom0fs to be installed so we can use mkswap, at present.
-def createDom0Swap(mounts, answers):
-    assert False
 
 def writeKeyboardConfiguration(mounts, answers):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
