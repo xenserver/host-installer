@@ -333,7 +333,7 @@ def mkinitrd(mounts, answers):
     cmd = "mkinitrd %s %s %s" % (modules_string, output_file, version.KERNEL_VERSION)
     
     util.runCmd("chroot %s %s" % (mounts['root'], cmd))
-    util.runCmd("ln -sf /boot/%s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
+    util.runCmd("ln -sf %s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
 
 def installGrub(mounts, disk):
     # prepare extra mounts for installing GRUB:
