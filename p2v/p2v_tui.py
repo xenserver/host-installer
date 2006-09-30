@@ -200,15 +200,12 @@ def get_os_installs(answers):
 
 # TODO, CA-2747  pull this out of a supported OS list.
 def isP2Vable(os):
-    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "4.1":
+    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('4'):
         return True;
-    #if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "3.5":
-        #return True;
-    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION] == "3.6":
+    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('3'):
         return True;
-    if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION] == "9sp2":
+    if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION].startswith('9'):
         return True;
-
 
     return False;
 
