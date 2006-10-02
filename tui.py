@@ -195,7 +195,7 @@ def confirm_wipe_existing(answers):
     global screen
 
     if not diskutil.detectExistingInstallation():
-        return 1
+        return uicontroller.SKIP_SCREEN
 
     button = ButtonChoiceWindow(screen,
                        "Existing installations detected",
@@ -214,7 +214,7 @@ def confirm_erase_volume_groups(answers):
 
     problems = diskutil.findProblematicVGs(answers['guest-disks'] + [answers['primary-disk']])
     if len(problems) == 0:
-        return 1
+        return uicontroller.SKIP_SCREEN
 
     if len(problems) == 1:
         affected = "The volume group affected is %s.  Are you sure you wish to continue?" % problems[0]
