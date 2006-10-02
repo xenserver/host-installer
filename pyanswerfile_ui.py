@@ -153,7 +153,7 @@ def confirm_installation_one_disk(answers):
     return 1
 def confirm_installation_multiple_disks(answers):
     return 1
-def select_installation_source(answers, other):
+def select_installation_source(answers):
     if answers.has_key('upgrade') and answers['upgrade'] and sub_ui_package:
         return sub_ui_package.select_installation_source(answers, {'cd-available': True})
     else:

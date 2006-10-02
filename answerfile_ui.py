@@ -190,7 +190,7 @@ def confirm_erase_volume_groups(answers):
     return 1
 def confirm_wipe_existing(answers):
     return 1
-def select_installation_source(answers, other):
+def select_installation_source(answers):
     return 1
 def get_http_source(answers):
     return 1
