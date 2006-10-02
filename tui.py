@@ -256,7 +256,7 @@ def select_installation_source(answers):
                 ButtonChoiceWindow(screen, "Problem with Media",
                                    str(m),  ['Back'])
             else:
-                problems = packaging.quickSourceVerification(im)
+                problems = im.quickSourceVerification()
                 if problems == []:
                     done = True
                 else:
@@ -297,7 +297,7 @@ def get_http_source(answers):
                     ButtonChoiceWindow(screen, "Problem with repository",
                                        str(m),  ['Back'])
                 else:
-                    problems = packaging.quickSourceVerification(im)
+                    problems = im.quickSourceVerification()
                     if problems == []:
                         done = True
                     else:
@@ -335,7 +335,7 @@ def get_nfs_source(answers):
                     ButtonChoiceWindow(screen, "Problem with repository",
                                        "The installer was unable to access the address you specified.  Please check that it is well-formed, and that you have read permission for the path you specified.",  ['Back'])
                 else:
-                    problems = packaging.quickSourceVerification(im)
+                    problems = im.quickSourceVerification()
                     if problems == []:
                         done = True
                     else:
@@ -379,7 +379,7 @@ def verify_source(answers):
                                    str(e),  ['Back'])
             else:
                 showMessageDialog("Verify Installation Source", "Package verification is in progress, please wait...")
-                problems = packaging.md5SourceVerification(installmethod)
+                problems = installmethod.md5SourceVerification()
                 if len(problems) == 0:
                     done = True
                 else:

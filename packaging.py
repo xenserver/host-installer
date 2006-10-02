@@ -74,6 +74,85 @@ class InstallMethod:
         pl = filter(lambda x: x != "", pl)
         return pl
 
+    def installPackage(self, packagename, dest):
+        package = self.openPackage(packagename)
+
+        xelogging.log("Starting installation of package %s" % packagename)
+        
+        pipe = popen2.Popen3('tar -C %s -xjf - &>/dev/null' % dest, bufsize = 1024 * 1024)
+    
+        data = ''
+        while True:
+            data = package.read()
+            if data == '':
+                break
+            else:
+                pipe.tochild.write(data)
+
+        pipe.tochild.flush()
+    
+        pipe.tochild.close()
+        pipe.fromchild.close()
+
+        if pipe.wait() != 0:
+            raise ErrorInstallingPackage, "The decompressor returned an error processing package %s" % packagename
+    
+        package.close()
+
+    def md5CheckPackage(self, packagename):
+        try:
+            package = self.openPackage(packagename)
+        except:
+            return False   
+
+        xelogging.log("Starting md5 check of package %s" % packagename)
+
+        m = md5.new()
+
+        date = ''
+        while True:
+            data = package.read()
+            if data == '':
+                break
+            else:
+                m.update(data)
+
+        package.close()
+
+        newsum = m.hexdigest()
+        try:
+            recordedsum = self.getRecordedMd5(packagename)
+        except:
+            xelogging.log("Unable to retrieve a recorded MD5 value for %s" % packagename)
+            return False
+    
+        xelogging.log("Computed md5 as: %s" % newsum)
+        xelogging.log("Expected md5:   %s" % recordedsum)
+
+        return (recordedsum == newsum)
+
+    def quickSourceVerification(self):
+        """Return a list of problematic packages on the source media."""
+
+        problems = []
+        packages = self.getPackageList()
+        for package in packages:
+            if not self.checkPackageExistance(package):
+                problems.append(package)
+
+        return problems
+
+    def md5SourceVerification(self):
+        """Return a list of problematic packages on the source media."""
+
+        problems = []
+        packages = self.getPackageList()
+        for package in packages:
+            if not self.md5CheckPackage(package):
+                problems.append(package)
+
+        return problems
+
     def finished(self, eject = True):
         pass
 
@@ -260,81 +339,5 @@ class LocalInstallMethod(InstallMethod):
                 util.runCmd('/usr/bin/eject %s' % self.device)
 
 
-###
-# PACKAGING
 
-def installPackage(packagename, method, dest):
-    package = method.openPackage(packagename)
 
-    xelogging.log("Starting installation of package %s" % packagename)
-
-    pipe = popen2.Popen3('tar -C %s -xjf - &>/dev/null' % dest, bufsize = 1024 * 1024)
-    
-    data = ''
-    while True:
-        data = package.read()
-        if data == '':
-            break
-        else:
-            pipe.tochild.write(data)
-
-    pipe.tochild.flush()
-    
-    pipe.tochild.close()
-    pipe.fromchild.close()
-
-    if pipe.wait() != 0:
-        raise ErrorInstallingPackage, "The decompressor returned an error processing package %s" % packagename
-    
-    package.close()
-
-def md5CheckPackage(packagename, method):
-    try:
-        package = method.openPackage(packagename)
-    except:
-         return False   
-
-    xelogging.log("Starting md5 check of package %s" % packagename)
-
-    m = md5.new()
-
-    date = ''
-    while True:
-        data = package.read()
-        if data == '':
-            break
-        else:
-            m.update(data)
-
-    package.close()
-
-    newsum = m.hexdigest()
-    try:
-        recordedsum = method.getRecordedMd5(packagename)
-    except:
-        return False
-    
-    xelogging.log("Computed md5 as: %s" % newsum)
-    xelogging.log("Expected md5:   %s" % recordedsum)
-
-    return (recordedsum == newsum)
-
-# Returns a list of problematic packages
-def quickSourceVerification(source):
-    problems = []
-    packages = source.getPackageList()
-    for package in packages:
-        if not source.checkPackageExistance(package):
-            problems.append(package)
-
-    return problems
-
-# Returns a list of problematic packages
-def md5SourceVerification(source):
-    problems = []
-    packages = source.getPackageList()
-    for package in packages:
-        if not md5CheckPackage(package, source):
-            problems.append(package)
-
-    return problems
