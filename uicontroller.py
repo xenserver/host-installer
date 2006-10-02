@@ -30,13 +30,10 @@ def runUISequence(seq, answers, previous_delta = 1):
             (fn, args) = seq[current]
         else:
             fn = seq[current]
-            args = None
+            args = ()
 
         previous_delta = delta
-        if args == None:
-            delta = fn(answers)
-        else:
-            delta = fn(answers, args)
+        delta = fn(answers, *args)
 
         if delta == SKIP_SCREEN:
             delta = previous_delta

@@ -150,7 +150,7 @@ def main():
                      ui_package.confirm_wipe_existing,
                      ui_package.get_keyboard_type,
                      ui_package.get_keymap,
-                     (ui_package.select_installation_source, { 'cd-available': True}),
+                     ui_package.select_installation_source,
                      ui_package.get_http_source,
                      ui_package.get_nfs_source,
                      ui_package.verify_source,

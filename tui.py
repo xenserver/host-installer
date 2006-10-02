@@ -233,7 +233,7 @@ def confirm_erase_volume_groups(answers):
     elif button == 'cancel installation':
         return uicontroller.EXIT
 
-def select_installation_source(answers, other):
+def select_installation_source(answers):
     global screen
 
     done = False
