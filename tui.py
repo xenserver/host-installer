@@ -425,33 +425,48 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
 
 def select_guest_disks(answers):
     global screen
-    
-    entries = []
 
-    diskEntries = diskutil.getQualifiedDiskList()
-    diskEntries.remove(answers['primary-disk'])
-    for de in diskEntries:
+    # set up defaults:
+    if answers.has_key('guest-disks'):
+        currently_selected = answers['guest-disks']
+    else:
+        currently_selected = answers['primary-disk']
+
+    # Make a list of entries: (text, item)
+    entries = []
+    for de in diskutil.getQualifiedDiskList():
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
-        entries.append(entry)
+        entries.append((entry, de))
         
-    text = TextboxReflowed(50, "Please select any additional disks you would like to use for %s storage" % BRAND_GUEST)
+    text = TextboxReflowed(50, "Which disks would you like to use for %s storage?" % BRAND_GUEST)
     buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
     cbt = CheckboxTree(4, 1)
-    for x in entries:
-        cbt.append(x)
+    for (c_text, c_item) in entries:
+        cbt.append(c_text, c_item, c_item in currently_selected)
     
-    gf = GridFormHelp(screen, 'Select Additional Disks', None, 1, 3)
+    gf = GridFormHelp(screen, 'Guest Storage', None, 1, 3)
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 2)
     
     result = gf.runOnce()
     
-    answers['guest-disks'] = []
-  
-    for sel in cbt.getSelection():
-        answers['guest-disks'].append(diskEntries[entries.index(sel)])
+    answers['guest-disks'] = cbt.getSelection()
+
+    # if the user select no disks for guest storage, check this is what
+    # they wanted:
+    if buttons.buttonPressed(result) == 'ok' and answers['guest-disks'] == []:
+        button = ButtonChoiceWindow(
+            screen,
+            "Warning",
+            """You didn't select any disks for %s storage.  Are you sure this is what you want?
+
+If you proceed, please refer to the user guide for details on provisioning storage after installation.""",
+            ['Continue', 'Back']
+            )
+        if button == 'back':
+            return 0
 
     if buttons.buttonPressed(result) == 'ok': return 1
     if buttons.buttonPressed(result) == 'back': return -1

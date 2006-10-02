@@ -137,16 +137,17 @@ def main():
             if isUpgrade:
                 seq += [ ui_package.upgrade_screen ]
             else:
-                seq += [ ui_package.welcome_screen ]
+                seq += [ ui_package.welcome_screen,
+                         ui_package.eula_screen ]
                 if len(disks) > 1:
                     seq += [ ui_package.select_primary_disk ]
                     seq += [ ui_package.select_guest_disks ]
                 else:
                     results['primary-disk'] = disks[0]
+                    results['guest-disks'] = [ disks[0] ]
 
             seq += [ ui_package.confirm_erase_volume_groups,
                      ui_package.confirm_wipe_existing,
-                     ui_package.eula_screen,
                      ui_package.get_keyboard_type,
                      ui_package.get_keymap,
                      (ui_package.select_installation_source, { 'cd-available': True}),

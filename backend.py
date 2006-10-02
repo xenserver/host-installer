@@ -111,29 +111,30 @@ def performInstallation(answers, ui_package):
                 val = str(answers[k])
             xelogging.log("%s = %s (type: %s)" % (k, val, str(type(answers[k]))))
 
-        if isUpgradeInstall == False:    
-            # remove any volume groups 
-            removeBlockingVGs([answers['primary-disk']] + answers['guest-disks'])
-
-            # Dom0 Disk partition table
-            writeDom0DiskPartitions(answers['primary-disk'])
-            ui_package.displayProgressDialog(1, pd)
-    
-            # Guest disk partition table
-            for gd in answers['guest-disks']:
-                writeGuestDiskPartitions(gd)
-            ui_package.displayProgressDialog(2, pd)
+        # remove any volume groups 
+        removeBlockingVGs([answers['primary-disk']] + answers['guest-disks'])
         
-            # Create the default storage repository:
+        # Dom0 Disk partition table
+        writeDom0DiskPartitions(answers['primary-disk'])
+        ui_package.displayProgressDialog(1, pd)
+    
+        # Guest disk partition table
+        for gd in answers['guest-disks']:
+            if gd != answers['primary-disk']:
+                writeGuestDiskPartitions(gd)
+        ui_package.displayProgressDialog(2, pd)
+        
+        # Create the default storage repository if disks
+        # have been selected:
+        if answers['guest-disks'] != []:
             default_sr = prepareStorageRepository(answers)
-            ui_package.displayProgressDialog(3, pd)
-            
-            # Put filesystems on Dom0 Disk
-            createDom0DiskFilesystems(answers['primary-disk'])
         else:
-            raise Exception, "Upgrade currently broken."
-
-        assert default_sr is not None
+            xelogging.log("No storage repository created.")
+            default_sr = None
+        ui_package.displayProgressDialog(3, pd)
+            
+        # Put filesystems on Dom0 Disk
+        createDom0DiskFilesystems(answers['primary-disk'])
 
         # Mount the system image:
         mounts = mountVolumes(answers['primary-disk'])
@@ -311,9 +312,16 @@ def determinePartitionName(guestdisk, partitionNumber):
 def prepareStorageRepository(answers):
     xelogging.log("Preparing default storage repository...")
     sr_uuid = util.getUUID()
-    args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid]
-    args.append(determinePartitionName(answers['primary-disk'], constants.default_sr_firstpartition))
-    args.extend([determinePartitionName(disk, 1) for disk in answers['guest-disks']])
+
+    def sr_partition(disk):
+        if disk == answers['primary-disk']:
+            return determinePartitionName(disk, 3)
+        else:
+            return determinePartitionName(disk, 1)
+
+    partitions = [sr_partition(disk) for disk in answers['guest-disks']]
+    xelogging.log("Creating storage repository on partitions %s" % partitions)
+    args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid] + partitions
     assert util.runCmd2(args) == 0
     xelogging.log("Storage repository created with UUID %s" % sr_uuid)
     return sr_uuid
@@ -517,11 +525,11 @@ def writeFstab(mounts, answers):
     fstab.write("none        /sys      sysfs  defaults   0  0\n")
     fstab.close()
 
+# creates an empty file if default_sr is None:
 def writeSmtab(mounts, answers, default_sr):
     smtab = open(os.path.join(mounts['root'], 'etc/smtab'), 'w')
-    smtab.write("%s %s lvm default auto\n" %
-                (default_sr,
-                 determinePartitionName(answers['primary-disk'], constants.default_sr_firstpartition)))
+    if default_sr:
+        smtab.write("%s none lvm default auto\n" % default_sr)
     smtab.close()
 
 def enableSM(mounts, answers):

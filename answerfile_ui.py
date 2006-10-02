@@ -66,9 +66,12 @@ def __parse_answerfile__(answerdoc, results):
 
     # primary-disk:
     results['primary-disk'] = "/dev/%s" % getText(n.getElementsByTagName('primary-disk')[0].childNodes)
-
+    pd_has_guest_storage = True and n.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
+    
     # guest-disks:
     results['guest-disks'] = []
+    if pd_has_guest_storage:
+        results['guest-disks'].append(results['primary-disk'])
     for disk in n.getElementsByTagName('guest-disk'):
         results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
