@@ -86,37 +86,6 @@ def getKeymaps(kbdtype):
             keymaps.append(keymapname)
 
     return keymaps
-    
-
-def disk_selection(answers, args):
-    ui_package = args['ui-package']
-    disks = diskutil.getQualifiedDiskList()
-
-    if len(disks) == 1:
-        if not answers.has_key('primary-disk'):
-            answers['primary-disk'] = disks[0]
-        if not answers.has_key('guest-disks'):
-            answers['guest-disks'] = []
-
-        assert answers['primary-disk'].startswith('/dev/')
-        for x in answers['guest-disks']:
-            assert x.startswith('/dev/')
-        return 1
-    else:
-        sequence = [ ui_package.select_primary_disk,
-                     ui_package.select_guest_disks ]
-        return uicontroller.runUISequence(sequence, answers)
-
-def confirm_installation(answers, args):
-    ui_package = args['ui-package']
-    disks = diskutil.getQualifiedDiskList()
-
-    if len(disks) == 1:
-        sequence = [ ui_package.confirm_installation_one_disk ]
-    else:
-        sequence = [ ui_package.confirm_installation_multiple_disks ]
-
-    return uicontroller.runUISequence(sequence, answers)
 
 def makeHumanList(list):
     if len(list) == 0:
