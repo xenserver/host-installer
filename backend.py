@@ -178,7 +178,6 @@ def performInstallation(answers, ui_package):
         ui_package.displayProgressDialog(20, pd)
         
         writeInventory(mounts, answers, default_sr)
-        writeDhclientHooks(mounts, answers)
         touchSshAuthorizedKeys(mounts, answers)
         ui_package.displayProgressDialog(21, pd)
         
@@ -798,12 +797,6 @@ def writeInventory(mounts, answers, default_sr_uuid):
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
     inv.close()
-
-def writeDhclientHooks(mounts, answers):
-    #invokes rc.local to update /etc/issue
-    hooks = open("%s/etc/dhclient-exit-hooks" % mounts['root'], "w")
-    hooks.write(". /etc/rc.local")
-    hooks.close()
 
 def touchSshAuthorizedKeys(mounts, answers):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
