@@ -475,7 +475,10 @@ If you proceed, please refer to the user guide for details on provisioning stora
 def confirm_installation_multiple_disks(answers):
     global screen
 
-    disks = [ answers['primary-disk'] ] + answers['guest-disks']
+    disks = answers['guest-disks']
+    if answers['primary-disk'] not in disks:
+        disks.append(answers['primary-disk'])
+    disks.sort()
     disks_used = generalui.makeHumanList(disks)
 
     if answers.has_key('upgrade'):
