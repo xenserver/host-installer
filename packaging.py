@@ -39,10 +39,17 @@ class ErrorInstallingPackage(Exception):
     pass
 
 class MediaNotFound(Exception):
-    def __init__(self, medianame):
+    MEDIA_CDROM = 1
+    MEDIA_REMOTE = 2
+
+    TEXT_MEDIA_CDROM = "Setup could not find the media labelled '%s'.  If the media is present and you still see this error, please refer to your user guide or " + COMPANY_NAME_SHORT + " technical support."
+    TEXT_MEDIA_REMOTE = "Setup could not access the remote repository '%s'; please check that the address is correct and points to a valid " + PRODUCT_BRAND + " repository.  If the address is correct and you still see this error, please refer to your user guide or " + COMPANY_NAME_SHORT + " technical support."
+    def __init__(self, medianame, mediatype):
         self.media_name = medianame
-        Exception.__init__(self, """Setup could not find the media labelled '%s'.  If the media is present and you still see this error, please refer to your user guide or %s technical support.""" % \
-                           (medianame, COMPANY_NAME_SHORT))
+        if mediatype == self.MEDIA_CDROM:
+            Exception.__init__(self, self.TEXT_MEDIA_CDROM % medianame)
+        elif mediatype == self.MEDIA_REMOTE:
+            Exception.__init__(self, self.TEXT_MEDIA_REMOTE % medianame)
 
 class BadSourceAddress(Exception):
     pass
@@ -57,16 +64,16 @@ class InstallMethod:
         pass
 
     def openPackage(self, package):
-        pass
+        assert False
 
     def getRecordedMd5(self, package):
-        pass
+        assert False
 
     def checkPackageExistance(self, package):
-        pass
+        assert False
 
     def getPackageList(self):
-        pass
+        assert False
 
     def getPackageListFromFile(self, plfile):
         pl = plfile.readlines()
@@ -165,6 +172,12 @@ class HTTPInstallMethod(InstallMethod):
            not self.baseURL.startswith('ftp://'):
             self.baseURL = "http://" + self.baseURL
 
+        # now check that we can access this repo:
+        try:
+            self.getPackageList()
+        except urllib2.URLError, e:
+            raise MediaNotFound, ("%s" % self.baseURL, MediaNotFound.MEDIA_REMOTE)
+
     def openPackage(self, package):
         xelogging.log("Opening package %s" % package)
         assert self.baseURL != None and self.baseURL != ""
@@ -216,7 +229,7 @@ class NFSInstallMethod(InstallMethod):
         try:
             util.mount(self.nfsPath, '/tmp/nfs-source', fstype = 'nfs', options=['ro'])
         except util.MountFailureException:
-            raise BadSourceAddress()
+            raise MediaNotFound, (self.nfsPath, MediaNotFound.MEDIA_REMOTE)
 
     def openPackage(self, package):
         assert os.path.ismount('/tmp/nfs-source')
@@ -290,7 +303,7 @@ class LocalInstallMethod(InstallMethod):
         if not device:
             xelogging.log("ERROR: Install media not found.")
             assert not os.path.ismount('/tmp/cdmnt')
-            raise MediaNotFound("%s Install CD" % version.PRODUCT_BRAND)
+            raise MediaNotFound, ("%s Install CD" % version.PRODUCT_BRAND, MediaNotFound.MEDIA_CDROM)
         else:
             xelogging.log("Install media found on %s" % device)
             assert os.path.ismount('/tmp/cdmnt')
@@ -338,6 +351,8 @@ class LocalInstallMethod(InstallMethod):
                    eject:
                 util.runCmd('/usr/bin/eject %s' % self.device)
 
-
-
-
+InstallMethods = {
+    'local' : LocalInstallMethod,
+    'url'   : HTTPInstallMethod,
+    'nfs'   : NFSInstallMethod,
+    }
