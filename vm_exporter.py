@@ -30,6 +30,7 @@ CHUNKSIZE=1000000000l
 
 
 def vm_dat(uuid):
+    global VM_PATH
     return VM_PATH + "/" + uuid + "/vm.dat"
 
 def compute_total_steps(vm):
@@ -38,6 +39,31 @@ def compute_total_steps(vm):
         total_size = long(sxp.child_value(x, "size")) * 1024l # bytes
         steps = steps + (total_size + CHUNKSIZE - 1l) / CHUNKSIZE
     return steps
+
+# Notes:
+# The following guests require no special casing:
+# Debian - just works
+# RHEL3.6 - just works
+# RHEL4.1 from P2V - dom0 kernel (ultimate fallback) boots guest, can add xenlinux after
+# RHEL4.1 from vendor installer - pygrub extracts wrong kernel; need to adjust
+# SLES92 from P2V - fallback kernel has no reiserfs; need symlinks
+#
+# The vanilla vm.dat will look like:
+#("xgt" ("name" "debian-small")
+#  ("uuid" "bc950fee-2229-448d-b27f-a576e6704bfd")
+#  ("description" " Root is 512M and sdb is 1024M") ("distrib" "unknown")
+#  ("vcpus" "1") ("mem_set" "262144") ("auto_poweron" "false")
+#  ("is_hvm" "false")
+#  ("vbd" ("name" "sda1") ("size" "524288") ("min_size" "409640")
+#    ("function" "root"))
+#  ("vbd" ("name" "sda2") ("size" "524288") ("min_size" "524288")
+#    ("function" "swap"))
+#  ("vbd" ("name" "sdb") ("size" "1048576") ("min_size" "1024")
+#    ("function" "USER"))
+#  ("os" "unknown"))
+#
+# in particular, os = distrib = "unknown". 'root_vbd' is unnecessary since
+# all burbank Debian, RHEL3.6 installs use the 'root' disk/partition directly
 
 
 # Takes a B2-format vm.dat and returns a Z1-format exported template.dat
@@ -59,25 +85,27 @@ def make_exported_template(vm):
     t.append(["name", sxp.child_value(vm, "name")])
     t.append(["uuid", sxp.child_value(vm, "uuid")])
     t.append(["description", sxp.child_value(vm, "description")])    
-    t.append(["xgt-version", XGT_EXPORT_VERSION])
-    t.append(["xgt-type", "archive-dir"])
-    t.append(["distrib", sxp.child_value(vm, "distrib")])
+    t.append(["distrib", "unknown" ])
+    t.append(["distrib_version", "unknown" ])
+    t.append(["os", "unknown" ])
     t.append(["pp2vp", sxp.child_value(vm, "pp2vp")])
     t.append(["vcpus", sxp.child_value(vm, "vcpus")])
     # WTF is mem_max?
     #t.append(["mem_max", sxp.child_value(vm, "mem_max")])
     t.append(["mem_set", sxp.child_value(vm, "mem_set")])
     t.append(["auto_poweron", sxp.child_value(vm, "auto_poweron")])
-    t.append(["is_hvm", "false"])
-    t.append(["installed_version", sxp.child_value(vm, "installed_version")])
+    v = sxp.child_value(vm, "is_hvm")
+    if v == None:
+        v = "false"
+    t.append(["is_hvm", v])
     template = table(t)
 
-    def kernel(x):
-        t = []
-        for key in [ "kernel-type", "installed_version", "initrd-path",
-                     "kernel_path", "ramdisk", "kernel_args" ]:
-            t.append([key, sxp.child_value(x, key)])
-        return table(t)
+    #def kernel(x):
+    #    t = []
+    #    for key in [ "kernel-type", "installed_version", "initrd-path",
+    #                 "kernel_path", "ramdisk", "kernel_args" ]:
+    #        t.append([key, sxp.child_value(x, key)])
+    #    return table(t)
 
     def vif(x):
         t = []
@@ -101,10 +129,11 @@ def make_exported_template(vm):
         t.append(["function", sxp.child_value(x, "function")])
         return table(t)
 
+    # XXX: do sles
     # Add the kernel
-    k = sxp.child(vm, "kernel")
-    if k:
-        template = template + "(kernel " + kernel(k) + ")"
+    #k = sxp.child(vm, "kernel")
+    #if k:
+    #    template = template + "(kernel " + kernel(k) + ")"
     # Add each filesystem
     all = sxp.children(vm, "vbd")
     for x in all:
@@ -136,6 +165,7 @@ def save_sxp(s, filename):
     f.close()
 
 def list_vm_uuids():
+    global VM_PATH
     uuids = []
     for x in os.listdir(VM_PATH):
         if x <> "lost+found":
@@ -151,13 +181,14 @@ def get_vm_name(uuid):
         return "Unknown"
 
 def do_vm_upload(vm, hostname, username, password, progress_function, log_function):
+    global VM_PATH, B2_PATH
     # make the exported template
     t = make_exported_template(vm)
     # save it to a temporary file
     tf = tempfile.mkstemp()
     os.write(tf[0], t)
     os.close(tf[0])
-    print tf[1]
+    log_function("Written new metadata file: " + tf[1])
     
     template_filename = tf[1]
     # XXX: missing username
@@ -174,6 +205,7 @@ def do_vm_upload(vm, hostname, username, password, progress_function, log_functi
     while 1:
         line = out.readline()
         if not line: break
+        line = line.strip()
         # Allow caller to see (and log) all the crap ("it's the only way to be sure")
         if log_function:
             log_function(line)
@@ -184,6 +216,7 @@ def do_vm_upload(vm, hostname, username, password, progress_function, log_functi
                     progress_function()
         elif has_prefix(error_prefix, line):
             # Record the failure
+            raise RuntimeError, line
             result = 0
     out.close()
 
@@ -195,6 +228,45 @@ def do_vm_upload(vm, hostname, username, password, progress_function, log_functi
 total_steps = 0
 completed_steps = 0
 
+# Called whenever one of the steps has been completed to calculate
+# our progress so far.
+def completed_step(log_fn, progress_fn):
+    global total_steps, completed_steps
+    completed_steps = completed_steps + 1
+    percent = int(float(completed_steps) / float(total_steps) * 100.0)
+    if log_fn <> None:
+        log_fn("Completed steps = " + str(completed_steps) +
+               "; Progress = " + str(percent))
+    if progress_fn <> None:
+        progress_fn(percent)
+
+# Do actual uploading work, called both from the __main__ routine
+# at the bottom and through AndyP's API
+def upload_vms(log_fn, uuids, mnt, hn, uname, pw, progress):
+    global VM_PATH, total_steps, completed_steps
+    VM_PATH = mnt
+    
+    log_fn("Starting export of VMs")
+    log_fn("Input: %s" % str((mnt, hn, uname, pw, progress)))
+
+    total_steps = 0
+    for x in uuids:
+        vm = load_sxp(vm_dat(x))
+        total_steps = total_steps + compute_total_steps(vm)
+    completed_steps = 0
+
+    def log(x):
+        log_fn("Exporter> " + x)
+    def prog():
+        completed_step(log_fn, progress)
+
+    for x in uuids:
+        vm = load_sxp(vm_dat(x))
+        if not(do_vm_upload(vm, hn, uname, pw, prog, log)):
+            raise RuntimeError, "VM upload failed"
+
+    log_fn("Export complete.")    
+
 # AndyP's API function:
 # mnt: path to where vmstate is mounted
 # hn: hostname of destination host
@@ -203,56 +275,60 @@ completed_steps = 0
 # prgress: callback function: int -> unit.
 def run(mnt, hn, uname, pw, progress):
     import xelogging
-    
-    global VM_PATH
-    VM_PATH = mnt
-    
-    xelogging.log("Starting export of VMs")
-    xelogging.log("Input: %s" % str((mnt, hn, uname, pw, progress)))
-
-    global total_steps
-    total_steps = 0
     uuids = list_vm_uuids()
-    for x in uuids:
-        vm = load_sxp(vm_dat(x))
-        total_steps = total_steps + compute_total_steps(vm)
-    global completed_steps
-    completed_steps = 0
+    return upload_all_vms(xelogging.log, uuids, mnt, hn, uname, pw, progress)
 
-    def log(x):
-        xelogging.log("From export: " + x)
-    def prog():
-        global completed_steps
-        global total_steps
-        completed_steps = completed_steps + 1
-        progress(int(float(completed_steps) / float(total_steps) * 100.0))
-
-    for x in uuids:
-        vm = load_sxp(vm_dat(x))
-        if not(do_vm_upload(vm, hn, uname, pw, prog, log)):
-            raise "VM upload failed"
-
-    xelogging.log("Export complete.")
-
+# Also runs as a standalone program for debugging
 if __name__ == "__main__":
-    print "Listing VM UUIDs and names"
+    from optparse import OptionParser
+    opt = OptionParser("usage: vm_exporter")
+    opt.add_option("-m", "--metadata_dir", help="path on which the metadata is mounted")
+    opt.add_option("-t", "--target", help="target host to export VMs to")
+    opt.add_option("-u", "--username", help="username on target host")
+    opt.add_option("-p", "--password", help="password on target host")
+    opt.add_option("-b", "--burbank_slave",
+                   default=B2_PATH,
+                   help="filename of the burbank VM export slave binary")
+    opt.add_option("-i", "--uuid", default=None, help="UUID of single VM to upload")
+    (options, args) = opt.parse_args()
+    if options.burbank_slave:
+        B2_PATH = options.burbank_slave
+    if options.metadata_dir:
+        VM_PATH = options.metadata_dir
+    uuid = options.uuid
+    hn = options.target
+    uname = options.username
+    pw = options.password
+    
+    if hn == None or uname == None or pw == None:
+        raise "Need options: --target --username --password"
+
+    print "VM export tool running in debug mode"
+    print "Metadata dir: " + VM_PATH
+    print "Burbank export slave path: " + B2_PATH
+    if uuid == None:
+        print "Intending to export all VMs"
+    else:
+        print "Intending to export only the VM with uuid: " + uuid
+        
+    print "All VMs found:"
     steps = 0
     uuids = list_vm_uuids()
     for x in uuids:
         print x, ": ", get_vm_name(x)
         steps = steps + compute_total_steps(load_sxp(vm_dat(x)))
-    print "Total steps: ", steps
-    
-    first = uuids[0]
-    t = make_exported_template(load_sxp(vm_dat(first)))
-    print t
+    print "Total steps (disk chunks) involved in export of everything: ", steps
 
-    def progress():
-        print "PROGRESS"
     def log(x):
         print "log: " + x
-        
-    do_vm_upload(None, progress, log)
-
-    from prompt import prompt
-    exec prompt
+    def progress(amount):
+        log("New progress: " + str(amount))
+    if uuid == None:
+        print "Starting upload of all VMs"
+        upload_vms(log, uuids, VM_PATH, hn, uname, pw, progress)
+    else:
+        if uuid in uuids:
+            print "Uploading VM with uuid: " + uuid
+            upload_vms(log, [ uuid ], VM_PATH, hn, uname, pw, progress)            
+        else:
+            print "ERROR: couldn't find VM with uuid: " + uuid
