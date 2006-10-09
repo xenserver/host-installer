@@ -112,6 +112,7 @@ def determineInstallSequence(ans, im):
         Task(INST, writeKeyboardConfiguration, A('mounts', 'keymap'), []),
         Task(INST, configureNetworking, A('mounts', 'iface-configuration', 'manual-hostname'), []),
         Task(INST, prepareSwapfile, A('mounts'), []),
+        Task(INST, writeFstab, A('mounts'), []),
         Task(INST, writeSmtab, A('mounts', 'default-sr-uuid'), []),
         Task(INST, enableSM, A('mounts'), []),
         Task(INST, enableAgent, A('mounts'), []),
