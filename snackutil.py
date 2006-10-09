@@ -79,7 +79,7 @@ def initProgressDialog(screen, title, text, total):
     form.add(t, 0, 0, padding = (0,0,0,1))
     form.add(scale, 0, 1, padding = (0,0,0,0))
 
-    return (form, scale)
+    return (form, t, scale)
 
 def showMessageDialog(screen, title, text):
     form = GridFormHelp(screen, title, None, 1, 1)
@@ -90,8 +90,10 @@ def showMessageDialog(screen, title, text):
     form.draw()
     screen.refresh()
 
-def displayProgressDialog(screen, current, (form, scale)):
+def displayProgressDialog(screen, current, (form, t, scale), updated_text = None):
     scale.set(current)
+    if updated_text:
+        t.setText(updated_text)
 
     form.draw()
     screen.refresh()

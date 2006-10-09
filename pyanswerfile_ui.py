@@ -214,9 +214,9 @@ def initProgressDialog(title, text, total):
     if sub_ui_package:
         return sub_ui_package.initProgressDialog(title, text, total)
 
-def displayProgressDialog(current, pd):
+def displayProgressDialog(current, pd, updated_text = None):
     if sub_ui_package:
-        sub_ui_package.displayProgressDialog(current, pd)
+        sub_ui_package.displayProgressDialog(current, pd, updated_text)
 
 def clearModelessDialog():
     if sub_ui_package:

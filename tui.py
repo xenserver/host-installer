@@ -272,6 +272,8 @@ def select_installation_source(answers):
             done = True
 
         answers['source-media'] = entry
+        if entry == 'local':
+            answers['source-address'] = "Installation disc"
 
     if button == "ok" or button == None: return 1
     if button == "back": return -1
@@ -952,8 +954,7 @@ def get_ntp_servers(answers):
             else:
                 answers['ntp-servers'] = servers
         else:
-            if answers.has_key('ntp-servers'):
-                del answers['ntp-servers']
+            answers['ntp-servers'] = []
         return 1
     elif buttons.buttonPressed(result) == 'back':
         return -1
@@ -1087,8 +1088,8 @@ def request_media(medianame):
 def initProgressDialog(title, text, total):
     return snackutil.initProgressDialog(screen, title, text, total)
 
-def displayProgressDialog(current, (form, scale)):
-    return snackutil.displayProgressDialog(screen, current, (form, scale))
+def displayProgressDialog(current, pd, updated_text = None):
+    return snackutil.displayProgressDialog(screen, current, pd, updated_text)
 
 def clearModelessDialog():
     return snackutil.clearModelessDialog(screen)

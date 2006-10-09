@@ -79,6 +79,7 @@ def __parse_answerfile__(answerdoc, results):
     source = n.getElementsByTagName('source')[0]
     if source.getAttribute('type') == 'local':
         results['source-media'] = 'local'
+        results['source-address'] = "Install disc"
     elif source.getAttribute('type') == 'url':
         results['source-media'] = 'url'
         results['source-address'] = getText(source.childNodes)
@@ -147,6 +148,9 @@ def __parse_answerfile__(answerdoc, results):
     keymap_nodes = n.getElementsByTagName('post-install-script')
     if len(keymap_nodes) == 1:
         results['keymap'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
+    else:
+        xelogging.log("No keymap specified in answer file: defaulting to 'us'")
+        results['keymap'] = "us"
 
     # post-install-script
     pis_nodes = n.getElementsByTagName('post-install-script')
@@ -241,7 +245,7 @@ def initProgressDialog(title, text, total):
     if sub_ui_package:
         return sub_ui_package.initProgressDialog(title, text, total)
 
-def displayProgressDialog(current, pd):
+def displayProgressDialog(current, pd, updated_text = None):
     if sub_ui_package:
         sub_ui_package.displayProgressDialog(current, pd)
 

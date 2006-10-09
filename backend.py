@@ -43,199 +43,219 @@ class InvalidInstallerConfiguration(Exception):
 ################################################################################
 # FIRST STAGE INSTALLATION:
 
-# XXX Hack - we should have a progress callback, not pass in the
-# entire UI component.
-def performInstallation(answers, ui_package):
-    global mounts
+class Task:
+    """
+    Represents an install step.
+    'name' is the name of the task; this may be displayed in the UI.
+    'fn'   is the function to execute
+    'args' is a list of value labels identifying arguments to the function
+    'retursn' is a list of the labels of the return values.
+    """
 
-    if answers.has_key('upgrade'):
-        isUpgradeInstall = answers['upgrade']
-    else:
-        isUpgradeInstall = False
+    def __init__(self, name, fn, args, returns):
+        self.name = name
+        self.fn = fn
+        self.args = args
+        self.returns = returns
 
-    # do some rudimentary checks to make sure the answers we've
-    # been given make sense:
-    if not os.path.exists(answers['primary-disk']):
-        raise InvalidInstallerConfiguration, "The primary disk you specified for installation could not be found."
-    if not answers.has_key('source-media'):
-        raise InvalidInstallerConfiguration, "You did not fully specify an installation source."
-    if not isUpgradeInstall and not answers.has_key('root-password'):
-        raise InvalidInstallerConfiguration, "You did not specify an acceptable root password.  You must specify a root password of length %d characters." % constants.MIN_PASSWD_LEN
+    def execute(self, answers):
+        args = self.args(answers)
+        assert type(args) == list
 
-    if answers['time-config-method'] == 'ntp':
-        if not answers.has_key('ntp-servers'):
-            answers['ntp-servers'] = []
+        xelogging.log("TASK: Evaluating %s%s" % (self.fn, args))
+        rv = apply(self.fn, args)
+        if type(rv) is not tuple:
+            rv = (rv,)
+        myrv = {}
+        for r in range(len(self.returns)):
+            myrv[self.returns[r]] = rv[r]
+        return myrv
 
-    # create an installation source object for our installation:
+def determineInstallSequence(ans, im):
+    PREP = "Preparing for installation..."
+    INST = "Installing %s..." % PRODUCT_BRAND
+    FIN = "Completing installation..."
+
+    # Get the package list:
+    packages = im.getPackageList()
+
+    seq = []
+
+    # convenience functions
+    # A: For each label in params, gives an arg function that evaluates
+    #    the labels when the function is called (late-binding)
+    # As: As above but evaulated immediately (early-binding)
+    # Use A when you require state values as well as the initial input values
+    A = lambda *params: ( lambda a: [a[param] for param in params] )
+    As = lambda *params: ( lambda _: [ans[param] for param in params] )
+
+    # Basic install sequence definition:
+    seq += [
+        Task(PREP, removeBlockingVGs, lambda _: [set([ans['primary-disk']] + ans['guest-disks'])], []),
+        Task(PREP, writeDom0DiskPartitions, As('primary-disk'), []),
+    ]
+    for gd in ans['guest-disks']:
+        if gd != ans['primary-disk']:
+            seq.append(Task(PREP, writeGuestDiskPartitions,
+                            (lambda mygd: (lambda _: [mygd]))(gd), []))
+    seq += [
+        Task(PREP, prepareStorageRepository, As('primary-disk', 'guest-disks'), ['default-sr-uuid']),
+        Task(PREP, createDom0DiskFilesystems, As('primary-disk'), []),
+        Task(PREP, mountVolumes, A('primary-disk', 'cleanup'), ['mounts', 'cleanup']),
+        ]
+    for p in packages:
+        seq.append( Task(INST, im.installPackage, (lambda myp: (lambda a: [ myp, a['mounts']['root'] ]))(p), []) )
+    seq += [
+        Task(INST, installGrub, A('mounts', 'primary-disk'), []),
+        Task(INST, doDepmod, A('mounts'), []),
+        Task(INST, writeResolvConf, A('mounts', 'manual-hostname', 'manual-nameservers'), []),
+        Task(INST, writeKeyboardConfiguration, A('mounts', 'keymap'), []),
+        Task(INST, configureNetworking, A('mounts', 'iface-configuration', 'manual-hostname'), []),
+        Task(INST, prepareSwapfile, A('mounts'), []),
+        Task(INST, writeSmtab, A('mounts', 'default-sr-uuid'), []),
+        Task(INST, enableSM, A('mounts'), []),
+        Task(INST, enableAgent, A('mounts'), []),
+        Task(INST, writeModprobeConf, A('mounts'), []),
+        Task(INST, mkinitrd, A('mounts'), []),
+        Task(INST, writeInventory, A('mounts', 'default-sr-uuid'), []),
+        Task(INST, touchSshAuthorizedKeys, A('mounts'), []),
+        Task(INST, setRootPassword, A('mounts', 'root-password'), []),
+        Task(INST, setTimeZone, A('mounts', 'timezone'), []),
+        ]
+    if ans['time-config-method'] == 'ntp':
+        seq.append( Task(INST, configureNTP, A('mounts', 'ntp-servers'), []) )
+    elif ans['time-config-method'] == 'manual':
+        seq.append( Task(INST, configureTimeManually, A('mounts', 'ui'), []) )
+    seq += [
+        Task(FIN, makeSymlinks, A('mounts'), []),
+        Task(FIN, writeAnswersFile, lambda a: [a['mounts'], ans], []),
+        ]
+    if ans.has_key('post-install-script'):
+        seq.append( Task(FIN, runScripts, lambda a: [a['mounts'], a['post-install-script']], []) )
+    seq += [
+        Task(FIN, umountVolumes, A('mounts', 'cleanup'), ['cleanup']),
+        ]
+
+    return seq
+
+def prettyLogAnswers(answers):
+    for a in answers:
+        if a == 'root-password':
+            val = '< not printed >'
+        else:
+            val = answers[a]
+        xelogging.log("%s := %s %s" % (a, val, type(val)))
+
+def performInstallSequence(sequence, answers_pristine, ui):
+    answers = answers_pristine.copy()
+    answers['cleanup'] = []
+    answers['ui'] = ui
+
+    pd = None
+    if ui:
+        pd = ui.initProgressDialog(
+            "Installing %s" % PRODUCT_BRAND,
+            "Preparing for installation...",
+            len(sequence)
+            )
+
     try:
-        xelogging.log("Attempting to configure install method: type %s" % answers['source-media'])
-        if answers['source-media'] == 'url':
-            installmethod = packaging.HTTPInstallMethod(answers['source-address'])
-        elif answers['source-media'] == 'local':
-            found = False
-            while not found:
-                try:
-                    installmethod = packaging.LocalInstallMethod()
-                except packaging.MediaNotFound, m:
-                    retry = ui_package.request_media(m.media_name)
-                    if not retry:
-                        raise
-                else:
-                    found = True
-        elif answers['source-media'] == 'nfs':
-            installmethod = packaging.NFSInstallMethod(answers['source-address'])
-    except Exception, e:
-        xelogging.log("Failed to configure install method.")
-        xelogging.log(e)
-        raise
+        lastname = ""
+        current = 0
+        for item in sequence:
+            if pd:
+                ui.displayProgressDialog(current, pd, item.name)
+            if item.name != lastname:
+                xelogging.log("DISPATCH: NEW PHASE: %s" % item.name)
+                lastname = item.name
+            updated_state = item.execute(answers)
+            if len(updated_state) > 0:
+                xelogging.log(
+                    "DISPATCH: Updated state: %s" %
+                    str.join("; ", ["%s -> %s" % (v, updated_state[v]) for v in updated_state.keys()])
+                    )
+                for item in updated_state:
+                    answers[item] = updated_state[item]
 
-    # wrap everything in a try block so we can close the
-    # install method if anything fails.
-    try:
-        if isUpgradeInstall:
-            xelogging.log("Performing UPGRADE installation")
-            pd = ui_package.initProgressDialog('%s Upgrade' % PRODUCT_BRAND,
-                                               'Upgrading %s, please wait...' % PRODUCT_BRAND,
-                                               25)
-        else:
-            xelogging.log("Performing CLEAN installation")
-            pd = ui_package.initProgressDialog('%s Installation' % PRODUCT_BRAND,
-                                               'Installing %s, please wait...' % PRODUCT_BRAND,
-                                               25)
-
-        ui_package.displayProgressDialog(0, pd)
-
-        # write out the data we're using for the installation to
-        # the log, excluding the root password:
-        xelogging.log("Data being used for installation:")
-        for k in answers:
-            if k == "root-password":
-                val = "<not printed>"
-            else:
-                val = str(answers[k])
-            xelogging.log("%s = %s (type: %s)" % (k, val, str(type(answers[k]))))
-
-        # remove any volume groups 
-        removeBlockingVGs([answers['primary-disk']] + answers['guest-disks'])
-        
-        # Dom0 Disk partition table
-        writeDom0DiskPartitions(answers['primary-disk'])
-        ui_package.displayProgressDialog(1, pd)
-    
-        # Guest disk partition table
-        for gd in answers['guest-disks']:
-            if gd != answers['primary-disk']:
-                writeGuestDiskPartitions(gd)
-        ui_package.displayProgressDialog(2, pd)
-        
-        # Create the default storage repository if disks
-        # have been selected:
-        if answers['guest-disks'] != []:
-            default_sr = prepareStorageRepository(answers['primary-disk'], answers['guest-disks'])
-        else:
-            xelogging.log("No storage repository created.")
-            default_sr = None
-        ui_package.displayProgressDialog(3, pd)
-            
-        # Put filesystems on Dom0 Disk
-        createDom0DiskFilesystems(answers['primary-disk'])
-
-        # Mount the system image:
-        mounts = mountVolumes(answers['primary-disk'])
-        ui_package.displayProgressDialog(5, pd)
-
-        # Install packages:
-        progress = 5
-        packages = installmethod.getPackageList()
-        for package in packages:
-            installmethod.installPackage(package, mounts['root'])
-            progress += 1
-            ui_package.displayProgressDialog(progress, pd)
-
-        # Install the bootloader:
-        installGrub(mounts, answers['primary-disk'])
-        ui_package.displayProgressDialog(14, pd)
-
-        # Create modules.dep:
-        doDepmod(mounts)
-        ui_package.displayProgressDialog(15, pd)
-        
-        # perform dom0 file system customisations:
-        writeResolvConf(mounts, answers['manual-hostname'], answers['manual-nameservers'])
-        writeKeyboardConfiguration(mounts, answers['keymap'])
-        ui_package.displayProgressDialog(16, pd)
-        
-        configureNetworking(mounts, answers['iface-configuration'], answers['manual-hostname'])
-        ui_package.displayProgressDialog(17, pd)
-
-        prepareSwapfile(mounts)
-        writeFstab(mounts)
-        writeSmtab(mounts, default_sr)
-        enableSM(mounts)
-        enableAgent(mounts)
-        ui_package.displayProgressDialog(18, pd)
-
-        writeModprobeConf(mounts)
-        ui_package.displayProgressDialog(19, pd)
-
-        mkinitrd(mounts)
-        ui_package.displayProgressDialog(20, pd)
-        
-        writeInventory(mounts, default_sr)
-        touchSshAuthorizedKeys(mounts)
-        ui_package.displayProgressDialog(21, pd)
-        
-        # set the root password: (not if upgrade, because we're preserving the old
-        # passwd file)
-        if not isUpgradeInstall and answers.has_key('root-password'):
-            xelogging.log("Setting root password.")
-            ui_package.suspend_ui()
-            setRootPassword(mounts, answers['root-password'])
-            ui_package.resume_ui()
-        else:
-            xelogging.log("Not setting root password because we are doing an upgrade.")
-        ui_package.displayProgressDialog(22, pd)
-        
-        # configure NTP:
-        if answers['time-config-method'] == 'ntp':
-            configureNTP(mounts, answers['time-config-method'], answers['ntp-servers'])
-        ui_package.displayProgressDialog(23, pd)
-        
-        # complete the installation:
-        makeSymlinks(mounts)
-        ui_package.displayProgressDialog(24, pd)
-
-        writeAnswersFile(mounts, answers)
-
-        # set local time:
-        setTimeZone(mounts, answers['timezone'])
-        if not isUpgradeInstall:
-            setTime(mounts, answers['time-config-method'], ui_package)
-
-        # run any required post installation scripts:
-        try:
-            if answers.has_key('post-install-script'):
-                xelogging.log("Detected user post-install script - attempting to fetch from %s" % answers['post-install-script'])
-                util.fetchFile(answers['post-install-script'], '/tmp/postinstall')
-                os.system('chmod a+x /tmp/postinstall')
-                util.runCmd('/tmp/postinstall %s' % mounts['root'])
-                os.unlink('/tmp/postinstall')
-        except Exception, e:
-            xelogging.log("Failed to run post install script")
-            xelogging.log(e)
-
-        umountVolumes(mounts)
-        ui_package.displayProgressDialog(25, pd)
-        ui_package.clearModelessDialog()
-        
+            current = current + 1
     finally:
-        # if this fails there is nothing we can do anyway
-        # except log the failure:
+        if ui and pd:
+            ui.clearModelessDialog()
+        for tag, f, a in answers['cleanup']:
+            try:
+                apply(f,a)
+            except:
+                xelogging.log("FAILED to perform cleanup action %s" % tag)
+        del answers['cleanup']
+
+class UnkownInstallMediaType(Exception):
+    pass
+
+def performInstallation(answers, ui_package):
+    xelogging.log("INPUT ANSWERS DICTIONARY:")
+    prettyLogAnswers(answers)
+
+    # create install method:
+    if not packaging.InstallMethods.has_key(answers['source-media']):
+        raise UnkownInstallMediaType
+    im_class = packaging.InstallMethods[answers['source-media']]
+    im = im_class(answers['source-address'])
+
+    # perform installation:
+    sequence = determineInstallSequence(answers, im)
+    performInstallSequence(sequence, answers, ui_package)
+
+    # clean up:
+    im.finished()
+
+# Time configuration:
+def configureNTP(mounts, ntp_servers):
+    # read in the old NTP configuration, remove the server
+    # lines and write out a new one:
+    ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
+    lines = ntpsconf.readlines()
+    ntpsconf.close()
+
+    lines = filter(lambda x: not x.startswith('server '), lines)
+
+    ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
+    for line in lines:
+        ntpsconf.write(line + "\n")
+    for server in ntp_servers:
+        ntpsconf.write("server %s\n" % server)
+    ntpsconf.close()
+
+    # now turn on the ntp service:
+    util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
+
+def configureTimeManually(mounts, ui_package):
+    global writeable_files
+
+    # display the Set TIme dialog in the chosen UI:
+    rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
+    answers = {}
+    ui_package.set_time(answers, util.parseTime(time))
+        
+    newtime = answers['localtime']
+    timestr = "%04d-%02d-%02d %02d:%02d:00" % \
+              (newtime.year, newtime.month, newtime.day,
+               newtime.hour, newtime.minute)
+        
+    # chroot into the dom0 and set the time:
+    assert runCmd('chroot %s timeutil setLocalTime "%s"' % (mounts['root'], timestr)) == 0
+    assert runCmd("hwclock --utc --systohc") == 0
+
+def runScripts(mounts, scripts):
+    for script in scripts:
         try:
-            installmethod.finished()
+            xelogging.log("Running script: %s" % script)
+            util.fetchFile(script, "/tmp/script")
+            util.runCmd2(["chmod", "a+x" ,"/tmp/script"])
+            util.runCmd2(["/tmp/script", mounts['root']])
+            os.unlink("/tmp/script")
         except Exception, e:
-            xelogging.log("An exception was encountered when attempt to close the installation source.")
-            xelogging.log(str(e))
+            xelogging.log("Failed to run script: %s" % script)
+            xelogging.log(e)
 
 def removeBlockingVGs(disks):
     if diskutil.detectExistingInstallation():
@@ -304,6 +324,10 @@ def determinePartitionName(guestdisk, partitionNumber):
         return guestdisk + "%d" % partitionNumber
 
 def prepareStorageRepository(primary_disk, guest_disks):
+    if len(guest_disks) == 0:
+        xelogging.log("Not creating a default storage repository.")
+        return None
+
     xelogging.log("Preparing default storage repository...")
     sr_uuid = util.getUUID()
 
@@ -314,6 +338,7 @@ def prepareStorageRepository(primary_disk, guest_disks):
             return determinePartitionName(disk, 1)
 
     partitions = [sr_partition(disk) for disk in guest_disks]
+
     xelogging.log("Creating storage repository on partitions %s" % partitions)
     args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid] + partitions
     assert util.runCmd2(args) == 0
@@ -436,7 +461,7 @@ def installGrub(mounts, disk):
 
 MOUNT_SOURCE_DEVICE = 1
 MOUNT_SOURCE_BIND = 2
-def mountVolumes(primary_disk):
+def mountVolumes(primary_disk, cleanup):
     base = '/tmp/root'
 
     # mounts is a list of triples of (name, mount source, mountpoint)
@@ -456,6 +481,8 @@ def mountVolumes(primary_disk):
 
             if mnt_type == MOUNT_SOURCE_DEVICE:
                 util.mount(mnt_source, dst)
+                cleanup_fn = (lambda d: lambda : util.umount(d))(dst)
+                cleanup.append( ("umount-%s" % dst, cleanup_fn, ()) )
             elif mnt_type == MOUNT_SOURCE_BIND:
                 mnt_source = os.path.join(base, mnt_source.lstrip('/'))
                 util.assertDir(mnt_source)
@@ -468,11 +495,14 @@ def mountVolumes(primary_disk):
         rv[n] = os.path.join(base, d.lstrip('/'))
     rv['umount-order'] = umount_order
     
-    return rv
+    return rv, cleanup
  
-def umountVolumes(mounts, force = False):
+def umountVolumes(mounts, cleanup, force = False):
     for name in mounts['umount-order']: # hack!
         util.umount(mounts[name], force)
+        cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % name,
+                         cleanup)
+    return cleanup
 
 def cleanup_umount():
     global mounts
@@ -560,24 +590,6 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
                 resolvconf.write("nameserver %s\n" % ns)
         resolvconf.close()
 
-def setTime(mounts, time_config_method, ui_package):
-    global writeable_files
-
-    # are we dealing with setting the time?
-    if time_config_method == 'manual':
-        # display the Set TIme dialog in the chosen UI:
-        rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
-        answers = {}
-        ui_package.set_time(answers, util.parseTime(time))
-
-        newtime = answers['localtime']
-        timestr = "%04d-%02d-%02d %02d:%02d:00" % \
-                  (newtime.year, newtime.month, newtime.day,
-                   newtime.hour, newtime.minute)
-
-        # chroot into the dom0 and set the time:
-        assert runCmd('chroot %s timeutil setLocalTime "%s"' % (mounts['root'], timestr)) == 0
-        assert runCmd("hwclock --utc --systohc") == 0
 
 def setTimeZone(mounts, tz):
     # write the time configuration to the /etc/sysconfig/clock
@@ -594,25 +606,6 @@ def setTimeZone(mounts, tz):
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
            (tz, mounts['root']))
     
-def configureNTP(mounts, time_config_method, ntp_servers):
-    if time_config_method == 'ntp':
-        # read in the old NTP configuration, remove the server
-        # lines and write out a new one:
-        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
-        lines = ntpsconf.readlines()
-        ntpsconf.close()
-
-        lines = filter(lambda x: not x.startswith('server '), lines)
-
-        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
-        for line in lines:
-            ntpsconf.write(line + "\n")
-        for server in ntp_servers:
-            ntpsconf.write("server %s\n" % server)
-        ntpsconf.close()
-
-        # now turn on the ntp service:
-        util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
 
 def setRootPassword(mounts, root_password):
     # avoid using shell here to get around potential security issues.
