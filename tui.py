@@ -737,7 +737,7 @@ def get_autoconfig_ifaces(answers):
 
     seq = []
     for x in netutil.getNetifList():
-        seq.append((get_iface_configuration, { 'iface': x }))
+        seq.append((get_iface_configuration, (x,)))
 
     # when this was written this branch would never be taken
     # since we require at least one NIC at setup time:
@@ -752,7 +752,7 @@ def get_autoconfig_ifaces(answers):
     if rv == -1: return 0
     if rv == 1: return 1
     
-def get_iface_configuration(answers, args):
+def get_iface_configuration(answers, iface):
     global screen
 
     def identify_interface(iface):
@@ -775,7 +775,6 @@ PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
             x.setFlags(FLAG_DISABLED,
                            (enabled_cb.value() and not dhcp_cb.value()))
 
-    iface = args['iface']
     gf = GridFormHelp(screen, 'Network Configuration', None, 1, 5)
     text = TextboxReflowed(45, "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface)))
     buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")])
