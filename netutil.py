@@ -12,7 +12,6 @@
 
 import os
 import util
-import time
 
 def getNetifList():
     pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }' | grep '^eth.*'")
@@ -46,8 +45,6 @@ def writeDebStyleInterfaceFile(configuration, filename):
 # simple wrapper for calling the local ifup script:
 def ifup(interface):
     assert interface in getNetifList()
-    util.runCmd("ifconfig %s up" % interface)
-    time.sleep(1)
     return util.runCmd("ifup %s" % interface)
 
 # work out if an interface is up:
