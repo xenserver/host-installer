@@ -23,7 +23,7 @@ sys.path.append('/usr/lib64/python')
 from xen.xend import sxp
 
 # Path where the VM state is found:
-VM_PATH="/var/opt/xen/vm"
+VM_PATH="/tmp/mnt-vmstate"
 # Path to the 'b2' binary
 B2_PATH="/usr/sbin/b2"
 
@@ -102,10 +102,10 @@ def make_exported_template(vm):
     #t.append(["mem_max", sxp.child_value(vm, "mem_max")])
     t.append(["mem_set", sxp.child_value(vm, "mem_set")])
     t.append(["auto_poweron", sxp.child_value(vm, "auto_poweron")])
-    v = sxp.child_value(vm, "is_hvm")
-    if v == None:
-        v = "false"
-    t.append(["is_hvm", v])
+    hvm = sxp.child_value(vm, "is_hvm")
+    if hvm == None:
+        hvm = "false"
+    t.append(["is_hvm", hvm])
     template = table(t)
 
     def kernel():
@@ -144,7 +144,8 @@ def make_exported_template(vm):
         return table(t)
 
     # Add the kernel
-    template = template + "(kernel " + kernel() + ")"
+    if hvm <> "true":
+    	template = template + "(kernel " + kernel() + ")"
     # Add each filesystem
     all = sxp.children(vm, "vbd")
     for x in all:
@@ -306,7 +307,7 @@ def upload_vms(log_fn, uuids, mnt, hn, uname, pw, progress):
 def run(mnt, hn, uname, pw, progress):
     import xelogging
     uuids = list_vm_uuids()
-    return upload_all_vms(xelogging.log, uuids, mnt, hn, uname, pw, progress)
+    return upload_vms(xelogging.log, uuids, mnt, hn, uname, pw, progress)
 
 # Also runs as a standalone program for debugging
 if __name__ == "__main__":
