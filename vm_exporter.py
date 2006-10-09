@@ -91,10 +91,19 @@ def make_exported_template(vm):
     t.append(["name", sxp.child_value(vm, "name")])
     t.append(["uuid", uuid])
     t.append(["description", sxp.child_value(vm, "description")])    
+    hvm = sxp.child_value(vm, "is_hvm")
+    if hvm == None:
+    	hvm = "false"
+    
     # mark this as an 'upgrade' to activate our special prepare-guest
     # plugin which will create the kernel symlinks
-    t.append(["distrib", "upgrade" ])
-    t.append(["distrib_version", "3.0.0" ])
+    if hvm == "false":
+    	t.append(["distrib", "upgrade" ])
+    	t.append(["distrib_version", "3.0.0" ])
+    else:
+    	t.append(["xgt-type", "generic"])
+        t.append(["distrib", "windows" ])
+        t.append(["distrib_version", "2003" ])
     t.append(["os", "unknown" ])
     t.append(["pp2vp", sxp.child_value(vm, "pp2vp")])
     t.append(["vcpus", sxp.child_value(vm, "vcpus")])
@@ -102,9 +111,6 @@ def make_exported_template(vm):
     #t.append(["mem_max", sxp.child_value(vm, "mem_max")])
     t.append(["mem_set", sxp.child_value(vm, "mem_set")])
     t.append(["auto_poweron", sxp.child_value(vm, "auto_poweron")])
-    hvm = sxp.child_value(vm, "is_hvm")
-    if hvm == None:
-        hvm = "false"
     t.append(["is_hvm", hvm])
     template = table(t)
 
