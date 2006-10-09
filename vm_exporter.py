@@ -22,16 +22,37 @@ sys.path.append('/usr/lib/python')
 sys.path.append('/usr/lib64/python')
 from xen.xend import sxp
 
-# default (not from the installer)
+# Path where the VM state is found:
 VM_PATH="/var/opt/xen/vm"
+# Path to the 'b2' binary
 B2_PATH="/usr/sbin/b2"
+
 XGT_EXPORT_VERSION="4"
 CHUNKSIZE=1000000000l
 
-
+# Path of the domain's vm.dat
 def vm_dat(uuid):
     global VM_PATH
     return VM_PATH + "/" + uuid + "/vm.dat"
+
+# Looks in the kernel cache for vmlinuz.*
+def vm_kernel_filename(uuid):
+    global VM_PATH
+    all = os.listdir(VM_PATH + "/" + uuid)
+    for x in all:
+        if x.startswith("vmlinuz"): return x
+
+# Looks in the kernel cache for initrd.*
+def vm_kernel_initrd(uuid):
+    global VM_PATH
+    all = os.listdir(VM_PATH + "/" + uuid)
+    for x in all:
+        if x.startswith("initrd"): return x
+
+# Path of the xend domain config file
+def vm_config(uuid):
+    global VM_PATH
+    return VM_PATH + "/" + uuid + "/config"
 
 def compute_total_steps(vm):
     steps = 0
@@ -41,32 +62,16 @@ def compute_total_steps(vm):
     return steps
 
 # Notes:
-# The following guests require no special casing:
-# Debian - just works
-# RHEL3.6 - just works
-# RHEL4.1 from P2V - dom0 kernel (ultimate fallback) boots guest, can add xenlinux after
-# RHEL4.1 from vendor installer - pygrub extracts wrong kernel; need to adjust
-# SLES92 from P2V - fallback kernel has no reiserfs; need symlinks
-#
-# The vanilla vm.dat will look like:
-#("xgt" ("name" "debian-small")
-#  ("uuid" "bc950fee-2229-448d-b27f-a576e6704bfd")
-#  ("description" " Root is 512M and sdb is 1024M") ("distrib" "unknown")
-#  ("vcpus" "1") ("mem_set" "262144") ("auto_poweron" "false")
-#  ("is_hvm" "false")
-#  ("vbd" ("name" "sda1") ("size" "524288") ("min_size" "409640")
-#    ("function" "root"))
-#  ("vbd" ("name" "sda2") ("size" "524288") ("min_size" "524288")
-#    ("function" "swap"))
-#  ("vbd" ("name" "sdb") ("size" "1048576") ("min_size" "1024")
-#    ("function" "USER"))
-#  ("os" "unknown"))
-#
-# in particular, os = distrib = "unknown". 'root_vbd' is unnecessary since
-# all burbank Debian, RHEL3.6 installs use the 'root' disk/partition directly
-
+# 1. The only reliable way of finding out what should be in the kernel commandline
+#    is to look at the xend domain config files, which happen to be lying around
+# 2. We cannot add symlinks xenkernel and xeninitrd here because the CD lacks kpartx
+# 3. We transmit the name of the kernel and initrd to the XE server, where prepare-guest
+#    can insert the symlinks
+# 4. We set the distrib to "upgrade" and distrib_version to "3.0.0" to activate our
+#    custom prepare-guest plugin
 
 # Takes a B2-format vm.dat and returns a Z1-format exported template.dat
+# merging in kernel commandline info from the domain config file
 def make_exported_template(vm):
     def escape(x): return repr(str(x))
 
@@ -81,12 +86,15 @@ def make_exported_template(vm):
             result = result + (option(kv[0], kv[1]))
         return result
 
+    uuid = sxp.child_value(vm, "uuid")
     t = []
     t.append(["name", sxp.child_value(vm, "name")])
-    t.append(["uuid", sxp.child_value(vm, "uuid")])
+    t.append(["uuid", uuid])
     t.append(["description", sxp.child_value(vm, "description")])    
-    t.append(["distrib", "unknown" ])
-    t.append(["distrib_version", "unknown" ])
+    # mark this as an 'upgrade' to activate our special prepare-guest
+    # plugin which will create the kernel symlinks
+    t.append(["distrib", "upgrade" ])
+    t.append(["distrib_version", "3.0.0" ])
     t.append(["os", "unknown" ])
     t.append(["pp2vp", sxp.child_value(vm, "pp2vp")])
     t.append(["vcpus", sxp.child_value(vm, "vcpus")])
@@ -100,12 +108,18 @@ def make_exported_template(vm):
     t.append(["is_hvm", v])
     template = table(t)
 
-    #def kernel(x):
-    #    t = []
-    #    for key in [ "kernel-type", "installed_version", "initrd-path",
-    #                 "kernel_path", "ramdisk", "kernel_args" ]:
-    #        t.append([key, sxp.child_value(x, key)])
-    #    return table(t)
+    def kernel():
+        vmlinuz = vm_kernel_filename(uuid)
+        initrd = vm_kernel_initrd(uuid)
+        args = read_root_from_config(uuid)
+	if args == None: raise RuntimeError, "no args"	
+
+        t = []
+        # no kernel-type installed_version ramdisk
+        t.append(["kernel_path", vmlinuz])
+        t.append(["initrd-path", initrd])
+        t.append(["kernel_args", args])
+        return table(t)
 
     def vif(x):
         t = []
@@ -129,11 +143,8 @@ def make_exported_template(vm):
         t.append(["function", sxp.child_value(x, "function")])
         return table(t)
 
-    # XXX: do sles
     # Add the kernel
-    #k = sxp.child(vm, "kernel")
-    #if k:
-    #    template = template + "(kernel " + kernel(k) + ")"
+    template = template + "(kernel " + kernel() + ")"
     # Add each filesystem
     all = sxp.children(vm, "vbd")
     for x in all:
@@ -144,6 +155,25 @@ def make_exported_template(vm):
         template = template + "(vif " + vif(x) + ")"
 
     return "(" + template + ")"
+
+# Read the xend domain config file - it's the only place the kernel's commandline
+# in particular the root=xxx bit is stored. (Apart from xenstore, which we cannot
+# easily read from the CD)
+def read_root_from_config(uuid):
+    filename = vm_config(uuid)
+    config = load_sxp(filename)
+    # Looking for: (image (linux (kernel ...) (ramdisk ...) (root ...))))
+    img = sxp.children(config, "image")
+    root = None
+    if img <> []:
+        linux = sxp.children(img[0], "linux")
+        if linux <> []:
+            root = sxp.children(linux[0], "root")
+	    if root <> []: root = "root=" + root[0][1]
+    if root == None:
+        print "WARNING: failed to discover root from domain config"
+    return root
+        
     
 def load_sxp(filename):
     parser = sxp.Parser()
@@ -245,7 +275,7 @@ def completed_step(log_fn, progress_fn):
 def upload_vms(log_fn, uuids, mnt, hn, uname, pw, progress):
     global VM_PATH, total_steps, completed_steps
     VM_PATH = mnt
-    
+ 
     log_fn("Starting export of VMs")
     log_fn("Input: %s" % str((mnt, hn, uname, pw, progress)))
 
@@ -316,6 +346,8 @@ if __name__ == "__main__":
     uuids = list_vm_uuids()
     for x in uuids:
         print x, ": ", get_vm_name(x)
+        print " " * len(x), vm_kernel_filename(x)
+        print " " * len(x), vm_kernel_initrd(x)        
         steps = steps + compute_total_steps(load_sxp(vm_dat(x)))
     print "Total steps (disk chunks) involved in export of everything: ", steps
 
