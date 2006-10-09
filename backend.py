@@ -62,6 +62,10 @@ def performInstallation(answers, ui_package):
     if not isUpgradeInstall and not answers.has_key('root-password'):
         raise InvalidInstallerConfiguration, "You did not specify an acceptable root password.  You must specify a root password of length %d characters." % constants.MIN_PASSWD_LEN
 
+    if answers['time-config-method'] == 'ntp':
+        if not answers.has_key('ntp-servers'):
+            answers['ntp-servers'] = []
+
     # create an installation source object for our installation:
     try:
         xelogging.log("Attempting to configure install method: type %s" % answers['source-media'])
@@ -127,7 +131,7 @@ def performInstallation(answers, ui_package):
         # Create the default storage repository if disks
         # have been selected:
         if answers['guest-disks'] != []:
-            default_sr = prepareStorageRepository(answers)
+            default_sr = prepareStorageRepository(answers['primary-disk'], answers['guest-disks'])
         else:
             xelogging.log("No storage repository created.")
             default_sr = None
@@ -153,32 +157,32 @@ def performInstallation(answers, ui_package):
         ui_package.displayProgressDialog(14, pd)
 
         # Create modules.dep:
-        doDepmod(mounts, answers)
+        doDepmod(mounts)
         ui_package.displayProgressDialog(15, pd)
         
         # perform dom0 file system customisations:
-        writeResolvConf(mounts, answers)
-        writeKeyboardConfiguration(mounts, answers)
+        writeResolvConf(mounts, answers['manual-hostname'], answers['manual-nameservers'])
+        writeKeyboardConfiguration(mounts, answers['keymap'])
         ui_package.displayProgressDialog(16, pd)
         
-        configureNetworking(mounts, answers)
+        configureNetworking(mounts, answers['iface-configuration'], answers['manual-hostname'])
         ui_package.displayProgressDialog(17, pd)
 
-        prepareSwapfile(mounts, answers)
-        writeFstab(mounts, answers)
-        writeSmtab(mounts, answers, default_sr)
-        enableSM(mounts, answers)
-        enableAgent(mounts, answers)
+        prepareSwapfile(mounts)
+        writeFstab(mounts)
+        writeSmtab(mounts, default_sr)
+        enableSM(mounts)
+        enableAgent(mounts)
         ui_package.displayProgressDialog(18, pd)
 
-        writeModprobeConf(mounts, answers)
+        writeModprobeConf(mounts)
         ui_package.displayProgressDialog(19, pd)
 
-        mkinitrd(mounts, answers)
+        mkinitrd(mounts)
         ui_package.displayProgressDialog(20, pd)
         
-        writeInventory(mounts, answers, default_sr)
-        touchSshAuthorizedKeys(mounts, answers)
+        writeInventory(mounts, default_sr)
+        touchSshAuthorizedKeys(mounts)
         ui_package.displayProgressDialog(21, pd)
         
         # set the root password: (not if upgrade, because we're preserving the old
@@ -186,29 +190,27 @@ def performInstallation(answers, ui_package):
         if not isUpgradeInstall and answers.has_key('root-password'):
             xelogging.log("Setting root password.")
             ui_package.suspend_ui()
-            setRootPassword(mounts, answers)
+            setRootPassword(mounts, answers['root-password'])
             ui_package.resume_ui()
         else:
             xelogging.log("Not setting root password because we are doing an upgrade.")
         ui_package.displayProgressDialog(22, pd)
         
         # configure NTP:
-        configureNTP(mounts, answers)
+        if answers['time-config-method'] == 'ntp':
+            configureNTP(mounts, answers['time-config-method'], answers['ntp-servers'])
         ui_package.displayProgressDialog(23, pd)
         
         # complete the installation:
-        makeSymlinks(mounts, answers)    
+        makeSymlinks(mounts)
         ui_package.displayProgressDialog(24, pd)
-        
-        if isUpgradeInstall:
-            removeOldFs(mounts, answers)
 
         writeAnswersFile(mounts, answers)
 
         # set local time:
-        setTimeZone(mounts, answers)
+        setTimeZone(mounts, answers['timezone'])
         if not isUpgradeInstall:
-            setTime(mounts, answers, ui_package)
+            setTime(mounts, answers['time-config-method'], ui_package)
 
         # run any required post installation scripts:
         try:
@@ -245,13 +247,6 @@ def removeBlockingVGs(disks):
         util.runCmd2(['lvremove', vg])
         util.runCmd2(['vgremove', vg])
 
-def removeOldFs(mounts, answers):
-    fsname = "%s/%s-%s.img" % (mounts['boot'],
-                               version.PRODUCT_NAME,
-                               version.PRODUCT_VERSION)
-    if os.path.isfile(fsname):
-        os.unlink(fsname)
-        
 def writeAnswersFile(mounts, answers):
     fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
     if answers.has_key('root-password'):
@@ -308,17 +303,17 @@ def determinePartitionName(guestdisk, partitionNumber):
     else:
         return guestdisk + "%d" % partitionNumber
 
-def prepareStorageRepository(answers):
+def prepareStorageRepository(primary_disk, guest_disks):
     xelogging.log("Preparing default storage repository...")
     sr_uuid = util.getUUID()
 
     def sr_partition(disk):
-        if disk == answers['primary-disk']:
+        if disk == primary_disk:
             return determinePartitionName(disk, 3)
         else:
             return determinePartitionName(disk, 1)
 
-    partitions = [sr_partition(disk) for disk in answers['guest-disks']]
+    partitions = [sr_partition(disk) for disk in guest_disks]
     xelogging.log("Creating storage repository on partitions %s" % partitions)
     args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid] + partitions
     assert util.runCmd2(args) == 0
@@ -331,7 +326,7 @@ def prepareStorageRepository(answers):
 def createDom0DiskFilesystems(disk):
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
 
-def mkinitrd(mounts, answers):
+def mkinitrd(mounts):
     modules_list = ["--with=%s" % x for x in hardware.getModuleOrder()]
 
     modules_string = " ".join(modules_list)
@@ -487,32 +482,29 @@ def cleanup_umount():
 ##########
 # second stage install helpers:
     
-def doDepmod(mounts, answers):
+def doDepmod(mounts):
     runCmd("chroot %s depmod %s" % (mounts['root'], version.KERNEL_VERSION))
 
-def writeKeyboardConfiguration(mounts, answers):
+def writeKeyboardConfiguration(mounts, keymap):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
-    if not answers.has_key('keymap'):
-        answers['keymap'] = 'us'
+    if not keymap:
+        keymap = 'us'
         xelogging.log("No keymap specified, defaulting to 'us'")
 
     kbdfile = open("%s/etc/sysconfig/keyboard" % mounts['root'], 'w')
     kbdfile.write("KEYBOARDTYPE=pc\n")
-    kbdfile.write("KEYTABLE=%s\n" % answers['keymap'])
+    kbdfile.write("KEYTABLE=%s\n" % keymap)
     kbdfile.close()
 
-def prepareSwapfile(mounts, answers):
+def prepareSwapfile(mounts):
     util.assertDir("%s/var/swap" % mounts['root'])
     util.runCmd2(['dd', 'if=/dev/zero',
                   'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
                   'bs=1024', 'count=%d' % (constants.swap_size * 1024)])
     util.runCmd2(['chroot', mounts['root'], 'mkswap', '/var/swap/swap.001'])
 
-def writeFstab(mounts, answers):
+def writeFstab(mounts):
     util.assertDir("%s/etc" % mounts['rws'])
-
-    # first work out what we're going to write:
-    #swappart = getSwapPartName(answers['primary-disk'])
 
     # write 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
@@ -525,17 +517,17 @@ def writeFstab(mounts, answers):
     fstab.close()
 
 # creates an empty file if default_sr is None:
-def writeSmtab(mounts, answers, default_sr):
+def writeSmtab(mounts, default_sr):
     smtab = open(os.path.join(mounts['root'], 'etc/smtab'), 'w')
     if default_sr:
         smtab.write("%s none lvm default auto\n" % default_sr)
     smtab.close()
 
-def enableSM(mounts, answers):
+def enableSM(mounts):
     assert util.runCmd2(['chroot', mounts['root'], 'chkconfig',
                          '--add', 'smtab']) == 0
 
-def enableAgent(mounts, answers):
+def enableAgent(mounts):
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', 'xend', 'on'])
     util.runCmd2(['chroot', mounts['root'],
@@ -543,9 +535,9 @@ def enableAgent(mounts, answers):
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', 'xenagentd', 'on'])
 
-def writeResolvConf(mounts, answers):
-    (manual_hostname, hostname) = answers['manual-hostname']
-    (manual_nameservers, nameservers) = answers['manual-nameservers']
+def writeResolvConf(mounts, hn_conf, ns_conf):
+    (manual_hostname, hostname) = hn_conf
+    (manual_nameservers, nameservers) = ns_conf
 
     if manual_nameservers:
         resolvconf = open("%s/etc/resolv.conf" % mounts['root'], 'w')
@@ -568,14 +560,14 @@ def writeResolvConf(mounts, answers):
                 resolvconf.write("nameserver %s\n" % ns)
         resolvconf.close()
 
-def setTime(mounts, answers, ui_package):
+def setTime(mounts, time_config_method, ui_package):
     global writeable_files
 
     # are we dealing with setting the time?
-    if (answers.has_key('set-time') and answers['set-time']) or \
-       (answers['time-config-method'] == 'manual'):
+    if time_config_method == 'manual':
         # display the Set TIme dialog in the chosen UI:
         rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
+        answers = {}
         ui_package.set_time(answers, util.parseTime(time))
 
         newtime = answers['localtime']
@@ -587,11 +579,11 @@ def setTime(mounts, answers, ui_package):
         assert runCmd('chroot %s timeutil setLocalTime "%s"' % (mounts['root'], timestr)) == 0
         assert runCmd("hwclock --utc --systohc") == 0
 
-def setTimeZone(mounts, answers):
+def setTimeZone(mounts, tz):
     # write the time configuration to the /etc/sysconfig/clock
     # file in dom0:
     timeconfig = open("%s/etc/sysconfig/clock" % mounts['root'], 'w')
-    timeconfig.write("ZONE=%s\n" % answers['timezone'])
+    timeconfig.write("ZONE=%s\n" % tz)
     timeconfig.write("UTC=true\n")
     timeconfig.write("ARC=false\n")
     timeconfig.close()
@@ -600,10 +592,10 @@ def setTimeZone(mounts, answers):
 
     # make the localtime link:
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
-           (answers['timezone'], mounts['root']))
+           (tz, mounts['root']))
     
-def configureNTP(mounts, answers):
-    if answers['time-config-method'] == 'ntp':
+def configureNTP(mounts, time_config_method, ntp_servers):
+    if time_config_method == 'ntp':
         # read in the old NTP configuration, remove the server
         # lines and write out a new one:
         ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
@@ -615,24 +607,23 @@ def configureNTP(mounts, answers):
         ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
         for line in lines:
             ntpsconf.write(line + "\n")
-        if answers.has_key('ntp-servers'):
-            for server in answers['ntp-servers']:
-                ntpsconf.write("server %s\n" % server)
+        for server in ntp_servers:
+            ntpsconf.write("server %s\n" % server)
         ntpsconf.close()
 
         # now turn on the ntp service:
         util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
 
-def setRootPassword(mounts, answers):
+def setRootPassword(mounts, root_password):
     # avoid using shell here to get around potential security issues.
     pipe = subprocess.Popen(["/usr/sbin/chroot", "%s" % mounts["root"],
                              "passwd", "--stdin", "root"],
                             stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    pipe.stdin.write(answers["root-password"])
+    pipe.stdin.write(root_password)
     assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, answers):
+def configureNetworking(mounts, iface_config, hn_conf):
     check_link_down_hack = True
 
     def writeDHCPConfigFile(fd, device, hwaddr = None):
@@ -655,7 +646,7 @@ def configureNetworking(mounts, answers):
                   mounts['rws'])
 
     # are we all DHCP?
-    (alldhcp, mancfg) = answers['iface-configuration']
+    (alldhcp, mancfg) = iface_config
     if alldhcp:
         ifaces = generalui.getNetifList()
         for i in ifaces:
@@ -713,8 +704,8 @@ def configureNetworking(mounts, answers):
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
     nfd.write("NETWORKING=yes\n")
-    if answers["manual-hostname"][0] == True:
-        nfd.write("HOSTNAME=%s\n" % answers["manual-hostname"][1])
+    if hn_conf[0] == True:
+        nfd.write("HOSTNAME=%s\n" % hn_conf[1])
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
@@ -723,7 +714,7 @@ def configureNetworking(mounts, answers):
     writeable_files.append("/etc/sysconfig/network")
 
 # use kudzu to write initial modprobe-conf:
-def writeModprobeConf(mounts, answers):
+def writeModprobeConf(mounts):
     util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
     assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
@@ -731,7 +722,7 @@ def writeModprobeConf(mounts, answers):
     util.umount("%s/sys" % mounts['root'])
    
 # make appropriate symlinks according to writeable_files and writeable_dirs:
-def makeSymlinks(mounts, answers):
+def makeSymlinks(mounts):
     global writeable_dirs, writeable_files
 
     # make sure required directories exist:
@@ -772,7 +763,7 @@ def makeSymlinks(mounts, answers):
 
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
-def writeInventory(mounts, answers, default_sr_uuid):
+def writeInventory(mounts, default_sr_uuid):
     inv = open("%s/etc/xensource-inventory" % mounts['root'], "w")
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
@@ -798,7 +789,7 @@ def writeInventory(mounts, answers, default_sr_uuid):
     inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
     inv.close()
 
-def touchSshAuthorizedKeys(mounts, answers):
+def touchSshAuthorizedKeys(mounts):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
 
@@ -828,9 +819,9 @@ def getGrUBDevice(disk, mounts):
     devmap.close()
     return None
 
-def writeLog(answers):
+def writeLog(primary_disk):
     try: 
-        bootnode = getBootPartName(answers['primary-disk'])
+        bootnode = getBootPartName(primary_disk)
         if not os.path.exists("/tmp/boot"):
            os.mkdir("/tmp/boot")
         util.mount(bootnode, "/tmp/boot")

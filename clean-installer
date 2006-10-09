@@ -214,7 +214,8 @@ def main():
         ui_package.end_ui()
 
         # and now on the disk if possible:
-        backend.writeLog(results)
+        if results.has_key('primary-disk'):
+            backend.writeLog(results['primary-disk'])
 
         # close continuous logs:
         for logfd in clog_fds:
