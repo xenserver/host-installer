@@ -264,11 +264,8 @@ def do_vm_upload(vm, hostname, username, password, progress_function, log_functi
         # Allow caller to see (and log) all the crap ("it's the only way to be sure")
         if log_function:
             log_function(line)
-
-        if has_prefix(debug_prefix, line):
-            if has_prefix(debug_prefix + "CHUNK COMPLETE", line):
-                if progress_function:
-                    progress_function()
+        if line.find("vm_putdisk") <> -1 and progress_function:
+            progress_function()
         elif has_prefix(error_prefix, line):
             # Record the failure
             raise RuntimeError, line
@@ -314,7 +311,6 @@ def upload_vms(log_fn, uuids, mnt, hn, uname, pw, progress):
         log_fn("Exporter> " + x)
     def prog():
         completed_step(log_fn, progress)
-
     for x in uuids:
         vm = load_sxp(vm_dat(x))
         if not(do_vm_upload(vm, hn, uname, pw, prog, log)):
