@@ -30,7 +30,7 @@ def initProgressDialog(title, text, total):
     pass
 def showMessageDialog(title, text):
     print "%s: %s" % (title, text)
-def displayProgressDialog(current, (form, scale)):
+def displayProgressDialog(current, pd):
     pass
 def clearModelessDialog():
     pass
