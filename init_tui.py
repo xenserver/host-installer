@@ -127,8 +127,8 @@ def OKDialog(title, text):
 def initProgressDialog(title, text, total):
     return snackutil.initProgressDialog(screen, title, text, total)
 
-def displayProgressDialog(current, (form, scale)):
-    return snackutil.displayProgressDialog(screen, current, (form, scale))
+def displayProgressDialog(current, pd):
+    return snackutil.displayProgressDialog(screen, current, pd)
 
 def clearModelessDialog():
     return snackutil.clearModelessDialog(screen)
