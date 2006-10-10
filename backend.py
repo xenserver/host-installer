@@ -247,7 +247,7 @@ def configureTimeManually(mounts, ui_package):
     assert runCmd("hwclock --utc --systohc") == 0
 
 def runScripts(mounts, scripts):
-    for script in scripts:
+    for script in [scripts]:
         try:
             xelogging.log("Running script: %s" % script)
             util.fetchFile(script, "/tmp/script")
