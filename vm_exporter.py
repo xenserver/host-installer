@@ -26,9 +26,25 @@ from xen.xend import sxp
 VM_PATH="/tmp/mnt-vmstate"
 # Path to the 'b2' binary
 B2_PATH="/usr/sbin/b2"
+# Path to the 'hn' lookup binary
+HN_PATH="/opt/xensource/installer/hn"
 
 XGT_EXPORT_VERSION="4"
 CHUNKSIZE=1000000000l
+
+# Call out to the external binary for DNS lookups
+def do_dns_lookup(hostname):
+    global HN_PATH
+    if os.path.isfile(HN_PATH):
+        p = os.popen(HN_PATH + " " + hostname)
+        all = p.readlines()
+        p.close()
+        if all <> []:
+            bits = all[0].split("=")
+            if len(bits) > 1:
+                return bits[1].strip()
+    return hostname
+    
 
 # Path of the domain's vm.dat
 def vm_dat(uuid):
@@ -41,6 +57,7 @@ def vm_kernel_filename(uuid):
     all = os.listdir(VM_PATH + "/" + uuid)
     for x in all:
         if x.startswith("vmlinuz"): return x
+    return None
 
 # Looks in the kernel cache for initrd.*
 def vm_kernel_initrd(uuid):
@@ -48,6 +65,7 @@ def vm_kernel_initrd(uuid):
     all = os.listdir(VM_PATH + "/" + uuid)
     for x in all:
         if x.startswith("initrd"): return x
+    return None
 
 # Path of the xend domain config file
 def vm_config(uuid):
@@ -304,6 +322,19 @@ def upload_vms(log_fn, uuids, mnt, hn, uname, pw, progress):
 
     log_fn("Export complete.")    
 
+# Skip over VMs which look broken
+def filter_invalid_uuids(log_fn, uuids):
+    valid = []
+    for x in uuids:
+        kernel = vm_kernel_filename(x)
+        dat = vm_dat(x)
+        config = vm_config(x)
+	if kernel <> None and os.path.isfile(dat) and os.path.isfile(config):
+	    valid.append(x)
+	else:
+	    log_fn("WARNING: skipping malformed VM with uuid: " + x)
+    return valid
+
 # AndyP's API function:
 # mnt: path to where vmstate is mounted
 # hn: hostname of destination host
@@ -312,7 +343,8 @@ def upload_vms(log_fn, uuids, mnt, hn, uname, pw, progress):
 # prgress: callback function: int -> unit.
 def run(mnt, hn, uname, pw, progress):
     import xelogging
-    uuids = list_vm_uuids()
+    hn = do_dns_lookup(hn)
+    uuids = filter_invalid_uuids(xelogging.log, list_vm_uuids())
     return upload_vms(xelogging.log, uuids, mnt, hn, uname, pw, progress)
 
 # Also runs as a standalone program for debugging
@@ -339,6 +371,7 @@ if __name__ == "__main__":
     
     if hn == None or uname == None or pw == None:
         raise "Need options: --target --username --password"
+    hn = do_dns_lookup(hn)
 
     print "VM export tool running in debug mode"
     print "Metadata dir: " + VM_PATH
@@ -347,10 +380,14 @@ if __name__ == "__main__":
         print "Intending to export all VMs"
     else:
         print "Intending to export only the VM with uuid: " + uuid
+
+    def log(x):
+        print "log: " + x
         
     print "All VMs found:"
     steps = 0
-    uuids = list_vm_uuids()
+    uuids = filter_invalid_uuids(log, list_vm_uuids())
+    
     for x in uuids:
         print x, ": ", get_vm_name(x)
         print " " * len(x), vm_kernel_filename(x)
@@ -358,8 +395,6 @@ if __name__ == "__main__":
         steps = steps + compute_total_steps(load_sxp(vm_dat(x)))
     print "Total steps (disk chunks) involved in export of everything: ", steps
 
-    def log(x):
-        print "log: " + x
     def progress(amount):
         log("New progress: " + str(amount))
     if uuid == None:
