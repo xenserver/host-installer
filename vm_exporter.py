@@ -324,11 +324,17 @@ def filter_invalid_uuids(log_fn, uuids):
     for x in uuids:
         kernel = vm_kernel_filename(x)
         dat = vm_dat(x)
-        config = vm_config(x)
-	if kernel <> None and os.path.isfile(dat) and os.path.isfile(config):
-	    valid.append(x)
-	else:
-	    log_fn("WARNING: skipping malformed VM with uuid: " + x)
+        if os.path.isfile(dat):
+            vm = load_sxp(dat)
+            hvm = sxp.child_value(vm, "is_hvm")
+            if hvm == "true":
+                valid.append(x)
+	    elif kernel <> None and os.path.isfile(vm_config(x)):
+	        valid.append(x)
+	    else:
+	        log_fn("WARNING: skipping malformed VM with uuid: " + x)
+        else:
+            log_fn("WARNING: can't find vm.dat for VM with uuid: " + x)
     return valid
 
 # AndyP's API function:
