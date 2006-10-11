@@ -129,10 +129,11 @@ def eula_screen(answers):
     eula = string.join(eula_file.readlines())
     eula_file.close()
 
-    button = ButtonChoiceWindow(screen,
-                                "End User License Agreement",
-                                eula,
-                                ['Accept EULA', 'Back'], width=60)
+    button = snackutil.ButtonChoiceWindowEx(
+        screen,
+        "End User License Agreement",
+        eula,
+        ['Accept EULA', 'Back'], width=60, default=1)
 
     # advance to next screen:
     if button == 'back':
