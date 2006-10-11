@@ -32,12 +32,19 @@ def refresh():
     if screen:
         screen.refresh()
 
-def choose_operation():
-    entries = [ 
-        (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
-        (' * Export %s' % BRAND_GUESTS_SHORT, init_constants.OPERATION_UPGRADE),
-        (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
-        ]
+def choose_operation(display_export_vms):
+    if display_export_vms:
+        entries = [ 
+            (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
+            (' * Export %s from this server' % BRAND_GUESTS_SHORT, init_constants.OPERATION_UPGRADE),
+            (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
+            ]
+    else:
+        entries = [ 
+            (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
+            (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
+            ]
+
     (button, entry) = ListboxChoiceWindow(screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
                                           """Please select an operation:""",

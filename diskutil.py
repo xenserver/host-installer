@@ -235,7 +235,17 @@ def makeActivePartition(disk, partition_number):
     # wait for fdisk to finish:
     assert pipe.wait() == 0
 
+def getVolumeGroups():
+    """ Returns a list of strings, each of which is the
+    name of a volume group found by 'vgs'. """
 
+    pipe = popen2.Popen3("vgs --noheadings 2>/dev/null")
+    vgs = pipe.fromchild.readlines()
+    pipe.wait()
+
+    vgs = [ x.strip().split(" ")[0] for x in vgs ]
+
+    return vgs
     
 # get a mapping of partitions to the volume group they are part of:
 def getVGPVMap():

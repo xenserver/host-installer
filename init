@@ -18,7 +18,7 @@ import os.path
 from getopt import getopt, GetoptError
 import shutil
 import time
-
+import diskutil
 import init_tui
 import init_simpleui
 import init_constants
@@ -207,6 +207,11 @@ def main():
     # start portmap so NFS mounting works:
     util.runCmd('portmap')
 
+    # prepare LVM - we need this very early now.
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
+    if not os.path.exists('/tmp/lvm'):
+        os.mkdir('/tmp/lvm')
+
     # parse options:
     try:
         (opts, _) = getopt(sys.argv[1:],
@@ -283,8 +288,13 @@ def main():
     if mode == init_constants.MODE_INTERACTIVE:
         firstTime = True
         try:
+            # Is VG_XenSource present, indicating that
+            # either Burbank or Zurich Preview is installed
+            # on this host?
+            burbank_present = 'VG_XenSource' in diskutil.getVolumeGroups()
+
             while True:
-                operation = ui_package.choose_operation()
+                operation = ui_package.choose_operation(burbank_present)
 
                 # activate installation on this screen:
                 try:
