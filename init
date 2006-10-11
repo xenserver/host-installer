@@ -17,6 +17,7 @@ import os
 import os.path
 from getopt import getopt, GetoptError
 import shutil
+import time
 
 import init_tui
 import init_simpleui
@@ -112,18 +113,27 @@ def discoverHardware():
     return rv
 
 
-# Load all modules etc:
 def configureHardware(extra_modules = [],
                       blacklist = [],
                       ui = None,
                       interactive = False):
+    """Detect and configure hardware"""
+
     assert not interactive or (interactive and ui)
 
+    pd = ui.initProgressDialog(
+        "Preparing for installation",
+        "Your system hardware is being detected and configured...",
+        100
+        )
+    ui.displayProgressDialog(0, pd)
+    
     modules = discoverHardware()
     modules.extend(base_modules)
     modules.extend(extra_modules)
 
     # load the modules:
+    current = 0
     for m in modules:
         if m in blacklist:
             xelogging.log("Module %s was in the user-specified blacklist - not loading." % m)
@@ -133,6 +143,9 @@ def configureHardware(extra_modules = [],
                 load_m = ui.ask_load_module(m)
             if load_m:
                 hardware.modprobe(m)
+                current = current + 1
+                current_scaled = int( float(current) / float(len(modules)) * 100.0 )
+                ui.displayProgressDialog(current_scaled, pd)
     
     # if we're in an older (pre udev-091) filesystem, we need
     # to call udevstart as udevd wasn't working correctly:
@@ -144,8 +157,17 @@ def configureHardware(extra_modules = [],
     if os.path.exists("/sbin/udevsettle"):
         os.system("udevsettle --timeout=10")
 
+    assert os.system("touch %s" % init_constants.HW_CONFIG_COMPLETED_STAMP) == 0
+
+    ui.clearModelessDialog()
+
 # Attempt to configure the network:
-def configureNetworking():
+def configureNetworking(ui):
+    ui.showMessageDialog(
+        "Preparing for installation",
+        "Attempting to configure networking..."
+        )
+
     # do we need to make the network directory writeable?
     if not os.path.ismount('/etc/network/'):
         shutil.copytree('/etc/network', '/tmp/network')
@@ -160,6 +182,8 @@ def configureNetworking():
 
     for i in interfaces:
         netutil.ifup(i)
+
+    ui.clearModelessDialog()
 
 def main():
     # clog fds: add tty3
@@ -204,10 +228,16 @@ def main():
     ui_package = init_tui
     extra_modules = []
     user_blacklist = []
-    active_output = None
+    active_output = 'tty1'
     answerfile = None
     verbose_answerfile = None
     interactive_modules = False
+
+    def isPrimaryProcess():
+        rc, my_tty = commands.getstatusoutput("tty")
+        my_tty = os.path.basename(my_tty.strip('\n'))
+        return my_tty == active_output
+    
     for (opt, val) in opts:
         if opt == "--install":
             mode = init_constants.MODE_INSTALL
@@ -230,28 +260,24 @@ def main():
         if opt == "--output":
             active_output = val
 
-    if not ui_package:
-        interactive_modules = False
+    xelogging.log("Active output is %s" % active_output)
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
     ui_package.init_ui()
 
-    def doHardwareDetection():
-        # load modules:
-        ui_package.showMessageDialog("Preparing for installation", "Your system hardware is being detected and configured...")
+    # first, configure the hardware:
+    if isPrimaryProcess():
         configureHardware(extra_modules, user_blacklist,
                           ui_package, interactive_modules)
+    else:
+        ui_package.showMessageDialog(
+            "Preparing for installation",
+            "Waiting for hardware detection to complete..."
+            )
+        while not os.path.exists(init_constants.HW_CONFIG_COMPLETED_STAMP):
+            time.sleep(1)
         ui_package.clearModelessDialog()
-        
-        # configure network:
-        ui_package.showMessageDialog("Preparing for installation", "Attempting to configure networking...")
-        configureNetworking()
-        ui_package.clearModelessDialog()
-                    
-        # we'll write out a log at this point, so that the user can
-        # collect later:
-        xelogging.writeLog("/tmp/startup-log")
 
     # let the user choose what they would like to do:
     if mode == init_constants.MODE_INTERACTIVE:
@@ -263,6 +289,8 @@ def main():
                 # activate installation on this screen:
                 try:
                     activateScreen()
+                    if not isPrimaryProcess():
+                        xelogging.log("WARNING: Operation started on a console different that the one specified as being default on the kernel command-line")
                 except AlreadyActivated:
                     ui_package.already_activated()
                     break
@@ -273,9 +301,9 @@ def main():
                 if operation == -1:
                     break
 
-                # detect hardware if we've not done so already
+                # configure networking, if we've not done so already:
                 if firstTime:
-                    doHardwareDetection()
+                    configureNetworking(ui_package)
                     firstTime = False
 
                 # clean install:
@@ -312,28 +340,15 @@ def main():
     # non-interactive:
     else:
         # terminate on any screen that wasn't supposed to be used:
-        if not active_output:
-            active_output = "tty1"
-            xelogging.log("No output TTY specified so defaulting to tty1.")
-        try:
-            rc, my_tty = commands.getstatusoutput("tty")
-            my_tty = my_tty.strip('\n')
-            
-            if os.path.basename(my_tty) == active_output:
-                activateScreen()
-            else:
-                xelogging.log("Stopping installation in this process because this tty isn't the one that the installation should proceed on.")
-                xelogging.log("(Current tty is    : %s)" % os.path.basename(my_tty))
-                xelogging.log("(Requested tty was : %s)" % active_output)
-                xelogging.log("Note that you should either specify tty1 or ttyS0 as your install TTY if you are using the output= option.")
-                ui_package.already_activated()
-                sys.exit(0)
-        except AlreadyActivated:
+        if isPrimaryProcess():
+            activateScreen()
+        else:
             ui_package.already_activated()
             sys.exit(0)
 
+        configureNetworking(ui_package)
+
         if mode == init_constants.MODE_INSTALL:
-            doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
             elif verbose_answerfile:
@@ -346,7 +361,6 @@ def main():
             raise Exception, "Upgrade not supported in this mode."
                 
         elif mode == init_constants.MODE_P2V:
-            doHardwareDetection()
             if answerfile:
                 os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
             else:

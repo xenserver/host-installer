@@ -19,3 +19,4 @@ MODE_INSTALL      = 1
 MODE_UPGRADE      = 2
 MODE_P2V          = 3
 
+HW_CONFIG_COMPLETED_STAMP = "/tmp/.hw-config-completed.stamp"
