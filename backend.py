@@ -135,6 +135,8 @@ def determineInstallSequence(ans, im):
         seq.append( Task(FIN, runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
     seq += [
         Task(FIN, umountVolumes, A('mounts', 'cleanup'), ['cleanup']),
+
+        Task(FIN, writeLog, As('primary-disk'), [] ),
         ]
 
     return seq
@@ -816,14 +818,21 @@ def getGrUBDevice(disk, mounts):
 def writeLog(primary_disk):
     try: 
         bootnode = getBootPartName(primary_disk)
-        if not os.path.exists("/tmp/boot"):
-           os.mkdir("/tmp/boot")
-        util.mount(bootnode, "/tmp/boot")
-        xelogging.writeLog("/tmp/boot/install-log")
+        if not os.path.exists("/tmp/mnt"):
+           os.mkdir("/tmp/mnt")
+        util.mount(bootnode, "/tmp/mnt")
+        log_location = "/tmp/mnt/root"
+        if os.path.islink(log_location):
+            log_location = os.path.join("/tmp/mnt", os.readlink(log_location).lstrip("/"))
+        if not os.path.exists(log_location):
+            os.mkdir(log_location)
+        xelogging.writeLog(os.path.join(log_location, "install-log"))
         try:
-            xelogging.collectLogs("/tmp/boot")
+            xelogging.collectLogs(log_location)
         except:
             pass
-        util.umount("/tmp/boot")
-    except:
-        pass
+    finally:
+        try:
+            util.umount("/tmp/mnt")
+        except:
+            pass
