@@ -503,7 +503,7 @@ def mountVolumes(primary_disk, cleanup):
 def umountVolumes(mounts, cleanup, force = False):
     for name in mounts['umount-order']: # hack!
         util.umount(mounts[name], force)
-        cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % name,
+        cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts[name],
                          cleanup)
     return cleanup
 
@@ -815,6 +815,8 @@ def getGrUBDevice(disk, mounts):
     devmap.close()
     return None
 
+# This function is not supposed to throw exceptions so that it can be used
+# within the main exception handler.
 def writeLog(primary_disk):
     try: 
         bootnode = getBootPartName(primary_disk)
@@ -831,8 +833,9 @@ def writeLog(primary_disk):
             xelogging.collectLogs(log_location)
         except:
             pass
-    finally:
         try:
             util.umount("/tmp/mnt")
         except:
             pass
+    except:
+        pass

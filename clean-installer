@@ -245,7 +245,8 @@ def main():
         xelogging.collectLogs('/tmp')
 
         # and now on the disk if possible:
-        backend.writeLog(results)
+        if results.has_key('primary-disk'):
+            backend.writeLog(results['primary-disk'])
 
         assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
 
