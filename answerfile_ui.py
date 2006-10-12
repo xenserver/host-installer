@@ -174,8 +174,6 @@ def resume_ui():
 # stubs:
 def welcome_screen(answers):
     return 1
-def upgrade_screen(answers):
-    return 1
 def no_disks():
     return 1
 def no_netifs():
@@ -191,8 +189,6 @@ def confirm_installation_one_disk(answers):
 def confirm_installation_multiple_disks(answers):
     return 1
 def confirm_erase_volume_groups(answers):
-    return 1
-def confirm_wipe_existing(answers):
     return 1
 def select_installation_source(answers):
     return 1
@@ -226,8 +222,6 @@ def set_time(answers, now):
 def get_name_service_configuration(answers):
     return 1
 def installation_complete(answers):
-    return 1
-def upgrade_complete(answers):
     return 1
 
 # 0 means don't retry

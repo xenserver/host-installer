@@ -176,22 +176,6 @@ def get_keymap(answers):
     
     if button == "back": return -1
 
-def upgrade_screen(answers):
-    global screen
-
-    button = ButtonChoiceWindow(screen,
-                                "Welcome to %s Setup" % PRODUCT_BRAND,
-                                """This setup tool will upgrade an existing installation of %s on your server.
-
-Please ensure that you have backed up all data on this host.""" % PRODUCT_BRAND,
-                       ['Ok', 'Cancel Installation'], width=60)
-
-    # advance to next screen:
-    if button == 'ok':
-        return 1
-    else:
-        return uicontroller.EXIT
-
 def confirm_wipe_existing(answers):
     global screen
 
@@ -487,25 +471,14 @@ def confirm_installation_multiple_disks(answers):
     disks.sort()
     disks_used = generalui.makeHumanList(disks)
 
-    if answers.has_key('upgrade'):
-        isUpgradeInstall = answers['upgrade']
-    else:
-        isUpgradeInstall = False
-
-    if not isUpgradeInstall:
-        ok = 'Install %s' % PRODUCT_BRAND
-        button = snackutil.ButtonChoiceWindowEx(screen,
-                                "Confirm Installation",
-                                """We have collected all the information required to install %s.
+    ok = 'Install %s' % PRODUCT_BRAND
+    button = snackutil.ButtonChoiceWindowEx(
+        screen,
+        "Confirm Installation",
+        """We have collected all the information required to install %s.
 
 If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
-                                [ok, 'Back'], default = 1)
-    else:
-        ok = 'Upgrade %s' % PRODUCT_BRAND
-        button = snackutil.ButtonChoiceWindowEx(screen,
-                                "Confirm Installation",
-                                "We have collected all the information required to upgrade %s." % PRODUCT_BRAND,
-                                [ok, 'Back'], default = 1)
+        [ok, 'Back'], default = 1)
         
 
     if button == string.lower(ok): return 1
@@ -514,26 +487,14 @@ If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (
 def confirm_installation_one_disk(answers):
     global screen
 
-    if answers.has_key('upgrade'):
-        isUpgradeInstall = answers['upgrade']
-    else:
-        isUpgradeInstall = False
-
-    if not isUpgradeInstall:
-        ok = 'Install %s' % PRODUCT_BRAND
-        button = snackutil.ButtonChoiceWindowEx(screen,
-                                "Confirm Installation",
-                                """Since your server only has a single disk, this will be used to install %s.
+    ok = 'Install %s' % PRODUCT_BRAND
+    button = snackutil.ButtonChoiceWindowEx(
+        screen,
+        "Confirm Installation",
+        """Since your server only has a single disk, this will be used to install %s.
 
 Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" % PRODUCT_BRAND,
-                                [ok, 'Back'], default = 1)
-    else:
-        ok = 'Upgrade %s' % PRODUCT_BRAND
-        button = snackutil.ButtonChoiceWindowEx(screen,
-                                "Confirm Installation",
-                                "We have collected all the information required to upgrade %s." % (PRODUCT_BRAND),
-                                [ok, 'Back'], default = 1)
- 
+        [ok, 'Back'], default = 1)
 
     if button == string.lower(ok): return 1
     if button == "back": return -1
@@ -1052,18 +1013,6 @@ Please remove any local media from the drive, and press enter to reboot.""" % PR
 
     return 1
                       
-def upgrade_complete(answers):
-    global screen
-
-    ButtonChoiceWindow(screen,
-                       "Upgrade Complete",
-                       """The %s upgrade has completed.
-
-Please remove any local media from the drive, and press enter to reboot.""" % PRODUCT_BRAND,
-                       ['Ok'])
-
-    return 1
-
 def error_dialog(message):
     global screen
     

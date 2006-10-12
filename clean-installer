@@ -37,9 +37,8 @@ from getopt import getopt, GetoptError
 
 def main():
     ui_package = tui
-    isUpgrade = False
     
-    #disable all kernel printing
+    # disable all kernel printing
     util.runCmd("echo 1 > /proc/sys/kernel/printk")
 
     # sync hwclock to syscock ready for date/time stuff
@@ -52,7 +51,6 @@ def main():
                             "answerfile=",
                             "verbose-pyanswerfile=",
                             "verbose-answerfile=",
-                            "upgrade",
                             "clog="])
     except GetoptError:
         print "This program takes no arguments."
@@ -84,11 +82,6 @@ def main():
             pyanswerfile_ui.specifyAnswerFile(val)
             ui_package = pyanswerfile_ui
             xelogging.continuous_logs.append(sys.stdout)
-        if opt == "--upgrade":
-            pyanswerfile_ui.specifySubUI(ui_package)
-            ui_package = pyanswerfile_ui
-            results['upgrade'] = True
-            isUpgrade = True
         if opt == "--clog":
             try:
                 fd = open(val, "w")
@@ -106,9 +99,6 @@ def main():
     try:
         xelogging.log("Starting user interface")
         ui_package.init_ui(results, False)
-
-        if isUpgrade:
-            pyanswerfile_ui.prepareForUpgrade(results)
 
         disks = diskutil.getQualifiedDiskList()
         netifs = netutil.getNetifList()
@@ -134,17 +124,14 @@ def main():
         else:
             # Generate the UI sequence:
             seq = []
-            if isUpgrade:
-                seq += [ ui_package.upgrade_screen ]
+            seq += [ ui_package.welcome_screen,
+                     ui_package.eula_screen ]
+            if len(disks) > 1:
+                seq += [ ui_package.select_primary_disk ]
+                seq += [ ui_package.select_guest_disks ]
             else:
-                seq += [ ui_package.welcome_screen,
-                         ui_package.eula_screen ]
-                if len(disks) > 1:
-                    seq += [ ui_package.select_primary_disk ]
-                    seq += [ ui_package.select_guest_disks ]
-                else:
-                    results['primary-disk'] = disks[0]
-                    results['guest-disks'] = [ disks[0] ]
+                results['primary-disk'] = disks[0]
+                results['guest-disks'] = [ disks[0] ]
 
             seq += [ ui_package.confirm_erase_volume_groups,
                      ui_package.get_keyboard_type,
@@ -171,12 +158,7 @@ def main():
             if uiexit != uicontroller.EXIT:
                 xelogging.log("Starting actual installation")       
                 backend.performInstallation(results, ui_package)
-                
-                if not isUpgrade:
-                    seq = [ ui_package.installation_complete ]
-                else:
-                    seq = [ ui_package.upgrade_complete ]
-        
+                seq = [ ui_package.installation_complete ]
                 uicontroller.runUISequence(seq, results)
 
                 xelogging.log("The installation completed successfully.")
