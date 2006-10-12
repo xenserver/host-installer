@@ -147,7 +147,6 @@ def main():
                     results['guest-disks'] = [ disks[0] ]
 
             seq += [ ui_package.confirm_erase_volume_groups,
-                     ui_package.confirm_wipe_existing,
                      ui_package.get_keyboard_type,
                      ui_package.get_keymap,
                      ui_package.select_installation_source,

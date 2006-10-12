@@ -266,24 +266,29 @@ def getVGPVMap():
 # given a list of disks, work out which ones are part of volume
 # groups that will cause a problem if we install XE to those disks:
 def findProblematicVGs(disks):
-    vgmap = getVGPVMap()
+    # which partitions are the volue groups on?
+    vgpvmap = getVGPVMap()
 
+    # which disks are the volume groups on?
+    vgdiskmap = {}
+    for vg in vgpvmap:
+        vgdiskmap[vg] = [diskFromPartition(x) for x in vgpvmap[vg]]
+
+    # for each VG, map the disk list to a boolean list saying whether that
+    # disk is in the set we're installing to:
+    vgusedmap = {}
+    for vg in vgdiskmap:
+        vgusedmap[vg] = [disk in disks for disk in vgdiskmap[vg]]
+
+    # now, a VG is problematic if it its vgusedmap entry contains a mixture
+    # of Trua and False.  If it's entirely True or entirely False, that's OK:
     problems = []
-    for vg in vgmap:
-        # are we looking at wiping out only part of a volume
-        # group here?
-        _vgdisks = map(lambda x: diskFromPartition(x), vgmap[vg])
-        vgdisks = []
-        for disk in _vgdisks:
-            if disk not in vgdisks:
-                vgdisks.append(disk)
-
-        # if the disks in the volume group is not a subset of the
-        # disks we are installing to, but the the volume group
-        # resides on at least one disk that we're installing to
-        # then there is a problem associated with that VG:
-        if not util.subset(vgdisks, disks) and \
-           len(util.intersect(vgdisks, disks)) != 0:
+    for vg in vgusedmap:
+        p = False
+        for x in vgusedmap[vg]:
+            if x != vgusedmap[vg][0]:
+                p = True
+        if p:
             problems.append(vg)
 
     return problems

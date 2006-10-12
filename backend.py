@@ -91,7 +91,7 @@ def determineInstallSequence(ans, im):
 
     # Basic install sequence definition:
     seq += [
-        Task(PREP, removeBlockingVGs, lambda _: [set([ans['primary-disk']] + ans['guest-disks'])], []),
+        Task(PREP, removeBlockingVGs, As('guest-disks'), []),
         Task(PREP, writeDom0DiskPartitions, As('primary-disk'), []),
     ]
     for gd in ans['guest-disks']:
@@ -261,12 +261,8 @@ def runScripts(mounts, scripts):
             xelogging.log(e)
 
 def removeBlockingVGs(disks):
-    if diskutil.detectExistingInstallation():
-        util.runCmd2(['vgreduce', '--removemissing', 'VG_XenSource'])
-        util.runCmd2(['lvremove', 'VG_XenSource'])
-        util.runCmd2(['vgremove', 'VG_XenSource'])
-
     for vg in diskutil.findProblematicVGs(disks):
+        util.runCmd2(['vgreduce', '--removemissing', vg])
         util.runCmd2(['lvremove', vg])
         util.runCmd2(['vgremove', vg])
 

@@ -140,18 +140,6 @@ def parseTime(timestr):
     return time
 
 ###
-# list utilities
-# - only suitable for small lists since these aren't particularly
-#   efficient implementations
-
-def intersect(x, y):
-    return filter(lambda a: a in y, x)
-
-# is x a subset of y?
-def subset(x,y):
-    return len(filter(lambda a: a not in y, x)) == 0
-
-###
 # fetching of remote files
 
 class InvalidSource(Exception):

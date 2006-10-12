@@ -213,13 +213,13 @@ If you continue with this installation, you will lose any data associated with o
 def confirm_erase_volume_groups(answers):
     global screen
 
-    problems = diskutil.findProblematicVGs(answers['guest-disks'] + [answers['primary-disk']])
+    problems = diskutil.findProblematicVGs(answers['guest-disks'])
     if len(problems) == 0:
         return uicontroller.SKIP_SCREEN
 
     if len(problems) == 1:
         affected = "The volume group affected is %s.  Are you sure you wish to continue?" % problems[0]
-    else:
+    elif len(problems) > 1:
         affected = "The volume groups affected are %s.  Are you sure you wish to continue?" % generalui.makeHumanList(problems)
 
     button = ButtonChoiceWindow(screen,
