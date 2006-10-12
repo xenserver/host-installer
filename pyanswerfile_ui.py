@@ -44,77 +44,10 @@ def specifyAnswerFile(file):
     
     pyAnswerFile = "/tmp/pyanswerfile"
 
-def __findAnswerFileDevice__():
-    devices_to_check = diskutil.getQualifiedPartitionList()
-    device = None
-    check_file = ANSWERS_FILE
-
-    if not os.path.exists('/tmp/mnt'):
-        os.mkdir('/tmp/mnt')
-    
-    for device_path in devices_to_check:
-        if os.path.exists(device_path):
-            try:
-                util.mount(device_path, '/tmp/mnt', ['ro'], 'ext2')
-                if os.path.isfile('/tmp/mnt/%s' % check_file):
-                    device = device_path
-                    util.umount("/tmp/mnt")
-                    break
-            except util.MountFailureException:
-                # clearly it wasn't that device...
-                pass
-            else:
-                if os.path.ismount('/tmp/mnt'):
-                    util.umount('/tmp/mnt')
-
-    if not device:
-        raise PreviousInstallationNotFound()
-    else:
-        specifyAnswerFileDevice(device)
-
-def specifyAnswerFileDevice(file):
-    global pyAnswerFileDevice
-    assert type(file) == str
-    pyAnswerFileDevice = file
-
 def init_ui(results, is_subui):
     # now pass on initialisation to our sub-UI:
     if sub_ui_package is not None:
         sub_ui_package.init_ui(results, True)
-
-def prepareForUpgrade(results):
-    global pyAnswerFile
-    global pyAnswerFileDevice
-
-    __findAnswerFileDevice__()
-
-    if pyAnswerFileDevice != None:
-        if not os.path.isdir('/tmp/mnt'):
-            os.mkdir('/tmp/mnt')
-        try:
-            util.mount(pyAnswerFileDevice, '/tmp/mnt')
-        except:
-            raise PreviousInstallationNotFound()
-
-        pyAnswerFile = os.path.join("/tmp/mnt", ANSWERS_FILE)
-        if not os.path.isfile(pyAnswerFile):
-            util.umount('/tmp/mnt')
-            raise PreviousInstallationNotFound()
-        else:
-            fd = open(pyAnswerFile, "r")
-            answers = pickle.load(fd)
-            fd.close()
-            runCmd("umount /tmp/mnt")
-            results['usesettings'] = True
-
-    elif pyAnswerFile is not None:
-        fd = open(pyAnswerFile, 'r')
-        answers = pickle.load(fd)
-        fd.close()
-
-    assert answers != None
-    for key in answers:
-        results[key] = answers[key]
 
 def end_ui():
     if sub_ui_package is not None:
