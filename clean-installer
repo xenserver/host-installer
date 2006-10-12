@@ -121,50 +121,50 @@ def main():
                           diskSizesGB)
         if bigdisks == []:
             raise RuntimeError, "Not enough disk space to proceed."
+
+        # Generate the UI sequence:
+        seq = []
+        seq += [ ui_package.welcome_screen,
+                 ui_package.eula_screen ]
+        if len(disks) > 1:
+            seq += [ ui_package.select_primary_disk ]
+            seq += [ ui_package.select_guest_disks ]
         else:
-            # Generate the UI sequence:
-            seq = []
-            seq += [ ui_package.welcome_screen,
-                     ui_package.eula_screen ]
-            if len(disks) > 1:
-                seq += [ ui_package.select_primary_disk ]
-                seq += [ ui_package.select_guest_disks ]
-            else:
-                results['primary-disk'] = disks[0]
-                results['guest-disks'] = [ disks[0] ]
+            results['primary-disk'] = disks[0]
+            results['guest-disks'] = [ disks[0] ]
 
-            seq += [ ui_package.confirm_erase_volume_groups,
-                     ui_package.get_keyboard_type,
-                     ui_package.get_keymap,
-                     ui_package.select_installation_source,
-                     ui_package.get_http_source,
-                     ui_package.get_nfs_source,
-                     ui_package.verify_source,
-                     ui_package.get_root_password,
-                     ui_package.get_timezone_region,
-                     ui_package.get_timezone_city,
-                     ui_package.get_time_configuration_method,
-                     ui_package.get_ntp_servers,
-                     ui_package.determine_basic_network_config,
-                     ui_package.get_name_service_configuration]
+        seq += [ ui_package.confirm_erase_volume_groups,
+                 ui_package.get_keyboard_type,
+                 ui_package.get_keymap,
+                 ui_package.select_installation_source,
+                 ui_package.get_http_source,
+                 ui_package.get_nfs_source,
+                 ui_package.verify_source,
+                 ui_package.get_root_password,
+                 ui_package.get_timezone_region,
+                 ui_package.get_timezone_city,
+                 ui_package.get_time_configuration_method,
+                 ui_package.get_ntp_servers,
+                 ui_package.determine_basic_network_config,
+                 ui_package.get_name_service_configuration]
 
-            if len(disks) > 1:
-                seq += [ ui_package.confirm_installation_multiple_disks ]
-            else:
-                seq += [ ui_package.confirm_installation_one_disk ]
+        if len(disks) > 1:
+            seq += [ ui_package.confirm_installation_multiple_disks ]
+        else:
+            seq += [ ui_package.confirm_installation_one_disk ]
 
-            uiexit = uicontroller.runUISequence(seq, results)
+        uiexit = uicontroller.runUISequence(seq, results)
 
-            if uiexit != uicontroller.EXIT:
-                xelogging.log("Starting actual installation")       
-                backend.performInstallation(results, ui_package)
-                seq = [ ui_package.installation_complete ]
-                uicontroller.runUISequence(seq, results)
+        if uiexit != uicontroller.EXIT:
+            xelogging.log("Starting actual installation")       
+            backend.performInstallation(results, ui_package)
+            seq = [ ui_package.installation_complete ]
+            uicontroller.runUISequence(seq, results)
 
-                xelogging.log("The installation completed successfully.")
-            else:
-                xelogging.log("The user aborted the installation from within the user interface.")
-                status = constants.EXIT_USER_CANCEL
+            xelogging.log("The installation completed successfully.")
+        else:
+            xelogging.log("The user aborted the installation from within the user interface.")
+            status = constants.EXIT_USER_CANCEL
     except Exception, e:
         # first thing to do is to get the traceback and log it:
         ex = sys.exc_info()
