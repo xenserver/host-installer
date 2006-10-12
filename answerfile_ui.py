@@ -174,10 +174,6 @@ def resume_ui():
 # stubs:
 def welcome_screen(answers):
     return 1
-def no_disks():
-    return 1
-def no_netifs():
-    return 1
 def eula_screen(answers):
     return 1
 def get_keyboard_type(answers):

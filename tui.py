@@ -81,33 +81,6 @@ This install will overwrite data on any hard drives you select to use during the
     else:
         return uicontroller.EXIT
 
-
-def no_disks():
-    global screen
-
-    ButtonChoiceWindow(screen,
-                       "Fatal error",
-                       """No disks have been found on your system.
-
-Please refer to the user guide or %s technical support for more information on this problem.""" % COMPANY_NAME_SHORT,
-                       ['Exit'], width=60)
-
-    # advance to next screen:
-    return 1
-
-def no_netifs():
-    global screen
-
-    ButtonChoiceWindow(screen,
-                       "Fatal error",
-                       """No network interfaces have been found on your system.
-
-Please refer to the user guide or %s technical support for more information on this problem.""" % COMPANY_NAME_SHORT,
-                       ['Exit'], width=60)
-
-    # advance to next screen:
-    return 1
-
 def not_enough_space_screen(answers):
     global screen
 
