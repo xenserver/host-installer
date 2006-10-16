@@ -11,6 +11,7 @@
 # written by Andrew Peace
 
 import util
+import constants
 from xml.dom.minidom import parse
 
 import xelogging
@@ -158,7 +159,9 @@ def __parse_answerfile__(answerdoc, results):
         results['post-install-script'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
     
     results['iface-configuration'] = (False, netifs)
-        
+
+    # currently no supprt for re-installation:
+    results['install-type'] = constants.INSTALL_TYPE_FRESH
 
 def end_ui():
     if sub_ui_package is not None:
@@ -175,6 +178,8 @@ def resume_ui():
 def welcome_screen(answers):
     return 1
 def eula_screen(answers):
+    return 1
+def get_installation_type(answers, insts):
     return 1
 def get_keyboard_type(answers):
     return 1
@@ -219,6 +224,8 @@ def get_name_service_configuration(answers):
     return 1
 def installation_complete(answers):
     return 1
+def confirm_installation_reinstall(answers):
+    return 1
 
 # 0 means don't retry
 def request_media(medianame):
@@ -238,6 +245,10 @@ def initProgressDialog(title, text, total):
 def displayProgressDialog(current, pd, updated_text = None):
     if sub_ui_package:
         sub_ui_package.displayProgressDialog(current, pd)
+
+def showMessageDialog(title, text):
+    if sub_ui_package:
+        sub_ui_package.showMessageDialog(title, text)
 
 def clearModelessDialog():
     if sub_ui_package:

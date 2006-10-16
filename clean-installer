@@ -30,6 +30,8 @@ import netutil
 
 # backend
 import backend
+import product
+import upgrade
 
 # general
 import xelogging
@@ -122,31 +124,39 @@ def main():
         if bigdisks == []:
             raise RuntimeError, "Not enough disk space to proceed."
 
-        # Generate the UI sequence:
-        seq = []
-        seq += [ ui_package.welcome_screen,
-                 ui_package.eula_screen ]
-        if len(disks) > 1:
-            seq += [ ui_package.select_primary_disk ]
-            seq += [ ui_package.select_guest_disks ]
-        else:
-            results['primary-disk'] = disks[0]
-            results['guest-disks'] = [ disks[0] ]
-
-        seq += [ ui_package.confirm_erase_volume_groups,
-                 ui_package.get_keyboard_type,
-                 ui_package.get_keymap,
-                 ui_package.select_installation_source,
-                 ui_package.get_http_source,
-                 ui_package.get_nfs_source,
-                 ui_package.verify_source,
-                 ui_package.get_root_password,
-                 ui_package.get_timezone_region,
-                 ui_package.get_timezone_city,
-                 ui_package.get_time_configuration_method,
-                 ui_package.get_ntp_servers,
-                 ui_package.determine_basic_network_config,
-                 ui_package.get_name_service_configuration]
+        # find existing installations:
+        ui_package.showMessageDialog("Please wait", "Checking for existing products...")
+        all_installed_products = product.findXenSourceProducts()
+        installed_products = filter(lambda p: upgrade.upgradeAvailable(p),
+                                    all_installed_products)
+        ui_package.clearModelessDialog()
+        
+        # Generate the UI sequence and populate some default
+        # values in backend input.  Note that not all these screens
+        # will be displayed as they have conditional to skip them at
+        # the start of each function.  In future these conditionals will
+        # be moved into the sequence definition and evaluated by the
+        # UI dispatcher.
+        seq = [ ui_package.welcome_screen,
+                ui_package.eula_screen,
+                (ui_package.get_installation_type, (installed_products, )),
+                ui_package.select_primary_disk,
+                ui_package.select_guest_disks,
+                ui_package.confirm_erase_volume_groups,
+                ui_package.get_keyboard_type,
+                ui_package.get_keymap,
+                ui_package.select_installation_source,
+                ui_package.get_http_source,
+                ui_package.get_nfs_source,
+                ui_package.verify_source,
+                ui_package.get_root_password,
+                ui_package.get_timezone_region,
+                ui_package.get_timezone_city,
+                ui_package.get_time_configuration_method,
+                ui_package.get_ntp_servers,
+                ui_package.determine_basic_network_config,
+                ui_package.get_name_service_configuration,
+                ui_package.confirm_installation_reinstall]
 
         if len(disks) > 1:
             seq += [ ui_package.confirm_installation_multiple_disks ]

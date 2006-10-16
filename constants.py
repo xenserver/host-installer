@@ -17,6 +17,10 @@ EXIT_OK = 0
 EXIT_ERROR = 1
 EXIT_USER_CANCEL = 2
 
+# install types:
+INSTALL_TYPE_FRESH = 1
+INSTALL_TYPE_REINSTALL = 2
+
 # disk sizes
 min_primary_disk_size = 16
 
@@ -30,11 +34,16 @@ swap_size = 512
 
 MIN_PASSWD_LEN=6
 
-# file locations
+# file locations - installer filesystem
 EULA_PATH = "/opt/xensource/installer/EULA"
-ANSWERS_FILE = "upgrade_answers"
 timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
+
+# host filesystem - always absolute paths from root of install
+# and never start with a '/', so they can be used safely with
+# os.path.join.
+ANSWERS_FILE = "upgrade_answers"
+INVENTORY_FILE = "etc/xensource-inventory"
 
 # files that should be writeable in the dom0 FS
 writeable_files = [ '/etc/sysconfig/keyboard',

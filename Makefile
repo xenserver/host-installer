@@ -34,6 +34,8 @@ install:
 	install -m644 util.py $(INSTALLER_DIR)
 	install -m644 vm_exporter.py $(INSTALLER_DIR)
 	install -m644 xelogging.py $(INSTALLER_DIR)
+	install -m644 product.py $(INSTALLER_DIR)
+	install -m644 upgrade.py $(INSTALLER_DIR)
 
 	install -m644 keymaps $(INSTALLER_DATA_DIR)
 	install -m644 timezones $(INSTALLER_DATA_DIR)

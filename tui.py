@@ -92,6 +92,38 @@ def not_enough_space_screen(answers):
     # leave the installer:
     return 1
 
+def get_installation_type(answers, insts):
+    if len(insts) == 0:
+        answers['install-type'] = constants.INSTALL_TYPE_FRESH
+        return uicontroller.SKIP_SCREEN
+
+    entries = [ ("Perform clean installation", None) ]
+    entries.extend([("Re-install over %s" % str(x), x) for x in insts])
+
+    (button, entry) = ListboxChoiceWindow(
+        screen,
+        "Installation Type",
+        "One or more existing product installations that can be refreshed using this setup tool have been detected.  What would you like to do?",
+        entries,
+        ['Ok', 'Back'], width=60)
+
+    if button != 'back':
+        if entry == None:
+            answers['install-type'] = constants.INSTALL_TYPE_FRESH
+
+            if answers.has_key('installation-to-overwrite'):
+                del answers['installation-to-overwrite']
+        else:
+            answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
+            answers['installation-to-overwrite'] = entry
+
+            for k in ['guest-disks', 'primary-disk', 'default-sr-uuid']:
+                if answers.has_key(k):
+                    del answers[k]
+        return 1
+    else:
+        return -1
+
 def eula_screen(answers):
     global screen
 
@@ -149,26 +181,12 @@ def get_keymap(answers):
     
     if button == "back": return -1
 
-def confirm_wipe_existing(answers):
-    global screen
-
-    if not diskutil.detectExistingInstallation():
-        return uicontroller.SKIP_SCREEN
-
-    button = ButtonChoiceWindow(screen,
-                       "Existing installations detected",
-                       """There appear to be existing or incomplete installations of %s already present on your system.
-
-If you continue with this installation, you will lose any data associated with old installations of %s""" % (PRODUCT_BRAND, PRODUCT_BRAND),
-                       ['Continue', 'Cancel Installation'], width=60)
-
-    if button == 'continue':
-        return 1
-    elif button == 'cancel installation':
-        return uicontroller.EXIT
-
 def confirm_erase_volume_groups(answers):
     global screen
+
+    # if install type is re-install, skip this screen:
+    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        return uicontroller.SKIP_SCREEN
 
     problems = diskutil.findProblematicVGs(answers['guest-disks'])
     if len(problems) == 0:
@@ -362,9 +380,19 @@ def verify_source(answers):
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     global screen
+
+    # if re-install, skip this screen:
+    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        return uicontroller.SKIP_SCREEN
+
+    # if only one disk, set default and skip this screen:
+    diskEntries = diskutil.getQualifiedDiskList()
+    if len(diskEntries) == 1:
+        answers['primary-disk'] = diskEntries[0]
+        return uicontroller.SKIP_SCREEN
+
     entries = []
     
-    diskEntries = diskutil.getQualifiedDiskList()
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         if diskutil.blockSizeToGBSize(size) >= constants.min_primary_disk_size:
@@ -389,6 +417,16 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
 def select_guest_disks(answers):
     global screen
 
+    # if re-install, skip this screen:
+    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        return uicontroller.SKIP_SCREEN
+
+    # if only one disk, set default and skip this screen:
+    diskEntries = diskutil.getQualifiedDiskList()
+    if len(diskEntries) == 1:
+        answers['primary-disk'] = diskEntries[0]
+        return uicontroller.SKIP_SCREEN
+
     # set up defaults:
     if answers.has_key('guest-disks'):
         currently_selected = answers['guest-disks']
@@ -397,7 +435,7 @@ def select_guest_disks(answers):
 
     # Make a list of entries: (text, item)
     entries = []
-    for de in diskutil.getQualifiedDiskList():
+    for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
         entries.append((entry, de))
@@ -438,6 +476,9 @@ If you proceed, please refer to the user guide for details on provisioning stora
 def confirm_installation_multiple_disks(answers):
     global screen
 
+    if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
+        return uicontroller.SKIP_SCREEN
+
     disks = answers['guest-disks']
     if answers['primary-disk'] not in disks:
         disks.append(answers['primary-disk'])
@@ -457,8 +498,29 @@ If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (
     if button == string.lower(ok): return 1
     if button == "back": return -1
 
+def confirm_installation_reinstall(answers):
+    global screen
+
+    if answers['install-type'] != constants.INSTALL_TYPE_REINSTALL:
+        return uicontroller.SKIP_SCREEN
+
+    ok = 'Install %s' % PRODUCT_BRAND
+    button = snackutil.ButtonChoiceWindowEx(
+        screen,
+        "Confirm Installation",
+        """We have collected all the information required to install %s.
+
+The installation will be performed over %s, preserving existing %s on your storage repository.""" % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS),
+        [ok, 'Back'], default = 1)
+
+    if button == string.lower(ok): return 1
+    if button == "back": return -1
+
 def confirm_installation_one_disk(answers):
     global screen
+
+    if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
+        return uicontroller.SKIP_SCREEN
 
     ok = 'Install %s' % PRODUCT_BRAND
     button = snackutil.ButtonChoiceWindowEx(

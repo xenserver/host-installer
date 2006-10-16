@@ -29,6 +29,7 @@ import shutil
 import packaging
 import constants
 import hardware
+import upgrade
 
 # Product version and constants:
 import version
@@ -48,8 +49,10 @@ class Task:
     Represents an install step.
     'name' is the name of the task; this may be displayed in the UI.
     'fn'   is the function to execute
-    'args' is a list of value labels identifying arguments to the function
-    'retursn' is a list of the labels of the return values.
+    'args' is a list of value labels identifying arguments to the function,
+    'retursn' is a list of the labels of the return values, or a function
+           that, when given the 'args' labels list, returns the list of the
+           labels of the return values.
     """
 
     def __init__(self, name, fn, args, returns):
@@ -67,8 +70,14 @@ class Task:
         if type(rv) is not tuple:
             rv = (rv,)
         myrv = {}
-        for r in range(len(self.returns)):
-            myrv[self.returns[r]] = rv[r]
+
+        if callable(self.returns):
+            ret = apply(self.returns, args)
+        else:
+            ret = self.returns
+            
+        for r in range(len(ret)):
+            myrv[ret[r]] = rv[r]
         return myrv
 
 def determineInstallSequence(ans, im):
@@ -79,8 +88,6 @@ def determineInstallSequence(ans, im):
     # Get the package list:
     packages = im.getPackageList()
 
-    seq = []
-
     # convenience functions
     # A: For each label in params, gives an arg function that evaluates
     #    the labels when the function is called (late-binding)
@@ -89,18 +96,31 @@ def determineInstallSequence(ans, im):
     A = lambda *params: ( lambda a: [a[param] for param in params] )
     As = lambda *params: ( lambda _: [ans[param] for param in params] )
 
+    seq = []
+
     # Basic install sequence definition:
+
+    # Partitioning - Only performed if fresh install:
+    if ans['install-type'] == INSTALL_TYPE_FRESH:
+        seq += [
+            Task(PREP, removeBlockingVGs, As('guest-disks'), []),
+            Task(PREP, writeDom0DiskPartitions, As('primary-disk'), []),
+            ]
+        for gd in ans['guest-disks']:
+            if gd != ans['primary-disk']:
+                seq.append(Task(PREP, writeGuestDiskPartitions,
+                                (lambda mygd: (lambda _: [mygd]))(gd), []))
+        seq += [
+            Task(PREP, prepareStorageRepository, As('primary-disk', 'guest-disks'), ['default-sr-uuid']),
+            ]
+    elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
+        seq += [
+            Task(PREP, getUpgrader, A('installation-to-overwrite'), ['upgrader']),
+            Task(PREP, prepareUpgrade, A('upgrader'), lambda upgrader: upgrader.prepStateChanges),
+            ]
+
     seq += [
-        Task(PREP, removeBlockingVGs, As('guest-disks'), []),
-        Task(PREP, writeDom0DiskPartitions, As('primary-disk'), []),
-    ]
-    for gd in ans['guest-disks']:
-        if gd != ans['primary-disk']:
-            seq.append(Task(PREP, writeGuestDiskPartitions,
-                            (lambda mygd: (lambda _: [mygd]))(gd), []))
-    seq += [
-        Task(PREP, prepareStorageRepository, As('primary-disk', 'guest-disks'), ['default-sr-uuid']),
-        Task(PREP, createDom0DiskFilesystems, As('primary-disk'), []),
+        Task(PREP, createDom0DiskFilesystems, A('primary-disk'), []),
         Task(PREP, mountVolumes, A('primary-disk', 'cleanup'), ['mounts', 'cleanup']),
         ]
     for p in packages:
@@ -136,7 +156,7 @@ def determineInstallSequence(ans, im):
     seq += [
         Task(FIN, umountVolumes, A('mounts', 'cleanup'), ['cleanup']),
 
-        Task(FIN, writeLog, As('primary-disk'), [] ),
+        Task(FIN, writeLog, A('primary-disk'), [] ),
         ]
 
     return seq
@@ -281,7 +301,7 @@ def getBootPartNumber(disk):
     return 1
 
 def getBootPartName(disk):
-    return determinePartitionName(disk, getBootPartNumber(disk))
+    return diskutil.determinePartitionName(disk, getBootPartNumber(disk))
 
 # XXX boot and root are the same thing now - this mess should be
 # cleaned up.
@@ -307,20 +327,6 @@ def writeGuestDiskPartitions(disk):
     assert disk[:5] == '/dev/'
 
     diskutil.writePartitionTable(disk, [ -1 ])
-    
-def determinePartitionName(guestdisk, partitionNumber):
-    if guestdisk.find("cciss") != -1 or \
-        guestdisk.find("ida") != -1 or \
-        guestdisk.find("rd") != -1 or \
-        guestdisk.find("sg") != -1 or \
-        guestdisk.find("i2o") != -1 or \
-        guestdisk.find("amiraid") != -1 or \
-        guestdisk.find("iseries") != -1 or \
-        guestdisk.find("emd") != -1 or \
-        guestdisk.find("carmel") != -1:
-        return guestdisk+"p%d" % partitionNumber
-    else:
-        return guestdisk + "%d" % partitionNumber
 
 def prepareStorageRepository(primary_disk, guest_disks):
     if len(guest_disks) == 0:
@@ -332,9 +338,9 @@ def prepareStorageRepository(primary_disk, guest_disks):
 
     def sr_partition(disk):
         if disk == primary_disk:
-            return determinePartitionName(disk, 3)
+            return diskutil.determinePartitionName(disk, 3)
         else:
-            return determinePartitionName(disk, 1)
+            return diskutil.determinePartitionName(disk, 1)
 
     partitions = [sr_partition(disk) for disk in guest_disks]
 
@@ -465,7 +471,7 @@ def mountVolumes(primary_disk, cleanup):
 
     # mounts is a list of triples of (name, mount source, mountpoint)
     # where mountpoint is based off of base, defined above:
-    mounts = [('root', (MOUNT_SOURCE_DEVICE, determinePartitionName(primary_disk, 1)), '/'),
+    mounts = [('root', (MOUNT_SOURCE_DEVICE, diskutil.determinePartitionName(primary_disk, 1)), '/'),
               ('rws', None, '/rws'),
               ('boot', None, '/boot')]
 
@@ -756,7 +762,7 @@ def makeSymlinks(mounts):
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
 def writeInventory(mounts, default_sr_uuid):
-    inv = open("%s/etc/xensource-inventory" % mounts['root'], "w")
+    inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
@@ -835,3 +841,11 @@ def writeLog(primary_disk):
             pass
     except:
         pass
+
+def getUpgrader(source):
+    """ Returns an appropriate upgrader for a given source. """
+    return upgrade.getUpgrader(source)
+
+def prepareUpgrade(upgrader):
+    """ Gets required state from existing installation. """
+    return upgrader.prepareUpgrade()
