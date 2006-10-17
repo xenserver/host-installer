@@ -14,12 +14,9 @@ import os
 import os.path
 import subprocess
 import datetime
-import time
 import pickle
 
-import tui
 import generalui
-import uicontroller
 import xelogging
 import util
 import diskutil
@@ -385,7 +382,6 @@ def installGrub(mounts, disk):
     grubroot = getGrUBDevice(disk, mounts)
 
     rootdisk = "(%s,%s)" % (getGrUBDevice(disk, mounts), getRootPartNumber(disk) - 1)
-    bootpart = getRootPartName(disk)
 
     # move the splash screen to a safe location so we don't delete it
     # when removing a previous installation of GRUB:
@@ -695,7 +691,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
     nfd.write("NETWORKING=yes\n")
-    if hn_conf[0] == True:
+    if hn_conf[0]:
         nfd.write("HOSTNAME=%s\n" % hn_conf[1])
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
@@ -717,9 +713,9 @@ def makeSymlinks(mounts):
     global writeable_dirs, writeable_files
 
     # make sure required directories exist:
-    for dir in asserted_dirs:
-        util.assertDir("%s%s" % (mounts['root'], dir))
-        util.assertDir("%s%s" % (mounts['rws'], dir))
+    for d in asserted_dirs:
+        util.assertDir("%s%s" % (mounts['root'], d))
+        util.assertDir("%s%s" % (mounts['rws'], d))
 
     # link directories:
     for d in writeable_dirs:
