@@ -36,8 +36,6 @@ import version
 from version import *
 from constants import *
 
-mounts = {}
-
 class InvalidInstallerConfiguration(Exception):
     pass
 
@@ -508,11 +506,6 @@ def umountVolumes(mounts, cleanup, force = False):
         cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts[name],
                          cleanup)
     return cleanup
-
-def cleanup_umount():
-    global mounts
-    if mounts and mounts.has_key('umount-order'):
-        umountVolumes(mounts, True)
 
 ##########
 # second stage install helpers:

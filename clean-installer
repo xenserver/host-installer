@@ -195,12 +195,6 @@ def main():
         else:
             ui_package.error_dialog("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or %s technical support for more details." % COMPANY_NAME_SHORT)
 
-        # try to clean up any mounted volumes:
-        try:
-            backend.cleanup_umount()
-        except Exception:
-            pass
-
         # clean up the screen
         ui_package.end_ui()
 
