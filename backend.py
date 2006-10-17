@@ -404,6 +404,8 @@ def installGrub(mounts, disk):
     # how we are being installed:
     rc, tty = util.runCmdWithOutput("tty")
     if tty.startswith("/dev/ttyS") and rc == 0:
+        grubconf += "serial --unit=0 --speed=115200\n"
+        grubconf += "terminal --timeout=10 console serial\n"
         grubconf += "default 1\n"
     else: # not tty.startswith("/dev/ttyS") or rc != 0
         grubconf += "default 0\n"
