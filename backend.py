@@ -408,9 +408,9 @@ def installGrub(mounts, disk):
         grubconf += "terminal --timeout=10 console serial\n"
         grubconf += "default 1\n"
     else: # not tty.startswith("/dev/ttyS") or rc != 0
+        grubconf += "terminal console\n"
         grubconf += "default 0\n"
         
-    grubconf += "terminal console\n"
     grubconf += "timeout 5\n\n"
 
     # splash screen?
