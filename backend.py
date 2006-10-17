@@ -423,19 +423,19 @@ def installGrub(mounts, disk):
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /boot/xen-%s.gz dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
-    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=LABEL=%s ro console=tty0\n" % (version.KERNEL_VERSION, constants.rootfs_label)
+    grubconf += "   module /boot/vmlinuz-%s root=LABEL=%s ro console=tty0\n" % (version.KERNEL_VERSION, constants.rootfs_label)
     grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
 
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=524288 lowmem_emergency_pool=16M\n" % version.XEN_VERSION
-    grubconf += "   module /boot/vmlinuz-%s ramdisk_size=75000 root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, constants.rootfs_label)
+    grubconf += "   module /boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, constants.rootfs_label)
     grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
     
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /boot/xen-%s.gz nosmp noreboot noirqbalance acpi=off noapic dom0_mem=524288 com1=115200,8n1 console=com1,tty\n" % version.XEN_VERSION
-    grubconf += "   module /boot/vmlinuz-%s nousb ramdisk_size=75000 root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, constants.rootfs_label)
+    grubconf += "   module /boot/vmlinuz-%s nousb root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, constants.rootfs_label)
     grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
 
     # write the GRUB configuration:
