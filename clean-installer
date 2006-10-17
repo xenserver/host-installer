@@ -43,7 +43,7 @@ def main():
     util.runCmd("echo 1 > /proc/sys/kernel/printk")
 
     # sync hwclock to syscock ready for date/time stuff
-    util.runCmd("hwclock --utc --hwtosys")
+    util.runCmd("hwclock --utc --hctosys")
     
     try:
         (opts, _) = getopt(sys.argv[1:],
