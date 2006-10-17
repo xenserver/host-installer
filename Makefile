@@ -9,12 +9,12 @@ clean:
 
 install:
 	mkdir -p $(INSTALLER_DIR) $(SUPPORT_DIR)
+# Executables
 	install -m755 clean-installer $(INSTALLER_DIR)
 	install -m755 init $(INSTALLER_DIR)
 	install -m755 hwdetect $(INSTALLER_DIR)
-
 	install -m755 support.sh $(SUPPORT_DIR)
-
+# Others
 	install -m644 answerfile_ui.py $(INSTALLER_DIR)
 	install -m644 backend.py $(INSTALLER_DIR)
 	install -m644 constants.py $(INSTALLER_DIR)
@@ -26,7 +26,6 @@ install:
 	install -m644 init_tui.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
 	install -m644 packaging.py $(INSTALLER_DIR)
-	install -m644 pyanswerfile_ui.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
 	install -m644 transcribe.py $(INSTALLER_DIR)
 	install -m644 tui.py $(INSTALLER_DIR)
