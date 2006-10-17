@@ -19,7 +19,7 @@ def refresh():
 
 def startup_screen():
     assert False
-def choose_operation():
+def choose_operation(display_export_vms):
     assert False
 def already_activated():
     pass
