@@ -424,7 +424,7 @@ def select_guest_disks(answers):
     # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
     if len(diskEntries) == 1:
-        answers['primary-disk'] = diskEntries[0]
+        answers['guest-disks'] = diskEntries[0]
         return uicontroller.SKIP_SCREEN
 
     # set up defaults:
