@@ -778,7 +778,7 @@ def getGrUBDevice(disk, mounts):
     
     # if the device map doesn't exist, make one up:
     if not os.path.isfile(devicemap_path):
-        runCmd("echo '' | chroot %s grub --device-map %s --batch" %
+        runCmd("echo '' | chroot %s grub --no-floppy --device-map %s --batch" %
                (mounts['root'], devicemap_path))
 
     devmap = open(outerpath)
