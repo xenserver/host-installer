@@ -964,11 +964,11 @@ def set_time(answers, now):
 
     # set these outside the loop so we don't overwrite them in the
     # case that the user enters a bad value.
-    day = Entry(3, "%02d" % now.day)
-    month = Entry(3, "%02d" % now.month)
-    year = Entry(5, "%04d" % now.year)
-    hour = Entry(3, "%02d" % now.hour)
-    minute = Entry(3, "%02d" % now.minute)
+    day = Entry(3, "%02d" % now.day, scroll = 0)
+    month = Entry(3, "%02d" % now.month, scroll = 0)
+    year = Entry(5, "%04d" % now.year, scroll = 0)
+    hour = Entry(3, "%02d" % now.hour, scroll = 0)
+    minute = Entry(3, "%02d" % now.minute, scroll = 0)
 
     # loop until the form validates or they click back:
     while not done:
