@@ -24,24 +24,29 @@ class UpgraderNotAvailable(Exception):
     pass
 
 def upgradeAvailable(src):
-    return __upgraders__.has_key( (src.name, src.version) )
+    return __upgraders__.hasUpgrader(src.name, src.version)
 
 def getUpgrader(src):
-    """ Returns an upgrader instance suitable for src. """
-    try:
-        return __upgraders__[ (src.name, src.version) ](src)
-    except KeyError:
-        raise UpgraderNotAvailable
+    """ Returns an upgrader instance suitable for src. Propogates a KeyError exception
+    if no suitable upgrader is available (caller should have checked first by calling
+    upgradeAvailable). """
+    return __upgraders__.getUpgrader(src.name, src.version)(src)
 
+class Upgrader(object):
+    """ Base class for upgraders.  Superclasses should define an upgrades variable that
+    is a triple of the product, the lowest version they support upgrading from, and the
+    highest version. """
 
-class Upgrader:
-    """ Base class for upgraders """
-    
     def __init__(self, source):
         self.source = source
 
+    def upgrades(cls, product, version):
+        return (cls.upgrades_product == product and
+                cls.upgrades_min_version <= version <= cls.upgrades_max_version)
+    upgrades = classmethod(upgrades)
+
     prepStateChanges = []
-    def prepareUpgrade(self, source):
+    def prepareUpgrade(self):
         """ Collect any state needed from the installation,
         and return a tranformation on the answers dict. """
         return
@@ -53,6 +58,10 @@ class Upgrader:
 
 class FirstGenUpgrader(Upgrader):
     """ Upgrade between initial product versions. """
+
+    upgrades_product = "xenenterprise"
+    upgrades_min_version = product.Version(0, 2, 4)
+    upgrades_max_version = product.THIS_PRODUCT_VERSION
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
@@ -80,9 +89,18 @@ class FirstGenUpgrader(Upgrader):
 
         return (def_sr, self.source.primary_disk)
 
-__upgraders__ = {
-    ( "xenenterprise", (0, 2, 4) ) : FirstGenUpgrader,
-    ( "xenenterprise", (0, 2, 5) ) : FirstGenUpgrader,
-    ( "xenenterprise", (0, 2, 6) ) : FirstGenUpgrader,
-    ( "xenenterprise", (0, 3, 0) ) : FirstGenUpgrader,
-    }
+# Upgarders provided here, in preference order:
+class UpgraderList(list):
+    def getUpgrader(self, product, version):
+        for x in self:
+            if x.upgrades(product, version):
+                return x
+        raise KeyError, "No upgrader found for %s" % version
+
+    def hasUpgrader(self, product, version):
+        for x in self:
+            if x.upgrades(product, version):
+                return True
+        return False
+    
+__upgraders__ = UpgraderList([ FirstGenUpgrader ])
