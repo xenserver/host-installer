@@ -957,7 +957,7 @@ def get_ntp_servers(answers):
         return -1
 
 # this is used directly by backend.py - 'now' is localtime
-def set_time(answers, now):
+def set_time(answers, now, show_back_button = False):
     global screen
 
     done = False
@@ -972,7 +972,6 @@ def set_time(answers, now):
 
     # loop until the form validates or they click back:
     while not done:
-        
         gf = GridFormHelp(screen, "Set local time", "", 1, 4)
         
         gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0,0,1,1))
@@ -1000,8 +999,11 @@ def set_time(answers, now):
         dategrid.setField(minute, 2, 3)
         
         gf.add(dategrid, 0, 1, padding=(0,0,1,1))
-        
-        buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+
+        if show_back_button:
+            buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back")])
+        else:
+            buttons = ButtonBar(screen, [("Ok", "ok")])
         gf.add(buttons, 0, 2)
         
         result = gf.runOnce()
