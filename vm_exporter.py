@@ -140,9 +140,9 @@ def make_exported_template(vm):
 
         t = []
         # no kernel-type installed_version ramdisk
-        t.append(["kernel_path", vmlinuz])
-        t.append(["initrd-path", initrd])
-        t.append(["kernel_args", args])
+        t.append(["burbank_kernel_path", vmlinuz])
+        t.append(["burbank_initrd_path", initrd])
+        t.append(["burbank_kernel_args", args])
         return table(t)
 
     def vif(x):
@@ -169,7 +169,7 @@ def make_exported_template(vm):
 
     # Add the kernel
     if hvm <> "true":
-    	template = template + "(kernel " + kernel() + ")"
+    	template = template + kernel() 
     # Add each filesystem
     all = sxp.children(vm, "vbd")
     for x in all:
