@@ -25,6 +25,7 @@ import xelogging
 import util
 
 from p2v_error import P2VMountError
+from findroot import run_command
 
 from xml.dom.minidom import parse
 
@@ -39,7 +40,6 @@ def specifyAnswerFile(file):
 
     util.fetchFile(file, "/tmp/pyanswerfile")
     answerFile = "/tmp/pyanswerfile"
-    print "answerFile = %s" % answerFile
 
 def specifySubUI(subui):
     global sub_ui_package
@@ -51,7 +51,6 @@ def init_ui(results):
 
     # attempt to import the answers:
     try:
-        print "answerFile = %s" % answerFile
         answerdoc = parse(answerFile)
         # this function transforms 'results' that we pass in
         __parse_answerfile__(answerdoc, results)
@@ -91,9 +90,9 @@ def __parse_answerfile__(answerdoc, results):
         r = getValue(n, key)
         if r is not None:
             results[key] = r
-            print key + " = " + results[key]
+            p2v_utils.trace_message(key + " = " + results[key])
         else:
-            print key + " not found."
+            p2v_utils.trace_message(key + " not found.")
 
     keyList = [ p2v_constants.UUID,
                 p2v_constants.DESCRIPTION,
@@ -119,9 +118,9 @@ def __parse_answerfile__(answerdoc, results):
             r = getValue(n, key)
             if r is not None:
                 results[p2v_constants.OS_INSTALL][key] = r
-                print "  " + key + " = " + results[p2v_constants.OS_INSTALL][key]
+                p2v_utils.trace_message("  " + key + " = " + results[p2v_constants.OS_INSTALL][key])
             else:
-                print key + " not found."
+                p2v_utils.trace_message(key + " not found.")
 
         keyList = [ p2v_constants.DEV_ATTRS_TYPE,
                     p2v_constants.DEV_ATTRS_PATH,
@@ -134,9 +133,9 @@ def __parse_answerfile__(answerdoc, results):
                 r = getValue(n, key)
                 if r is not None:
                     results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key] = r
-                    print "    " + key + " = " + results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key]
+                    p2v_utils.trace_message("    " + key + " = " + results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key])
                 else:
-                    print key + " not found."
+                    p2v_utils.trace_message(key + " not found.")
 
        
 
@@ -168,6 +167,9 @@ def description_screen(answers):
     return 1
 
 def size_screen(answers):
+    #activate LVM
+    run_command("vgscan")
+    run_command("vgchange -a y")
     return 1
 
 def get_root_password(answers):
