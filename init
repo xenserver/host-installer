@@ -317,10 +317,14 @@ def main():
                     configureNetworking(ui_package)
                     firstTime = False
 
+                def exit_status_of_rc(rc):
+                    return rc >> 8
+
                 # clean install:
                 if operation == init_constants.OPERATION_INSTALL:
                     xelogging.log("Starting clean installation")
-                    rc = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+                    rc = exit_status_of_rc(s)
                     if rc == EXIT_OK or rc == EXIT_ERROR: 
                         break
                     else:
@@ -338,7 +342,8 @@ def main():
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
                     xelogging.log("Starting P2V")
-                    rc = os.system("/opt/xensource/installer/p2v.py")
+                    s = os.system("/opt/xensource/installer/p2v.py")
+                    rc = exit_status_of_rc(s)
                     if rc == EXIT_OK or rc == EXIT_ERROR:
                         break
                     else:
