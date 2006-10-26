@@ -90,7 +90,10 @@ class InstallMethod:
     
         data = ''
         while True:
-            data = package.read()
+            # read in 10mb chunks so as not to use so much RAM, and to
+            # allow decompression to occur in parallel (in the bzip2
+            # process).
+            data = package.read(10485760)
             if data == '':
                 break
             else:
