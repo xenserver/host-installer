@@ -88,8 +88,9 @@ def findXenSourceProducts():
 
     Currently requires supervisor privileges due to mounting
     filesystems."""
-    
-    partitions = diskutil.getQualifiedPartitionList()
+
+    # get a list of disks, then try to examine the first partition of each disk:
+    partitions = [ diskutil.determinePartitionName(x, 1) for x in diskutil.getQualifiedDiskList() ]
     if not os.path.exists("/tmp/mnt"):
         os.mkdir("/tmp/mnt")
 

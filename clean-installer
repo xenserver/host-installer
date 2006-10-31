@@ -129,6 +129,7 @@ def main():
         seq = [ ui_package.welcome_screen,
                 ui_package.eula_screen,
                 (ui_package.get_installation_type, (installed_products, )),
+                ui_package.backup_existing_installation,
                 ui_package.select_primary_disk,
                 ui_package.select_guest_disks,
                 ui_package.confirm_erase_volume_groups,

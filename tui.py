@@ -124,6 +124,28 @@ def get_installation_type(answers, insts):
     else:
         return -1
 
+def backup_existing_installation(answers):
+    if answers['install-type'] != constants.INSTALL_TYPE_REINSTALL:
+        return uicontroller.SKIP_SCREEN
+
+    button = ButtonChoiceWindow(
+        screen,
+        "Back-up Existing Installation?",
+        """Would you like to back-up your existing installation before re-installing %s?
+
+The backup will be placed on the second partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, diskutil.determinePartitionName(answers['installation-to-overwrite'].primary_disk, 2)),
+        ['Yes', 'No', 'Back']
+        )
+
+    if button == 'no':
+        answers['backup-existing-installation'] = False
+        return 1
+    elif button == 'back':
+        return -1
+    else:
+        answers['backup-existing-installation'] = True
+        return 1
+
 def eula_screen(answers):
     global screen
 

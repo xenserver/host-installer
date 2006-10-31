@@ -181,6 +181,8 @@ def eula_screen(answers):
     return 1
 def get_installation_type(answers, insts):
     return 1
+def backup_existing_installation(answers):
+    return 1
 def get_keyboard_type(answers):
     return 1
 def get_keymap(answers):

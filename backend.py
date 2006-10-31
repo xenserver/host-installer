@@ -77,6 +77,7 @@ class Task:
 
 def determineInstallSequence(ans, im):
     PREP = "Preparing for installation..."
+    BACKUP = "Backing up existing installation (this may take a while)..."
     INST = "Installing %s..." % PRODUCT_BRAND
     FIN = "Completing installation..."
 
@@ -109,10 +110,10 @@ def determineInstallSequence(ans, im):
             Task(PREP, prepareStorageRepository, As('primary-disk', 'guest-disks'), ['default-sr-uuid']),
             ]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
-        seq += [
-            Task(PREP, getUpgrader, A('installation-to-overwrite'), ['upgrader']),
-            Task(PREP, prepareUpgrade, A('upgrader'), lambda upgrader: upgrader.prepStateChanges),
-            ]
+        seq.append(Task(PREP, getUpgrader, A('installation-to-overwrite'), ['upgrader']))
+        if ans['backup-existing-installation']:
+            seq.append(Task(BACKUP, backupExisting, As('installation-to-overwrite'), []))
+        seq.append(Task(PREP, prepareUpgrade, A('upgrader'), lambda upgrader: upgrader.prepStateChanges))
 
     seq += [
         Task(PREP, createDom0DiskFilesystems, A('primary-disk'), []),
@@ -767,6 +768,29 @@ def writeInventory(mounts, default_sr_uuid):
 def touchSshAuthorizedKeys(mounts):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
+
+def backupExisting(existing):
+    primary_partition = diskutil.determinePartitionName(existing.primary_disk, 1)
+    backup_partition = diskutil.determinePartitionName(existing.primary_disk, 2)
+
+    # format the backup partition:
+    util.runCmd2(['mkfs.ext3', backup_partition])
+
+    # copy the files across:
+    primary_mount = '/tmp/backup/primary'
+    backup_mount  = '/tmp/backup/backup'
+    for mnt in [primary_mount, backup_mount]:
+        util.assertDir(mnt)
+    try:
+        util.mount(primary_partition, primary_mount)
+        util.mount(backup_partition,  backup_mount)
+        cmd = ['cp', '-a'] + \
+              [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
+              ['%s/' % backup_mount]
+        util.runCmd2(cmd)
+    finally:
+        for mnt in [primary_mount, backup_mount]:
+            util.umount(mnt)
 
 
 ################################################################################
