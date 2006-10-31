@@ -16,6 +16,7 @@ import diskutil
 import util
 import constants
 import version
+import re
 
 class Version(object):
     ANY = -1
