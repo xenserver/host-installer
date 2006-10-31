@@ -83,7 +83,7 @@ class ExistingInstallation(object):
 
 def findXenSourceProducts():
     """Scans the host and finds XenSource product installations.
-    Returns of list of ExistingInstallation objects.
+    Returns list of ExistingInstallation objects.
 
     Currently requires supervisor privileges due to mounting
     filesystems."""
@@ -141,7 +141,7 @@ def readInventoryFile(filename):
 
     rv = {}
     for (name, value) in defs:
-        # if these are in, then our assumption about the format
+        # if these fail, then our assumption about the format
         # of the inventory file have changed:
         assert value.startswith("'") and value.endswith("'")
         value = value[1:len(value) - 1]
