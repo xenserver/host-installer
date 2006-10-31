@@ -116,7 +116,7 @@ def findXenSourceProducts():
                     ExistingInstallation(
                     inv['PRODUCT_NAME'],
                     inv['PRODUCT_BRAND'],
-                    Version(*[ int(x) for x in inv['PRODUCT_VERSION'].split(".")]),
+                    Version(*[ int(x) for x in re.match("([0-9.]+)", inv['PRODUCT_VERSION']).group(1).split(".")]),
                     int(inv['BUILD_NUMBER']),
                     diskutil.diskFromPartition(p) )
                     )
