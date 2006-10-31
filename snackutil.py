@@ -71,6 +71,8 @@ def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 4
 def OKDialog(screen, title, text):
     return ButtonChoiceWindow(screen, title, text, ['OK'])
 
+PLEASE_WAIT_STRING = "  Working: Please wait..."
+
 def initProgressDialog(screen, title, text, total):
     form = GridFormHelp(screen, title, None, 1, 3)
     
@@ -88,6 +90,8 @@ def showMessageDialog(screen, title, text):
     form.add(t, 0, 0, padding = (0,0,0,0))
 
     form.draw()
+
+    screen.pushHelpLine(PLEASE_WAIT_STRING)
     screen.refresh()
 
 def displayProgressDialog(screen, current, (form, t, scale), updated_text = None):
@@ -96,7 +100,10 @@ def displayProgressDialog(screen, current, (form, t, scale), updated_text = None
         t.setText(updated_text)
 
     form.draw()
+
+    screen.pushHelpLine(PLEASE_WAIT_STRING)
     screen.refresh()
 
 def clearModelessDialog(screen):
+    screen.pushHelpLine(None)
     screen.popWindow()
