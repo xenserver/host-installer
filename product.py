@@ -22,21 +22,41 @@ class Version(object):
     ANY = -1
     INF = 999
     
-    def __init__(self, major, minor, release = ANY):
+    def __init__(self, major, minor, release, suffix = ""):
+        assert type(major) is int
+        assert type(minor) is int
+        assert type(release) is int
         self.major = major
         self.minor = minor
         self.release = release
+        self.suffix = suffix
+
+    def from_string(cls, vstr):
+        """ Create a version object, given an input string.  vstr should be of the
+        form a.b.cs where a, b, c are numbers, and s is an alphanumeric, possibly
+        empty, string. """
+        version_substrings = vstr.split(".")
+        assert len(version_substrings) == 3
+        match = re.match("([0-9]+)(.*)", version_substrings[2])
+        return cls(int(version_substrings[0]),
+                   int(version_substrings[1]),
+                   int(match.group(1)),
+                   match.group(2))
+    
+    from_string = classmethod(from_string)
 
     def __lt__(self, v):
         assert not self.ANY in [self.major, self.minor, self.release]
         return ( self.major < v.major or
                  (self.major == v.major and self.minor < v.minor) or
-                 (self.major == v.major and self.minor == v.minor and self.release < v.release) )
+                 (self.major == v.major and self.minor == v.minor and self.release < v.release) or
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_suffix(self.suffix,v.suffix) == -1) )
 
     def __eq__(self, v):
         return ( self.cmp_version_number(self.major, v.major) == 0 and
                  self.cmp_version_number(self.minor, v.minor) == 0 and
-                 self.cmp_version_number(self.release, v.release) == 0 )
+                 self.cmp_version_number(self.release, v.release) == 0  and
+                 self.suffix == v.suffix )
 
     def __le__(self, v):
         return self < v or self == v
@@ -48,10 +68,25 @@ class Version(object):
         assert not self.ANY in [self.major, self.minor, self.release]
         return ( self.major > v.major or
                  (self.major == v.major and self.minor > v.minor) or
-                 (self.major == v.major and self.minor == v.minor and self.release > v.release) )
+                 (self.major == v.major and self.minor == v.minor and self.release > v.release) or
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_suffix(self.suffix, v.suffix) == 1) )
 
     def __str__(self):
-        return "%d.%d.%d" % (self.major, self.minor, self.release)
+        return "%d.%d.%d%s" % (self.major, self.minor, self.release, self.suffix)
+
+    def cmp_suffix(cls, s1, s2):
+        """ Compare suffixes.  Empty suffix is bigger than anything, else
+        just do a lexicographic comparison. """
+        if s1 == s2:
+            return 0
+        elif s1 == '':
+            return 1
+        elif s2 == '':
+            return -1
+        else:
+            return s1 < s2
+
+    cmp_suffx = classmethod(cmp_suffix)
 
     def cmp_version_number(cls, v1, v2):
         if v1 == cls.ANY or v2 == cls.ANY:
@@ -66,7 +101,7 @@ class Version(object):
             
     cmp_version_number = classmethod(cmp_version_number)
 
-THIS_PRODUCT_VERSION = Version(*[int(x) for x in version.PRODUCT_VERSION.split(".")])
+THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 
 class ExistingInstallation(object):
     def __init__(self, name, brand, version, build,
@@ -79,7 +114,7 @@ class ExistingInstallation(object):
         self.primary_disk = primary_disk
 
     def __str__(self):
-        return "%s v%s-%d on %s" % (
+        return "%s v%s (%d) on %s" % (
             self.brand, str(self.version), self.build, self.primary_disk)
 
 def findXenSourceProducts():
@@ -118,7 +153,7 @@ def findXenSourceProducts():
                     ExistingInstallation(
                     inv['PRODUCT_NAME'],
                     inv['PRODUCT_BRAND'],
-                    Version(*[ int(x) for x in re.match("([0-9.]+)", inv['PRODUCT_VERSION']).group(1).split(".")]),
+                    Version.from_string(inv['PRODUCT_VERSION']),
                     int(inv['BUILD_NUMBER']),
                     diskutil.diskFromPartition(p) )
                     )

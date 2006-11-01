@@ -115,7 +115,15 @@ def main():
 
         # find existing installations:
         ui_package.showMessageDialog("Please wait", "Checking for existing products...")
-        all_installed_products = product.findXenSourceProducts()
+        try:
+            all_installed_products = product.findXenSourceProducts()
+        except Exception, e:
+            xelogging.log("A problem occurred whilst scanning for existing installations:")
+            ex = sys.exc_info()
+            err = str.join("", traceback.format_exception(*ex))
+            xelogging.log(err)
+            xelogging.log("This is not fatal.  Continuing anyway.")
+            all_installed_products = []
         installed_products = filter(lambda p: upgrade.upgradeAvailable(p),
                                     all_installed_products)
         ui_package.clearModelessDialog()
