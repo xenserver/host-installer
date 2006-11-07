@@ -234,6 +234,11 @@ class NFSInstallMethod(InstallMethod):
         except util.MountFailureException:
             raise MediaNotFound, (self.nfsPath, MediaNotFound.MEDIA_REMOTE)
 
+        # mounted - check that the PACKAGES file is present:
+        if not os.path.exists(os.path.join("/tmp/nfs-source", __package_filename__)):
+            util.umount('/tmp/nfs-source')
+            raise MediaNotFound, (self.nfsPath, MediaNotFound.MEDIA_REMOTE)
+
     def openPackage(self, package):
         assert os.path.ismount('/tmp/nfs-source')
         path = '/tmp/nfs-source/%s.tar.bz2' % package
