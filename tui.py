@@ -770,8 +770,7 @@ def get_autoconfig_ifaces(answers):
     rv = uicontroller.runUISequence(seq, subdict)
     answers['iface-configuration'] = (False, subdict)
     
-    if rv == -1: return 0
-    if rv == 1: return 1
+    return rv
     
 def get_iface_configuration(answers, iface):
     global screen
