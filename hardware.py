@@ -124,13 +124,13 @@ def modprobe(module, params = ""):
 
 def VTSupportEnabled():
     assert os.path.exists(constants.XENINFO)
-    rc, caps = util.runCmdWithOutput(XENINFO + " xen-caps")
+    rc, caps = util.runCmdWithOutput(constants.XENINFO + " xen-caps")
     assert rc == 0
     caps = caps.strip().split(" ")
     return "hvm-3.0-x86_32" in caps
 
 def getHostTotalMemoryKB():
     assert os.path.exists(constants.XENINFO)
-    rc, mem = util.runCmdWithOutput(XENINFO + " host-total-mem")
+    rc, mem = util.runCmdWithOutput(constants.XENINFO + " host-total-mem")
     assert rc == 0
     return int(mem.strip())

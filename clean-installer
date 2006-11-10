@@ -26,6 +26,7 @@ from version import COMPANY_NAME_SHORT
 # hardware
 import diskutil
 import netutil
+import hardware
 
 # backend
 import backend
@@ -113,6 +114,11 @@ def main():
         if bigdisks == []:
             raise RuntimeError, "Not enough disk space to proceed."
 
+        # how much RAM do we have?
+        ram_found_mb = hardware.getHostTotalMemoryKB() / 1024
+        ram_warning = ram_found_mb < constants.MIN_SYSTEM_RAM_MB
+        vt_warning = not hardware.VTSupportEnabled()
+
         # find existing installations:
         ui_package.showMessageDialog("Please wait", "Checking for existing products...")
         try:
@@ -134,27 +140,30 @@ def main():
         # the start of each function.  In future these conditionals will
         # be moved into the sequence definition and evaluated by the
         # UI dispatcher.
-        seq = [ ui_package.welcome_screen,
-                ui_package.eula_screen,
-                (ui_package.get_installation_type, (installed_products, )),
-                ui_package.backup_existing_installation,
-                ui_package.select_primary_disk,
-                ui_package.select_guest_disks,
-                ui_package.confirm_erase_volume_groups,
-                ui_package.get_keyboard_type,
-                ui_package.get_keymap,
-                ui_package.select_installation_source,
-                ui_package.get_http_source,
-                ui_package.get_nfs_source,
-                ui_package.verify_source,
-                ui_package.get_root_password,
-                ui_package.get_timezone_region,
-                ui_package.get_timezone_city,
-                ui_package.get_time_configuration_method,
-                ui_package.get_ntp_servers,
-                ui_package.determine_basic_network_config,
-                ui_package.get_name_service_configuration,
-                ui_package.confirm_installation_reinstall]
+        seq = [ ui_package.welcome_screen, ]
+        if ram_warning or vt_warning:
+            seq += [ (ui_package.hardware_warnings, (ram_warning, vt_warning)) ]
+        seq += [ ui_package.eula_screen,
+                 (ui_package.get_installation_type, (installed_products, )),
+                 ui_package.backup_existing_installation,
+                 ui_package.select_primary_disk,
+                 ui_package.select_guest_disks,
+                 ui_package.confirm_erase_volume_groups,
+                 ui_package.get_keyboard_type,
+                 ui_package.get_keymap,
+                 ui_package.select_installation_source,
+                 ui_package.get_http_source,
+                 ui_package.get_nfs_source,
+                 ui_package.verify_source,
+                 ui_package.get_root_password,
+                 ui_package.get_timezone_region,
+                 ui_package.get_timezone_city,
+                 ui_package.get_time_configuration_method,
+                 ui_package.get_ntp_servers,
+                 ui_package.determine_basic_network_config,
+                 ui_package.get_name_service_configuration,
+                 ui_package.confirm_installation_reinstall
+                 ]
 
         if len(disks) > 1:
             seq += [ ui_package.confirm_installation_multiple_disks ]

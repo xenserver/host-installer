@@ -62,24 +62,42 @@ def resume_ui():
 def welcome_screen(answers):
     global screen
 
-    warning = ""
-    if not hardware.VTSupportEnabled ():
-        warning = """
-
-NOTE: Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."""
-
     button = ButtonChoiceWindow(screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
                                 """This setup tool will install %s on your server.
 
-This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install. %s""" % (PRODUCT_BRAND, warning),
-                                ['Ok', 'Cancel Installation'], width=60)
+This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install.""" % PRODUCT_BRAND,
+                                ['Ok', 'Cancel Installation'], width = 60)
 
     # advance to next screen:
     if button == 'ok':
         return 1
     else:
         return uicontroller.EXIT
+
+def hardware_warnings(answers, ram_warning, vt_warning):
+    vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
+    not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to ahve less than this, which may cause problems during startup." % (PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
+
+    text = "The following problem(s) were found with your hardware:\n\n"
+    if vt_warning:
+        text += vt_not_found_text + "\n\n"
+    if ram_warning:
+        text += not_enough_ram_text + "\n\n"
+    text += "You may continue with the installation, though %s might have limited functionality until you have addressed these problems." % PRODUCT_BRAND
+
+    button = ButtonChoiceWindow(
+        screen,
+        "System Hardware",
+        text,
+        ['Ok', 'Back'],
+        width = 60
+        )
+
+    if button == 'back':
+        return -1
+    else:
+        return 1
 
 def not_enough_space_screen(answers):
     global screen

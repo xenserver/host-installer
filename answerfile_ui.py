@@ -177,6 +177,8 @@ def resume_ui():
 # stubs:
 def welcome_screen(answers):
     return 1
+def hardware_warnings(answers, ram_warning, vt_warning):
+    return 1
 def eula_screen(answers):
     return 1
 def get_installation_type(answers, insts):

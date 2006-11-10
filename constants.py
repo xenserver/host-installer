@@ -21,8 +21,14 @@ EXIT_USER_CANCEL = 2
 INSTALL_TYPE_FRESH = 1
 INSTALL_TYPE_REINSTALL = 2
 
-# disk sizes
-min_primary_disk_size = 16
+# minimum hardware specs:
+# memory checks should be done against MIN_SYSTEM_RAM_MB since libxc
+# reports the total system ram after the Xen heap.  The UI should
+# display the value given by MIN_SYSTEM_RAM_MB_RAW.
+min_primary_disk_size = 16 #GB
+MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
+MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 24
+
 
 # filesystems and partitions (sizes in MB):
 root_size = 4096
@@ -36,6 +42,7 @@ MIN_PASSWD_LEN=6
 
 # file locations - installer filesystem
 EULA_PATH = "/opt/xensource/installer/EULA"
+XENINFO = "/usr/bin/xeninfo"
 timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
 
