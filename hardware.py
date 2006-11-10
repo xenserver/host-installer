@@ -119,37 +119,18 @@ def modprobe(module, params = ""):
 
     return rc
 
-def readCpuInfo():
-    f = open('/proc/cpuinfo', 'r')
-    cpus = []
-    cpu = {}
-    for line in f:
-        if line == "\n":
-            cpus.append(cpu)
-            cpu = {}
-        else:
-            (key, value) = line.split(":")
-            (key, value) = (key.strip(), value.strip())
-            if key == "flags":
-                value = value.split(" ")
-            cpu[key] = value
-    f.close()
-    
-    return cpus
+################################################################################
+# These functions assume we're running on Xen.
 
-# to explain this monster:
-# - flags is a list of lists containing the flags for each CPU
-# - support is a list of Bool, saying whether one of 'features'
-#   is contained in the equivalent 'flags' entry
-# - vt checks that the required features rae present on at least
-#   one CPU.  They will, in reality, be present on all or none.
 def VTSupportEnabled():
-    features = ['vmx', 'svm']
-    cpuinfo = readCpuInfo()
-    flags = [ x['flags'] for x in cpuinfo ]
+    assert os.path.exists(constants.XENINFO)
+    rc, caps = util.runCmdWithOutput(XENINFO + " xen-caps")
+    assert rc == 0
+    caps = caps.strip().split(" ")
+    return "hvm-3.0-x86_32" in caps
 
-    support = [True in [x in f for x in features] for f in flags]
-    vt = reduce(lambda x,y: x or y, support)
-    
-    return vt
-    
+def getHostTotalMemoryKB():
+    assert os.path.exists(constants.XENINFO)
+    rc, mem = util.runCmdWithOutput(XENINFO + " host-total-mem")
+    assert rc == 0
+    return int(mem.strip())
