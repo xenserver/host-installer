@@ -198,9 +198,9 @@ def main():
 
         # now display a friendly error dialog:
         if str(e) != "":
-            ui_package.error_dialog("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or %s technical support, for further details." % (str(e), COMPANY_NAME_SHORT))
+            ui_package.error_dialog("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % (str(e)))
         else:
-            ui_package.error_dialog("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or %s technical support for more details." % COMPANY_NAME_SHORT)
+            ui_package.error_dialog("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details.")
 
         # clean up the screen
         ui_package.end_ui()

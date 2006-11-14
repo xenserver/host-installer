@@ -42,8 +42,8 @@ class MediaNotFound(Exception):
     MEDIA_CDROM = 1
     MEDIA_REMOTE = 2
 
-    TEXT_MEDIA_CDROM = "Setup could not find the media labelled '%s'.  If the media is present and you still see this error, please refer to your user guide or " + COMPANY_NAME_SHORT + " technical support."
-    TEXT_MEDIA_REMOTE = "Setup could not access the remote repository '%s'; please check that the address is correct and points to a valid " + PRODUCT_BRAND + " repository.  If the address is correct and you still see this error, please refer to your user guide or " + COMPANY_NAME_SHORT + " technical support."
+    TEXT_MEDIA_CDROM = "Setup could not find the media labelled '%s'.  If the media is present and you still see this error, please refer to your user guide or contact a Technical Support Representative."
+    TEXT_MEDIA_REMOTE = "Setup could not access the remote repository '%s'; please check that the address is correct and points to a valid " + PRODUCT_BRAND + " repository.  If the address is correct and you still see this error, please refer to your user guide or contact a Technical Support Representative."
     def __init__(self, medianame, mediatype):
         self.media_name = medianame
         if mediatype == self.MEDIA_CDROM:

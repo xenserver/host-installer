@@ -73,7 +73,7 @@ def run():
 
 %s
 
-Please refer to your user guide, or XenSource Technical Support, for further assistance.""" % str(e))
+Please refer to your user guide, or contact a Technical Support Representative, for further assistance.""" % str(e))
 
             error = True
         else:
