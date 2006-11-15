@@ -49,4 +49,6 @@ $(INSTALL_COOKIE): $(BUILD_COOKIE)
 	$(MAKE) -C $(KBD_DIR) $(UCLIBC_VARS) DESTDIR=$(MY_INSTALLER_FILES) install
 # remove some cruft now
 	rm -rf $(addprefix $(MY_INSTALLER_FILES)/usr/share/kbd/,$(REMOVE))
+	rm -rf $(MY_INSTALLER_FILES)/usr/share/man
+	rm -rf $(MY_INSTALLER_FILES)/usr/bin
 	touch $@

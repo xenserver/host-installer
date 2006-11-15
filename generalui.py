@@ -58,21 +58,7 @@ def getTimeZoneCities(desired_region):
 
     return cities
 
-def getKeyboardTypes():
-    kbdfile = open(constants.kbd_data_file, 'r')
-    lines = kbdfile.readlines()
-    kbdfile.close()
-
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
-
-    kbdtypes = []
-    for kbdtype in lines:
-        if kbdtype[0] not in kbdtypes:
-            kbdtypes.append(kbdtype[0])
-
-    return kbdtypes
-
-def getKeymaps(kbdtype):
+def getKeymaps():
     kbdfile = open(constants.kbd_data_file, 'r')
     lines = kbdfile.readlines()
     kbdfile.close()
@@ -81,9 +67,22 @@ def getKeymaps(kbdtype):
 
     keymaps = []
     for keymap in lines:
-        if keymap[0] == kbdtype:
-            keymapname = "/".join(keymap[1:])
-            keymaps.append(keymapname)
+        keymaps.append( ("[%s] %s" % (keymap[0], keymap[1]), keymap[1]) )
+
+    def cmp_us_uk_first(a, b):
+        (a1, a2) = a
+        (b1, b2) = b
+        if a2 == 'us' and b2 == 'uk':
+            return -1
+        elif a2 == 'uk' and b2 == 'us':
+            return 1
+        elif a2 == 'us' or a2 == 'uk':
+            return -1
+        elif b2 == 'us' or b2 == 'uk':
+            return 1
+        else:
+            return cmp("%s %s" % a, "%s %s" % b)
+    keymaps.sort(cmp_us_uk_first)
 
     return keymaps
 

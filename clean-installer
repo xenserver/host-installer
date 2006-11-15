@@ -51,6 +51,7 @@ def main():
                            "",
                            ["answerfile=",
                             "verbose-answerfile=",
+                            "keymap=",
                             "clog="])
     except GetoptError:
         print "This program takes no arguments."
@@ -66,6 +67,9 @@ def main():
     results = {}
 
     for (opt, val) in opts:
+        if opt == "--keymap":
+            results["keymap"] = val
+            xelogging.log("Keymap specified on command-line: %s" % val)
         if opt == "--answerfile":
             answerfile_ui.specifySubUI(ui_package)
             answerfile_ui.specifyAnswerFile(val)
@@ -81,6 +85,9 @@ def main():
                 xelogging.continuous_logs.append(fd)
             except:
                 print "Error adding continuous log %s." % val
+
+    if not results.has_key("keymap"):
+        xelogging.log("No keymap specified on command-line.")
 
     # log the modules that we loaded:
     xelogging.log("All needed modules should now be loaded. We have loaded:")
@@ -140,17 +147,15 @@ def main():
         # the start of each function.  In future these conditionals will
         # be moved into the sequence definition and evaluated by the
         # UI dispatcher.
-        seq = [ ui_package.welcome_screen, ]
+        seq = [ ui_package.welcome_screen,
+                ui_package.eula_screen, ]
         if ram_warning or vt_warning:
             seq += [ (ui_package.hardware_warnings, (ram_warning, vt_warning)) ]
-        seq += [ ui_package.eula_screen,
-                 (ui_package.get_installation_type, (installed_products, )),
+        seq += [ (ui_package.get_installation_type, (installed_products, )),
                  ui_package.backup_existing_installation,
                  ui_package.select_primary_disk,
                  ui_package.select_guest_disks,
                  ui_package.confirm_erase_volume_groups,
-                 ui_package.get_keyboard_type,
-                 ui_package.get_keymap,
                  ui_package.select_installation_source,
                  ui_package.get_http_source,
                  ui_package.get_nfs_source,

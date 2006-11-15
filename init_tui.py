@@ -15,6 +15,7 @@ from version import *
 
 import snackutil
 import init_constants
+import generalui
 
 screen = None
 
@@ -31,6 +32,20 @@ def end_ui():
 def refresh():
     if screen:
         screen.refresh()
+
+def get_keymap():
+    global screen
+
+    entries = generalui.getKeymaps()
+
+    (button, entry) = ListboxChoiceWindow(
+        screen,
+        "Select Keymap",
+        "Please select the keymap you would like to use:",
+        entries,
+        ['Ok'], height = 8, scroll = 1)
+
+    return entry
 
 def choose_operation(display_export_vms):
     if display_export_vms:

@@ -287,6 +287,11 @@ def main():
 
     # let the user choose what they would like to do:
     if mode == init_constants.MODE_INTERACTIVE:
+        # choose keymap
+        kmap = ui_package.get_keymap()
+        xelogging.log("Loading keymap %s" % kmap)
+        util.runCmd("loadkeys %s" % kmap)
+
         firstTime = True
         try:
             # Is VG_XenSource present, indicating that
@@ -323,7 +328,7 @@ def main():
                 # clean install:
                 if operation == init_constants.OPERATION_INSTALL:
                     xelogging.log("Starting clean installation")
-                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
+                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 --keymap %s" % kmap)
                     rc = exit_status_of_rc(s)
                     if rc == EXIT_OK or rc == EXIT_ERROR: 
                         break
