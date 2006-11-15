@@ -30,6 +30,7 @@ install:
 	install -m644 transcribe.py $(INSTALLER_DIR)
 	mkdir -p $(INSTALLER_DIR)/tui
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
+	install -m644 tui/network.py $(INSTALLER_DIR)/tui
 	install -m644 uicontroller.py $(INSTALLER_DIR)
 	install -m644 util.py $(INSTALLER_DIR)
 	install -m644 vm_exporter.py $(INSTALLER_DIR)
