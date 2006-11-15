@@ -44,7 +44,8 @@ base_modules = ['sd-mod',
                 'ata_piix',
                 'rtc',
                 'reiserfs',
-                'ext3']
+                'ext3',
+		'usb-storage']
 
 
 # Exception that is thrown if we detect that the user has
