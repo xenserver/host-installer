@@ -20,15 +20,6 @@ import constants
 
 from util import runCmdWithOutput
 
-def getNetifList():
-    pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }' | grep '^eth.*'")
-    interfaces = []
-    for iface in pipe:
-        interfaces.append(iface.strip("\n"))
-    pipe.close()
-
-    return interfaces
-
 def getTimeZoneRegions():
     tzf = open(constants.timezone_data_file)
     lines = tzf.readlines()

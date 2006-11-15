@@ -638,7 +638,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
     # are we all DHCP?
     (alldhcp, mancfg) = iface_config
     if alldhcp:
-        ifaces = generalui.getNetifList()
+        ifaces = netutil.getNetifList()
         for i in ifaces:
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
             writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
