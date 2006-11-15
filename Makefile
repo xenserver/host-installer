@@ -28,14 +28,15 @@ install:
 	install -m644 packaging.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
 	install -m644 transcribe.py $(INSTALLER_DIR)
-	install -m644 tui.py $(INSTALLER_DIR)
+	mkdir -p $(INSTALLER_DIR)/tui
+	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
 	install -m644 uicontroller.py $(INSTALLER_DIR)
 	install -m644 util.py $(INSTALLER_DIR)
 	install -m644 vm_exporter.py $(INSTALLER_DIR)
 	install -m644 xelogging.py $(INSTALLER_DIR)
 	install -m644 product.py $(INSTALLER_DIR)
 	install -m644 upgrade.py $(INSTALLER_DIR)
-
+# data files
 	install -m644 keymaps $(INSTALLER_DATA_DIR)
 	install -m644 timezones $(INSTALLER_DATA_DIR)
 
