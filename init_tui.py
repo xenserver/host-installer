@@ -16,6 +16,7 @@ from version import *
 import snackutil
 import init_constants
 import generalui
+import tui.network
 
 screen = None
 
@@ -139,6 +140,10 @@ def ask_host_password_screen(answers):
     else:
         return 1
 
+def get_network_config(show_reuse_existing = False,
+                       runtime_config = False):
+    return tui.network.get_network_config(
+        screen, show_reuse_existing, runtime_config)
 
 ###
 # Progress dialog:
@@ -149,8 +154,8 @@ def OKDialog(title, text):
 def initProgressDialog(title, text, total):
     return snackutil.initProgressDialog(screen, title, text, total)
 
-def displayProgressDialog(current, pd):
-    return snackutil.displayProgressDialog(screen, current, pd)
+def displayProgressDialog(current, pd, updated_text = None):
+    return snackutil.displayProgressDialog(screen, current, pd, updated_text)
 
 def clearModelessDialog():
     return snackutil.clearModelessDialog(screen)

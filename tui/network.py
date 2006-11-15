@@ -20,18 +20,27 @@ from snack import *
 def get_network_config(screen,
                        show_reuse_existing = False,
                        runtime_config = False):
+    """ Returns a pair (direction, config).
+
+    config is a pair in answers iface config format, or None
+    if the reuse option was specified. """
+
+    REUSE_EXISTING = 1
+    ALL_DHCP = 2
+    OTHER = 3
+
     answers = {}
 
     entries = []
     if show_reuse_existing:
-        entries += [ 'Use the current configuration' ]
-    entries += [ 'Configure all interfaces using DHCP',
-                'Specify a different network configuration' ]
+        entries += [ ('Use the current configuration', REUSE_EXISTING) ]
+    entries += [ ('Configure all interfaces using DHCP', ALL_DHCP),
+                 ('Specify a different network configuration', OTHER) ]
 
     if runtime_config:
         text = """%s needs to configure networking in order to proceed with this option.
 
-How would you like networking to be configured during installation?""" % version.PRODUCT_BRAND
+How would you like networking to be configured at this time?""" % version.PRODUCT_BRAND
     else:
         text = "How would you like networking to be configured on your installed server?"
 
@@ -41,12 +50,14 @@ How would you like networking to be configured during installation?""" % version
 
     if button == "ok" or button == None:
         # proceed to get_autoconfig_ifaces if manual configuration was selected:
-        if entry == 1:
+        if entry == OTHER:
             (rv, config) = get_autoconfig_ifaces(screen)
             if rv == -1: return 0, config
             if rv == 1: return 1, config
-        else:
+        elif entry == ALL_DHCP:
             return 1, (True, None)
+        elif entry == REUSE_EXISTING:
+            return 1, None
     
     if button == "back": return -1, None
 

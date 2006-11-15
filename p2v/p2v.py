@@ -12,7 +12,7 @@
 # written by Andrew Peace & Mark Nijmeijer
 
 import p2v_tui
-import p2v_uicontroller
+import uicontroller
 import p2v_answerfile_ui
 import sys
 import findroot
@@ -20,6 +20,7 @@ import p2v_backend
 import xelogging
 import os
 import getopt
+import generalui
 
 from p2v_error import P2VError, P2VPasswordError, P2VCliError
 from snack import *
@@ -75,7 +76,9 @@ def main():
     
     while finished == False:
         if firstrun:
-            seq = [ ui_package.welcome_screen,
+            seq = [
+                ui_package.welcome_screen,
+                (generalui.requireNetworking, (ui_package, )),
                 ui_package.os_install_screen,
                 ui_package.description_screen,
                 ui_package.size_screen,
@@ -87,7 +90,7 @@ def main():
                 ui_package.get_root_password ]
             
         try:
-            rc = p2v_uicontroller.runUISequence(seq, results)
+            rc = uicontroller.runUISequence(seq, results)
         
             if rc != -1:
                 rc = p2v_backend.perform_P2V(results)
@@ -96,12 +99,10 @@ def main():
                 closeClogs(clog_fds)
                 sys.exit(1)
         
-            if rc == 0: 
-                seq = [ui_package.finish_screen ]
-                rc = p2v_uicontroller.runUISequence(seq, results)
+            if rc == 0:
+                ui_package.finish_screen({})
             else:
-                seq = [ui_package.failed_screen ]
-                rc = p2v_uicontroller.runUISequence(seq, results)
+                ui_package.failed_screen({})
             ui_package.end_ui()
             p2v_backend.print_results(results)
             finished = True

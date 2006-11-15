@@ -13,7 +13,7 @@
 
 from snack import *
 from version import *
-import p2v_uicontroller
+import snackutil
 import findroot
 import os
 import sys
@@ -22,11 +22,17 @@ import p2v_utils
 import p2v_backend
 import time
 import xelogging
+import tui.network
 from p2v import closeClogs
 
 from p2v_error import P2VMountError, P2VCliError
 
 screen = None
+
+def get_network_config(show_reuse_existing = False,
+                       runtime_config = False):
+    return tui.network.get_network_config(
+        screen, show_reuse_existing, runtime_config)
 
 def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
 		entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
@@ -430,10 +436,12 @@ def displayProgressDialog(current, (form, scale, t2), t2_text = ""):
     
     time.sleep(.5)
 
-def clearProgressDialog():
+def clearModelessDialog():
     global screen
     
     screen.popWindow()
+
+clearProgressDialog = clearModelessDialog
 
 def displayButtonChoiceWindow(screen, title, text, 
 		       buttons = [ 'Ok', 'Cancel' ], 
@@ -441,3 +449,8 @@ def displayButtonChoiceWindow(screen, title, text,
     ButtonChoiceWindow(screen, title, text,
             buttons, width, x, y, help)
  
+###
+# Simple 'OK' dialog for external use:
+
+def OKDialog(title, text):
+    return snackutil.OKDialog(screen, title, text)

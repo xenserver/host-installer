@@ -16,7 +16,7 @@ import init_tui
 import util
 import constants
 import os
-
+import generalui
 import vm_exporter
 
 __BURBANK_VMSTATE_VOLNAME__ = "VMState"
@@ -26,6 +26,7 @@ __VMSTATE_MOUNTPOINT__ = "/tmp/mnt-vmstate"
 def run():
     answers = {}
     ui_sequence = [
+        (generalui.requireNetworking, (init_tui, )),
         init_tui.ask_export_destination_screen,
         init_tui.ask_host_password_screen
         ]

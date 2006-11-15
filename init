@@ -27,6 +27,7 @@ import netutil
 import util
 import hardware
 import transcribe
+import generalui
 
 from hardware import module_map
 
@@ -168,15 +169,10 @@ def configureNetworking(ui):
         "Attempting to configure networking..."
         )
 
-    # do we need to make the network directory writeable?
-    if not os.path.ismount('/etc/network/'):
-        shutil.copytree('/etc/network', '/tmp/network')
-        util.bindMount('/tmp/network', '/etc/network')
-
     interfaces = netutil.getNetifList()
     netcfg = {}
     for i in interfaces:
-        netcfg[i] = { 'use-dhcp': True }
+        netcfg[i] = { 'use-dhcp': True , 'enabled': True }
 
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
 
@@ -233,17 +229,6 @@ def main():
     verbose_answerfile = None
     interactive_modules = False
 
-    def isPrimaryProcess():
-        rc, my_tty = commands.getstatusoutput("tty")
-        my_tty = os.path.basename(my_tty.strip('\n'))
-        return my_tty == active_output
-
-    # prepare LVM - we need this very early now.  Only attemnpt this in the
-    # "primary" process to avoid a race:
-    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
-    if not os.path.exists('/tmp/lvm') and isPrimaryProcess():
-        os.mkdir('/tmp/lvm')
-
     for (opt, val) in opts:
         if opt == "--install":
             mode = init_constants.MODE_INSTALL
@@ -267,6 +252,23 @@ def main():
             active_output = val
 
     xelogging.log("Active output is %s" % active_output)
+
+    def isPrimaryProcess():
+        rc, my_tty = commands.getstatusoutput("tty")
+        my_tty = os.path.basename(my_tty.strip('\n'))
+        return my_tty == active_output
+
+    # prepare LVM - we need this very early now.  Only attemnpt this in the
+    # "primary" process to avoid a race:
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
+    if not os.path.exists('/tmp/lvm') and isPrimaryProcess():
+        os.mkdir('/tmp/lvm')
+
+    # make /etc/network writeable:
+    if isPrimaryProcess():
+        if not os.path.ismount('/etc/network/'):
+            shutil.copytree('/etc/network', '/tmp/network')
+            util.bindMount('/tmp/network', '/etc/network')
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
@@ -316,11 +318,6 @@ def main():
                 # hardware to then immediately reboot):
                 if operation == -1:
                     break
-
-                # configure networking, if we've not done so already:
-                if firstTime:
-                    configureNetworking(ui_package)
-                    firstTime = False
 
                 def exit_status_of_rc(rc):
                     return rc >> 8

@@ -256,6 +256,12 @@ def select_installation_source(answers):
     if button == "ok" or button == None: return 1
     if button == "back": return -1
 
+def setup_runtime_networking(answers):
+    if answers['source-media'] not in ['url', 'nfs']:
+        return uicontroller.SKIP_SCREEN
+
+    return generalui.requireNetworking(answers, tui)
+
 def get_http_source(answers):
     if answers['source-media'] == 'url':
         done = False
@@ -709,9 +715,14 @@ def get_name_service_configuration(answers):
         return -1
 
 def determine_basic_network_config(answers):
-    direction, config = tui.network.get_network_config(screen)
+    # XXX nasty way of telling if we already asked:
+    reuse_available = answers.has_key('source-media') and answers['source-media'] in ['url', 'nfs']
+    direction, config = tui.network.get_network_config(screen, reuse_available)
     if direction == 1:
-        answers['iface-configuration'] = config
+        if config == None:
+            answers['iface-configuration'] = answers['runtime-iface-configuration'].copy()
+        else:
+            answers['iface-configuration'] = config
     return direction
 
 def get_timezone_region(answers):
@@ -952,6 +963,11 @@ def request_media(medianame):
 
     return button != "cancel"
 
+def get_network_config(show_reuse_existing = False,
+                       runtime_config = False):
+    return tui.network.get_network_config(
+        screen, show_reuse_existing, runtime_config)
+
 ###
 # Progress dialog:
 
@@ -966,3 +982,9 @@ def clearModelessDialog():
 
 def showMessageDialog(title, text):
     return snackutil.showMessageDialog(screen, title, text)
+
+###
+# Simple 'OK' dialog for external use:
+
+def OKDialog(title, text):
+    return snackutil.OKDialog(title, text)

@@ -157,6 +157,9 @@ def resume_ui():
 def welcome_screen(answers):
     return 1
 
+def get_network_config(answers):
+    return 1
+
 def target_screen(answers):
     return 1
 
@@ -182,6 +185,9 @@ def failed_screen(answers):
     return 1
 
 # Progress dialog:
+def OKDialog(title, text):
+    pass
+
 def initProgressDialog(title, text, total):
     pass
 
@@ -189,6 +195,9 @@ def displayProgressDialog(current, pd, t2_text = ""):
     pass
 
 def clearProgressDialog():
+    pass
+
+def clearModelessDialog():
     pass
 
 def displayButtonChoiceWindow(screen, title, text, 

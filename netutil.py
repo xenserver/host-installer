@@ -27,13 +27,14 @@ def writeDebStyleInterfaceFile(configuration, filename):
 
     for iface in configuration:
         settings = configuration[iface]
-        if settings['use-dhcp']:
-            outfile.write("iface %s inet dhcp\n" % iface)
-        else:
-            outfile.write("iface %s inet static\n" % iface)
-            outfile.write("   address %s\n" % settings['ip'])
-            outfile.write("   netmask %s\n" % settings['subnet-mask'])
-            outfile.write("   gateway %s\n" % settings['gateway'])
+        if settings['enabled']:
+            if settings['use-dhcp']:
+                outfile.write("iface %s inet dhcp\n" % iface)
+            else:
+                outfile.write("iface %s inet static\n" % iface)
+                outfile.write("   address %s\n" % settings['ip'])
+                outfile.write("   netmask %s\n" % settings['subnet-mask'])
+                outfile.write("   gateway %s\n" % settings['gateway'])
 
     outfile.close()
 

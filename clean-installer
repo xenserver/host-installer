@@ -157,6 +157,7 @@ def main():
                  ui_package.select_guest_disks,
                  ui_package.confirm_erase_volume_groups,
                  ui_package.select_installation_source,
+                 ui_package.setup_runtime_networking,
                  ui_package.get_http_source,
                  ui_package.get_nfs_source,
                  ui_package.verify_source,
