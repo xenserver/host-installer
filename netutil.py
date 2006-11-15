@@ -14,13 +14,8 @@ import os
 import util
 
 def getNetifList():
-    pipe = os.popen("/sbin/ifconfig -a | grep '^[a-z].*' | awk '{ print $1 }' | grep '^eth.*'")
-    interfaces = []
-    for iface in pipe:
-        interfaces.append(iface.strip("\n"))
-    pipe.close()
-
-    return interfaces
+    all = os.listdir("/sys/class/net")
+    return filter(lambda x: x.startswith("eth"), all)
 
 # writes an 'interfaces' style file given a network configuration dictionary
 # in the 'results' style format
