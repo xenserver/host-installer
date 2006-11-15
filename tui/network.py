@@ -13,20 +13,30 @@
 import uicontroller
 import netutil
 import snackutil
+import version
 
 from snack import *
 
-def get_network_config(screen):
+def get_network_config(screen,
+                       show_reuse_existing = False,
+                       runtime_config = False):
     answers = {}
 
-    entries = [ 'Configure all interfaces using DHCP',
+    entries = []
+    if show_reuse_existing:
+        entries += [ 'Use the current configuration' ]
+    entries += [ 'Configure all interfaces using DHCP',
                 'Specify a different network configuration' ]
 
+    if runtime_config:
+        text = """%s needs to configure networking in order to proceed with this option.
+
+How would you like networking to be configured during installation?""" % version.PRODUCT_BRAND
+    else:
+        text = "How would you like networking to be configured on your installed server?"
+
     (button, entry) = ListboxChoiceWindow(
-        screen,
-        "Network Configuration",
-        "How would you like networking to be configured on this host?",
-        entries,
+        screen, "Network Configuration", text, entries,
         ['Ok', 'Back'], width=50)
 
     if button == "ok" or button == None:
