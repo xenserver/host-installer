@@ -720,7 +720,8 @@ def determine_basic_network_config(answers):
     direction, config = tui.network.get_network_config(screen, reuse_available)
     if direction == 1:
         if config == None:
-            answers['iface-configuration'] = answers['runtime-iface-configuration'].copy()
+            (dhcp, manual) = answers['runtime-iface-configuration']
+            answers['iface-configuration'] = (dhcp, manual.copy())
         else:
             answers['iface-configuration'] = config
     return direction

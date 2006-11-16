@@ -52,8 +52,10 @@ How would you like networking to be configured at this time?""" % version.PRODUC
         # proceed to get_autoconfig_ifaces if manual configuration was selected:
         if entry == OTHER:
             (rv, config) = get_autoconfig_ifaces(screen)
-            if rv == -1: return 0, config
-            if rv == 1: return 1, config
+            if rv == 1:
+                return 1, (False, config)
+            else:
+                return 0, (False, config)
         elif entry == ALL_DHCP:
             return 1, (True, None)
         elif entry == REUSE_EXISTING:
@@ -69,11 +71,11 @@ def get_autoconfig_ifaces(screen):
     # when this was written this branch would never be taken
     # since we require at least one NIC at setup time:
     if len(seq) == 0:
-        return (True, None)
+        return uicontroller.SKIP_SCREEN, {}
 
     subdict = {}
     rv = uicontroller.runUISequence(seq, subdict)
-    return rv, (False, subdict)
+    return rv, subdict
     
 def get_iface_configuration(answers, iface, screen):
     def identify_interface(iface):
@@ -143,8 +145,8 @@ PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
             break
 
     if buttons.buttonPressed(result) == 'ok':
-        answers[iface] = {'use-dhcp': dhcp_cb.value(),
-                          'enabled': enabled_cb.value(),
+        answers[iface] = {'use-dhcp': bool(dhcp_cb.value()),
+                          'enabled': bool(enabled_cb.value()),
                           'ip': ip_field.value(),
                           'subnet-mask': subnet_field.value(),
                           'gateway': gateway_field.value() }

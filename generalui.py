@@ -22,6 +22,11 @@ import netutil
 from util import runCmdWithOutput
 
 def requireNetworking(answers, ui):
+    """ Display the correct sequence of screens to get networking
+    configuration.  Bring up the network according to this configuration.
+    If answers is a dictionary, set it's 'runtime-iface-configuration' key
+    to the configuration in the style (all-dhcp, manual-config). """
+    
     direction, config = ui.get_network_config(False, True)
     if direction != 1:
         return direction
@@ -61,7 +66,7 @@ def requireNetworking(answers, ui):
             direction = 0
         else:
             if answers and type(answers) == dict:
-                answers['runtime-iface-configuration'] = config
+                answers['runtime-iface-configuration'] = (False, config)
         ui.clearModelessDialog()
         
         return direction
