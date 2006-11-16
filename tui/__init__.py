@@ -958,7 +958,7 @@ def request_media(medianame):
     global screen
     
     button = ButtonChoiceWindow(screen, "Media Not Found",
-                                "Please insert the media labelled '%s' into your drive.  If the media is already present, then the installer was unable to locate it - please refer to your user guide, or %s technical support, for more information" % (medianame, COMPANY_NAME_SHORT),
+                                "Please insert the media labelled '%s' into your drive.  If the media is already present, then the installer was unable to locate it - please refer to your user guide, or a Technical Support Representative, for more information" % (medianame, COMPANY_NAME_SHORT),
                                 ['Retry', 'Cancel'], width=50)
 
     return button != "cancel"
