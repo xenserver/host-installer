@@ -27,7 +27,7 @@ INSTALL_TYPE_REINSTALL = 2
 # display the value given by MIN_SYSTEM_RAM_MB_RAW.
 min_primary_disk_size = 16 #GB
 MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
-MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 24
+MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 
 
 # filesystems and partitions (sizes in MB):
