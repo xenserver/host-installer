@@ -24,6 +24,7 @@ import time
 import xelogging
 import tui.network
 from p2v import closeClogs
+import uicontroller
 
 from p2v_error import P2VMountError, P2VCliError
 
@@ -114,7 +115,7 @@ def welcome_screen(answers):
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
-    if button == "cancel": return -2
+    if button == "cancel": return uicontroller.EXIT
     return 1
 
 # NFS or XenEnterprise target
