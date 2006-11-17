@@ -34,7 +34,7 @@ ttyS0::once:/sbin/getty -n -l /opt/xensource/installer/preinit -L ttyS0 115200 v
 null::sysinit:/bin/touch /var/log/messages
 null::respawn:/sbin/syslogd -n -m 0
 null::respawn:/sbin/klogd -n
-tty3::respawn:/usr/bin/tail -f /var/log/messages
+tty4::respawn:/usr/bin/tail -f /var/log/messages
 
 # Stuff to do for the 3-finger salute
 ::ctrlaltdel:/sbin/reboot
