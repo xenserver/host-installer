@@ -487,7 +487,8 @@ def confirm_installation_multiple_disks(answers):
     if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
         return uicontroller.SKIP_SCREEN
 
-    disks = answers['guest-disks']
+    # need to work on a copy of this! (hence [:])
+    disks = answers['guest-disks'][:]
     if answers['primary-disk'] not in disks:
         disks.append(answers['primary-disk'])
     disks.sort()
