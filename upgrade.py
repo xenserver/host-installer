@@ -42,7 +42,8 @@ class Upgrader(object):
 
     def upgrades(cls, product, version):
         return (cls.upgrades_product == product and
-                cls.upgrades_min_version <= version <= cls.upgrades_max_version)
+                True in [ _min <= version <= _max for (_min, _max) in cls.upgrades_versions ])
+
     upgrades = classmethod(upgrades)
 
     prepStateChanges = []
@@ -60,8 +61,9 @@ class FirstGenUpgrader(Upgrader):
     """ Upgrade between initial product versions. """
 
     upgrades_product = "xenenterprise"
-    upgrades_min_version = product.Version(0, 2, 4)
-    upgrades_max_version = product.THIS_PRODUCT_VERSION
+
+    upgrades_versions = [ (product.Version(0, 2, 4), product.THIS_PRODUCT_VERSION),
+                          (product.Version(3, 1, 0, "b1"), product.Version(3,1,0,"b1")) ]
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
