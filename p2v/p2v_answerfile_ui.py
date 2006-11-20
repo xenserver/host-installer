@@ -157,7 +157,8 @@ def resume_ui():
 def welcome_screen(answers):
     return 1
 
-def get_network_config(answers):
+def get_network_config(show_reuse_existing = False,
+                       runtime_config = False):
     return 1
 
 def target_screen(answers):
