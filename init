@@ -295,6 +295,9 @@ def main():
         xelogging.log("Loading keymap %s" % kmap)
         util.runCmd("loadkeys %s" % kmap)
 
+        if isPrimaryProcess():
+            xelogging.writeLog("/tmp/startup-log")
+
         firstTime = True
         try:
             # Is VG_XenSource present, indicating that
@@ -366,6 +369,9 @@ def main():
             sys.exit(0)
 
         configureNetworking(ui_package)
+
+        if isPrimaryProcess():
+            xelogging.writeLog("/tmp/startup-log")
 
         if mode == init_constants.MODE_INSTALL:
             if answerfile:
