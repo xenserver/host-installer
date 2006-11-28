@@ -72,9 +72,9 @@ def prepare_agent(xe_host, os_install, ssh_key_file):
     if rc != 0:
         p2v_utils.trace_message("Failed to add public key (%d, %s)" % (rc, out))
         if "Authentication failure" in out:
-            raise P2VPasswordError("Failed to add public ssh key. Please verify your hostname and password.")
+            raise P2VPasswordError("Authentication to %s failed. Please verify your password." % xe_host)
         else:
-            raise P2VCliError("Failed to add public ssh key. Please verify your hostname and password.")
+            raise P2VCliError("Connection to %s failed. Please verify your hostname and password." % xe_host)
 
     total_size = long(0)
     used_size = long(0)

@@ -109,7 +109,7 @@ def main():
             finished = True
 
         except (P2VPasswordError, P2VCliError), e:
-            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", "Invalid hostname and/or password. Please re-enter hostname and password information.", ['Ok'], width = 60)
+            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", str(e), ['Ok'], width = 60)
             finished = False
             firstrun = False
 
