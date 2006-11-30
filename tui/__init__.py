@@ -989,4 +989,4 @@ def showMessageDialog(title, text):
 # Simple 'OK' dialog for external use:
 
 def OKDialog(title, text):
-    return snackutil.OKDialog(title, text)
+    return snackutil.OKDialog(screen, title, text)
