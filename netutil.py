@@ -34,7 +34,8 @@ def writeDebStyleInterfaceFile(configuration, filename):
                 outfile.write("iface %s inet static\n" % iface)
                 outfile.write("   address %s\n" % settings['ip'])
                 outfile.write("   netmask %s\n" % settings['subnet-mask'])
-                outfile.write("   gateway %s\n" % settings['gateway'])
+                if settings.has_key("gateway") and settings['gateway'] != "":
+                    outfile.write("   gateway %s\n" % settings['gateway'])
 
     outfile.close()
 
