@@ -471,7 +471,7 @@ def select_guest_disks(answers):
             "Warning",
             """You didn't select any disks for %s storage.  Are you sure this is what you want?
 
-If you proceed, please refer to the user guide for details on provisioning storage after installation.""",
+If you proceed, please refer to the user guide for details on provisioning storage after installation.""" % BRAND_GUEST,
             ['Continue', 'Back']
             )
         if button == 'back':
