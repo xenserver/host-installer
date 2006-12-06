@@ -15,7 +15,9 @@ import util
 
 def getNetifList():
     all = os.listdir("/sys/class/net")
-    return filter(lambda x: x.startswith("eth"), all)
+    relevant = filter(lambda x: x.startswith("eth"), all)
+    relevant.sort()
+    return relevant
 
 # writes an 'interfaces' style file given a network configuration dictionary
 # in the 'results' style format
