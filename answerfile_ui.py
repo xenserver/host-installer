@@ -197,9 +197,7 @@ def select_installation_source(answers):
     return 1
 def setup_runtime_networking(answers):
     return 1
-def get_http_source(answers):
-    return 1
-def get_nfs_source(answers):
+def get_source_location(answers):
     return 1
 def verify_source(answers):
     return 1

@@ -55,6 +55,15 @@ def resume_ui():
     if screen:
         screen.resume()
 
+def selectDefault(key, entries):
+    """ Given a list of (text, key) and a key to select, returns the appropriate
+    text,key pair, or None if not in entries. """
+
+    for text, k in entries:
+        if key == k:
+            return text, k
+    return None
+
 # welcome screen:
 def welcome_screen(answers):
     global screen
@@ -115,12 +124,18 @@ def get_installation_type(answers, insts):
     entries = [ ("Perform clean installation", None) ]
     entries.extend([("Re-install over %s" % str(x), x) for x in insts])
 
+    # default value?
+    if answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        default = selectDefault(answers['installation-to-overwrite'], entries)
+    else:
+        default = None
+
     (button, entry) = ListboxChoiceWindow(
         screen,
         "Installation Type",
         "One or more existing product installations that can be refreshed using this setup tool have been detected.  What would you like to do?",
         entries,
-        ['Ok', 'Back'], width=60)
+        ['Ok', 'Back'], width=60, default = default)
 
     if button != 'back':
         if entry == None:
@@ -143,13 +158,22 @@ def backup_existing_installation(answers):
     if answers['install-type'] != constants.INSTALL_TYPE_REINSTALL:
         return uicontroller.SKIP_SCREEN
 
-    button = ButtonChoiceWindow(
+    # default selection:
+    if answers.has_key('backup-existing-installation'):
+        if answers['backup-existing-installation']:
+            default = 0
+        else:
+            default = 1
+    else:
+        default = 0
+
+    button = snackutil.ButtonChoiceWindowEx(
         screen,
         "Back-up Existing Installation?",
         """Would you like to back-up your existing installation before re-installing %s?
 
 The backup will be placed on the second partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, diskutil.determinePartitionName(answers['installation-to-overwrite'].primary_disk, 2)),
-        ['Yes', 'No', 'Back']
+        ['Yes', 'No', 'Back'], default = default
         )
 
     if button == 'no':
@@ -219,14 +243,22 @@ def select_installation_source(answers):
 
     done = False
     while not done:
-        entries = [ ('Local media (CD-ROM)', 'local'),
-                    ('HTTP or FTP', 'url'),
-                    ('NFS', 'nfs') ]
-        (button, entry) = ListboxChoiceWindow(screen,
-                                              "Select Installation Source",
-                                              "Please select the type of source you would like to use for this installation",
-                                              entries,
-                                              ['Ok', 'Back'])
+        ENTRY_LOCAL = 'Local media (CD-ROM)', 'local'
+        ENTRY_URL = 'HTTP or FTP', 'url'
+        ENTRY_NFS = 'NFS', 'nfs'
+        entries = [ ENTRY_LOCAL, ENTRY_URL, ENTRY_NFS ]
+
+        # default selection?
+        if answers.has_key('source-media'):
+            default = selectDefault(answers['source-media'], entries)
+        else:
+            default = ENTRY_LOCAL
+        
+        (button, entry) = ListboxChoiceWindow(
+            screen,
+            "Select Installation Source",
+            "Please select the type of source you would like to use for this installation",
+            entries, ['Ok', 'Back'], default = default)
 
         # if it's local media, verify that stuff exists:
         if entry == 'local' and button == 'ok':
@@ -254,7 +286,7 @@ def select_installation_source(answers):
 
         answers['source-media'] = entry
         if entry == 'local':
-            answers['source-address'] = "Installation disc"
+            answers['source-address'] = ""
 
     if button == "ok" or button == None: return 1
     if button == "back": return -1
@@ -265,99 +297,81 @@ def setup_runtime_networking(answers):
 
     return generalui.requireNetworking(answers, tui)
 
-def get_http_source(answers):
+def get_source_location(answers):
+    if answers['source-media'] not in ['url', 'nfs']:
+        return uicontroller.SKIP_SCREEN
+
     if answers['source-media'] == 'url':
-        done = False
-        while not done:
-            (button, result) = EntryWindow(screen,
-                                           "Specify Repository",
-                                           "Please enter URL for your HTTP or FTP repository",
-                                           ['URL'], entryWidth = 50,
-                                           buttons = ['Ok', 'Back'])
-            
-            answers['source-address'] = result[0]
-
-            # 'not button' covers the user pressing F12
-            if button == "ok" or not button:
-                im = None
-                try:
-                    im = packaging.HTTPInstallMethod(result[0])
-                except packaging.MediaNotFound, m:
-                    ButtonChoiceWindow(screen, "Problem with repository",
-                                       str(m),  ['Back'])
-                else:
-                    problems = im.quickSourceVerification()
-                    if problems == []:
-                        done = True
-                    else:
-                        ButtonChoiceWindow(screen, "Problem with repository",
-                                           "The following required packages were not found in your repository: \n\n%s" % \
-                                           generalui.makeHumanList(problems),
-                                           ['Back'])
-                if im:
-                    im.finished()
-            elif button == "back":
-                done = True
-            
-        if button in [None, 'ok']: return 1
-        if button == 'back': return -1
-    else:
-        # we don't need this screen
-        return uicontroller.SKIP_SCREEN
-
-def get_nfs_source(answers):
-    if answers['source-media'] == 'nfs':
-        done = False
-        while not done:
-            (button, result) = EntryWindow(screen,
-                                           "Specify NFS Source",
-                                           "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)",
-                                           ['NFS Path'], entryWidth = 50,
-                                           buttons = ['Ok', 'Back'])
+        text = "Please enter the URL for your HTTP or FTP repository"
+        label = "URL"
+    elif answers['source-media'] == 'nfs':
+        text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
+        label = "NFS Path:"
         
-            answers['source-address'] = result[0]
-            if button == 'ok' or not button:
-                im = None
-                try:
+    done = False
+    while not done:
+        if answers.has_key('source-address'):
+            default = answers['source-address']
+        else:
+            default = ""
+        (button, result) = EntryWindow(
+            screen,
+            "Specify Repository",
+            text,
+            [(label, default)], entryWidth = 50,
+            buttons = ['Ok', 'Back'])
+            
+        answers['source-address'] = result[0]
+
+        # 'not button' covers the user pressing F12
+        if button == "ok" or not button:
+            im = None
+            try:
+                if answers['source-media'] == 'url':
+                    im = packaging.HTTPInstallMethod(result[0])
+                elif answers['source-media'] == 'nfs':
                     im = packaging.NFSInstallMethod(result[0])
-                except packaging.MediaNotFound, m:
-                    ButtonChoiceWindow(screen, "Problem with repository",
-                                       str(m),  ['Back'])
-                except packaging.BadSourceAddress:
-                    ButtonChoiceWindow(screen, "Problem with repository",
-                                       "The installer was unable to access the address you specified.  Please check that it is well-formed, and that you have read permission for the path you specified.",  ['Back'])
+            except packaging.MediaNotFound, m:
+                ButtonChoiceWindow(screen, "Problem with repository",
+                                   str(m),  ['Back'])
+            except packaging.BadSourceAddress:
+                ButtonChoiceWindow(
+                    screen, "Problem with repository",
+                    "The installer was unable to access the address you specified.  Please check that it is well-formed, and that you have read permission for the path you specified.",  ['Back'])
+            else:
+                problems = im.quickSourceVerification()
+                if problems == []:
+                    done = True
                 else:
-                    problems = im.quickSourceVerification()
-                    if problems == []:
-                        done = True
-                    else:
-                        ButtonChoiceWindow(screen, "Problem with repository",
-                                           "The following required packages were not found in your repository: \n\n%s" % \
-                                           generalui.makeHumanList(problems),
-                                           ['Back'])
-                
-                    im.finished()
-            elif button == 'back':
-                done = True
-                
-        if button in [None, 'ok']: return 1
-        if button == 'back': return -1
-    else:
-        # we don't need this screen
-        return uicontroller.SKIP_SCREEN
+                    ButtonChoiceWindow(
+                        screen, "Problem with repository",
+                        "The following required packages were not found in your repository: \n\n%s" % \
+                        generalui.makeHumanList(problems),
+                        ['Back'])
+            if im:
+                im.finished()
+        elif button == "back":
+            done = True
+            
+    if button in [None, 'ok']: return 1
+    if button == 'back': return -1
 
 # verify the installation source?
 def verify_source(answers):
     done = False
     while not done:
-        (button, entry) = ListboxChoiceWindow(screen,
-                                              "Verify Installation Source",
-                                              "Would you like to verify the integrity of your installation repository/media?  (This may take a while to complete and could cause significant network traffic if performing a network installation.)",
-                                              ['Skip verification', 'Verify installation source'],
-                                              ['Ok', 'Back'])
-        if entry == 0:
+        SKIP, VERIFY = range(2)
+        ENTRY_SKIP = "Skip verification", SKIP
+        ENTRY_VERIFY = "Verify installation source", VERIFY
+        entries = [ ENTRY_SKIP, ENTRY_VERIFY ]
+
+        (button, entry) = ListboxChoiceWindow(
+            screen, "Verify Installation Source",
+            "Would you like to verify the integrity of your installation repository/media?  (This may take a while to complete and could cause significant network traffic if performing a network installation.)",
+            entries, ['Ok', 'Back'])
+        if entry == SKIP:
             done = True
-        elif button != 'back' and entry == 1:
+        elif button != 'back' and entry == VERIFY:
             # we need to do the verification:
             try:
                 if answers['source-media'] == 'url':
@@ -410,6 +424,11 @@ def select_primary_disk(answers):
             stringEntry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
+
+    # default value:
+    default = None
+    if answers.has_key('primary-disk'):
+        default = selectDefault(answers['primary-disk'], entries)
 
     (button, entry) = ListboxChoiceWindow(screen,
                         "Select Primary Disk",
@@ -734,13 +753,19 @@ def get_timezone_region(answers):
 
     entries = generalui.getTimeZoneRegions()
 
-    (button, entry) = ListboxChoiceWindow(screen,
-                                          "Select Time Zone",
-                                          "Please select the geographical area that the managed host is in.",
-                                          entries,
-                                          ['Ok', 'Back'], height = 8, scroll = 1)
+    # default value?
+    default = None
+    if answers.has_key('timezone-region'):
+        default = answers['timezone-region']
 
-    if button == "ok" or button == None:
+    (button, entry) = ListboxChoiceWindow(
+        screen,
+        "Select Time Zone",
+        "Please select the geographical area that the managed host is in.",
+        entries, ['Ok', 'Back'], height = 8, scroll = 1,
+        default = default)
+
+    if button in ["ok", None]:
         answers['timezone-region'] = entries[entry]
         return 1
     
@@ -751,11 +776,17 @@ def get_timezone_city(answers):
 
     entries = generalui.getTimeZoneCities(answers['timezone-region'])
 
-    (button, entry) = ListboxChoiceWindow(screen,
-                                          "Select Time Zone",
-                                          "Please select the localised area that the managed host is in (press a letter to jump to that place in the list).",
-                                          map(lambda x: x.replace('_', ' '), entries),
-                                          ['Ok', 'Back'], height = 8, scroll = 1)
+    # default value?
+    default = None
+    if answers.has_key('timezone-city'):
+        default = answers['timezone-city'].replace(' ', '_')
+
+    (button, entry) = ListboxChoiceWindow(
+        screen,
+        "Select Time Zone",
+        "Please select the localised area that the managed host is in (press a letter to jump to that place in the list).",
+        map(lambda x: x.replace('_', ' '), entries),
+        ['Ok', 'Back'], height = 8, scroll = 1, default = default)
 
     if button == "ok" or button == None:
         answers['timezone-city'] = entries[entry]
@@ -767,19 +798,25 @@ def get_timezone_city(answers):
 def get_time_configuration_method(answers):
     global screen
 
-    entries = [ "Using NTP",
-                "Manual time entry" ]
+    ENTRY_NTP = "Using NTP", "ntp"
+    ENTRY_MANUAL = "Manual time entry", "manual"
+    entries = [ ENTRY_NTP, ENTRY_MANUAL ]
 
-    (button, entry) = ListboxChoiceWindow(screen,
-                                          "System Time",
-                                          "How should the local time be determined?\n\n(Note that if you choose to enter it manually, you will need to respond to a prompt at the end of the installation.)",
-                                          entries,
-                                          ['Ok', 'Back'])
+    # default value?
+    default = None
+    if answers.has_key("time-config-method"):
+        default = selectDefault(answers['time-config-method'], entries)
+
+    (button, entry) = ListboxChoiceWindow(
+        screen,
+        "System Time",
+        "How should the local time be determined?\n\n(Note that if you choose to enter it manually, you will need to respond to a prompt at the end of the installation.)",
+        entries, ['Ok', 'Back'], default = default)
 
     if button == "ok" or button == None:
-        if entry == 0:
+        if entry == 'ntp':
             answers['time-config-method'] = 'ntp'
-        elif entry == 1:
+        elif entry == 'manual':
             answers['time-config-method'] = 'manual'
         return 1
     if button == "back": return -1
