@@ -67,10 +67,10 @@ This install will overwrite data on any hard drives you select to use during the
                                 ['Ok', 'Cancel Installation'], width = 60)
 
     # advance to next screen:
-    if button == 'ok':
-        return 1
-    else:
+    if button == 'cancel installation':
         return uicontroller.EXIT
+    else:
+        return 1
 
 def hardware_warnings(answers, ram_warning, vt_warning):
     vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
@@ -164,24 +164,27 @@ The backup will be placed on the second partition of the destination disk (%s), 
 def eula_screen(answers):
     global screen
 
-    if not os.path.exists(constants.EULA_PATH):
-        return uicontroller.SKIP_SCREEN
-
     eula_file = open(constants.EULA_PATH, 'r')
     eula = string.join(eula_file.readlines())
     eula_file.close()
 
-    button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "End User License Agreement",
-        eula,
-        ['Accept EULA', 'Back'], width=60, default=1)
+    while True:
+        button = snackutil.ButtonChoiceWindowEx(
+            screen,
+            "End User License Agreement",
+            eula,
+            ['Accept EULA', 'Back'], width=60, default=1)
 
-    # advance to next screen:
-    if button == 'back':
-        return -1
-    else:
-        return 1
+        if button == 'accept eula':
+            return 1
+        elif button == 'back':
+            return -1
+        elif button == None:
+            ButtonChoiceWindow(
+                screen,
+                "End User License Agreement",
+                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter to press it) in order to install this product.",
+                ['Ok'])
 
 def confirm_erase_volume_groups(answers):
     global screen
@@ -206,7 +209,7 @@ def confirm_erase_volume_groups(answers):
 %s""" % (PRODUCT_BRAND, affected),
                                 ['Continue', 'Cancel Installation'], width=60)
 
-    if button == 'continue':
+    if button in [None, 'continue']:
         return 1
     elif button == 'cancel installation':
         return uicontroller.EXIT
@@ -296,7 +299,7 @@ def get_http_source(answers):
             elif button == "back":
                 done = True
             
-        if button == 'ok': return 1
+        if button in [None, 'ok']: return 1
         if button == 'back': return -1
     else:
         # we don't need this screen
@@ -337,7 +340,7 @@ def get_nfs_source(answers):
             elif button == 'back':
                 done = True
                 
-        if button == 'ok': return 1
+        if button in [None, 'ok']: return 1
         if button == 'back': return -1
     else:
         # we don't need this screen
@@ -477,7 +480,7 @@ If you proceed, please refer to the user guide for details on provisioning stora
         if button == 'back':
             return 0
 
-    if buttons.buttonPressed(result) == 'ok': return 1
+    if buttons.buttonPressed(result) in [None, 'ok']: return 1
     if buttons.buttonPressed(result) == 'back': return -1
 
 # confirm they want to blow stuff away:
@@ -503,8 +506,7 @@ def confirm_installation_multiple_disks(answers):
 If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
         [ok, 'Back'], default = 1)
         
-
-    if button == string.lower(ok): return 1
+    if button in [None, string.lower(ok)]: return 1
     if button == "back": return -1
 
 def confirm_installation_reinstall(answers):
@@ -522,7 +524,7 @@ def confirm_installation_reinstall(answers):
 The installation will be performed over %s, preserving existing %s on your storage repository.""" % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS),
         [ok, 'Back'], default = 1)
 
-    if button == string.lower(ok): return 1
+    if button in [None, string.lower(ok)]: return 1
     if button == "back": return -1
 
 def confirm_installation_one_disk(answers):
@@ -540,7 +542,7 @@ def confirm_installation_one_disk(answers):
 Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" % PRODUCT_BRAND,
         [ok, 'Back'], default = 1)
 
-    if button == string.lower(ok): return 1
+    if button in [None, string.lower(ok)]: return 1
     if button == "back": return -1
 
 def get_root_password(answers):
@@ -572,7 +574,7 @@ def get_root_password(answers):
                                ['Ok'])
 
     # if they didn't select OK we should have returned already
-    assert button == 'ok'
+    assert button in ['ok', None]
     answers['root-password'] = pw
     return 1
 
@@ -710,7 +712,7 @@ def get_name_service_configuration(answers):
                                        "Please check that you have entered at least one nameserver, and that the nameservers you specified are valid.",
                                        ["Back"])
 
-    if buttons.buttonPressed(result) == "ok":
+    if buttons.buttonPressed(result) in [None, "ok"]:
         return 1
     else:
         return -1
@@ -835,7 +837,7 @@ def get_ntp_servers(answers):
 
     result = gf.runOnce()
 
-    if buttons.buttonPressed(result) == 'ok':
+    if buttons.buttonPressed(result) in ['ok', None]:
         if not dhcp_cb.value():
             servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
             if len(servers) == 0:
