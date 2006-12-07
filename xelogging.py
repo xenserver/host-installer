@@ -13,14 +13,19 @@
 
 import os
 import util
+import datetime
 
 continuous_logs = []
 __log__ = ""
 
 def log(txt):
+    """ Write txt to the log. """
+
     global __log__
 
-    txt = "* %s\n" % txt
+    prefix = '[%s]' % str(datetime.datetime.now().replace(microsecond=0))
+
+    txt = "%s %s\n" % (prefix, txt)
     __log__ += txt
 
     for fd in continuous_logs:
@@ -28,6 +33,9 @@ def log(txt):
         fd.flush()
 
 def logOutput(header, txt):
+    """ Add header,txt to the log, treating them as output from execution of a
+    command, and so formatting them appropraitely. """
+
     global __log__
 
     if txt == "":
@@ -41,38 +49,42 @@ def logOutput(header, txt):
         fd.flush()
 
 def writeLog(destination):
+    """ Write the log as it stands to 'destination'. """
+
     global __log__
     
     dfd = open(destination, "w")
     dfd.write(__log__)
     dfd.close()
 
-def collectLogs(dir):
-    os.system("cat /proc/bus/pci/devices >%s/pci-log" % dir)
-    os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dir)
-    os.system("cat /proc/modules >%s/modules-log" % dir)
-    os.system("uname -a >%s/uname-log" % dir)
-    os.system("ls /sys/block >%s/blockdevs-log" % dir)
-    os.system("ls /dev >%s/devcontents-log" % dir)
-    os.system("tty >%s/tty-log" % dir)
-    os.system("cat /proc/cmdline >%s/cmdline-log" % dir)
-    os.system("dmesg >%s/dmesg-log" % dir)
-    os.system("ps axf >%s/processes-log" % dir)
-    os.system("vgscan -P >%s/vgscan-log 2>&1" % dir)
+def collectLogs(dst):
+    """ Make a support tarball including all logs (and some more) from 'dst'."""
 
-    # now, try to get the startup-log (it won't be in the same directory
+    os.system("cat /proc/bus/pci/devices >%s/pci-log" % dst)
+    os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dst)
+    os.system("cat /proc/modules >%s/modules-log" % dst)
+    os.system("uname -a >%s/uname-log" % dst)
+    os.system("ls /sys/block >%s/blockdevs-log" % dst)
+    os.system("ls /dev >%s/devcontents-log" % dst)
+    os.system("tty >%s/tty-log" % dst)
+    os.system("cat /proc/cmdline >%s/cmdline-log" % dst)
+    os.system("dmesg >%s/dmesg-log" % dst)
+    os.system("ps axf >%s/processes-log" % dst)
+    os.system("vgscan -P >%s/vgscan-log 2>&1" % dst)
+
+    # now, try to get the startup-log (it won't be in the same dstectory
     # most likely, but check in case):
-    if not os.path.exists("%s/startup-log" % dir):
+    if not os.path.exists("%s/startup-log" % dst):
         # it didn't exist, so we need to try and fetch it -it ought to be in
         # /tmp:
         if os.path.exists("/tmp/startup-log"):
-            os.system("cp /tmp/startup-log %s/" % dir)
+            os.system("cp /tmp/startup-log %s/" % dst)
 
-    logs = filter(lambda x: x.endswith('-log'), os.listdir(dir))
+    logs = filter(lambda x: x.endswith('-log'), os.listdir(dst))
     logs = " ".join(logs)
 
     # tar up contents
-    os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dir, dir, logs))
+    os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, dst, logs))
 
 
 def main():
