@@ -698,6 +698,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
         nfd.write("HOSTNAME=%s\n" % hn_conf[1])
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
+    nfd.write("PMAP_ARGS=-l\n")
     nfd.close()
 
     # now symlink from dom0:
