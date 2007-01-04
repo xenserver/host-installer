@@ -63,7 +63,7 @@ class FirstGenUpgrader(Upgrader):
     upgrades_product = "xenenterprise"
 
     upgrades_versions = [ (product.Version(0, 2, 4), product.THIS_PRODUCT_VERSION),
-                          (product.Version(3, 1, 0, "b1"), product.Version(3,1,0,"b1")) ]
+                          (product.Version(3, 1, 0, "b1"), product.Version(3,1,0)) ]
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
