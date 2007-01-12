@@ -360,7 +360,8 @@ def mkinitrd(mounts):
     
     cmd = "mkinitrd %s %s %s" % (modules_string, output_file, version.KERNEL_VERSION)
     
-    util.runCmd("chroot %s %s" % (mounts['root'], cmd))
+    if util.runCmd("chroot %s %s" % (mounts['root'], cmd)) != 0:
+        raise RuntimeError, "Failed to create initrd.  This is often due to using an installer that is not the same version of %s as your installation source." % version.PRODUCT_BRAND
     util.runCmd("ln -sf %s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
 
 def installGrub(mounts, disk):
