@@ -26,7 +26,6 @@ import xelogging
 import netutil
 import util
 import hardware
-import transcribe
 import generalui
 
 from hardware import module_map
@@ -300,13 +299,8 @@ def main():
 
         firstTime = True
         try:
-            # Is VG_XenSource present, indicating that
-            # either Burbank or Zurich Preview is installed
-            # on this host?
-            burbank_present = 'VG_XenSource' in diskutil.getVolumeGroups()
-
             while True:
-                operation = ui_package.choose_operation(burbank_present)
+                operation = ui_package.choose_operation()
 
                 # activate installation on this screen:
                 try:
@@ -332,15 +326,6 @@ def main():
                     s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 --keymap %s" % kmap)
                     rc = exit_status_of_rc(s)
                     if rc == EXIT_OK or rc == EXIT_ERROR: 
-                        break
-                    else:
-                        pass
-
-                # upgrade install:
-                elif operation == init_constants.OPERATION_UPGRADE:
-                    xelogging.log("Starting upgrade installation")
-                    rc = transcribe.run()
-                    if rc == EXIT_OK or rc == EXIT_ERROR:
                         break
                     else:
                         pass
