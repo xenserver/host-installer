@@ -50,17 +50,21 @@ class Task:
            labels of the return values.
     """
 
-    def __init__(self, name, fn, args, returns):
+    def __init__(self, name, fn, args, returns, args_sensitive = False):
         self.name = name
         self.fn = fn
         self.args = args
         self.returns = returns
+        self.args_sensitive = args_sensitive
 
     def execute(self, answers):
         args = self.args(answers)
         assert type(args) == list
 
-        xelogging.log("TASK: Evaluating %s%s" % (self.fn, args))
+        if not self.args_sensitive:
+            xelogging.log("TASK: Evaluating %s%s" % (self.fn, args))
+        else:
+            xelogging.log("TASK: Evaluating %s (sensitive data in arguments: not logging)" % self.fn)
         rv = apply(self.fn, args)
         if type(rv) is not tuple:
             rv = (rv,)
