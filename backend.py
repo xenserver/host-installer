@@ -149,7 +149,6 @@ def determineInstallSequence(ans, im):
         seq.append( Task(INST, configureTimeManually, A('mounts', 'ui'), []) )
     seq += [
         Task(FIN, makeSymlinks, A('mounts'), []),
-        Task(FIN, writeAnswersFile, lambda a: [a['mounts'], ans], []),
         ]
     if ans.has_key('post-install-script'):
         seq.append( Task(FIN, runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
@@ -285,13 +284,6 @@ def removeBlockingVGs(disks):
         util.runCmd2(['vgreduce', '--removemissing', vg])
         util.runCmd2(['lvremove', vg])
         util.runCmd2(['vgremove', vg])
-
-def writeAnswersFile(mounts, answers):
-    fd = open(os.path.join(mounts['boot'], ANSWERS_FILE), 'w')
-    if answers.has_key('root-password'):
-        del answers['root-password']
-    pickle.dump(answers, fd)
-    fd.close()
 
 #def getSwapPartName(disk):
 #    global swap_name, vgname
