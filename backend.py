@@ -138,7 +138,7 @@ def determineInstallSequence(ans, im):
         Task(INST, enableAgent, A('mounts'), []),
         Task(INST, writeModprobeConf, A('mounts'), []),
         Task(INST, mkinitrd, A('mounts'), []),
-        Task(INST, writeInventory, A('mounts', 'default-sr-uuid'), []),
+        Task(INST, writeInventory, A('mounts', 'primary-disk', 'default-sr-uuid'), []),
         Task(INST, touchSshAuthorizedKeys, A('mounts'), []),
         Task(INST, setRootPassword, A('mounts', 'root-password'), []),
         Task(INST, setTimeZone, A('mounts', 'timezone'), []),
@@ -289,16 +289,17 @@ def removeBlockingVGs(disks):
 #    global swap_name, vgname
 #    return "/dev/%s/%s" % (vgname, swap_name)
 
-def getBootPartNumber(disk):
+def getRootPartNumber(disk):
     return 1
 
-def getBootPartName(disk):
-    return diskutil.determinePartitionName(disk, getBootPartNumber(disk))
+def getRootPartName(disk):
+    return diskutil.determinePartitionName(disk, getRootPartNumber(disk))
 
-# XXX boot and root are the same thing now - this mess should be
-# cleaned up.
-getRootPartName = getBootPartName
-getRootPartNumber = getBootPartNumber
+def getBackupPartNumber(disk):
+    return 2
+
+def getBackupPartName(disk):
+    return diskutil.determinePartitionName(disk, getBackupPartNumber(disk))
 
 ###
 # Functions to write partition tables to disk
@@ -765,7 +766,7 @@ def makeSymlinks(mounts):
 
         assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
-def writeInventory(mounts, default_sr_uuid):
+def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
@@ -775,6 +776,8 @@ def writeInventory(mounts, default_sr_uuid):
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
+    inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
+    inv.write("BACKUP_PARTITION='%s'" % getBackupPartName(primary_disk))
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
@@ -782,8 +785,8 @@ def touchSshAuthorizedKeys(mounts):
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
 
 def backupExisting(existing):
-    primary_partition = diskutil.determinePartitionName(existing.primary_disk, 1)
-    backup_partition = diskutil.determinePartitionName(existing.primary_disk, 2)
+    primary_partition = getRootPartName(existing.primary_disk)
+    backup_partition = getBackupPartName(existing.primary_disk)
 
     # format the backup partition:
     util.runCmd2(['mkfs.ext3', backup_partition])
@@ -834,7 +837,7 @@ def getGrUBDevice(disk, mounts):
 # within the main exception handler.
 def writeLog(primary_disk):
     try: 
-        bootnode = getBootPartName(primary_disk)
+        bootnode = getRootPartName(primary_disk)
         if not os.path.exists("/tmp/mnt"):
            os.mkdir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
