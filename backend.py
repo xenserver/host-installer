@@ -568,11 +568,11 @@ def enableSM(mounts):
 
 def enableAgent(mounts):
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', 'xend', 'on'])
+                  'chkconfig', '--add', 'xend'])
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', 'xendomains', 'on'])
+                  'chkconfig', '--add', 'xendomains'])
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', 'xenagentd', 'on'])
+                  'chkconfig', '--add', 'xenagentd'])
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
