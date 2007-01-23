@@ -349,17 +349,21 @@ def prepareStorageRepository(primary_disk, guest_disks):
 def createDom0DiskFilesystems(disk):
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
 
-def mkinitrd(mounts):
+def __mkinitrd(mounts, kernel_version):
     modules_list = ["--with=%s" % x for x in hardware.getModuleOrder()]
 
     modules_string = " ".join(modules_list)
-    output_file = "/boot/initrd-%s.img" % version.KERNEL_VERSION
+    output_file = "/boot/initrd-%s.img" % kernel_version
     
-    cmd = "mkinitrd %s %s %s" % (modules_string, output_file, version.KERNEL_VERSION)
+    cmd = "mkinitrd %s %s %s" % (modules_string, output_file, kernel_version)
     
     if util.runCmd("chroot %s %s" % (mounts['root'], cmd)) != 0:
-        raise RuntimeError, "Failed to create initrd.  This is often due to using an installer that is not the same version of %s as your installation source." % version.PRODUCT_BRAND
+        raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
     util.runCmd("ln -sf %s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
+
+def mkinitrd(mounts):
+    __mkinitrd(mounts, version.KERNEL_VERSION)
+    __mkinitrd(mounts, version.KDUMP_VERSION)
 
 def installGrub(mounts, disk):
     # prepare extra mounts for installing GRUB:
