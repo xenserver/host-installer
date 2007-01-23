@@ -342,9 +342,11 @@ def inspect_root(dev_name, dev_attrs, results):
                os_install = {}
                p2v_utils.trace_message("found os name: %s" % parts[0])
                p2v_utils.trace_message("found os version : %s" % parts[1])
+               p2v_utils.trace_message("os is : %s" % parts[2])
                
                os_install[p2v_constants.OS_NAME] = parts[0]
                os_install[p2v_constants.OS_VERSION] = parts[1]
+               os_install[p2v_constants.BITS] = parts[2]
                os_install[p2v_constants.DEV_NAME] = dev_name
                os_install[p2v_constants.DEV_ATTRS] = dev_attrs
                os_install[p2v_constants.HOST_NAME] = findHostName(mnt)
