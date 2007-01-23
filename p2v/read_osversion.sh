@@ -68,9 +68,27 @@ which_distro_version () {
         esac
 }
 
+determine_32_or_64 () {
+    local ROOT=$1
+    chroot $ROOT file /sbin/init | grep "32-bit" &> /dev/null
+    if [ $? -eq 0 ] ; then
+        printf "32"
+        return
+    fi
+    chroot $ROOT file /sbin/init | grep "64-bit" &> /dev/null
+    if [ $? -eq 0 ] ; then
+        printf "64"
+        return
+    fi
+
+    printf "Unknown"
+    return
+}
+
 release_file=`which_release_file $ROOT_PATH`
 distro=`which_os $release_file`
 version=`which_distro_version "$distro" $ROOT_PATH/etc/$release_file`
+is32or64=`determine_32_or_64 $ROOT_PATH`
 
-printf "$distro\n$version\n"
+printf "$distro\n$version\n$is32or64\n"
 exit 0
