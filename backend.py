@@ -133,8 +133,6 @@ def determineInstallSequence(ans, im):
         Task(INST, configureNetworking, A('mounts', 'iface-configuration', 'manual-hostname'), []),
         Task(INST, prepareSwapfile, A('mounts'), []),
         Task(INST, writeFstab, A('mounts'), []),
-        Task(INST, writeSmtab, A('mounts', 'default-sr-uuid'), []),
-        Task(INST, enableSM, A('mounts'), []),
         Task(INST, enableAgent, A('mounts'), []),
         Task(INST, writeModprobeConf, A('mounts'), []),
         Task(INST, mkinitrd, A('mounts'), []),
@@ -560,24 +558,11 @@ def writeFstab(mounts):
     fstab.write("none        /sys      sysfs  defaults   0  0\n")
     fstab.close()
 
-# creates an empty file if default_sr is None:
-def writeSmtab(mounts, default_sr):
-    smtab = open(os.path.join(mounts['root'], 'etc/smtab'), 'w')
-    if default_sr:
-        smtab.write("%s none lvm default auto\n" % default_sr)
-    smtab.close()
-
-def enableSM(mounts):
-    assert util.runCmd2(['chroot', mounts['root'], 'chkconfig',
-                         '--add', 'smtab']) == 0
-
 def enableAgent(mounts):
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xend'])
+                  'chkconfig', 'xend', 'off'])
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xendomains'])
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xenagentd'])
+                  'chkconfig', 'xapi', 'on'])
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
