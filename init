@@ -333,7 +333,7 @@ def main():
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
                     xelogging.log("Starting P2V")
-                    s = os.system("/opt/xensource/installer/p2v.py")
+                    s = os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3")
                     rc = exit_status_of_rc(s)
                     if rc == EXIT_OK or rc == EXIT_ERROR:
                         break
