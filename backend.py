@@ -147,9 +147,6 @@ def determineInstallSequence(ans, im):
         seq.append( Task(INST, configureNTP, A('mounts', 'ntp-servers'), []) )
     elif ans['time-config-method'] == 'manual':
         seq.append( Task(INST, configureTimeManually, A('mounts', 'ui'), []) )
-    seq += [
-        Task(FIN, makeSymlinks, A('mounts'), []),
-        ]
     if ans.has_key('post-install-script'):
         seq.append( Task(FIN, runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
     seq += [
@@ -251,8 +248,6 @@ def configureNTP(mounts, ntp_servers):
     util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
 
 def configureTimeManually(mounts, ui_package):
-    global writeable_files
-
     # display the Set TIme dialog in the chosen UI:
     rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
     answers = {}
@@ -486,7 +481,6 @@ def mountVolumes(primary_disk, cleanup):
     # mounts is a list of triples of (name, mount source, mountpoint)
     # where mountpoint is based off of base, defined above:
     mounts = [('root', (MOUNT_SOURCE_DEVICE, diskutil.determinePartitionName(primary_disk, 1)), '/'),
-              ('rws', None, '/rws'),
               ('boot', None, '/boot')]
 
     umount_order = ['root']
@@ -548,9 +542,6 @@ def prepareSwapfile(mounts):
     util.runCmd2(['chroot', mounts['root'], 'mkswap', '/var/swap/swap.001'])
 
 def writeFstab(mounts):
-    util.assertDir("%s/etc" % mounts['rws'])
-
-    # write 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
     fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
     fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
@@ -614,8 +605,6 @@ def setTimeZone(mounts, tz):
     timeconfig.write("ARC=false\n")
     timeconfig.close()
 
-    writeable_files.append('/etc/sysconfig/clock')
-
     # make the localtime link:
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
            (tz, mounts['root']))
@@ -648,28 +637,21 @@ def configureNetworking(mounts, iface_config, hn_conf):
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
-    # make sure the directories in rws exist to write to:
-    util.assertDir("%s/etc/sysconfig/network-scripts" %
-                  mounts['rws'])
-
     # are we all DHCP?
     (alldhcp, mancfg) = iface_config
     if alldhcp:
         ifaces = netutil.getNetifList()
         for i in ifaces:
-            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
+            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
             if check_link_down_hack:
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
-
-            # this is a writeable file:
-            writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
     else:
         # no - go through each interface manually:
         for i in mancfg:
             iface = mancfg[i]
-            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
+            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             if not iface['enabled']:
                 writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
             else:
@@ -688,15 +670,12 @@ def configureNetworking(mounts, iface_config, hn_conf):
                     ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
                     ifcfd.write("PEERDNS=yes\n")
 
-            # this is a writeable file:
-            writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
-                          
             if check_link_down_hack:
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
 
     # write the configuration file for the loopback interface
-    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['rws'], "w")
+    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['root'], "w")
     out.write("DEVICE=lo\n")
     out.write("IPADDR=127.0.0.1\n")
     out.write("NETMASK=255.0.0.0\n")
@@ -706,10 +685,8 @@ def configureNetworking(mounts, iface_config, hn_conf):
     out.write("NAME=loopback\n")
     out.close()
 
-    writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-lo")
-
     # now we need to write /etc/sysconfig/network
-    nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
+    nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
     nfd.write("NETWORKING=yes\n")
     if hn_conf[0]:
         nfd.write("HOSTNAME=%s\n" % hn_conf[1])
@@ -718,9 +695,6 @@ def configureNetworking(mounts, iface_config, hn_conf):
     nfd.write("PMAP_ARGS=-l\n")
     nfd.close()
 
-    # now symlink from dom0:
-    writeable_files.append("/etc/sysconfig/network")
-
 # use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts):
     util.bindMount("/proc", "%s/proc" % mounts['root'])
@@ -728,48 +702,6 @@ def writeModprobeConf(mounts):
     assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
-   
-# make appropriate symlinks according to writeable_files and writeable_dirs:
-def makeSymlinks(mounts):
-    global writeable_dirs, writeable_files
-
-    # make sure required directories exist:
-    for d in asserted_dirs:
-        util.assertDir("%s%s" % (mounts['root'], d))
-        util.assertDir("%s%s" % (mounts['rws'], d))
-
-    # link directories:
-    for d in writeable_dirs:
-        rws_dir = "%s%s" % (mounts['rws'], d)
-        dom0_dir = "%s%s" % (mounts['root'], d)
-        util.assertDir(rws_dir)
-
-        if os.path.isdir(dom0_dir):
-            util.copyFilesFromDir(dom0_dir, rws_dir)
-
-        runCmd("rm -rf %s" % dom0_dir)
-        assert runCmd("ln -sf /rws%s %s" % (d, dom0_dir)) == 0
-
-    # now link files:
-    # Note the behaviour here - we always create a symlink from
-    # dom0 to RWS, but we only copy the contents of the dom0 file
-    # in the case that a file does NOT already exists in RWS.
-    #
-    # Think carefully about the upgrade scenario before making
-    # changes here.
-    for f in writeable_files:
-        rws_file = "%s%s" % (mounts['rws'], f)
-        dom0_file = "%s%s" % (mounts['root'], f)
-
-        # make sure the destination file exists:
-        if not os.path.isfile(rws_file):
-            if os.path.isfile(dom0_file):
-                runCmd("cp %s %s" % (dom0_file, rws_file))
-            else:
-                fd = open(rws_file, 'w')
-                fd.close()
-
-        assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
 def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")

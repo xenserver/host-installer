@@ -51,36 +51,3 @@ kbd_data_file = '/opt/xensource/installer/keymaps'
 # os.path.join.
 ANSWERS_FILE = "upgrade_answers"
 INVENTORY_FILE = "etc/xensource-inventory"
-
-# files that should be writeable in the dom0 FS
-writeable_files = [ '/etc/sysconfig/keyboard',
-                    '/etc/yp.conf',
-                    '/etc/ntp.conf',
-                    '/etc/resolv.conf',
-                    '/etc/dhclient-exit-hooks',
-                    '/etc/hosts',
-                    '/etc/hostname',
-                    '/etc/syslog.conf',
-                    '/etc/issue',
-                    '/etc/adjtime',
-                    '/etc/passwd',
-                    '/etc/.pwd.lock',
-                    '/etc/lvm/.cache',
-                    '/etc/vendorkernel-inventory',
-                    '/usr/sbin/system-info.sh']
-
-# directories to be created in the dom0 FS
-asserted_dirs = [ '/etc',
-                  '/etc/sysconfig',
-                  '/etc/sysconfig/network-scripts',
-                  '/etc/lvm',
-                  '/etc/lvm/archive',
-                  '/etc/lvm/backup',
-                  '/usr/sbin' ]
-
-# directories that should be writeable in the dom0 FS
-writeable_dirs = [ '/etc/ntp',
-                   '/etc/lvm/archive',
-                   '/etc/lvm/backup',
-                   '/etc/ssh',
-                   '/root' ]
