@@ -42,7 +42,6 @@ class InvalidInstallerConfiguration(Exception):
 class Task:
     """
     Represents an install step.
-    'name' is the name of the task; this may be displayed in the UI.
     'fn'   is the function to execute
     'args' is a list of value labels identifying arguments to the function,
     'retursn' is a list of the labels of the return values, or a function
@@ -50,8 +49,7 @@ class Task:
            labels of the return values.
     """
 
-    def __init__(self, name, fn, args, returns, args_sensitive = False):
-        self.name = name
+    def __init__(self, fn, args, returns, args_sensitive = False):
         self.fn = fn
         self.args = args
         self.returns = returns
@@ -79,80 +77,83 @@ class Task:
             myrv[ret[r]] = rv[r]
         return myrv
 
-def determineInstallSequence(ans, im):
-    PREP = "Preparing for installation..."
-    BACKUP = "Backing up existing installation (this may take a while)..."
-    INST = "Installing %s..." % PRODUCT_BRAND
-    FIN = "Completing installation..."
+###
+# INSTALL SEQUENCES:
+# convenience functions
+# A: For each label in params, gives an arg function that evaluates
+#    the labels when the function is called (late-binding)
+# As: As above but evaulated immediately (early-binding)
+# Use A when you require state values as well as the initial input values
+A = lambda ans, *params: ( lambda a: [a[param] for param in params] )
+As = lambda ans, *params: ( lambda _: [ans[param] for param in params] )
 
-    # Get the package list:
-    packages = im.getPackageList()
-
-    # convenience functions
-    # A: For each label in params, gives an arg function that evaluates
-    #    the labels when the function is called (late-binding)
-    # As: As above but evaulated immediately (early-binding)
-    # Use A when you require state values as well as the initial input values
-    A = lambda *params: ( lambda a: [a[param] for param in params] )
-    As = lambda *params: ( lambda _: [ans[param] for param in params] )
-
+def getPrepSequence(ans):
     seq = []
-
-    # Basic install sequence definition:
-
-    # Partitioning - Only performed if fresh install:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(PREP, removeBlockingVGs, As('guest-disks'), []),
-            Task(PREP, writeDom0DiskPartitions, As('primary-disk'), []),
+            Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
+            Task(writeDom0DiskPartitions, As(ans, 'primary-disk'), []),
             ]
         for gd in ans['guest-disks']:
             if gd != ans['primary-disk']:
-                seq.append(Task(PREP, writeGuestDiskPartitions,
+                seq.append(Task(writeGuestDiskPartitions,
                                 (lambda mygd: (lambda _: [mygd]))(gd), []))
         seq += [
-            Task(PREP, prepareStorageRepository, As('primary-disk', 'guest-disks'), ['default-sr-uuid']),
+            Task(prepareStorageRepository, As(ans, 'primary-disk', 'guest-disks'), ['default-sr-uuid']),
             ]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
-        seq.append(Task(PREP, getUpgrader, A('installation-to-overwrite'), ['upgrader']))
+        seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if ans['backup-existing-installation']:
-            seq.append(Task(BACKUP, backupExisting, As('installation-to-overwrite'), []))
-        seq.append(Task(PREP, prepareUpgrade, A('upgrader'), lambda upgrader: upgrader.prepStateChanges))
+            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), []))
+        seq.append(Task(prepareUpgrade, A(ans, 'upgrader'), lambda upgrader: upgrader.prepStateChanges))
 
     seq += [
-        Task(PREP, createDom0DiskFilesystems, A('primary-disk'), []),
-        Task(PREP, mountVolumes, A('primary-disk', 'cleanup'), ['mounts', 'cleanup']),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
+        Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
         ]
+
+    return seq
+
+def getPackageInstallSequence(ans, im):
+    # Get the package list:
+    packages = im.getPackageList()
+
+    seq = []
+
     for p in packages:
-        seq.append( Task(INST, im.installPackage, (lambda myp: (lambda a: [ myp, a['mounts']['root'] ]))(p), []) )
-    seq += [
-        Task(INST, installGrub, A('mounts', 'primary-disk'), []),
-        Task(INST, doDepmod, A('mounts'), []),
-        Task(INST, writeResolvConf, A('mounts', 'manual-hostname', 'manual-nameservers'), []),
-        Task(INST, writeKeyboardConfiguration, A('mounts', 'keymap'), []),
-        Task(INST, configureNetworking, A('mounts', 'iface-configuration', 'manual-hostname'), []),
-        Task(INST, prepareSwapfile, A('mounts'), []),
-        Task(INST, writeFstab, A('mounts'), []),
-        Task(INST, writeSmtab, A('mounts', 'default-sr-uuid'), []),
-        Task(INST, enableSM, A('mounts'), []),
-        Task(INST, enableAgent, A('mounts'), []),
-        Task(INST, writeModprobeConf, A('mounts'), []),
-        Task(INST, mkinitrd, A('mounts'), []),
-        Task(INST, writeInventory, A('mounts', 'primary-disk', 'default-sr-uuid'), []),
-        Task(INST, touchSshAuthorizedKeys, A('mounts'), []),
-        Task(INST, setRootPassword, A('mounts', 'root-password'), []),
-        Task(INST, setTimeZone, A('mounts', 'timezone'), []),
+        seq.append( Task(im.installPackage, (lambda myp: (lambda a: [ myp, a['mounts']['root'] ]))(p), []) )
+
+    return seq
+
+def getFinalisationSequence(ans):
+    seq = [
+        Task(installGrub, A(ans, 'mounts', 'primary-disk'), []),
+        Task(doDepmod, A(ans, 'mounts'), []),
+        Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
+        Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'iface-configuration', 'manual-hostname'), []),
+        Task(prepareSwapfile, A(ans, 'mounts'), []),
+        Task(writeFstab, A(ans, 'mounts'), []),
+        Task(writeSmtab, A(ans, 'mounts', 'default-sr-uuid'), []),
+        Task(enableSM, A(ans, 'mounts'), []),
+        Task(enableAgent, A(ans, 'mounts'), []),
+        Task(writeModprobeConf, A(ans, 'mounts'), []),
+        Task(mkinitrd, A(ans, 'mounts'), []),
+        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'default-sr-uuid'), []),
+        Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
+        Task(setRootPassword, A(ans, 'mounts', 'root-password'), []),
+        Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
     if ans['time-config-method'] == 'ntp':
-        seq.append( Task(INST, configureNTP, A('mounts', 'ntp-servers'), []) )
+        seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
     elif ans['time-config-method'] == 'manual':
-        seq.append( Task(INST, configureTimeManually, A('mounts', 'ui'), []) )
+        seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
     if ans.has_key('post-install-script'):
-        seq.append( Task(FIN, runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
+        seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
     seq += [
-        Task(FIN, umountVolumes, A('mounts', 'cleanup'), ['cleanup']),
+        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
 
-        Task(FIN, writeLog, A('primary-disk'), [] ),
+        Task(writeLog, A(ans, 'primary-disk'), [] ),
         ]
 
     return seq
@@ -165,7 +166,7 @@ def prettyLogAnswers(answers):
             val = answers[a]
         xelogging.log("%s := %s %s" % (a, val, type(val)))
 
-def performInstallSequence(sequence, answers_pristine, ui):
+def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     answers = answers_pristine.copy()
     answers['cleanup'] = []
     answers['ui'] = ui
@@ -174,19 +175,15 @@ def performInstallSequence(sequence, answers_pristine, ui):
     if ui:
         pd = ui.initProgressDialog(
             "Installing %s" % PRODUCT_BRAND,
-            "Preparing for installation...",
-            len(sequence)
+            seq_name, len(sequence)
             )
-
+    xelogging.log("DISPATCH: NEW PHASE: %s" % seq_name)
+    
     try:
-        lastname = ""
         current = 0
         for item in sequence:
             if pd:
-                ui.displayProgressDialog(current, pd, item.name)
-            if item.name != lastname:
-                xelogging.log("DISPATCH: NEW PHASE: %s" % item.name)
-                lastname = item.name
+                ui.displayProgressDialog(current, pd)
             updated_state = item.execute(answers)
             if len(updated_state) > 0:
                 xelogging.log(
@@ -200,12 +197,16 @@ def performInstallSequence(sequence, answers_pristine, ui):
     finally:
         if ui and pd:
             ui.clearModelessDialog()
-        for tag, f, a in answers['cleanup']:
-            try:
-                apply(f,a)
-            except:
-                xelogging.log("FAILED to perform cleanup action %s" % tag)
-        del answers['cleanup']
+
+        if cleanup:
+            for tag, f, a in answers['cleanup']:
+                try:
+                    apply(f,a)
+                except:
+                    xelogging.log("FAILED to perform cleanup action %s" % tag)
+            del answers['cleanup']
+
+    return answers
 
 class UnkownInstallMediaType(Exception):
     pass
@@ -221,8 +222,15 @@ def performInstallation(answers, ui_package):
     im = im_class(answers['source-address'])
 
     # perform installation:
-    sequence = determineInstallSequence(answers, im)
-    performInstallSequence(sequence, answers, ui_package)
+    prep_seq = getPrepSequence(answers)
+    new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
+
+    media_seq = getPackageInstallSequence(new_ans, im)
+    im.media_name = "%s install disc" % version.PRODUCT_BRAND
+    new_ans = executeSequence(media_seq, "Installing from media '%s'..." % im.media_name, new_ans, ui_package, False)
+
+    fin_seq = getFinalisationSequence(new_ans)
+    new_ans = executeSequence(fin_seq, "Finalising installation...", new_ans, ui_package, True)
 
     # clean up:
     im.finished()
