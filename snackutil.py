@@ -81,6 +81,10 @@ def initProgressDialog(screen, title, text, total):
     form.add(t, 0, 0, padding = (0,0,0,1))
     form.add(scale, 0, 1, padding = (0,0,0,0))
 
+    form.draw()
+    screen.pushHelpLine(PLEASE_WAIT_STRING)
+    screen.refresh()
+
     return (form, t, scale)
 
 def showMessageDialog(screen, title, text):
@@ -100,10 +104,9 @@ def displayProgressDialog(screen, current, (form, t, scale), updated_text = None
         t.setText(updated_text)
 
     form.draw()
-
-    screen.pushHelpLine(PLEASE_WAIT_STRING)
     screen.refresh()
 
 def clearModelessDialog(screen):
+    screen.popHelpLine()
     screen.pushHelpLine(None)
     screen.popWindow()
