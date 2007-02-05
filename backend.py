@@ -16,6 +16,7 @@ import subprocess
 import datetime
 import pickle
 
+import repository
 import generalui
 import xelogging
 import util
@@ -23,7 +24,6 @@ import diskutil
 import netutil
 from util import runCmd
 import shutil
-import packaging
 import constants
 import hardware
 import upgrade
@@ -49,13 +49,16 @@ class Task:
            labels of the return values.
     """
 
-    def __init__(self, fn, args, returns, args_sensitive = False):
+    def __init__(self, fn, args, returns, args_sensitive = False,
+                 progress_scale = 1, pass_progress_callback = False):
         self.fn = fn
         self.args = args
         self.returns = returns
         self.args_sensitive = args_sensitive
+        self.progress_scale = progress_scale
+        self.pass_progress_callback = pass_progress_callback
 
-    def execute(self, answers):
+    def execute(self, answers, progress_callback = lambda x: ()):
         args = self.args(answers)
         assert type(args) == list
 
@@ -63,6 +66,10 @@ class Task:
             xelogging.log("TASK: Evaluating %s%s" % (self.fn, args))
         else:
             xelogging.log("TASK: Evaluating %s (sensitive data in arguments: not logging)" % self.fn)
+
+        if self.pass_progress_callback:
+            args.insert(0, progress_callback)
+
         rv = apply(self.fn, args)
         if type(rv) is not tuple:
             rv = (rv,)
@@ -114,15 +121,18 @@ def getPrepSequence(ans):
 
     return seq
 
-def getPackageInstallSequence(ans, im):
-    # Get the package list:
-    packages = im.getPackageList()
-
+def getRepoSequence(ans, repos):
     seq = []
-
-    for p in packages:
-        seq.append( Task(im.installPackage, (lambda myp: (lambda a: [ myp, a['mounts']['root'] ]))(p), []) )
-
+    for repo in repos:
+        seq.append(Task(repo.accessor().start, lambda x: [], []))
+        for package in repo:
+            seq += [
+                # have to bind package at the current value, hence the myp nonsense:
+                Task(installPackage, (lambda myp: lambda a: [a['mounts'], myp])(package), [],
+                     progress_scale = (package.size / 100),
+                     pass_progress_callback = True)
+                ]
+        seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
 
 def getFinalisationSequence(ans):
@@ -171,39 +181,52 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     answers['cleanup'] = []
     answers['ui'] = ui
 
+    progress_total = reduce(lambda x,y: x + y,
+                            [task.progress_scale for task in sequence])
+
     pd = None
     if ui:
         pd = ui.initProgressDialog(
             "Installing %s" % PRODUCT_BRAND,
-            seq_name, len(sequence)
+            seq_name, progress_total
             )
     xelogging.log("DISPATCH: NEW PHASE: %s" % seq_name)
-    
+
+    def doCleanup(actions):
+        for tag, f, a in answers['cleanup']:
+            try:
+                apply(f,a)
+            except:
+                xelogging.log("FAILED to perform cleanup action %s" % tag)
+
+    def progressCallback(x):
+        if ui:
+            ui.displayProgressDialog(current + x, pd)
+        
     try:
         current = 0
         for item in sequence:
             if pd:
                 ui.displayProgressDialog(current, pd)
-            updated_state = item.execute(answers)
+            updated_state = item.execute(answers, progressCallback)
             if len(updated_state) > 0:
                 xelogging.log(
                     "DISPATCH: Updated state: %s" %
                     str.join("; ", ["%s -> %s" % (v, updated_state[v]) for v in updated_state.keys()])
                     )
-                for item in updated_state:
-                    answers[item] = updated_state[item]
+                for state_item in updated_state:
+                    answers[state_item] = updated_state[state_item]
 
-            current = current + 1
-    finally:
+            current = current + item.progress_scale
+    except:
+        doCleanup(answers['cleanup'])
+        raise
+    else:
         if ui and pd:
             ui.clearModelessDialog()
 
         if cleanup:
-            for tag, f, a in answers['cleanup']:
-                try:
-                    apply(f,a)
-                except:
-                    xelogging.log("FAILED to perform cleanup action %s" % tag)
+            doCleanup(answers['cleanup'])
             del answers['cleanup']
 
     return answers
@@ -215,25 +238,47 @@ def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
-    # create install method:
-    if not packaging.InstallMethods.has_key(answers['source-media']):
-        raise UnkownInstallMediaType
-    im_class = packaging.InstallMethods[answers['source-media']]
-    im = im_class(answers['source-address'])
-
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
 
-    media_seq = getPackageInstallSequence(new_ans, im)
-    im.media_name = "%s install disc" % version.PRODUCT_BRAND
-    new_ans = executeSequence(media_seq, "Installing from media '%s'..." % im.media_name, new_ans, ui_package, False)
+    done = False
+    installed_repo_ids = []
+    while not done:
+        all_repositories = repository.repositoriesFromDefinition(
+            answers['source-media'], answers['source-address']
+            )
+
+        # make a list of ones we've not already installed:
+        repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
+                              all_repositories)
+        
+        if len(repositories) == 0:
+            raise RuntimeError, "No repository found at the specified location."
+        elif len(repositories) == 1:
+            seq_name = "Installing from " + repositories[0].name() + "..."
+        else:
+            seq_name = "Installing %s..." % version.PRODUCT_BRAND
+        repo_seq = getRepoSequence(new_ans, repositories)
+        new_ans = executeSequence(repo_seq, seq_name, new_ans, ui_package, False)
+
+        # record the repos we installed in this round:
+        installed_repo_ids.extend([ r.identifier for r in repositories] )
+
+        # get more media?
+        done = not (answers.has_key('more-media') and answers['more-media'])
+        if not done:
+            util.runCmd2(['/usr/bin/eject'])
+            done = ui_package.more_media_seq(installed_repo_ids)
 
     fin_seq = getFinalisationSequence(new_ans)
-    new_ans = executeSequence(fin_seq, "Finalising installation...", new_ans, ui_package, True)
+    new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
 
-    # clean up:
-    im.finished()
+    if answers['source-media'] == 'local':
+        util.runCmd2(['/usr/bin/eject'])
+
+def installPackage(progress_callback, mounts, package):
+    package.install(mounts['root'], progress_callback)
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):

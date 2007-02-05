@@ -114,7 +114,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
     rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
                           stderr = subprocess.PIPE).wait()
     if rc != 0:
-        raise MountFailureException()
+        raise MountFailureException
 
 def bindMount(source, mountpoint):
     xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
