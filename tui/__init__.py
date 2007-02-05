@@ -532,64 +532,29 @@ If you proceed, please refer to the user guide for details on provisioning stora
     if buttons.buttonPressed(result) in [None, 'ok']: return 1
     if buttons.buttonPressed(result) == 'back': return -1
 
-# confirm they want to blow stuff away:
-def confirm_installation_multiple_disks(answers):
-    global screen
+def confirm_installation(answers):
+    text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
+    if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
+        # need to work on a copy of this! (hence [:])
+        disks = answers['guest-disks'][:]
+        if answers['primary-disk'] not in disks:
+            disks.append(answers['primary-disk'])
+        disks.sort()
+        if len(disks) == 1:
+            term = 'disk'
+        else:
+            term = 'disks'
+        disks_used = generalui.makeHumanList(disks)
+        text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
+    elif answers['install-type'] == consatnts.INSTALL_TYPE_REINSTALL:
+        text2 = "The installation will be performed over " % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS)
 
-    if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
-        return uicontroller.SKIP_SCREEN
-
-    # need to work on a copy of this! (hence [:])
-    disks = answers['guest-disks'][:]
-    if answers['primary-disk'] not in disks:
-        disks.append(answers['primary-disk'])
-    disks.sort()
-    disks_used = generalui.makeHumanList(disks)
-
+    text = text1 + "\n\n" + text2
     ok = 'Install %s' % PRODUCT_BRAND
     button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "Confirm Installation",
-        """We have collected all the information required to install %s.
-
-If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
-        [ok, 'Back'], default = 1)
-        
-    if button in [None, string.lower(ok)]: return 1
-    if button == "back": return -1
-
-def confirm_installation_reinstall(answers):
-    global screen
-
-    if answers['install-type'] != constants.INSTALL_TYPE_REINSTALL:
-        return uicontroller.SKIP_SCREEN
-
-    ok = 'Install %s' % PRODUCT_BRAND
-    button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "Confirm Installation",
-        """We have collected all the information required to install %s.
-
-The installation will be performed over %s, preserving existing %s on your storage repository.""" % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS),
-        [ok, 'Back'], default = 1)
-
-    if button in [None, string.lower(ok)]: return 1
-    if button == "back": return -1
-
-def confirm_installation_one_disk(answers):
-    global screen
-
-    if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
-        return uicontroller.SKIP_SCREEN
-
-    ok = 'Install %s' % PRODUCT_BRAND
-    button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "Confirm Installation",
-        """Since your server only has a single disk, this will be used to install %s.
-
-Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" % PRODUCT_BRAND,
-        [ok, 'Back'], default = 1)
+        screen, "Confirm Installation", text,
+        [ok, 'Back'], default = 1
+        )
 
     if button in [None, string.lower(ok)]: return 1
     if button == "back": return -1

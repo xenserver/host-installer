@@ -21,7 +21,6 @@ import util
 import answerfile_ui
 import uicontroller
 import constants
-from version import COMPANY_NAME_SHORT
 
 # hardware
 import diskutil
@@ -167,13 +166,8 @@ def main():
                  ui_package.get_ntp_servers,
                  ui_package.determine_basic_network_config,
                  ui_package.get_name_service_configuration,
-                 ui_package.confirm_installation_reinstall
+                 ui_package.confirm_installation
                  ]
-
-        if len(disks) > 1:
-            seq += [ ui_package.confirm_installation_multiple_disks ]
-        else:
-            seq += [ ui_package.confirm_installation_one_disk ]
 
         uiexit = uicontroller.runUISequence(seq, results)
 
