@@ -15,7 +15,7 @@ XEN_VERSION = "3.0.1"
 
 PRODUCT_BRAND = "XenEnterprise"
 PRODUCT_NAME = "XenSource Carbon"
-PRODUCT_VERSION = "Burbank Alpha One"
+PRODUCT_VERSION = "3.1.0"
 BUILD_NUMBER = "1"
 COMPANY_NAME_LEGAL = "XenSource, Inc."
 COMPANY_NAME_SHORT = "XenSource"

@@ -193,7 +193,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     xelogging.log("DISPATCH: NEW PHASE: %s" % seq_name)
 
     def doCleanup(actions):
-        for tag, f, a in answers['cleanup']:
+        for tag, f, a in actions:
             try:
                 apply(f,a)
             except:
@@ -526,48 +526,21 @@ def installGrub(mounts, disk):
 ##########
 # mounting and unmounting of various volumes
 
-MOUNT_SOURCE_DEVICE = 1
-MOUNT_SOURCE_BIND = 2
 def mountVolumes(primary_disk, cleanup):
-    base = '/tmp/root'
+    mounts = {'root': '/tmp/root',
+              'boot': '/tmp/root/boot'}
 
-    # mounts is a list of triples of (name, mount source, mountpoint)
-    # where mountpoint is based off of base, defined above:
-    mounts = [('root', (MOUNT_SOURCE_DEVICE, diskutil.determinePartitionName(primary_disk, 1)), '/'),
-              ('boot', None, '/boot')]
+    rootp = getRootPartName(primary_disk)
+    util.assertDir('/tmp/root')
+    util.mount(rootp, mounts['root'])
 
-    umount_order = ['root']
-
-    for (name, src, dst) in mounts:
-        dst = os.path.join(base, dst.lstrip('/'))
-
-        util.assertDir(dst)
-        if src:
-            (mnt_type, mnt_source) = src
-
-            if mnt_type == MOUNT_SOURCE_DEVICE:
-                util.mount(mnt_source, dst)
-                cleanup_fn = (lambda d: lambda : util.umount(d))(dst)
-                cleanup.append( ("umount-%s" % dst, cleanup_fn, ()) )
-            elif mnt_type == MOUNT_SOURCE_BIND:
-                mnt_source = os.path.join(base, mnt_source.lstrip('/'))
-                util.assertDir(mnt_source)
-                util.bindMount(mnt_source, dst)
-
-    # later I'll implement a class to do all this properly but
-    # for now we're stuck with this rubbish (including umount-order):
-    rv = {}
-    for (n, s, d) in mounts:
-        rv[n] = os.path.join(base, d.lstrip('/'))
-    rv['umount-order'] = umount_order
-    
-    return rv, cleanup
+    new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
+    return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
-    for name in mounts['umount-order']: # hack!
-        util.umount(mounts[name], force)
-        cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts[name],
-                         cleanup)
+    util.umount(mounts['root'])
+    cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts['root'],
+                     cleanup)
     return cleanup
 
 ##########
