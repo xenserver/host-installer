@@ -1015,7 +1015,7 @@ def more_media_sequence(installed_repo_ids):
     def get_more_media(_):
         done = False
         while not done:
-            more = OKDialog("New Media", "Please insert your extra disc now", True)
+            more = OKDialog("New Media", "Please insert your extra disc now.", True)
             if more == "cancel":
                 # they hit cancel:
                 rv = -1;
@@ -1038,9 +1038,10 @@ def more_media_sequence(installed_repo_ids):
         repos = repository.repositoriesFromDefinition('local', '')
         assert len(repos) > 0
 
+        media_contents = []
         for r in repos:
             if r.identifier() in installed_repo_ids:
-                media_contents.append(" * %s (alredy installed)" % r.name())
+                media_contents.append(" * %s (already installed)" % r.name())
             else:
                 media_contents.append(" * %s" % r.name())
         text = "The media you have inserted contains:\n\n" + "\n".join(media_contents)
