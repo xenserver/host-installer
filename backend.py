@@ -269,7 +269,7 @@ def performInstallation(answers, ui_package):
         done = not (answers.has_key('more-media') and answers['more-media'])
         if not done:
             util.runCmd2(['/usr/bin/eject'])
-            done = ui_package.more_media_seq(installed_repo_ids)
+            done = ui_package.more_media_sequence(installed_repo_ids)
 
     fin_seq = getFinalisationSequence(new_ans)
     new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
