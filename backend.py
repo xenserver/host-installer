@@ -135,7 +135,7 @@ def getPrepSequence(ans):
         Task(INST, touchSshAuthorizedKeys, A('mounts'), []),
         Task(INST, setRootPassword, A('mounts', 'root-password'), []),
         Task(INST, setTimeZone, A('mounts', 'timezone'), []),
-
+        ]
     return seq
 
 def getRepoSequence(ans, repos):
@@ -170,7 +170,6 @@ def getFinalisationSequence(ans):
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
->>>>>>> /tmp/backend.py~other.KC_kih
         ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
