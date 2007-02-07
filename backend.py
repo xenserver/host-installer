@@ -576,9 +576,11 @@ def writeFstab(mounts):
 
 def enableAgent(mounts):
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', 'xend', 'off'])
+                  'chkconfig', '--del', 'xend' ])
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', 'xapi', 'on'])
+                  'chkconfig', '--add', 'xen-services' ])
+    util.runCmd2(['chroot', mounts['root'],
+                  'chkconfig', '--add', 'xapi' ])
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
