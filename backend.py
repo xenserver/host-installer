@@ -118,24 +118,6 @@ def getPrepSequence(ans):
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
         ]
-    for p in packages:
-        seq.append( Task(INST, im.installPackage, (lambda myp: (lambda a: [ myp, a['mounts']['root'] ]))(p), []) )
-    seq += [
-        Task(INST, installGrub, A('mounts', 'primary-disk'), []),
-        Task(INST, doDepmod, A('mounts'), []),
-        Task(INST, writeResolvConf, A('mounts', 'manual-hostname', 'manual-nameservers'), []),
-        Task(INST, writeKeyboardConfiguration, A('mounts', 'keymap'), []),
-        Task(INST, configureNetworking, A('mounts', 'iface-configuration', 'manual-hostname'), []),
-        Task(INST, prepareSwapfile, A('mounts'), []),
-        Task(INST, writeFstab, A('mounts'), []),
-        Task(INST, enableAgent, A('mounts'), []),
-        Task(INST, writeModprobeConf, A('mounts'), []),
-        Task(INST, mkinitrd, A('mounts'), []),
-        Task(INST, writeInventory, A('mounts', 'primary-disk', 'default-sr-uuid'), []),
-        Task(INST, touchSshAuthorizedKeys, A('mounts'), []),
-        Task(INST, setRootPassword, A('mounts', 'root-password'), []),
-        Task(INST, setTimeZone, A('mounts', 'timezone'), []),
-        ]
     return seq
 
 def getRepoSequence(ans, repos):
@@ -161,8 +143,6 @@ def getFinalisationSequence(ans):
         Task(configureNetworking, A(ans, 'mounts', 'iface-configuration', 'manual-hostname'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
-        Task(writeSmtab, A(ans, 'mounts', 'default-sr-uuid'), []),
-        Task(enableSM, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
