@@ -25,7 +25,7 @@ install:
 	install -m644 init_simpleui.py $(INSTALLER_DIR)
 	install -m644 init_tui.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
-	install -m644 packaging.py $(INSTALLER_DIR)
+	install -m644 repository.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
 	mkdir -p $(INSTALLER_DIR)/tui
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui

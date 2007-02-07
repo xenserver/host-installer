@@ -68,8 +68,12 @@ def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 4
 
     return (bb.buttonPressed(result), tuple(entryValues))
 
-def OKDialog(screen, title, text):
-    return ButtonChoiceWindow(screen, title, text, ['OK'])
+def OKDialog(screen, title, text, hasCancel = False):
+    if hasCancel:
+        buttons = ['Ok', 'Cancel']
+    else:
+        buttons = ['Ok']
+    return ButtonChoiceWindow(screen, title, text, buttons)
 
 PLEASE_WAIT_STRING = "  Working: Please wait..."
 
@@ -80,6 +84,10 @@ def initProgressDialog(screen, title, text, total):
     scale = Scale(60, total)
     form.add(t, 0, 0, padding = (0,0,0,1))
     form.add(scale, 0, 1, padding = (0,0,0,0))
+
+    form.draw()
+    screen.pushHelpLine(PLEASE_WAIT_STRING)
+    screen.refresh()
 
     return (form, t, scale)
 
@@ -100,10 +108,9 @@ def displayProgressDialog(screen, current, (form, t, scale), updated_text = None
         t.setText(updated_text)
 
     form.draw()
-
-    screen.pushHelpLine(PLEASE_WAIT_STRING)
     screen.refresh()
 
 def clearModelessDialog(screen):
+    screen.popHelpLine()
     screen.pushHelpLine(None)
     screen.popWindow()

@@ -19,11 +19,11 @@ import uicontroller
 import tui.network
 import constants
 import diskutil
-import packaging
 import xelogging
 from version import *
 import hardware
 import snackutil
+import repository
 
 from snack import *
 import os.path
@@ -240,54 +240,56 @@ def confirm_erase_volume_groups(answers):
 
 def select_installation_source(answers):
     global screen
+    ENTRY_LOCAL = 'Local media (CD-ROM)', 'local'
+    ENTRY_URL = 'HTTP or FTP', 'url'
+    ENTRY_NFS = 'NFS', 'nfs'
+    entries = [ ENTRY_LOCAL, ENTRY_URL, ENTRY_NFS ]
 
-    done = False
-    while not done:
-        ENTRY_LOCAL = 'Local media (CD-ROM)', 'local'
-        ENTRY_URL = 'HTTP or FTP', 'url'
-        ENTRY_NFS = 'NFS', 'nfs'
-        entries = [ ENTRY_LOCAL, ENTRY_URL, ENTRY_NFS ]
-
-        # default selection?
-        if answers.has_key('source-media'):
-            default = selectDefault(answers['source-media'], entries)
-        else:
-            default = ENTRY_LOCAL
+    # default selection?
+    if answers.has_key('source-media'):
+        _, default = selectDefault(answers['source-media'], entries)
+    else:
+        _, default = ENTRY_LOCAL
         
-        (button, entry) = ListboxChoiceWindow(
-            screen,
-            "Select Installation Source",
-            "Please select the type of source you would like to use for this installation",
-            entries, ['Ok', 'Back'], default = default)
+    # widgets:
+    text = TextboxReflowed(50, "Please select the type of source you would like to use for this installation:")
+    listbox = Listbox(len(entries))
+    for e in entries:
+        listbox.append(*e)
+    listbox.setCurrent(default)
+    cbMoreMedia = Checkbox("Use additional media", False)
+    buttons = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
+    # callback
+    def lbcallback():
+        cbMoreMedia.setFlags(FLAG_DISABLED, listbox.current() == 'local')
+    listbox.setCallback(lbcallback)
+    lbcallback()
+    gfhDialog = GridFormHelp(screen, "Installation Source", None, 1, 4)
+    gfhDialog.add(text, 0, 0, padding = (0, 0, 0, 1))
+    gfhDialog.add(listbox, 0, 1, padding = (0, 0, 0, 1))
+    gfhDialog.add(cbMoreMedia, 0, 2, padding = (0, 0, 0, 1))
+    gfhDialog.add(buttons, 0, 3)
 
-        # if it's local media, verify that stuff exists:
-        if entry == 'local' and button == 'ok':
-            im = None
-            try:
-                im = packaging.LocalInstallMethod()
-            except packaging.MediaNotFound, m:
-                ButtonChoiceWindow(screen, "Problem with Media",
-                                   str(m),  ['Back'])
-            else:
-                problems = im.quickSourceVerification()
-                if problems == []:
-                    done = True
-                else:
-                    ButtonChoiceWindow(screen, "Problem with Media",
-                                       "The following required packages were not found on your media: \n\n%s" % \
-                                       generalui.makeHumanList(problems),
-                                       ['Back'])
-                    
-                im.finished(eject = False)
-        else:
-            # either they pressed 'back', or pressed 'ok' with
-            # a non-local source:
-            done = True
+    result = gfhDialog.runOnce()
+    entry = listbox.current()
+    button = buttons.buttonPressed(result)
+        
+    answers['source-media'] = entry
+    if entry == 'local':
+        answers['source-address'] = ""
 
-        answers['source-media'] = entry
-        if entry == 'local':
-            answers['source-address'] = ""
+    answers['more-media'] = cbMoreMedia.value()
 
+    if answers['source-media'] == 'local':
+        # we should check that we can see a CD now:
+        l = len(repository.repositoriesFromDefinition('local', ''))
+        if l == 0:
+            OKDialog(
+                "Media not found",
+                "Your installation media could not be found.  Please ensure it is inserted into the drive, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
+                )
+            return 0
+        
     if button == "ok" or button == None: return 1
     if button == "back": return -1
 
@@ -303,7 +305,7 @@ def get_source_location(answers):
 
     if answers['source-media'] == 'url':
         text = "Please enter the URL for your HTTP or FTP repository"
-        label = "URL"
+        label = "URL:"
     elif answers['source-media'] == 'nfs':
         text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
         label = "NFS Path:"
@@ -323,33 +325,31 @@ def get_source_location(answers):
             
         answers['source-address'] = result[0]
 
-        # 'not button' covers the user pressing F12
-        if button == "ok" or not button:
-            im = None
+        if button in ['ok', None]:
+            location = result[0]
+            # santiy check the location given
             try:
-                if answers['source-media'] == 'url':
-                    im = packaging.HTTPInstallMethod(result[0])
-                elif answers['source-media'] == 'nfs':
-                    im = packaging.NFSInstallMethod(result[0])
-            except packaging.MediaNotFound, m:
-                ButtonChoiceWindow(screen, "Problem with repository",
-                                   str(m),  ['Back'])
-            except packaging.BadSourceAddress:
+                repos = repository.repositoriesFromDefinition(
+                    answers['source-media'], location
+                    )
+            except:
                 ButtonChoiceWindow(
-                    screen, "Problem with repository",
-                    "The installer was unable to access the address you specified.  Please check that it is well-formed, and that you have read permission for the path you specified.",  ['Back'])
+                    screen,
+                    "Problem with location",
+                    "Setup was unable to access the location you specified - please check and try again.",
+                    ['Ok']
+                    )
             else:
-                problems = im.quickSourceVerification()
-                if problems == []:
-                    done = True
-                else:
+                if len(repos) == 0:
                     ButtonChoiceWindow(
-                        screen, "Problem with repository",
-                        "The following required packages were not found in your repository: \n\n%s" % \
-                        generalui.makeHumanList(problems),
-                        ['Back'])
-            if im:
-                im.finished()
+                       screen,
+                       "Problem with location",
+                       "No repository was found at that location - please check and try again.",
+                       ['Ok']
+                       )
+                else:
+                    done = True
+
         elif button == "back":
             done = True
             
@@ -361,9 +361,8 @@ def verify_source(answers):
     done = False
     while not done:
         SKIP, VERIFY = range(2)
-        ENTRY_SKIP = "Skip verification", SKIP
-        ENTRY_VERIFY = "Verify installation source", VERIFY
-        entries = [ ENTRY_SKIP, ENTRY_VERIFY ]
+        entries = [ ("Skip verification", SKIP),
+                    ("Verify Installation Source", VERIFY), ]
 
         (button, entry) = ListboxChoiceWindow(
             screen, "Verify Installation Source",
@@ -373,34 +372,64 @@ def verify_source(answers):
             done = True
         elif button != 'back' and entry == VERIFY:
             # we need to do the verification:
-            try:
-                if answers['source-media'] == 'url':
-                    installmethod = packaging.HTTPInstallMethod(answers['source-address'])
-                elif answers['source-media'] == 'local':
-                    installmethod = packaging.LocalInstallMethod()
-                elif answers['source-media'] == 'nfs':
-                    installmethod = packaging.NFSInstallMethod(answers['source-address'])
-            except Exception, e:
-                ButtonChoiceWindow(screen, "Problem with repository",
-                                   str(e),  ['Back'])
-            else:
-                showMessageDialog("Verify Installation Source", "Package verification is in progress, please wait...")
-                problems = installmethod.md5SourceVerification()
-                if len(problems) == 0:
-                    done = True
-                else:
-                    ButtonChoiceWindow(screen, "Problem with repository",
-                                       "The following required packages did not pass verification: \n\n%s" % \
-                                       generalui.makeHumanList(problems),
-                                       ['Back'])
-                clearModelessDialog()
-                installmethod.finished(eject = False)
-
+            done = interactive_source_verification(
+                answers['source-media'], answers['source-address']
+                )
     if button == 'back':
         return -1
     else:
         return 1
-            
+
+def interactive_source_verification(media, address):
+    try:
+        repos = repository.repositoriesFromDefinition(
+            media, address
+            )
+    except Exception, e:
+        xelogging.log("Received exception %s whilst attempting to verify installation source." % str(e))
+        ButtonChoiceWindow(
+            screen,
+            "Problem accessing media",
+            "Setup was unable to access the installation source you specified.",
+            ['Ok']
+            )
+        return False
+    else:
+        if len(repos) == 0:
+            ButtonChoiceWindow(
+                screen,
+                "Problem accessing media",
+                "No setup files were found at the location you specified.",
+                ['Ok']
+                )
+            return False
+        else:
+            errors = []
+            pd = initProgressDialog(
+                "Verifying installation source", "Initialising...",
+                len(repos) * 100
+                )
+            displayProgressDialog(0, pd)
+            for i in range(len(repos)):
+                r = repos[i]
+                def progress(x):
+                    #print i * 100 + x
+                    displayProgressDialog(i*100 + x, pd, "Checking %s..." % r._name)
+                errors.extend(r.check(progress))
+
+            clearModelessDialog()
+
+            if len(errors) != 0:
+                ButtonChoiceWindow(
+                    screen,
+                    "Problems found",
+                    "Some packages appeared damaged.  These were: %s" % errors,
+                    ['Ok']
+                    )
+                return False
+            else:
+                return True
+
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
@@ -430,13 +459,14 @@ def select_primary_disk(answers):
     if answers.has_key('primary-disk'):
         default = selectDefault(answers['primary-disk'], entries)
 
-    (button, entry) = ListboxChoiceWindow(screen,
-                        "Select Primary Disk",
-                        """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
+    (button, entry) = ListboxChoiceWindow(
+        screen,
+        "Select Primary Disk",
+        """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
 
 You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
-                        entries,
-                        ['Ok', 'Back'], width = 55)
+        entries,
+        ['Ok', 'Back'], width = 55, default = default)
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
@@ -502,64 +532,29 @@ If you proceed, please refer to the user guide for details on provisioning stora
     if buttons.buttonPressed(result) in [None, 'ok']: return 1
     if buttons.buttonPressed(result) == 'back': return -1
 
-# confirm they want to blow stuff away:
-def confirm_installation_multiple_disks(answers):
-    global screen
+def confirm_installation(answers):
+    text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
+    if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
+        # need to work on a copy of this! (hence [:])
+        disks = answers['guest-disks'][:]
+        if answers['primary-disk'] not in disks:
+            disks.append(answers['primary-disk'])
+        disks.sort()
+        if len(disks) == 1:
+            term = 'disk'
+        else:
+            term = 'disks'
+        disks_used = generalui.makeHumanList(disks)
+        text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
+    elif answers['install-type'] == consatnts.INSTALL_TYPE_REINSTALL:
+        text2 = "The installation will be performed over " % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS)
 
-    if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
-        return uicontroller.SKIP_SCREEN
-
-    # need to work on a copy of this! (hence [:])
-    disks = answers['guest-disks'][:]
-    if answers['primary-disk'] not in disks:
-        disks.append(answers['primary-disk'])
-    disks.sort()
-    disks_used = generalui.makeHumanList(disks)
-
+    text = text1 + "\n\n" + text2
     ok = 'Install %s' % PRODUCT_BRAND
     button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "Confirm Installation",
-        """We have collected all the information required to install %s.
-
-If you proceed, ALL DATA WILL BE DESTROYED on the disks selected for use by %s (you selected %s)""" % (PRODUCT_BRAND, PRODUCT_BRAND, disks_used),
-        [ok, 'Back'], default = 1)
-        
-    if button in [None, string.lower(ok)]: return 1
-    if button == "back": return -1
-
-def confirm_installation_reinstall(answers):
-    global screen
-
-    if answers['install-type'] != constants.INSTALL_TYPE_REINSTALL:
-        return uicontroller.SKIP_SCREEN
-
-    ok = 'Install %s' % PRODUCT_BRAND
-    button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "Confirm Installation",
-        """We have collected all the information required to install %s.
-
-The installation will be performed over %s, preserving existing %s on your storage repository.""" % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS),
-        [ok, 'Back'], default = 1)
-
-    if button in [None, string.lower(ok)]: return 1
-    if button == "back": return -1
-
-def confirm_installation_one_disk(answers):
-    global screen
-
-    if answers['install-type'] != constants.INSTALL_TYPE_FRESH:
-        return uicontroller.SKIP_SCREEN
-
-    ok = 'Install %s' % PRODUCT_BRAND
-    button = snackutil.ButtonChoiceWindowEx(
-        screen,
-        "Confirm Installation",
-        """Since your server only has a single disk, this will be used to install %s.
-
-Please confirm you wish to proceed; ALL DATA ON THIS DISK WILL BE DESTROYED.""" % PRODUCT_BRAND,
-        [ok, 'Back'], default = 1)
+        screen, "Confirm Installation", text,
+        [ok, 'Back'], default = 1
+        )
 
     if button in [None, string.lower(ok)]: return 1
     if button == "back": return -1
@@ -1010,6 +1005,68 @@ def get_network_config(show_reuse_existing = False,
         screen, show_reuse_existing, runtime_config)
 
 ###
+# Getting more media:
+
+def more_media_sequence(installed_repo_ids):
+    """ Displays the sequence of screens required to load additional
+    media to install from.  installed_repo_ids is a list of repository
+    IDs of repositories we already installed from, to help avoid
+    issues where multiple CD drives are present."""
+    def get_more_media(_):
+        done = False
+        while not done:
+            more = OKDialog("New Media", "Please insert your extra disc now.", True)
+            if more == "cancel":
+                # they hit cancel:
+                rv = -1;
+                done = True
+            else:
+                # they hit OK - check there is a disc
+                repos = repository.repositoriesFromDefinition('local', '')
+                if len(repos) == 0:
+                    ButtonChoiceWindow(
+                        screen, "Error",
+                        "No installation files were found - please check your disc and try again.",
+                        ['Back'])
+                else:
+                    # found repositories - can leave this screen
+                    rv = 1
+                    done = True
+        return rv
+
+    def confirm_more_media(_):
+        repos = repository.repositoriesFromDefinition('local', '')
+        assert len(repos) > 0
+
+        media_contents = []
+        for r in repos:
+            if r.identifier() in installed_repo_ids:
+                media_contents.append(" * %s (already installed)" % r.name())
+            else:
+                media_contents.append(" * %s" % r.name())
+        text = "The media you have inserted contains:\n\n" + "\n".join(media_contents)
+
+        done = False
+        while not done:
+            ans = ButtonChoiceWindow(screen, "New Media", text, ['Use media', 'Verify media', 'Back'], width=50)
+            
+            if ans == 'verify media':
+                if interactive_source_verification('local', ''):
+                    OKDialog("Media Check", "No problems were found with your media.")
+            elif ans == 'back':
+                rc = -1
+                done = True
+            else:
+                rc = 1
+                done = True
+
+        return rc
+
+    seq = [ get_more_media, confirm_more_media ]
+    direction = uicontroller.runUISequence(seq, {})
+    return direction == 1
+
+###
 # Progress dialog:
 
 def initProgressDialog(title, text, total):
@@ -1027,5 +1084,5 @@ def showMessageDialog(title, text):
 ###
 # Simple 'OK' dialog for external use:
 
-def OKDialog(title, text):
-    return snackutil.OKDialog(screen, title, text)
+def OKDialog(title, text, hasCancel = False):
+    return snackutil.OKDialog(screen, title, text, hasCancel)

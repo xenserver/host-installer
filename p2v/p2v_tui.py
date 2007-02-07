@@ -250,7 +250,7 @@ def os_install_screen(answers):
     else: 
         # TODO, CA-2747  pull this out of a supported OS list.
         ButtonChoiceWindow(screen, "Error", """No supported operating systems found. 
-Supported operating systems are: RHEL 4.1, RHEL 3.6 and SLES 9sp2.""",  ['Ok'], width=50)
+Please see the documentation for a list of supported operating systems, file systems and volume management technologies.""",  ['Ok'], width=50)
         return -2
     
     if button == "back": 

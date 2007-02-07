@@ -332,8 +332,19 @@ def findHostName(mnt):
     
 def inspect_root(dev_name, dev_attrs, results):
     mnt = mount_os_root(dev_name, dev_attrs)
-    if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
+    fstab_path = os.path.join(mnt, 'etc', 'fstab')
+    if os.path.exists(fstab_path):
        p2v_utils.trace_message("* Found root partition on %s" % dev_name)
+
+       #scan fstab for EVMS
+       fp = open(fstab_path)
+       fstab = load_fstab(fp)
+       fp.close()
+       for ((mntpnt, dev), info) in fstab.items():
+           if dev.find("/evms/") != -1:
+               p2v_utils.trace_message("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
+               return
+
        rc, out = run_command("/opt/xensource/installer/read_osversion.sh " + mnt)
        if rc == 0:
            p2v_utils.trace_message("read_osversion succeeded : out = %s" % out)

@@ -16,6 +16,7 @@ import subprocess
 import datetime
 import pickle
 
+import repository
 import generalui
 import xelogging
 import util
@@ -23,7 +24,6 @@ import diskutil
 import netutil
 from util import runCmd
 import shutil
-import packaging
 import constants
 import hardware
 import upgrade
@@ -42,7 +42,6 @@ class InvalidInstallerConfiguration(Exception):
 class Task:
     """
     Represents an install step.
-    'name' is the name of the task; this may be displayed in the UI.
     'fn'   is the function to execute
     'args' is a list of value labels identifying arguments to the function,
     'retursn' is a list of the labels of the return values, or a function
@@ -50,14 +49,16 @@ class Task:
            labels of the return values.
     """
 
-    def __init__(self, name, fn, args, returns, args_sensitive = False):
-        self.name = name
+    def __init__(self, fn, args, returns, args_sensitive = False,
+                 progress_scale = 1, pass_progress_callback = False):
         self.fn = fn
         self.args = args
         self.returns = returns
         self.args_sensitive = args_sensitive
+        self.progress_scale = progress_scale
+        self.pass_progress_callback = pass_progress_callback
 
-    def execute(self, answers):
+    def execute(self, answers, progress_callback = lambda x: ()):
         args = self.args(answers)
         assert type(args) == list
 
@@ -65,6 +66,10 @@ class Task:
             xelogging.log("TASK: Evaluating %s%s" % (self.fn, args))
         else:
             xelogging.log("TASK: Evaluating %s (sensitive data in arguments: not logging)" % self.fn)
+
+        if self.pass_progress_callback:
+            args.insert(0, progress_callback)
+
         rv = apply(self.fn, args)
         if type(rv) is not tuple:
             rv = (rv,)
@@ -79,49 +84,39 @@ class Task:
             myrv[ret[r]] = rv[r]
         return myrv
 
-def determineInstallSequence(ans, im):
-    PREP = "Preparing for installation..."
-    BACKUP = "Backing up existing installation (this may take a while)..."
-    INST = "Installing %s..." % PRODUCT_BRAND
-    FIN = "Completing installation..."
+###
+# INSTALL SEQUENCES:
+# convenience functions
+# A: For each label in params, gives an arg function that evaluates
+#    the labels when the function is called (late-binding)
+# As: As above but evaulated immediately (early-binding)
+# Use A when you require state values as well as the initial input values
+A = lambda ans, *params: ( lambda a: [a[param] for param in params] )
+As = lambda ans, *params: ( lambda _: [ans[param] for param in params] )
 
-    # Get the package list:
-    packages = im.getPackageList()
-
-    # convenience functions
-    # A: For each label in params, gives an arg function that evaluates
-    #    the labels when the function is called (late-binding)
-    # As: As above but evaulated immediately (early-binding)
-    # Use A when you require state values as well as the initial input values
-    A = lambda *params: ( lambda a: [a[param] for param in params] )
-    As = lambda *params: ( lambda _: [ans[param] for param in params] )
-
+def getPrepSequence(ans):
     seq = []
-
-    # Basic install sequence definition:
-
-    # Partitioning - Only performed if fresh install:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(PREP, removeBlockingVGs, As('guest-disks'), []),
-            Task(PREP, writeDom0DiskPartitions, As('primary-disk'), []),
+            Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
+            Task(writeDom0DiskPartitions, As(ans, 'primary-disk'), []),
             ]
         for gd in ans['guest-disks']:
             if gd != ans['primary-disk']:
-                seq.append(Task(PREP, writeGuestDiskPartitions,
+                seq.append(Task(writeGuestDiskPartitions,
                                 (lambda mygd: (lambda _: [mygd]))(gd), []))
         seq += [
-            Task(PREP, prepareStorageRepository, As('primary-disk', 'guest-disks'), ['default-sr-uuid']),
+            Task(prepareStorageRepository, As(ans, 'primary-disk', 'guest-disks'), ['default-sr-uuid']),
             ]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
-        seq.append(Task(PREP, getUpgrader, A('installation-to-overwrite'), ['upgrader']))
+        seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if ans['backup-existing-installation']:
-            seq.append(Task(BACKUP, backupExisting, As('installation-to-overwrite'), []))
-        seq.append(Task(PREP, prepareUpgrade, A('upgrader'), lambda upgrader: upgrader.prepStateChanges))
+            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), []))
+        seq.append(Task(prepareUpgrade, A(ans, 'upgrader'), lambda upgrader: upgrader.prepStateChanges))
 
     seq += [
-        Task(PREP, createDom0DiskFilesystems, A('primary-disk'), []),
-        Task(PREP, mountVolumes, A('primary-disk', 'cleanup'), ['mounts', 'cleanup']),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
+        Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
         ]
     for p in packages:
         seq.append( Task(INST, im.installPackage, (lambda myp: (lambda a: [ myp, a['mounts']['root'] ]))(p), []) )
@@ -140,20 +135,53 @@ def determineInstallSequence(ans, im):
         Task(INST, touchSshAuthorizedKeys, A('mounts'), []),
         Task(INST, setRootPassword, A('mounts', 'root-password'), []),
         Task(INST, setTimeZone, A('mounts', 'timezone'), []),
+
+    return seq
+
+def getRepoSequence(ans, repos):
+    seq = []
+    for repo in repos:
+        seq.append(Task(repo.accessor().start, lambda x: [], []))
+        for package in repo:
+            seq += [
+                # have to bind package at the current value, hence the myp nonsense:
+                Task(installPackage, (lambda myp: lambda a: [a['mounts'], myp])(package), [],
+                     progress_scale = (package.size / 100),
+                     pass_progress_callback = True)
+                ]
+        seq.append(Task(repo.accessor().finish, lambda x: [], []))
+    return seq
+
+def getFinalisationSequence(ans):
+    seq = [
+        Task(installGrub, A(ans, 'mounts', 'primary-disk'), []),
+        Task(doDepmod, A(ans, 'mounts'), []),
+        Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
+        Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'iface-configuration', 'manual-hostname'), []),
+        Task(prepareSwapfile, A(ans, 'mounts'), []),
+        Task(writeFstab, A(ans, 'mounts'), []),
+        Task(writeSmtab, A(ans, 'mounts', 'default-sr-uuid'), []),
+        Task(enableSM, A(ans, 'mounts'), []),
+        Task(enableAgent, A(ans, 'mounts'), []),
+        Task(writeModprobeConf, A(ans, 'mounts'), []),
+        Task(mkinitrd, A(ans, 'mounts'), []),
+        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'default-sr-uuid'), []),
+        Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
+        Task(setRootPassword, A(ans, 'mounts', 'root-password'), []),
+        Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
+>>>>>>> /tmp/backend.py~other.KC_kih
         ]
     if ans['time-config-method'] == 'ntp':
-        seq.append( Task(INST, configureNTP, A('mounts', 'ntp-servers'), []) )
+        seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
     elif ans['time-config-method'] == 'manual':
-        seq.append( Task(INST, configureTimeManually, A('mounts', 'ui'), []) )
-    seq += [
-        Task(FIN, makeSymlinks, A('mounts'), []),
-        ]
+        seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
     if ans.has_key('post-install-script'):
-        seq.append( Task(FIN, runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
+        seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
     seq += [
-        Task(FIN, umountVolumes, A('mounts', 'cleanup'), ['cleanup']),
+        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
 
-        Task(FIN, writeLog, A('primary-disk'), [] ),
+        Task(writeLog, A(ans, 'primary-disk'), [] ),
         ]
 
     return seq
@@ -166,47 +194,60 @@ def prettyLogAnswers(answers):
             val = answers[a]
         xelogging.log("%s := %s %s" % (a, val, type(val)))
 
-def performInstallSequence(sequence, answers_pristine, ui):
+def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     answers = answers_pristine.copy()
     answers['cleanup'] = []
     answers['ui'] = ui
+
+    progress_total = reduce(lambda x,y: x + y,
+                            [task.progress_scale for task in sequence])
 
     pd = None
     if ui:
         pd = ui.initProgressDialog(
             "Installing %s" % PRODUCT_BRAND,
-            "Preparing for installation...",
-            len(sequence)
+            seq_name, progress_total
             )
+    xelogging.log("DISPATCH: NEW PHASE: %s" % seq_name)
 
+    def doCleanup(actions):
+        for tag, f, a in actions:
+            try:
+                apply(f,a)
+            except:
+                xelogging.log("FAILED to perform cleanup action %s" % tag)
+
+    def progressCallback(x):
+        if ui:
+            ui.displayProgressDialog(current + x, pd)
+        
     try:
-        lastname = ""
         current = 0
         for item in sequence:
             if pd:
-                ui.displayProgressDialog(current, pd, item.name)
-            if item.name != lastname:
-                xelogging.log("DISPATCH: NEW PHASE: %s" % item.name)
-                lastname = item.name
-            updated_state = item.execute(answers)
+                ui.displayProgressDialog(current, pd)
+            updated_state = item.execute(answers, progressCallback)
             if len(updated_state) > 0:
                 xelogging.log(
                     "DISPATCH: Updated state: %s" %
                     str.join("; ", ["%s -> %s" % (v, updated_state[v]) for v in updated_state.keys()])
                     )
-                for item in updated_state:
-                    answers[item] = updated_state[item]
+                for state_item in updated_state:
+                    answers[state_item] = updated_state[state_item]
 
-            current = current + 1
-    finally:
+            current = current + item.progress_scale
+    except:
+        doCleanup(answers['cleanup'])
+        raise
+    else:
         if ui and pd:
             ui.clearModelessDialog()
-        for tag, f, a in answers['cleanup']:
-            try:
-                apply(f,a)
-            except:
-                xelogging.log("FAILED to perform cleanup action %s" % tag)
-        del answers['cleanup']
+
+        if cleanup:
+            doCleanup(answers['cleanup'])
+            del answers['cleanup']
+
+    return answers
 
 class UnkownInstallMediaType(Exception):
     pass
@@ -215,18 +256,47 @@ def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
-    # create install method:
-    if not packaging.InstallMethods.has_key(answers['source-media']):
-        raise UnkownInstallMediaType
-    im_class = packaging.InstallMethods[answers['source-media']]
-    im = im_class(answers['source-address'])
-
     # perform installation:
-    sequence = determineInstallSequence(answers, im)
-    performInstallSequence(sequence, answers, ui_package)
+    prep_seq = getPrepSequence(answers)
+    new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
 
-    # clean up:
-    im.finished()
+    done = False
+    installed_repo_ids = []
+    while not done:
+        all_repositories = repository.repositoriesFromDefinition(
+            answers['source-media'], answers['source-address']
+            )
+
+        # make a list of ones we've not already installed:
+        repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
+                              all_repositories)
+        
+        if len(repositories) == 0:
+            raise RuntimeError, "No repository found at the specified location."
+        elif len(repositories) == 1:
+            seq_name = "Installing from " + repositories[0].name() + "..."
+        else:
+            seq_name = "Installing %s..." % version.PRODUCT_BRAND
+        repo_seq = getRepoSequence(new_ans, repositories)
+        new_ans = executeSequence(repo_seq, seq_name, new_ans, ui_package, False)
+
+        # record the repos we installed in this round:
+        installed_repo_ids.extend([ r.identifier for r in repositories] )
+
+        # get more media?
+        done = not (answers.has_key('more-media') and answers['more-media'])
+        if not done:
+            util.runCmd2(['/usr/bin/eject'])
+            done = ui_package.more_media_sequence(installed_repo_ids)
+
+    fin_seq = getFinalisationSequence(new_ans)
+    new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
+
+    if answers['source-media'] == 'local':
+        util.runCmd2(['/usr/bin/eject'])
+
+def installPackage(progress_callback, mounts, package):
+    package.install(mounts['root'], progress_callback)
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):
@@ -249,8 +319,6 @@ def configureNTP(mounts, ntp_servers):
     util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
 
 def configureTimeManually(mounts, ui_package):
-    global writeable_files
-
     # display the Set TIme dialog in the chosen UI:
     rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
     answers = {}
@@ -476,49 +544,21 @@ def installGrub(mounts, disk):
 ##########
 # mounting and unmounting of various volumes
 
-MOUNT_SOURCE_DEVICE = 1
-MOUNT_SOURCE_BIND = 2
 def mountVolumes(primary_disk, cleanup):
-    base = '/tmp/root'
+    mounts = {'root': '/tmp/root',
+              'boot': '/tmp/root/boot'}
 
-    # mounts is a list of triples of (name, mount source, mountpoint)
-    # where mountpoint is based off of base, defined above:
-    mounts = [('root', (MOUNT_SOURCE_DEVICE, diskutil.determinePartitionName(primary_disk, 1)), '/'),
-              ('rws', None, '/rws'),
-              ('boot', None, '/boot')]
+    rootp = getRootPartName(primary_disk)
+    util.assertDir('/tmp/root')
+    util.mount(rootp, mounts['root'])
 
-    umount_order = ['root']
-
-    for (name, src, dst) in mounts:
-        dst = os.path.join(base, dst.lstrip('/'))
-
-        util.assertDir(dst)
-        if src:
-            (mnt_type, mnt_source) = src
-
-            if mnt_type == MOUNT_SOURCE_DEVICE:
-                util.mount(mnt_source, dst)
-                cleanup_fn = (lambda d: lambda : util.umount(d))(dst)
-                cleanup.append( ("umount-%s" % dst, cleanup_fn, ()) )
-            elif mnt_type == MOUNT_SOURCE_BIND:
-                mnt_source = os.path.join(base, mnt_source.lstrip('/'))
-                util.assertDir(mnt_source)
-                util.bindMount(mnt_source, dst)
-
-    # later I'll implement a class to do all this properly but
-    # for now we're stuck with this rubbish (including umount-order):
-    rv = {}
-    for (n, s, d) in mounts:
-        rv[n] = os.path.join(base, d.lstrip('/'))
-    rv['umount-order'] = umount_order
-    
-    return rv, cleanup
+    new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
+    return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
-    for name in mounts['umount-order']: # hack!
-        util.umount(mounts[name], force)
-        cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts[name],
-                         cleanup)
+    util.umount(mounts['root'])
+    cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts['root'],
+                     cleanup)
     return cleanup
 
 ##########
@@ -546,9 +586,6 @@ def prepareSwapfile(mounts):
     util.runCmd2(['chroot', mounts['root'], 'mkswap', '/var/swap/swap.001'])
 
 def writeFstab(mounts):
-    util.assertDir("%s/etc" % mounts['rws'])
-
-    # write 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
     fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
     fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
@@ -599,8 +636,6 @@ def setTimeZone(mounts, tz):
     timeconfig.write("ARC=false\n")
     timeconfig.close()
 
-    writeable_files.append('/etc/sysconfig/clock')
-
     # make the localtime link:
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
            (tz, mounts['root']))
@@ -633,28 +668,21 @@ def configureNetworking(mounts, iface_config, hn_conf):
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
-    # make sure the directories in rws exist to write to:
-    util.assertDir("%s/etc/sysconfig/network-scripts" %
-                  mounts['rws'])
-
     # are we all DHCP?
     (alldhcp, mancfg) = iface_config
     if alldhcp:
         ifaces = netutil.getNetifList()
         for i in ifaces:
-            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
+            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
             if check_link_down_hack:
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
-
-            # this is a writeable file:
-            writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
     else:
         # no - go through each interface manually:
         for i in mancfg:
             iface = mancfg[i]
-            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['rws'], i), "w")
+            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             if not iface['enabled']:
                 writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
             else:
@@ -673,15 +701,12 @@ def configureNetworking(mounts, iface_config, hn_conf):
                     ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
                     ifcfd.write("PEERDNS=yes\n")
 
-            # this is a writeable file:
-            writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-%s" % i)
-                          
             if check_link_down_hack:
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
 
     # write the configuration file for the loopback interface
-    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['rws'], "w")
+    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['root'], "w")
     out.write("DEVICE=lo\n")
     out.write("IPADDR=127.0.0.1\n")
     out.write("NETMASK=255.0.0.0\n")
@@ -691,10 +716,8 @@ def configureNetworking(mounts, iface_config, hn_conf):
     out.write("NAME=loopback\n")
     out.close()
 
-    writeable_files.append("/etc/sysconfig/network-scripts/ifcfg-lo")
-
     # now we need to write /etc/sysconfig/network
-    nfd = open("%s/etc/sysconfig/network" % mounts["rws"], "w")
+    nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
     nfd.write("NETWORKING=yes\n")
     if hn_conf[0]:
         nfd.write("HOSTNAME=%s\n" % hn_conf[1])
@@ -703,9 +726,6 @@ def configureNetworking(mounts, iface_config, hn_conf):
     nfd.write("PMAP_ARGS=-l\n")
     nfd.close()
 
-    # now symlink from dom0:
-    writeable_files.append("/etc/sysconfig/network")
-
 # use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts):
     util.bindMount("/proc", "%s/proc" % mounts['root'])
@@ -713,48 +733,6 @@ def writeModprobeConf(mounts):
     assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
-   
-# make appropriate symlinks according to writeable_files and writeable_dirs:
-def makeSymlinks(mounts):
-    global writeable_dirs, writeable_files
-
-    # make sure required directories exist:
-    for d in asserted_dirs:
-        util.assertDir("%s%s" % (mounts['root'], d))
-        util.assertDir("%s%s" % (mounts['rws'], d))
-
-    # link directories:
-    for d in writeable_dirs:
-        rws_dir = "%s%s" % (mounts['rws'], d)
-        dom0_dir = "%s%s" % (mounts['root'], d)
-        util.assertDir(rws_dir)
-
-        if os.path.isdir(dom0_dir):
-            util.copyFilesFromDir(dom0_dir, rws_dir)
-
-        runCmd("rm -rf %s" % dom0_dir)
-        assert runCmd("ln -sf /rws%s %s" % (d, dom0_dir)) == 0
-
-    # now link files:
-    # Note the behaviour here - we always create a symlink from
-    # dom0 to RWS, but we only copy the contents of the dom0 file
-    # in the case that a file does NOT already exists in RWS.
-    #
-    # Think carefully about the upgrade scenario before making
-    # changes here.
-    for f in writeable_files:
-        rws_file = "%s%s" % (mounts['rws'], f)
-        dom0_file = "%s%s" % (mounts['root'], f)
-
-        # make sure the destination file exists:
-        if not os.path.isfile(rws_file):
-            if os.path.isfile(dom0_file):
-                runCmd("cp %s %s" % (dom0_file, rws_file))
-            else:
-                fd = open(rws_file, 'w')
-                fd.close()
-
-        assert runCmd("ln -sf /rws%s %s" % (f, dom0_file)) == 0
 
 def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
