@@ -578,7 +578,7 @@ def enableAgent(mounts):
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', '--del', 'xend' ])
     util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xen-services' ])
+                  'chkconfig', '--add', 'xenservices' ])
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', '--add', 'xapi' ])
 
