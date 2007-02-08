@@ -242,6 +242,18 @@ def performInstallation(answers, ui_package):
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
 
+    # install from main repositories:
+    def handleRepos(repos, ans):
+        if len(repos) == 0:
+            raise RuntimeError, "No repository found at the specified location."
+        elif len(repos) == 1:
+            seq_name = "Installing from " + repositories[0].name() + "..."
+        else:
+            seq_name = "Installing %s..." % version.PRODUCT_BRAND
+        repo_seq = getRepoSequence(ans, repos)
+        new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
+        return new_ans
+
     done = False
     installed_repo_ids = []
     while not done:
@@ -249,28 +261,29 @@ def performInstallation(answers, ui_package):
             answers['source-media'], answers['source-address']
             )
 
-        # make a list of ones we've not already installed:
+        # only install repositorie s we've not already installed:
         repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
                               all_repositories)
-        
-        if len(repositories) == 0:
-            raise RuntimeError, "No repository found at the specified location."
-        elif len(repositories) == 1:
-            seq_name = "Installing from " + repositories[0].name() + "..."
-        else:
-            seq_name = "Installing %s..." % version.PRODUCT_BRAND
-        repo_seq = getRepoSequence(new_ans, repositories)
-        new_ans = executeSequence(repo_seq, seq_name, new_ans, ui_package, False)
-
-        # record the repos we installed in this round:
-        installed_repo_ids.extend([ r.identifier for r in repositories] )
+        new_ans = handleRepos(repositories, new_ans)
+        installed_repo_ids.extend([ r.identifier() for r in repositories] )
 
         # get more media?
         done = not (answers.has_key('more-media') and answers['more-media'])
         if not done:
             util.runCmd2(['/usr/bin/eject'])
-            done = not ui_package.more_media_sequence(installed_repo_ids)
+            done = ui_package.more_media_seq(installed_repo_ids)
 
+    # install from driver repositories, if any:
+    for driver_repo_def in answers['extra-repos']:
+        xelogging.log("(Now installing from driver repositories that were previously stashed.)")
+        rtype, rloc = driver_repo_def
+        all_repos = repository.repositoriesFromDefinition(rtype, rloc)
+        repos = filter(lambda r: r.identifier() not in installed_repo_ids,
+                       all_repos)
+        new_ans = handleRepos(repos, new_ans)
+        installed_repo_ids.extend([ r.identifier() for r in repositories])
+
+    # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
     new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
 

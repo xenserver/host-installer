@@ -51,7 +51,8 @@ def main():
                            ["answerfile=",
                             "verbose-answerfile=",
                             "keymap=",
-                            "clog="])
+                            "clog=",
+                            "extrarepo="])
     except GetoptError:
         print "This program takes no arguments."
         sys.exit(1)
@@ -62,6 +63,7 @@ def main():
         os.mkdir('/tmp/lvm')
 
     clog_fds = []
+    extra_repo_defs = []
 
     results = {}
 
@@ -84,9 +86,16 @@ def main():
                 xelogging.continuous_logs.append(fd)
             except:
                 print "Error adding continuous log %s." % val
+        if opt == "--extrarepo":
+            if not os.path.isdir(val):
+                raise RuntimeError, "Repository %s did not exist." % val
+            else:
+                extra_repo_defs.append(('filesystem', val))
 
     if not results.has_key("keymap"):
         xelogging.log("No keymap specified on command-line.")
+
+    results['extra-repos'] = extra_repo_defs
 
     # log the modules that we loaded:
     xelogging.log("All needed modules should now be loaded. We have loaded:")

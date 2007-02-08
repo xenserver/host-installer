@@ -108,14 +108,47 @@ def getModuleOrder():
     except Exception, e:
         raise ModuleOrderUnknownException, e
 
+def _addToModuleList(module, params):
+    """ Add a module to the module order file. """
+    modlist_file = open(__MODULE_ORDER_FILE__, 'a')
+    modlist_file.write("%s %s\n" % (module, params))
+    modlist_file.close()
+
 def modprobe(module, params = ""):
     xelogging.log("Loading module %s" % " ".join([module, params]))
     rc = util.runCmd("modprobe %s %s" % (module, params))
 
     if rc == 0:
-        modlist_file = open(__MODULE_ORDER_FILE__, 'a')
-        modlist_file.write("%s %s\n" % (module, params))
-        modlist_file.close()
+        _addToModuleList(module, params)
+    else:
+        xelogging.log("(Failed.)")
+
+    return rc
+
+def modprobe_file(module, params = ""):
+    INSMOD = '/sbin/insmod'
+
+    # First use modinfo to find out what the dependants of the
+    # module are and modprobe them:
+    #
+    # deps will initially look like 'depends:    x,y,z'
+    rc, out = util.runCmdWithOutput("modinfo %s" % module)
+    if rc != 0:
+        raise RuntimeError, "Error interrogating module."
+    [deps] = filter(lambda x: x.startswith("depends:"),
+                    out.split("\n"))
+    deps = deps[9:].strip()
+    deps = deps.split(',')
+    for dep in deps:
+        modprobe(dep)
+    
+    xelogging.log("Insertung module %s %s" %(module, params))
+    rc = util.runCmd2([INSMOD, module, params])
+
+    if rc == 0:
+        _addToModuleList(module, params)
+    else:
+        xelogging.log("(Failed.)")
 
     return rc
 

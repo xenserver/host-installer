@@ -27,7 +27,8 @@ import netutil
 import util
 import hardware
 import generalui
-
+import repository
+import tempfile
 from hardware import module_map
 
 from version import *
@@ -72,6 +73,51 @@ def activateScreen():
         activefile = open(lock_filename, 'w')
         activefile.write(tty)
         activefile.close()
+
+def doInteractiveLoadDriver():
+    rc = init_tui.driver_disk_sequence()
+    if rc:
+        media, address = rc
+        repos = repository.repositoriesFromDefinition(media, address)
+        drivers = []
+        pkglines = []
+
+        # first of all load the drivers:
+        drivers = []
+        driver_repos = []
+        for r in repos:
+            r.accessor().start()
+            repo_has_drivers = False
+            for p in r:
+                if p.type == 'driver':
+                    repo_has_drivers = True
+                    _, driver_file = tempfile.mkstemp(prefix="driver-", dir="/tmp")
+                    p.write(driver_file)
+                    drivers.append(driver_file)
+            r.accessor().finish()
+
+            if repo_has_drivers:
+                driver_repos.append(r)
+                driver_has_repos = False
+
+        total_rc = 0
+        for driver in drivers:
+            rc = hardware.modprobe_file(driver)
+            total_rc += rc
+        if total_rc != 0:
+            init_tui.OKDialog("Error", "One or more of your drivers failed to load.")
+
+        # stash the repositories we used for pickup later:
+        dr_copies = []
+        for dr in driver_repos:
+            loc = tempfile.mkdtemp(prefix="stashed-repo-", dir="/tmp")
+            dr.accessor().start()
+            dr.copyTo(loc)
+            dr.accessor().finish()
+            dr_copies.append(loc)
+        return dr_copies
+    else:
+        return None
 
 
 # Use the 'discover' tool to detect hardware and load needed
@@ -228,6 +274,7 @@ def main():
     answerfile = None
     verbose_answerfile = None
     interactive_modules = False
+    driver_repos = []
 
     for (opt, val) in opts:
         if opt == "--install":
@@ -323,12 +370,17 @@ def main():
                 # clean install:
                 if operation == init_constants.OPERATION_INSTALL:
                     xelogging.log("Starting clean installation")
-                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 --keymap %s" % kmap)
+                    driver_repo_string = " ".join(["--extrarepo %s" % d for d in driver_repos])
+                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 --keymap %s %s " % (kmap, driver_repo_string))
                     rc = exit_status_of_rc(s)
                     if rc == EXIT_OK or rc == EXIT_ERROR: 
                         break
                     else:
                         pass
+
+                # load a driver:
+                elif operation == init_constants.OPERATION_LOAD_DRIVER:
+                    driver_repos.extend(doInteractiveLoadDriver())
 
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
