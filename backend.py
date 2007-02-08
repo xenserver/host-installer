@@ -664,15 +664,15 @@ def configureNetworking(mounts, iface_config, hn_conf):
             fd.write("HWADDR=%s\n" % hwaddr)
 
     def writeConfigFileBridgeDetails(fd, bridge):
-        fd.write("BRIDGE=%s" % bridge)
-        fd.write("LINKDELAY=5")
+        fd.write("BRIDGE=%s\n" % bridge)
+        fd.write("LINKDELAY=5\n")
 
     def writeBridgeConfigFile(fd, bridge):
-        fd.write("DEVICE=%s" % bridge)
-        fd.write("ONBOOT=yes")
-        fd.write("TYPE=bridge")
-        fd.write("DELAY=0")
-        fd.write("STP=off")
+        fd.write("DEVICE=%s\n" % bridge)
+        fd.write("ONBOOT=yes\n")
+        fd.write("TYPE=bridge\n")
+        fd.write("DELAY=0\n")
+        fd.write("STP=off\n")
 
     # are we all DHCP?
     (alldhcp, mancfg) = iface_config
