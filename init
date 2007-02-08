@@ -117,8 +117,7 @@ def doInteractiveLoadDriver():
             dr_copies.append(loc)
         return dr_copies
     else:
-        return None
-
+        return []
 
 # Use the 'discover' tool to detect hardware and load needed
 # modules;
