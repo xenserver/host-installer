@@ -683,7 +683,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
     def writeBridgeConfigFile(fd, bridge):
         fd.write("DEVICE=%s\n" % bridge)
         fd.write("ONBOOT=yes\n")
-        fd.write("TYPE=bridge\n")
+        fd.write("TYPE=Bridge\n")
         fd.write("DELAY=0\n")
         fd.write("STP=off\n")
 
