@@ -546,7 +546,7 @@ def confirm_installation(answers):
             term = 'disks'
         disks_used = generalui.makeHumanList(disks)
         text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
-    elif answers['install-type'] == consatnts.INSTALL_TYPE_REINSTALL:
+    elif answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         text2 = "The installation will be performed over " % (PRODUCT_BRAND, str(answers['installation-to-overwrite']), BRAND_GUESTS)
 
     text = text1 + "\n\n" + text2
