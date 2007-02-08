@@ -665,14 +665,14 @@ def configureNetworking(mounts, iface_config, hn_conf):
         fd.write("DEVICE=%s\n" % device)
         fd.write("BOOTPROTO=dhcp\n")
         fd.write("ONBOOT=yes\n")
-        fd.write("TYPE=ethernet\n")
+        fd.write("TYPE=Ethernet\n")
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
     def writeDisabledConfigFile(fd, device, hwaddr = None):
         fd.write("DEVICE=%s\n" % device)
         fd.write("ONBOOT=no\n")
-        fd.write("TYPE=ethernet\n")
+        fd.write("TYPE=Ethernet\n")
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
