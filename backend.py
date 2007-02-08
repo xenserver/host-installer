@@ -676,26 +676,47 @@ def configureNetworking(mounts, iface_config, hn_conf):
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
+    def writeConfigFileBridgeDetails(fd, bridge):
+        fd.write("BRIDGE=%s\n" % bridge)
+        fd.write("LINKDELAY=5\n")
+
+    def writeBridgeConfigFile(fd, bridge):
+        fd.write("DEVICE=%s\n" % bridge)
+        fd.write("ONBOOT=yes\n")
+        fd.write("TYPE=bridge\n")
+        fd.write("DELAY=0\n")
+        fd.write("STP=off\n")
+
     # are we all DHCP?
     (alldhcp, mancfg) = iface_config
     if alldhcp:
         ifaces = netutil.getNetifList()
         for i in ifaces:
+            b = i.replace("eth", "xenbr")
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
+            writeConfigFileBridgeDetails(ifcfd, b)
             if check_link_down_hack:
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
+            brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
+            writeBridgeConfigFile(brcfd, b)
+            if check_link_down_hack:
+                brcfd.write("check_link_down() { return 1 ; }\n")
+            brcfd.close()
     else:
         # no - go through each interface manually:
         for i in mancfg:
+            b = i.replace("eth", "xenbr")
             iface = mancfg[i]
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             if not iface['enabled']:
                 writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
+                writeConfigFileBridgeDetails(ifcfd, i.replace("eth", "xenbr"))
             else:
                 if iface['use-dhcp']:
                     writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
+                    writeConfigFileBridgeDetails(ifcfd, b)
                 else:
                     ifcfd.write("DEVICE=%s\n" % i)
                     ifcfd.write("BOOTPROTO=none\n")
@@ -708,10 +729,17 @@ def configureNetworking(mounts, iface_config, hn_conf):
                     ifcfd.write("IPADDR=%s\n" % iface['ip'])
                     ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
                     ifcfd.write("PEERDNS=yes\n")
+                    writeConfigFileBridgeDetails(ifcfd, b)
 
             if check_link_down_hack:
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
+
+            brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
+            writeBridgeConfigFile(brcfd, b)
+            if check_link_down_hack:
+                brcfd.write("check_link_down() { return 1 ; }\n")
+            brcfd.close()
 
     # write the configuration file for the loopback interface
     out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['root'], "w")
