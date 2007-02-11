@@ -772,6 +772,7 @@ def writeModprobeConf(mounts):
 
 def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
+    installID = util.getUUID()
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
@@ -781,7 +782,8 @@ def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
     inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
-    inv.write("BACKUP_PARTITION='%s'" % getBackupPartName(primary_disk))
+    inv.write("BACKUP_PARTITION='%s'\n" % getBackupPartName(primary_disk))
+    inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
