@@ -271,7 +271,7 @@ def performInstallation(answers, ui_package):
         done = not (answers.has_key('more-media') and answers['more-media'])
         if not done:
             util.runCmd2(['/usr/bin/eject'])
-            done = ui_package.more_media_sequence(installed_repo_ids)
+            done = not ui_package.more_media_sequence(installed_repo_ids)
 
     # install from driver repositories, if any:
     for driver_repo_def in answers['extra-repos']:
