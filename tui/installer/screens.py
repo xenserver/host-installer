@@ -368,7 +368,7 @@ def interactive_source_verification(media, address):
         else:
             errors = []
             pd = tui.progress.initProgressDialog(
-                "Verifying installation source", "Initialising...",
+                "Verifying Installation Source", "Initialising...",
                 len(repos) * 100
                 )
             tui.progress.displayProgressDialog(0, pd)
