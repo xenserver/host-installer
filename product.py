@@ -17,6 +17,10 @@ import util
 import constants
 import version
 import re
+import tempfile
+
+class SettingsNotAvailable(Exception):
+    pass
 
 class Version(object):
     ANY = -1
@@ -102,6 +106,7 @@ class Version(object):
     cmp_version_number = classmethod(cmp_version_number)
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
+XENSERVER_3_1_0 = Version(3,1,0)
 
 class ExistingInstallation(object):
     def __init__(self, name, brand, version, build,
@@ -116,6 +121,156 @@ class ExistingInstallation(object):
     def __str__(self):
         return "%s v%s (%d) on %s" % (
             self.brand, str(self.version), self.build, self.primary_disk)
+
+    def settingsAvailable(self):
+        try:
+            self.readSettings()
+        except:
+            return False
+        else:
+            return True
+    
+    def readSettings(self):
+        """ Read settings from the installation, retusn a results dictionary. """
+        if not self.version == XENSERVER_3_1_0:
+            raise SettingsNotAvailable
+        
+        mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
+        root = diskutil.determinePartitionName(self.primary_disk, 1)
+        results = {}
+        try:
+            util.mount(root, mntpoint)
+
+            # primary disk:
+            results['primary-disk'] = self.primary_disk
+
+            # timezone:
+            fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/clock'), 'r')
+            lines = fd.readlines()
+            fd.close()
+            tz = None
+            for line in lines:
+                if line.startswith("ZONE="):
+                    tz = line[5:].strip()
+            if not tz:
+                raise SettingsNotAvailable
+            results['timezone'] = tz
+
+            # hostname: (yes I really do mean the one that isn't in RWS):
+            if not os.path.exists(os.path.join(mntpoint, 'etc/hostname')):
+                results['manual-hostname'] = (False, None)
+            else:
+                # actually get this from the network config:
+                fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/network'), 'r')
+                lines = fd.readlines()
+                fd.close()
+                for line in lines:
+                    if line.startswith('HOSTNAME='):
+                        results['manual-hostname'] = (True, line[9:].strip())
+
+            # nameservers:
+            if not os.path.exists(os.path.join(mntpoint, 'etc/resolv.conf')):
+                results['manual-nameservers'] = (False, None)
+            else:
+                ns = []
+                fd = open(os.path.join(mntpoint, 'rws/etc/resolv.conf'), 'r')
+                lines = fd.readlines()
+                fd.close()
+                for line in lines:
+                    if line.startswith("nameserver "):
+                        ns.append(line[11:].strip())
+                results['manual-nameservers'] = (True, ns)
+
+            # ntp servers:
+            fd = open(os.path.join(mntpoint, 'rws/etc/ntp.conf'), 'r')
+            lines = fd.readlines()
+            fd.close()
+            ntps = []
+            for line in lines:
+                if line.startswith("server "):
+                    ntps.append(line[7:].strip())
+            results['ntp-servers'] = ntps
+
+            # keyboard:
+            fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/keyboard'), 'r')
+            lines = fd.readlines()
+            fd.close()
+            for line in lines:
+                if line.startswith('KEYTABLE='):
+                    results['keymap'] = line[9:].strip()
+            if not results.has_key('keymap'):
+                raise SettingsNotAvailable, "Error reading keymap data."
+
+            # network:
+            network_files = os.listdir(os.path.join(mntpoint, 'rws/etc/sysconfig/network-scripts'))
+            network_files = filter(lambda x: x.startswith('ifcfg-eth'),
+                                   network_files)
+
+            interfaces = {}
+            for nf in network_files:
+                fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/network-scripts', nf), 'r')
+                lines = fd.readlines()
+                fd.close()
+                devvice = bootproto = onboot = None
+                netmask = ipaddr = gw = None
+                for line in lines:
+                    if line.startswith('DEVICE='):
+                        device = line[7:].strip()
+                    elif line.startswith('BOOTPROTO='):
+                        bootproto = line[10:].strip()
+                    elif line.startswith('ONBOOT='):
+                        onboot = line[7:].strip()
+                    elif line.startswith('NETMASK='):
+                        netmask = line[8:].strip()
+                    elif line.startswith('IPADDR='):
+                        ipaddr = line[7:].strip()
+                    elif line.startswith('GATEWAY='):
+                        gw = line[8:].strip()
+
+                iface = {}
+                # now work out what the results version is:
+                # - check sanity:
+                if onboot not in ['yes', 'no']:
+                    xelogging.log("ONBOOT value not recognised - skipping interface file" % nf)
+                    continue
+                if bootproto not in ['dhcp', 'none']:
+                    xelogging.log("BOOTPROTO value not recognised - skipping interface file" % nf)
+                    continue
+
+                # enabled?
+                iface['enabled'] = onboot == 'yes'
+
+                if bootproto == 'dhcp':
+                    iface['use-dhcp'] = True
+                elif bootproto == 'none':
+                    if None in [ipaddr, netmask, gw]:
+                        xelogging.log("Unable to parse interface definition for %s - skipping." % device)
+                        continue
+                    iface['ip'] = ipaddr
+                    iface['subnet-mask'] = netmask
+                    iface['gateway'] = gw
+
+                interfaces[device] = iface
+
+            # root password:
+            rc, out = util.runCmdWithOutput(
+                'chroot %s python -c \'import pwd; print pwd.getpwnam("root")[1]\'' % mntpoint
+                )
+
+            if rc != 0:
+                raise SettingsNotAvailable
+            else:
+                results['root-password-type'] = 'pwdhash'
+                results['root-password'] = out.strip()
+
+            results['iface-configuration'] = (False, interfaces)
+
+            # don't care about this too much.
+            results['time-config-method'] = 'ntp'
+        finally:
+            util.umount(mntpoint)
+
+        return results
 
 def findXenSourceProducts():
     """Scans the host and finds XenSource product installations.

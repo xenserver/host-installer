@@ -77,6 +77,7 @@ def __parse_answerfile__(answerdoc, results):
 
     # root-password:
     results['root-password'] = getText(n.getElementsByTagName('root-password')[0].childNodes)
+    results['root-password-type'] = 'plaintext'
 
     # manual-nameservers:
     mnss = n.getElementsByTagName('nameserver')
@@ -147,5 +148,6 @@ def __parse_answerfile__(answerdoc, results):
 
     # currently no supprt for re-installation:
     results['install-type'] = constants.INSTALL_TYPE_FRESH
+    results['preserve-settings'] = False
 
     return results

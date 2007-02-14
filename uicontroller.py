@@ -17,15 +17,16 @@ EXIT = -101
 LEFT_BACKWARDS = -1
 
 class Step:
-    def __init__(self, fn, args = [], predicate = lambda x: True):
+    def __init__(self, fn, args = [], predicates = [lambda x: True]):
         self.fn = fn
         self.args = args
-        self.predicate = predicate
+        self.predicates = predicates
 
     def execute(self, answers):
-        assert callable(self.predicate)
+        assert type(self.predicates) == list
+        assert False not in [callable(x) for x in self.predicates]
         assert callable(self.fn)
-        if self.predicate(answers):
+        if False not in [x(answers) for x in self.predicates]:
             return self.fn(answers, *self.args)
         else:
             xelogging.log("Not displaying screen %s due to predicate return false." % self.fn)

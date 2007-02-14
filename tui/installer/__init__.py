@@ -4,6 +4,7 @@ import uicontroller
 import hardware
 import netutil
 import repository
+import constants
 
 from snack import *
 
@@ -13,28 +14,49 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
     uis = tui.installer.screens
     Step = uicontroller.Step
 
+    def ask_preserve_settings_predicate(answers):
+        return answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
+               answers.has_key('installation-to-overwrite') and \
+               answers['installation-to-overwrite'].settingsAvailable()
+
+    def clean_install_predicate(answers):
+        return not answers.has_key('preserve-settings') or \
+               not answers['preserve-settings']
+
     seq = [
         Step(uis.welcome_screen),
         Step(uis.eula_screen),
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],
-             predicate=lambda _:(ram_warning or vt_warning)),
+             predicates=[lambda _:(ram_warning or vt_warning)]),
         Step(uis.get_installation_type, args=[installed_products]),
+        Step(uis.ask_preserve_settings,
+             predicates=[ask_preserve_settings_predicate]),
         Step(uis.backup_existing_installation),
-        Step(uis.select_primary_disk),
-        Step(uis.select_guest_disks),
-        Step(uis.confirm_erase_volume_groups),
+        Step(uis.select_primary_disk,
+             predicates=[clean_install_predicate]),
+        Step(uis.select_guest_disks,
+             predicates=[clean_install_predicate]),
+        Step(uis.confirm_erase_volume_groups,
+             predicates=[clean_install_predicate]),
         Step(uis.select_installation_source),
         Step(uis.setup_runtime_networking),
         Step(uis.get_source_location),
         Step(uis.verify_source),
-        Step(uis.get_root_password),
-        Step(uis.get_timezone_region),
-        Step(uis.get_timezone_city),
-        Step(uis.get_time_configuration_method),
-        Step(uis.get_ntp_servers),
-        Step(uis.determine_basic_network_config),
-        Step(uis.get_name_service_configuration),
+        Step(uis.get_root_password,
+             predicates=[clean_install_predicate]),
+        Step(uis.get_timezone_region,
+             predicates=[clean_install_predicate]),
+        Step(uis.get_timezone_city,
+             predicates=[clean_install_predicate]),
+        Step(uis.get_time_configuration_method,
+             predicates=[clean_install_predicate]),
+        Step(uis.get_ntp_servers,
+             predicates=[clean_install_predicate]),
+        Step(uis.determine_basic_network_config,
+             predicates=[clean_install_predicate]),
+        Step(uis.get_name_service_configuration,
+             predicates=[clean_install_predicate]),
         Step(uis.confirm_installation),
         ]
     return uicontroller.runSequence(seq, results)

@@ -151,7 +151,7 @@ def getFinalisationSequence(ans):
         Task(mkinitrd, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'default-sr-uuid'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
-        Task(setRootPassword, A(ans, 'mounts', 'root-password'), []),
+        Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
     if ans['time-config-method'] == 'ntp':
@@ -238,6 +238,11 @@ def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
+    # update the settings:
+    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
+       answers['preserve-settings'] == True:
+        answers.update(answers['installation-to-overwrite'].readSettings())
+
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
@@ -305,7 +310,7 @@ def configureNTP(mounts, ntp_servers):
 
     ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
     for line in lines:
-        ntpsconf.write(line + "\n")
+        ntpsconf.write(line)
     for server in ntp_servers:
         ntpsconf.write("server %s\n" % server)
     ntpsconf.close()
@@ -647,14 +652,15 @@ def setTimeZone(mounts, tz):
     # make the localtime link:
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
            (tz, mounts['root']))
-    
 
-def setRootPassword(mounts, root_password):
+def setRootPassword(mounts, root_password, pwdtype):
     # avoid using shell here to get around potential security issues.
-    pipe = subprocess.Popen(["/usr/sbin/chroot", "%s" % mounts["root"],
-                             "passwd", "--stdin", "root"],
+    cmd = ["/usr/sbin/chroot", "%s" % mounts["root"], "chpasswd"]
+    if pwdtype == 'pwdhash':
+        cmd.append('-e')
+    pipe = subprocess.Popen(cmd,
                             stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    pipe.stdin.write(root_password)
+    pipe.communicate('root:%s\n' % root_password)
     assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files

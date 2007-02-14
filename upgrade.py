@@ -10,15 +10,17 @@
 #
 # written by Andrew Peace
 
-# This stuff exists to hide ugliness and hacks that are
-# required for upgrades from the rest of the installer.
+# This stuff exists to hide ugliness and hacks that are required for upgrades
+# from the rest of the installer.
 
 import os
+import tempfile
 
 import product
 import diskutil
 import util
 import constants
+import xelogging
 
 class UpgraderNotAvailable(Exception):
     pass
@@ -62,8 +64,8 @@ class FirstGenUpgrader(Upgrader):
 
     upgrades_product = "xenenterprise"
 
-    upgrades_versions = [ (product.Version(0, 2, 4), product.THIS_PRODUCT_VERSION),
-                          (product.Version(3, 1, 0, "b1"), product.Version(3,1,0)) ]
+    upgrades_versions = [ (product.Version(0, 4, 3), product.Version(0,4,9)),
+                          (product.Version(3, 1, 0), product.Version(3,1,0)) ]
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
@@ -90,6 +92,7 @@ class FirstGenUpgrader(Upgrader):
             util.umount(mntpoint)    
 
         return (def_sr, self.source.primary_disk)
+
 
 # Upgarders provided here, in preference order:
 class UpgraderList(list):

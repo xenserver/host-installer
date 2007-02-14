@@ -88,10 +88,15 @@ def not_enough_space_screen(answers):
 def get_installation_type(answers, insts):
     if len(insts) == 0:
         answers['install-type'] = constants.INSTALL_TYPE_FRESH
+        answers['preserve-settings'] = False
         return uicontroller.SKIP_SCREEN
 
     entries = [ ("Perform clean installation", None) ]
-    entries.extend([("Re-install over %s" % str(x), x) for x in insts])
+    for x in insts:
+        if x.settingsAvailable():
+            entries.append(("Upgrade %s" % str(x), (x, True)))
+        else:
+            entries.append(("Preserve %s from %s" % (BRAND_GUESTS_SHORT, str(x)), (x, False)))
 
     # default value?
     if answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
@@ -109,16 +114,39 @@ def get_installation_type(answers, insts):
     if button != 'back':
         if entry == None:
             answers['install-type'] = constants.INSTALL_TYPE_FRESH
+            answers['preserve-settings'] = False
 
             if answers.has_key('installation-to-overwrite'):
                 del answers['installation-to-overwrite']
         else:
             answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
-            answers['installation-to-overwrite'] = entry
+            answers['installation-to-overwrite'], preservable = entry
+            if not preservable:
+                answers['preserve-settings'] = False
 
             for k in ['guest-disks', 'primary-disk', 'default-sr-uuid']:
                 if answers.has_key(k):
                     del answers[k]
+        return 1
+    else:
+        return -1
+
+def ask_preserve_settings(answers):
+    default = 0
+    if answers.has_key('preserve-settings'):
+        default = {True: 0, False: 1}[answers['preserve-settings']]
+
+    rv = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Preserve Settings",
+        """Would you like to install %s with the same configuration as %s?
+
+WARNING: Only settings initially configured using the installer will be preserved.""" % (PRODUCT_BRAND, str(answers['installation-to-overwrite'])),
+        ['Yes', 'No', 'Back'], default=default
+        )
+
+    if rv in ['yes', 'no', None]:
+        answers['preserve-settings'] = rv != 'no'
         return 1
     else:
         return -1
@@ -548,6 +576,7 @@ def get_root_password(answers):
     # if they didn't select OK we should have returned already
     assert button in ['ok', None]
     answers['root-password'] = pw
+    answers['root-password-type'] = 'plaintext'
     return 1
 
 def get_name_service_configuration(answers):
