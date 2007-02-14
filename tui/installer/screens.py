@@ -237,25 +237,23 @@ def select_installation_source(answers):
     result = gfhDialog.runOnce()
     entry = listbox.current()
     button = buttons.buttonPressed(result)
-        
-    answers['source-media'] = entry
-    if entry == 'local':
-        answers['source-address'] = ""
 
-    answers['more-media'] = cbMoreMedia.value()
+    if button == 'back':
+        return -1
+    else:
+        answers['source-media'] = entry
+        if entry == 'local':
+            answers['source-address'] = ""
+            answers['more-media'] = cbMoreMedia.value()
 
-    if answers['source-media'] == 'local':
-        # we should check that we can see a CD now:
-        l = len(repository.repositoriesFromDefinition('local', ''))
-        if l == 0:
-            tui.OKDialog(
-                "Media not found",
-                "Your installation media could not be found.  Please ensure it is inserted into the drive, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
-                )
-            return 0
-        
-    if button == "ok" or button == None: return 1
-    if button == "back": return -1
+            # we should check that we can see a CD now:
+            l = len(repository.repositoriesFromDefinition('local', ''))
+            if l == 0:
+                tui.OKDialog(
+                    "Media not found",
+                    "Your installation media could not be found.  Please ensure it is inserted into the drive, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
+                    )
+        return 1
 
 def setup_runtime_networking(answers):
     if answers['source-media'] not in ['url', 'nfs']:
