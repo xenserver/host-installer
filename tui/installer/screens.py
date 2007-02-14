@@ -382,10 +382,11 @@ def interactive_source_verification(media, address):
             tui.progress.clearModelessDialog()
 
             if len(errors) != 0:
+                errtxt = generalui.makeHumanList([x.name for x in errors])
                 ButtonChoiceWindow(
                     tui.screen,
                     "Problems found",
-                    "Some packages appeared damaged.  These were: %s" % errors,
+                    "Some packages appeared damaged.  These were: %s" % errtxt,
                     ['Ok']
                     )
                 return False
