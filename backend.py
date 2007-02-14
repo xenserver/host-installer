@@ -186,7 +186,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     pd = None
     if ui:
-        pd = ui.initProgressDialog(
+        pd = ui.progress.initProgressDialog(
             "Installing %s" % PRODUCT_BRAND,
             seq_name, progress_total
             )
@@ -201,13 +201,13 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     def progressCallback(x):
         if ui:
-            ui.displayProgressDialog(current + x, pd)
+            ui.progress.displayProgressDialog(current + x, pd)
         
     try:
         current = 0
         for item in sequence:
             if pd:
-                ui.displayProgressDialog(current, pd)
+                ui.progress.displayProgressDialog(current, pd)
             updated_state = item.execute(answers, progressCallback)
             if len(updated_state) > 0:
                 xelogging.log(
@@ -223,7 +223,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
         raise
     else:
         if ui and pd:
-            ui.clearModelessDialog()
+            ui.progress.clearModelessDialog()
 
         if cleanup:
             doCleanup(answers['cleanup'])
@@ -271,7 +271,7 @@ def performInstallation(answers, ui_package):
         done = not (answers.has_key('more-media') and answers['more-media'])
         if not done:
             util.runCmd2(['/usr/bin/eject'])
-            done = not ui_package.more_media_sequence(installed_repo_ids)
+            done = not ui_package.installer.more_media_sequence(installed_repo_ids)
 
     # install from driver repositories, if any:
     for driver_repo_def in answers['extra-repos']:
@@ -317,7 +317,7 @@ def configureTimeManually(mounts, ui_package):
     # display the Set TIme dialog in the chosen UI:
     rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
     answers = {}
-    ui_package.set_time(answers, util.parseTime(time))
+    ui_package.installer.screens.set_time(answers, util.parseTime(time))
         
     newtime = answers['localtime']
     timestr = "%04d-%02d-%02d %02d:%02d:00" % \

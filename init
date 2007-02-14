@@ -18,15 +18,20 @@ import os.path
 from getopt import getopt, GetoptError
 import shutil
 import time
-import diskutil
-import init_tui
+
+# user interface:
+import tui
+import tui.init
+import tui.progress
 import init_simpleui
+import generalui
+
+import diskutil
 import init_constants
 import xelogging
 import netutil
 import util
 import hardware
-import generalui
 import repository
 import tempfile
 from hardware import module_map
@@ -47,6 +52,7 @@ base_modules = ['sd-mod',
                 'ext3',
 		'usb-storage']
 
+active_output = 'tty1'
 
 # Exception that is thrown if we detect that the user has
 # tried to use two consoles to perform an installation
@@ -74,8 +80,8 @@ def activateScreen():
         activefile.write(tty)
         activefile.close()
 
-def doInteractiveLoadDriver():
-    rc = init_tui.driver_disk_sequence()
+def doInteractiveLoadDriver(ui):
+    rc = ui.init.driver_disk_sequence()
     if rc:
         media, address = rc
         repos = repository.repositoriesFromDefinition(media, address)
@@ -105,7 +111,7 @@ def doInteractiveLoadDriver():
             rc = hardware.modprobe_file(driver)
             total_rc += rc
         if total_rc != 0:
-            init_tui.OKDialog("Error", "One or more of your drivers failed to load.")
+            ui.OKDialog("Error", "One or more of your drivers failed to load.")
 
         # stash the repositories we used for pickup later:
         dr_copies = []
@@ -167,12 +173,12 @@ def configureHardware(extra_modules = [],
 
     assert not interactive or (interactive and ui)
 
-    pd = ui.initProgressDialog(
+    pd = ui.progress.initProgressDialog(
         "Preparing for installation",
         "Your system hardware is being detected and configured...",
         100
         )
-    ui.displayProgressDialog(0, pd)
+    ui.progress.displayProgressDialog(0, pd)
     
     modules = discoverHardware()
     modules.extend(base_modules)
@@ -191,7 +197,7 @@ def configureHardware(extra_modules = [],
                 hardware.modprobe(m)
                 current = current + 1
                 current_scaled = int( float(current) / float(len(modules)) * 100.0 )
-                ui.displayProgressDialog(current_scaled, pd)
+                ui.progress.displayProgressDialog(current_scaled, pd)
     
     # if we're in an older (pre udev-091) filesystem, we need
     # to call udevstart as udevd wasn't working correctly:
@@ -205,11 +211,11 @@ def configureHardware(extra_modules = [],
 
     assert os.system("touch %s" % init_constants.HW_CONFIG_COMPLETED_STAMP) == 0
 
-    ui.clearModelessDialog()
+    ui.progress.clearModelessDialog()
 
 # Attempt to configure the network:
 def configureNetworking(ui):
-    ui.showMessageDialog(
+    ui.progress.showMessageDialog(
         "Preparing for installation",
         "Attempting to configure networking..."
         )
@@ -224,9 +230,18 @@ def configureNetworking(ui):
     for i in interfaces:
         netutil.ifup(i)
 
-    ui.clearModelessDialog()
+    ui.progress.clearModelessDialog()
+
+def isPrimaryProcess():
+    """ Returns True if we can expect the user to provide input on the
+    tty that we're currently running on. """
+    rc, my_tty = commands.getstatusoutput("tty")
+    my_tty = os.path.basename(my_tty.strip('\n'))
+    return my_tty == active_output
 
 def main():
+    global active_output
+    
     # clog fds: add tty3
     clog_fds = []
     try:
@@ -266,10 +281,9 @@ def main():
         sys.exit(1)
 
     mode = init_constants.MODE_INTERACTIVE
-    ui_package = init_tui
+    ui = tui
     extra_modules = []
     user_blacklist = []
-    active_output = 'tty1'
     answerfile = None
     verbose_answerfile = None
     interactive_modules = False
@@ -287,7 +301,7 @@ def main():
         if opt == "--answerfile":
             answerfile = val
         if opt == "--verbose-answerfile":
-            ui_package = init_simpleui
+            ui = None
             xelogging.continuous_logs.append(sys.stdout)
             verbose_answerfile = val
         if opt == "--modules":
@@ -298,11 +312,6 @@ def main():
             active_output = val
 
     xelogging.log("Active output is %s" % active_output)
-
-    def isPrimaryProcess():
-        rc, my_tty = commands.getstatusoutput("tty")
-        my_tty = os.path.basename(my_tty.strip('\n'))
-        return my_tty == active_output
 
     # prepare LVM - we need this very early now.  Only attemnpt this in the
     # "primary" process to avoid a race:
@@ -318,27 +327,28 @@ def main():
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
-    ui_package.init_ui()
+    if ui:
+        ui.init_ui()
 
     # first, configure the hardware:
     if isPrimaryProcess():
         configureHardware(extra_modules, user_blacklist,
-                          ui_package, interactive_modules)
+                          ui, interactive_modules)
     else:
-        ui_package.showMessageDialog(
+        ui.progress.showMessageDialog(
             "Preparing for installation",
             "Waiting for hardware detection to complete..."
             )
         while not os.path.exists(init_constants.HW_CONFIG_COMPLETED_STAMP):
             time.sleep(1)
-        ui_package.clearModelessDialog()
+        ui.progress.clearModelessDialog()
 
     # let the user choose what they would like to do:
     if mode == init_constants.MODE_INTERACTIVE:
         # choose keymap
-        kmap = ui_package.get_keymap()
+        kmap = ui.init.get_keymap()
         xelogging.log("Loading keymap %s" % kmap)
-        util.runCmd("loadkeys %s" % kmap)
+        util.runCmd2(["/bin/loadkeys", kmap])
 
         if isPrimaryProcess():
             xelogging.writeLog("/tmp/startup-log")
@@ -346,7 +356,7 @@ def main():
         firstTime = True
         try:
             while True:
-                operation = ui_package.choose_operation()
+                operation = ui.init.choose_operation()
 
                 # activate installation on this screen:
                 try:
@@ -354,7 +364,7 @@ def main():
                     if not isPrimaryProcess():
                         xelogging.log("WARNING: Operation started on a console different that the one specified as being default on the kernel command-line")
                 except AlreadyActivated:
-                    ui_package.already_activated()
+                    ui.init.already_activated()
                     break
 
                 # reboot (process this action before hardware
@@ -379,7 +389,7 @@ def main():
 
                 # load a driver:
                 elif operation == init_constants.OPERATION_LOAD_DRIVER:
-                    driver_repos.extend(doInteractiveLoadDriver())
+                    driver_repos.extend(doInteractiveLoadDriver(ui))
 
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
@@ -392,7 +402,7 @@ def main():
                         pass
 
         except Exception:
-            ui_package.end_ui()
+            ui.end_ui()
             raise
 
     # non-interactive:
@@ -401,10 +411,10 @@ def main():
         if isPrimaryProcess():
             activateScreen()
         else:
-            ui_package.already_activated()
+            ui.init.already_activated()
             sys.exit(0)
 
-        configureNetworking(ui_package)
+        configureNetworking(ui)
 
         if isPrimaryProcess():
             xelogging.writeLog("/tmp/startup-log")
@@ -430,8 +440,8 @@ def main():
 
     # Everything finished - from here we just shut down and reboot
 
-    if ui_package:
-        ui_package.end_ui()
+    if ui:
+        ui.end_ui()
 
     if os.path.ismount('/etc/network'):
         util.umount('/etc/network')

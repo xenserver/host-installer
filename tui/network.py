@@ -11,14 +11,14 @@
 # written by Andrew Peace
 
 import uicontroller
+import tui
+import tui.progress
 import netutil
-import snackutil
 import version
 
 from snack import *
 
-def get_network_config(screen,
-                       show_reuse_existing = False,
+def get_network_config(show_reuse_existing = False,
                        runtime_config = False):
     """ Returns a pair (direction, config).
 
@@ -45,13 +45,13 @@ How would you like networking to be configured at this time?""" % version.PRODUC
         text = "How would you like networking to be configured on your installed server?"
 
     (button, entry) = ListboxChoiceWindow(
-        screen, "Network Configuration", text, entries,
+        tui.screen, "Network Configuration", text, entries,
         ['Ok', 'Back'], width=50)
 
     if button == "ok" or button == None:
         # proceed to get_autoconfig_ifaces if manual configuration was selected:
         if entry == OTHER:
-            (rv, config) = get_autoconfig_ifaces(screen)
+            (rv, config) = get_autoconfig_ifaces()
             if rv == 1:
                 return 1, (False, config)
             else:
@@ -63,10 +63,10 @@ How would you like networking to be configured at this time?""" % version.PRODUC
     
     if button == "back": return -1, None
 
-def get_autoconfig_ifaces(screen):
+def get_autoconfig_ifaces():
     seq = []
     for x in netutil.getNetifList():
-        seq.append((get_iface_configuration, (x, screen)))
+        seq.append((get_iface_configuration, (x,)))
 
     # when this was written this branch would never be taken
     # since we require at least one NIC at setup time:
@@ -77,9 +77,9 @@ def get_autoconfig_ifaces(screen):
     rv = uicontroller.runUISequence(seq, subdict)
     return rv, subdict
     
-def get_iface_configuration(answers, iface, screen):
+def get_iface_configuration(answers, iface):
     def identify_interface(iface):
-        ButtonChoiceWindow(screen,
+        ButtonChoiceWindow(tui.screen,
                            "Identify Interface",
                            """Name: %s
 
@@ -97,9 +97,9 @@ PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
             x.setFlags(FLAG_DISABLED,
                            (enabled_cb.value() and not dhcp_cb.value()))
 
-    gf = GridFormHelp(screen, 'Network Configuration', None, 1, 5)
+    gf = GridFormHelp(tui.screen, 'Network Configuration', None, 1, 5)
     text = TextboxReflowed(45, "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface)))
-    buttons = ButtonBar(screen, [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")])
+    buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")])
 
     # note spaces exist to line checkboxes up:
     enabled_cb = Checkbox("Enable interface", 1)
@@ -141,7 +141,7 @@ PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
             identify_interface(iface)
         else:
             # leave the loop - 'ok' or 'back' was pressed:
-            screen.popWindow()
+            tui.screen.popWindow()
             break
 
     if buttons.buttonPressed(result) == 'ok':
@@ -153,3 +153,53 @@ PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
         return 1
     elif buttons.buttonPressed(result) == 'back':
         return -1
+
+def requireNetworking(answers):
+    """ Display the correct sequence of screens to get networking
+    configuration.  Bring up the network according to this configuration.
+    If answers is a dictionary, set it's 'runtime-iface-configuration' key
+    to the configuration in the style (all-dhcp, manual-config). """
+    
+    direction, config = get_network_config(False, True)
+    if direction != 1:
+        return direction
+    else:
+        # configure and check the network before proceeding
+        # - canonicalise the config given to us.  This is
+        #   to be tidied up later.
+        dhcp, manual = config
+        if dhcp:
+            config = {}
+            for i in netutil.getNetifList():
+                config[i] = { 'use-dhcp': True,
+                              'enabled' : True, }
+        else:
+            config = manual
+        netutil.writeDebStyleInterfaceFile(config, '/etc/network/interfaces')
+
+        pd = tui.progress.initProgressDialog(
+            "Configuring Networking",
+            "Configuring network interfaces, please wait...",
+            len(config.keys())
+            )
+
+        count = 0
+        for i in config:
+            tui.progress.displayProgressDialog(count, pd, "Configuring interface %s" % i)
+            netutil.ifup(i)
+            count += 1
+
+        # check that we have *some* network:
+        anyup = True in [ netutil.interfaceUp(i) for i in config.keys() ]
+        if not anyup:
+            # no interfaces were up: error out, then go to start:
+            tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
+            direction = 0
+        else:
+            if answers and type(answers) == dict:
+                answers['runtime-iface-configuration'] = (False, config)
+        tui.progress.clearModelessDialog()
+        
+        return direction
+
+

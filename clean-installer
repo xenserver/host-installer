@@ -16,9 +16,11 @@ import sys
 import traceback
 
 # user-interface stuff:
-import tui
+import tui.installer
+import tui.installer.screens
+import tui.progress
 import util
-import answerfile_ui
+import answerfile
 import uicontroller
 import constants
 
@@ -37,7 +39,7 @@ import xelogging
 from getopt import getopt, GetoptError
 
 def main():
-    ui_package = tui
+    ui = tui
     
     # disable all kernel printing
     util.runCmd("echo 1 > /proc/sys/kernel/printk")
@@ -64,21 +66,18 @@ def main():
 
     clog_fds = []
     extra_repo_defs = []
-
     results = {}
+    answerfile_address = None
 
     for (opt, val) in opts:
         if opt == "--keymap":
             results["keymap"] = val
             xelogging.log("Keymap specified on command-line: %s" % val)
         if opt == "--answerfile":
-            answerfile_ui.specifySubUI(ui_package)
-            answerfile_ui.specifyAnswerFile(val)
-            ui_package = answerfile_ui
+            answerfile_address = val
         if opt == "--verbose-answerfile":
-            answerfile_ui.specifyAnswerFile(val)
-            ui_package = answerfile_ui
-            xelogging.continuous_logs.append(sys.stdout)
+            ui = None
+            answerfile_address = val
         if opt == "--clog":
             try:
                 fd = open(val, "w")
@@ -92,8 +91,10 @@ def main():
             else:
                 extra_repo_defs.append(('filesystem', val))
 
-    if not results.has_key("keymap"):
-        xelogging.log("No keymap specified on command-line.")
+    # loading an answerfile?
+    assert ui != None or answerfile_address != None
+    if answerfile_address:
+        results.update(answerfile.processAnswerfile(answerfile_address))
 
     results['extra-repos'] = extra_repo_defs
 
@@ -105,7 +106,8 @@ def main():
 
     try:
         xelogging.log("Starting user interface")
-        ui_package.init_ui(results, False)
+        if ui:
+            ui.init_ui()
 
         disks = diskutil.getQualifiedDiskList()
         netifs = netutil.getNetifList()
@@ -135,7 +137,8 @@ def main():
         vt_warning = not hardware.VTSupportEnabled()
 
         # find existing installations:
-        ui_package.showMessageDialog("Please wait", "Checking for existing products...")
+        if ui:
+            ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
         try:
             all_installed_products = product.findXenSourceProducts()
         except Exception, e:
@@ -147,7 +150,8 @@ def main():
             all_installed_products = []
         installed_products = filter(lambda p: upgrade.upgradeAvailable(p),
                                     all_installed_products)
-        ui_package.clearModelessDialog()
+        if ui:
+            ui.progress.clearModelessDialog()
         
         # Generate the UI sequence and populate some default
         # values in backend input.  Note that not all these screens
@@ -155,37 +159,21 @@ def main():
         # the start of each function.  In future these conditionals will
         # be moved into the sequence definition and evaluated by the
         # UI dispatcher.
-        seq = [ ui_package.welcome_screen,
-                ui_package.eula_screen, ]
-        if ram_warning or vt_warning:
-            seq += [ (ui_package.hardware_warnings, (ram_warning, vt_warning)) ]
-        seq += [ (ui_package.get_installation_type, (installed_products, )),
-                 ui_package.backup_existing_installation,
-                 ui_package.select_primary_disk,
-                 ui_package.select_guest_disks,
-                 ui_package.confirm_erase_volume_groups,
-                 ui_package.select_installation_source,
-                 ui_package.setup_runtime_networking,
-                 ui_package.get_source_location,
-                 ui_package.verify_source,
-                 ui_package.get_root_password,
-                 ui_package.get_timezone_region,
-                 ui_package.get_timezone_city,
-                 ui_package.get_time_configuration_method,
-                 ui_package.get_ntp_servers,
-                 ui_package.determine_basic_network_config,
-                 ui_package.get_name_service_configuration,
-                 ui_package.confirm_installation
-                 ]
+        aborted = False
+        if ui:
+            uiexit = ui.installer.runMainSequence(
+	            results, ram_warning, vt_warning, installed_products
+                )
+            if uiexit == uicontroller.EXIT:
+                aborted = True
 
-        uiexit = uicontroller.runUISequence(seq, results)
-
-        if uiexit != uicontroller.EXIT:
+        if not aborted:
             xelogging.log("Starting actual installation")       
-            backend.performInstallation(results, ui_package)
-            seq = [ ui_package.installation_complete ]
-            uicontroller.runUISequence(seq, results)
+            backend.performInstallation(results, ui)
 
+            if ui:
+                ui.installer.screens.installation_complete()
+            
             xelogging.log("The installation completed successfully.")
         else:
             xelogging.log("The user aborted the installation from within the user interface.")
@@ -206,12 +194,12 @@ def main():
 
         # now display a friendly error dialog:
         if str(e) != "":
-            ui_package.error_dialog("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % (str(e)))
+            ui.installer.screens.error_dialog("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % (str(e)))
         else:
-            ui_package.error_dialog("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details.")
+            ui.installer.screens.error_dialog("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details.")
 
         # clean up the screen
-        ui_package.end_ui()
+        ui.end_ui()
 
         # and now on the disk if possible:
         if results.has_key('primary-disk'):
@@ -230,7 +218,7 @@ def main():
 
     else:
         xelogging.log("Shutting down user interface")
-        ui_package.end_ui()
+        ui.end_ui()
         
         # close continuous logs:
         for logfd in clog_fds:

@@ -13,36 +13,19 @@
 from snack import *
 from version import *
 
-import snackutil
+import tui
 import init_constants
 import generalui
 import uicontroller
 import tui.network
 import repository
-
-screen = None
-
-def init_ui():
-    global screen
-    screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
-    screen.drawRootText(0, 1, "Copyright %s %s" % (COMPANY_NAME_LEGAL, COPYRIGHT_YEARS))
-
-def end_ui():
-    if screen:
-        screen.finish()
-
-def refresh():
-    if screen:
-        screen.refresh()
+import snackutil
 
 def get_keymap():
-    global screen
-
     entries = generalui.getKeymaps()
 
     (button, entry) = ListboxChoiceWindow(
-        screen,
+        tui.screen,
         "Select Keymap",
         "Please select the keymap you would like to use:",
         entries,
@@ -57,7 +40,7 @@ def choose_operation():
         (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
 
-    (button, entry) = ListboxChoiceWindow(screen,
+    (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
                                           """Please select an operation:""",
                                           entries,
@@ -70,7 +53,7 @@ def choose_operation():
 
 def already_activated():
     while True:
-        form = GridFormHelp(screen, "Installation already started", None, 1, 1)
+        form = GridFormHelp(tui.screen, "Installation already started", None, 1, 1)
         tb = TextboxReflowed(50, """You have already activated the installation on a different console!
         
 If this message is unexpected, please try restarting your machine, and enusre you only use one console (either serial, or tty).""")
@@ -78,9 +61,7 @@ If this message is unexpected, please try restarting your machine, and enusre yo
         form.run()
 
 def ask_load_module(m):
-    global screen
-
-    result = ButtonChoiceWindow(screen,
+    result = ButtonChoiceWindow(tui.screen,
                                 "Interactive Module Loading",
                                 "Load module %s?" % m,
                                 ['Yes', 'No'])
@@ -105,7 +86,7 @@ def get_driver_source(answers):
         ('NFS', 'nfs')
         ]
     result, entry = ListboxChoiceWindow(
-        screen,
+        tui.screen,
         "Load driver",
         "Please select where you would like to load a driver from:",
         entries, ['Ok', 'Back'])
@@ -133,7 +114,7 @@ def get_driver_source_location(answers):
     else:
         default = ""
     (button, result) = EntryWindow(
-        screen,
+        tui.screen,
         "Specify Repository",
         text,
         [(label, default)], entryWidth = 50,
@@ -158,7 +139,7 @@ def confirm_load_drivers(answers):
     driver_names = [" * %s" % d.name for d in drivers]
     if len(drivers) == 0:
         ButtonChoiceWindow(
-            screen, "No drivers found",
+            tui.screen, "No drivers found",
             """No drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
 
 Note that this driver-loading mechanism is only compatible with media/locations containing XenSource repositories.  Check the user guide for more information.""",
@@ -171,19 +152,17 @@ Note that this driver-loading mechanism is only compatible with media/locations 
             text = "The following drivers were found:\n\n"
         text += "\n".join(driver_names)
         rc = ButtonChoiceWindow(
-            screen, "Load drivers", text, ['Load Drivers', 'Back'])
+            tui.screen, "Load drivers", text, ['Load Drivers', 'Back'])
 
         if rc in ['load drivers', None]: return 1
         if rc == 'back': return -1
 
 def ask_export_destination_screen(answers):
-    global screen
-
     valid = False
     hn = ""
     while not valid:
         button, result = EntryWindow(
-            screen,
+            tui.screen,
             "Export VMs",
             "Which host would you like to transfer the VMs to?",
             [("Hostname", Entry(50, hn))], entryWidth = 50,
@@ -198,7 +177,7 @@ def ask_export_destination_screen(answers):
                 answers['hostname'] = hn
             else:
                 ButtonChoiceWindow(
-                    screen,
+                    tui.screen,
                     "Hostname required",
                     "You must enter a valid hostname",
                     ["Ok"])
@@ -209,10 +188,8 @@ def ask_export_destination_screen(answers):
         return 1
 
 def ask_host_password_screen(answers):
-    global screen
-
     button, result = snackutil.PasswordEntryWindow(
-        screen,
+        tui.screen,
         "Password",
         "Please enter the password for the host you are connecting to:",
         ["Password"], entryWidth = 30,
@@ -228,22 +205,4 @@ def ask_host_password_screen(answers):
 def get_network_config(show_reuse_existing = False,
                        runtime_config = False):
     return tui.network.get_network_config(
-        screen, show_reuse_existing, runtime_config)
-
-###
-# Progress dialog:
-
-def OKDialog(title, text, hasCancel = False):
-    return snackutil.OKDialog(screen, title, text, hasCancel)
-
-def initProgressDialog(title, text, total):
-    return snackutil.initProgressDialog(screen, title, text, total)
-
-def displayProgressDialog(current, pd, updated_text = None):
-    return snackutil.displayProgressDialog(screen, current, pd, updated_text)
-
-def clearModelessDialog():
-    return snackutil.clearModelessDialog(screen)
-
-def showMessageDialog(title, text):
-    return snackutil.showMessageDialog(screen, title, text)
+        tui.screen, show_reuse_existing, runtime_config)
