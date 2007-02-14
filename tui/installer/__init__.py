@@ -8,34 +8,36 @@ import repository
 from snack import *
 
 def runMainSequence(results, ram_warning, vt_warning, installed_products):
+    """ Runs the main installer sequence and updtes results with a
+    set of values ready for the backend. """
     uis = tui.installer.screens
+    Step = uicontroller.Step
 
     seq = [
-        uis.welcome_screen,
-        uis.eula_screen,
+        Step(uis.welcome_screen),
+        Step(uis.eula_screen),
+        Step(uis.hardware_warnings,
+             args=[ram_warning, vt_warning],
+             predicate=lambda _:(ram_warning or vt_warning)),
+        Step(uis.get_installation_type, args=[installed_products]),
+        Step(uis.backup_existing_installation),
+        Step(uis.select_primary_disk),
+        Step(uis.select_guest_disks),
+        Step(uis.confirm_erase_volume_groups),
+        Step(uis.select_installation_source),
+        Step(uis.setup_runtime_networking),
+        Step(uis.get_source_location),
+        Step(uis.verify_source),
+        Step(uis.get_root_password),
+        Step(uis.get_timezone_region),
+        Step(uis.get_timezone_city),
+        Step(uis.get_time_configuration_method),
+        Step(uis.get_ntp_servers),
+        Step(uis.determine_basic_network_config),
+        Step(uis.get_name_service_configuration),
+        Step(uis.confirm_installation),
         ]
-    if ram_warning or vt_warning:
-        seq += [ (uis.hardware_warnings, (ram_warning, vt_warning)) ]
-    seq += [
-        (uis.get_installation_type, (installed_products, )),
-        uis.backup_existing_installation,
-        uis.select_primary_disk,
-        uis.select_guest_disks,
-        uis.confirm_erase_volume_groups,
-        uis.select_installation_source,
-        uis.setup_runtime_networking,
-        uis.get_source_location,
-        uis.verify_source,
-        uis.get_root_password,
-        uis.get_timezone_region,
-        uis.get_timezone_city,
-        uis.get_time_configuration_method,
-        uis.get_ntp_servers,
-        uis.determine_basic_network_config,
-        uis.get_name_service_configuration,
-        uis.confirm_installation
-        ]
-    return uicontroller.runUISequence(seq, results)
+    return uicontroller.runSequence(seq, results)
 
 def more_media_sequence(installed_repo_ids):
     """ Displays the sequence of screens required to load additional
@@ -43,12 +45,13 @@ def more_media_sequence(installed_repo_ids):
     IDs of repositories we already installed from, to help avoid
     issues where multiple CD drives are present."""
     def get_more_media(_):
+        """ 'Please insert disk' dialog. """
         done = False
         while not done:
             more = tui.progress.OKDialog("New Media", "Please insert your extra disc now.", True)
             if more == "cancel":
                 # they hit cancel:
-                rv = -1;
+                rv = -1
                 done = True
             else:
                 # they hit OK - check there is a disc
@@ -65,6 +68,7 @@ def more_media_sequence(installed_repo_ids):
         return rv
 
     def confirm_more_media(_):
+        """ 'Really use this disc?' screen. """
         repos = repository.repositoriesFromDefinition('local', '')
         assert len(repos) > 0
 
@@ -92,6 +96,6 @@ def more_media_sequence(installed_repo_ids):
 
         return rc
 
-    seq = [ get_more_media, confirm_more_media ]
-    direction = uicontroller.runUISequence(seq, {})
+    seq = [ Step(get_more_media), Step(confirm_more_media) ]
+    direction = uicontroller.runSequence(seq, {})
     return direction == 1
