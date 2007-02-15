@@ -35,7 +35,7 @@ def processAnswerfile(location):
         return answers
 
 # get data from a DOM object representing the answerfile:
-def __parse_answerfile__(answerdoc, results):
+def __parse_answerfile__(answerdoc):
     results = {}
     
     xelogging.log("Importing XML answerfile.")

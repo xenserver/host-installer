@@ -78,6 +78,7 @@ def main():
         if opt == "--verbose-answerfile":
             ui = None
             answerfile_address = val
+            xelogging.continuous_logs.append(sys.stdout)
         if opt == "--clog":
             try:
                 fd = open(val, "w")
@@ -193,13 +194,19 @@ def main():
         xelogging.collectLogs("/tmp")
 
         # now display a friendly error dialog:
+        def showerror(txt):
+            if ui:
+                ui.installer.screens.error_dialog(tst)
+            else:
+                xelogging.log(txt)
         if str(e) != "":
-            ui.installer.screens.error_dialog("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % (str(e)))
+            showerror("An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % (str(e)))
         else:
-            ui.installer.screens.error_dialog("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details.")
+            showerror("An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details.")
 
         # clean up the screen
-        ui.end_ui()
+        if ui:
+            ui.end_ui()
 
         # and now on the disk if possible:
         if results.has_key('primary-disk'):
@@ -217,8 +224,9 @@ def main():
         status = constants.EXIT_ERROR
 
     else:
-        xelogging.log("Shutting down user interface")
-        ui.end_ui()
+        if ui:
+            xelogging.log("Shutting down user interface")
+            ui.end_ui()
         
         # close continuous logs:
         for logfd in clog_fds:
