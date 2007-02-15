@@ -196,7 +196,7 @@ def main():
         # now display a friendly error dialog:
         def showerror(txt):
             if ui:
-                ui.installer.screens.error_dialog(tst)
+                ui.installer.screens.error_dialog(txt)
             else:
                 xelogging.log(txt)
         if str(e) != "":
