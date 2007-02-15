@@ -249,7 +249,7 @@ def select_installation_source(answers):
     for e in entries:
         listbox.append(*e)
     listbox.setCurrent(default)
-    cbMoreMedia = Checkbox("Use additional media", False)
+    cbMoreMedia = Checkbox("Install Linux Pack CD", False)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
     # callback
     def lbcallback():

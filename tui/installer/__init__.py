@@ -65,7 +65,9 @@ def more_media_sequence(installed_repo_ids):
     """ Displays the sequence of screens required to load additional
     media to install from.  installed_repo_ids is a list of repository
     IDs of repositories we already installed from, to help avoid
-    issues where multiple CD drives are present."""
+    issues where multiple CD drives are present.
+
+    Returns pair: (install more, then ask again)"""
     def get_more_media(_):
         """ 'Please insert disk' dialog. """
         done = False
@@ -120,4 +122,4 @@ def more_media_sequence(installed_repo_ids):
 
     seq = [ Step(get_more_media), Step(confirm_more_media) ]
     direction = uicontroller.runSequence(seq, {})
-    return direction == 1
+    return (direction == 1, False)
