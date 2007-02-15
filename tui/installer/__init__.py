@@ -128,6 +128,6 @@ def more_media_sequence(installed_repo_ids):
 
         return rc
 
-    seq = [ Step(get_more_media), Step(confirm_more_media) ]
+    seq = [ uicontroller.Step(get_more_media), uicontroller.Step(confirm_more_media) ]
     direction = uicontroller.runSequence(seq, {})
     return (direction == 1, False)
