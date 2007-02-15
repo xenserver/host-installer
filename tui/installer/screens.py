@@ -21,6 +21,7 @@ import xelogging
 from version import *
 import snackutil
 import repository
+import hardware
 
 from snack import *
 
@@ -242,14 +243,20 @@ def select_installation_source(answers):
         _, default = selectDefault(answers['source-media'], entries)
     else:
         _, default = ENTRY_LOCAL
-        
+
+    # check the Linux Pack checkbox?
+    if answers.has_key('more-media'):
+        linux_pack = answers['more-media']
+    else:
+        linux_pack = not hardware.VTSupportEnabled()
+    
     # widgets:
     text = TextboxReflowed(50, "Please select the type of source you would like to use for this installation:")
     listbox = Listbox(len(entries))
     for e in entries:
         listbox.append(*e)
     listbox.setCurrent(default)
-    cbMoreMedia = Checkbox("Install Linux Pack CD", False)
+    cbMoreMedia = Checkbox("Install Linux Pack CD", linux_pack)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
     # callback
     def lbcallback():
