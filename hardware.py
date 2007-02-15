@@ -155,12 +155,19 @@ def modprobe_file(module, params = ""):
 ################################################################################
 # These functions assume we're running on Xen.
 
+_vt_support = None
+
 def VTSupportEnabled():
-    assert os.path.exists(constants.XENINFO)
-    rc, caps = util.runCmdWithOutput(constants.XENINFO + " xen-caps")
-    assert rc == 0
-    caps = caps.strip().split(" ")
-    return "hvm-3.0-x86_32" in caps
+    global _vt_support
+
+    # get the answer and cache it if necessary:
+    if _vt_support == None:
+        assert os.path.exists(constants.XENINFO)
+        rc, caps = util.runCmdWithOutput(constants.XENINFO + " xen-caps")
+        assert rc == 0
+        caps = caps.strip().split(" ")
+        _vt_support = "hvm-3.0-x86_32" in caps
+    return _vt_support
 
 def getHostTotalMemoryKB():
     assert os.path.exists(constants.XENINFO)
