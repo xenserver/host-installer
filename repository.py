@@ -399,7 +399,7 @@ class DeviceAccessor(MountingAccessor):
 
 class NFSAccessor(MountingAccessor):
     def __init__(self, nfspath):
-        MountingAccessor.__init__(self, 'nfs', nfspath)
+        MountingAccessor.__init__(self, ['nfs'], nfspath)
 
 class URLAccessor(Accessor):
     url_prefixes = ['http://', 'https://', 'ftp://']
