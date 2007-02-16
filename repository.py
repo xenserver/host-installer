@@ -20,6 +20,7 @@ import os
 import md5
 import tempfile
 import urllib2
+import ftplib
 import popen2
 
 class NoRepository(Exception):
@@ -437,6 +438,31 @@ class URLAccessor(Accessor):
 
     def finish(self):
         pass
+
+    def access(self, path):
+        if not self._url_concat(self.baseAddress, path).startswith('ftp://'):
+            return Accessor.access(self, path)
+
+        path = self._url_concat(self.baseAddress, path)
+
+        # if FTP, override by actually checking the file exists because urllib2 seems
+        # to be not so good at this.
+        try:
+            name = path[6:]
+            server = name[:name.index('/')]
+            location = name[name.index('/') + 1:]
+            fname = os.path.basename(location)
+            directory = os.path.dirname(location)
+
+            # now open a connection to the server and verify that fname is in 
+            ftp = ftplib.FTP(server)
+            ftp.login('', '')
+            ftp.cwd(directory)
+            lst = ftp.nlst()
+            return fname in lst
+        except:
+            # couldn't parse the server name out:
+            return False
 
     def openAddress(self, address):
         return urllib2.urlopen(self._url_concat(self.baseAddress, address))
