@@ -113,7 +113,8 @@ def getPrepSequence(ans):
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if ans['backup-existing-installation']:
-            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), []))
+            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), [],
+                            progress_text = "Backing up existing installation..."))
         seq.append(Task(prepareUpgrade, A(ans, 'upgrader'), lambda upgrader: upgrader.prepStateChanges))
 
     seq += [
