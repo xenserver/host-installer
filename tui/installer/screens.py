@@ -282,11 +282,18 @@ def select_installation_source(answers):
             answers['more-media'] = cbMoreMedia.value()
 
             # we should check that we can see a CD now:
-            l = len(repository.repositoriesFromDefinition('local', ''))
+            repos = repository.repositoriesFromDefinition('local', '')
+            l = len(repos)
             if l == 0:
                 tui.OKDialog(
                     "Media not found",
                     "Your installation media could not be found.  Please ensure it is inserted into the drive, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
+                    )
+                return 0
+            if constants.MAIN_REPOSITORY_NAME not in [x.identifier() for x in repos]:
+                tui.OKDialog(
+                    "Wrong CD",
+                    "A XenSource CD was found, but it was not the main install CD.  Please ensure you have the correct CD inserted, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
                     )
                 return 0
         return 1
