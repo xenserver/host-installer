@@ -316,6 +316,9 @@ class Accessor:
         else:
             return True
 
+    def canEject(self):
+        return False
+
     def start(self):
         pass
 
@@ -396,6 +399,14 @@ class DeviceAccessor(MountingAccessor):
 
     def __repr__(self):
         return "<DeviceAccessor: %s>" % self.device
+
+    def canEject(self):
+        if diskutil.removable(self.device):
+            return True
+
+    def eject(self):
+        assert self.canEject()
+        util.runCmd2(['/usr/bin/eject', self.device])
 
 class NFSAccessor(MountingAccessor):
     def __init__(self, nfspath):

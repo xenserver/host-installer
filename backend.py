@@ -275,7 +275,10 @@ def performInstallation(answers, ui_package):
         # get more media?
         done = not (answers.has_key('more-media') and answers['more-media'])
         if not done:
-            util.runCmd2(['/usr/bin/eject'])
+            # find repositories that we installed from removable media:
+            for r in repositories:
+                if r.accessor().canEject():
+                    r.accessor().eject()
             accept_media, ask_again = ui_package.installer.more_media_sequence(installed_repo_ids)
             done = not accept_media
             answers['more-media'] = ask_again

@@ -98,6 +98,11 @@ def getRemovableDeviceList():
 
     return removable_devs
 
+def removable(device):
+    if device.startswith('/dev/'):
+        device = device[5:]
+    return device in getRemovableDeviceList()
+
 def getQualifiedDeviceName(disk):
     return "/dev/%s" % disk
 
