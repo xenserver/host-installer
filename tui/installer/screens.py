@@ -742,7 +742,7 @@ def get_name_service_configuration(answers):
 def determine_basic_network_config(answers):
     # XXX nasty way of telling if we already asked:
     reuse_available = answers.has_key('source-media') and answers['source-media'] in ['url', 'nfs']
-    direction, config = tui.network.get_network_config(tui.screen, reuse_available)
+    direction, config = tui.network.get_network_config(reuse_available)
     if direction == 1:
         if config == None:
             (dhcp, manual) = answers['runtime-iface-configuration']
