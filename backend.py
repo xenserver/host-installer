@@ -50,13 +50,15 @@ class Task:
     """
 
     def __init__(self, fn, args, returns, args_sensitive = False,
-                 progress_scale = 1, pass_progress_callback = False):
+                 progress_scale = 1, pass_progress_callback = False,
+                 progress_text = None):
         self.fn = fn
         self.args = args
         self.returns = returns
         self.args_sensitive = args_sensitive
         self.progress_scale = progress_scale
         self.pass_progress_callback = pass_progress_callback
+        self.progress_text = progress_text
 
     def execute(self, answers, progress_callback = lambda x: ()):
         args = self.args(answers)
@@ -130,7 +132,8 @@ def getRepoSequence(ans, repos):
                 # have to bind package at the current value, hence the myp nonsense:
                 Task(installPackage, (lambda myp: lambda a: [a['mounts'], myp])(package), [],
                      progress_scale = (package.size / 100),
-                     pass_progress_callback = True)
+                     pass_progress_callback = True,
+                     progress_text = "Installing from %s..." % repo.name())
                 ]
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
@@ -207,7 +210,12 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
         current = 0
         for item in sequence:
             if pd:
-                ui.progress.displayProgressDialog(current, pd)
+                if item.progress_text:
+                    text = item.progress_text
+                else:
+                    text = seq_name
+
+                ui.progress.displayProgressDialog(current, pd, updated_text = text)
             updated_state = item.execute(answers, progressCallback)
             if len(updated_state) > 0:
                 xelogging.log(
@@ -251,10 +259,8 @@ def performInstallation(answers, ui_package):
     def handleRepos(repos, ans):
         if len(repos) == 0:
             raise RuntimeError, "No repository found at the specified location."
-        elif len(repos) == 1:
-            seq_name = "Installing from " + repositories[0].name() + "..."
         else:
-            seq_name = "Installing %s..." % version.PRODUCT_BRAND
+            seq_name = "Reading package information..."
         repo_seq = getRepoSequence(ans, repos)
         new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
         return new_ans
