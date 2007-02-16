@@ -479,6 +479,12 @@ def findRepositoriesOnMedia():
     for dev in removable_devices:
         partitions.extend(diskutil.partitionsOnDisk(dev))
 
+    # remove devices we discovered from the static list so we don't
+    # scan them twice:
+    for x in removable_devices:
+        if x in static_devices:
+            static_devices.remove(x)
+
     da = None
     repos = []
     try:
