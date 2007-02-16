@@ -154,7 +154,6 @@ def getFinalisationSequence(ans):
         Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'guest-disks', 'default-sr-uuid'), []),
-        Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
@@ -813,10 +812,6 @@ def writeInventory(mounts, primary_disk, guest_disks, default_sr_uuid):
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("DFEAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.close()
-
-def touchSshAuthorizedKeys(mounts):
-    assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
-    assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
 
 def backupExisting(existing):
     primary_partition = getRootPartName(existing.primary_disk)
