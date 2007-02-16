@@ -826,6 +826,8 @@ def backupExisting(existing):
               [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
               ['%s/' % backup_mount]
         util.runCmd2(cmd)
+        util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
+        
     finally:
         for mnt in [primary_mount, backup_mount]:
             util.umount(mnt)
