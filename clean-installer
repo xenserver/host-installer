@@ -161,7 +161,7 @@ def main():
         # be moved into the sequence definition and evaluated by the
         # UI dispatcher.
         aborted = False
-        if ui:
+        if ui and not answerfile_address:
             uiexit = ui.installer.runMainSequence(
 	            results, ram_warning, vt_warning, installed_products
                 )
