@@ -152,7 +152,7 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'default-sr-uuid'), []),
+        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'guest-disks', 'default-sr-uuid'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -247,9 +247,14 @@ def performInstallation(answers, ui_package):
     prettyLogAnswers(answers)
 
     # update the settings:
-    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
-       answers['preserve-settings'] == True:
-        answers.update(answers['installation-to-overwrite'].readSettings())
+    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        if answers['preserve-settings'] == True:
+            answers.update(answers['installation-to-overwrite'].readSettings())
+
+        # we require guest-disks to always be present, but it is not used other than
+        # for status reporting when doing a re-install, so set it to empty rather than
+        # trying to guess what the correct value should be.
+        answers['guest-disks'] = []
 
     # perform installation:
     prep_seq = getPrepSequence(answers)
@@ -398,6 +403,15 @@ def writeGuestDiskPartitions(disk):
 
     diskutil.writePartitionTable(disk, [ -1 ])
 
+def getSRPhysDevs(primary_disk, guest_disks):
+    def sr_partition(disk):
+        if disk == primary_disk:
+            return diskutil.determinePartitionName(disk, 3)
+        else:
+            return diskutil.determinePartitionName(disk, 1)
+
+    return [sr_partition(disk) for disk in guest_disks]
+
 def prepareStorageRepository(primary_disk, guest_disks):
     if len(guest_disks) == 0:
         xelogging.log("Not creating a default storage repository.")
@@ -406,13 +420,7 @@ def prepareStorageRepository(primary_disk, guest_disks):
     xelogging.log("Preparing default storage repository...")
     sr_uuid = util.getUUID()
 
-    def sr_partition(disk):
-        if disk == primary_disk:
-            return diskutil.determinePartitionName(disk, 3)
-        else:
-            return diskutil.determinePartitionName(disk, 1)
-
-    partitions = [sr_partition(disk) for disk in guest_disks]
+    partitions = getSRPhysDevs(primary_disk, guest_disks)
 
     xelogging.log("Creating storage repository on partitions %s" % partitions)
     args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid] + partitions
@@ -787,9 +795,10 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(mounts, primary_disk, default_sr_uuid):
+def writeInventory(mounts, primary_disk, guest_disks, default_sr_uuid):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     installID = util.getUUID()
+    default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
@@ -801,6 +810,7 @@ def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
     inv.write("BACKUP_PARTITION='%s'\n" % getBackupPartName(primary_disk))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
+    inv.write("DFEAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
