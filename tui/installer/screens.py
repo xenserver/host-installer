@@ -22,6 +22,8 @@ from version import *
 import snackutil
 import repository
 import hardware
+import util
+import socket
 
 from snack import *
 
@@ -624,15 +626,27 @@ def get_name_service_configuration(answers):
         hn_title = Textbox(len("Hostname Configuration"), 1, "Hostname Configuration")
 
         # the hostname radio group:
+        if not answers.has_key('manual-hostname'):
+            # no current value set - if we currently have a useful hostname,
+            # use that, else make up a random one:
+            current_hn = socket.gethostname()
+            if current_hn in [None, '', '(none)', 'localhost', 'localhost.localdomain']:
+                answers['manual-hostname'] = True, util.mkRandomHostname()
+            else:
+                answers['manual-hostname'] = True, current_hn
+        use_manual_hostname, manual_hostname = answers['manual-hostname']
+        if manual_hostname == None:
+            manual_hostname = ""
+        
         hn_rbgroup = RadioGroup()
-        hn_dhcp_rb = hn_rbgroup.add("Automatically set via DHCP", "hn_dhcp", not (answers.has_key('manual-hostname') and answers['manual-hostname'][0]))
+        hn_dhcp_rb = hn_rbgroup.add("Automatically set via DHCP", "hn_dhcp", not use_manual_hostname)
         hn_dhcp_rb.setCallback(hn_callback, data = (False,))
-        hn_manual_rb = hn_rbgroup.add("Manually specify:", "hn_manual", answers.has_key('manual-hostname') and answers['manual-hostname'][0])
+        hn_manual_rb = hn_rbgroup.add("Manually specify:", "hn_manual", use_manual_hostname)
         hn_manual_rb.setCallback(hn_callback, data = (True,))
 
         # the hostname text box:
-        hostname = Entry(42, text = answers.has_key('manual-hostname') and answers['manual-hostname'][1] or "")
-        hostname.setFlags(FLAG_DISABLED, answers.has_key('manual-hostname') and answers['manual-hostname'][0])
+        hostname = Entry(42, text = manual_hostname)
+        hostname.setFlags(FLAG_DISABLED, use_manual_hostname)
         hostname_grid = Grid(2, 1)
         hostname_grid.setField(Textbox(4, 1, ""), 0, 0) # spacer
         hostname_grid.setField(hostname, 1, 0)

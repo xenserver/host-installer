@@ -19,6 +19,10 @@ import urllib2
 import shutil
 import re
 import datetime
+import random
+import string
+
+random.seed()
 
 ###
 # directory/tree management
@@ -197,3 +201,7 @@ def getUUID():
 
     return out.strip()
 
+def mkRandomHostname():
+    """ Generate a random hostname of the form xenserver-AAAAAAAA """
+    s = "".join([random.choice(string.ascii_lowercase) for x in range(8)])
+    return "xenserver-%s" % s
