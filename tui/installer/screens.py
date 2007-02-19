@@ -57,7 +57,7 @@ This install will overwrite data on any hard drives you select to use during the
 
 def hardware_warnings(answers, ram_warning, vt_warning):
     vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
-    not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to ahve less than this, which may cause problems during startup." % (PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
+    not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
 
     text = "The following problem(s) were found with your hardware:\n\n"
     if vt_warning:
