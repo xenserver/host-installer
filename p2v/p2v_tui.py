@@ -135,7 +135,7 @@ def target_screen(answers):
                         entries,
                         ['Ok', 'Cancel'], width=50)
 
-    if button == "cancel": return -2
+    if button == "cancel": return uicontroller.EXIT
 
     #ask for more info
     if entry == 0:
