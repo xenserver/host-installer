@@ -301,7 +301,7 @@ def perform_P2V( results ):
     else:
         num_steps = 4
 
-    pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
+    pd =  ui_package.initProgressDialog('%s P2V' % PRODUCT_BRAND,
                                        'Performing P2V operation...',
                                        num_steps)
     os_install['pd'] = pd
