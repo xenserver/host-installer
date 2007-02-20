@@ -705,9 +705,9 @@ def configureNetworking(mounts, iface_config, hn_conf):
         fd.write("BRIDGE=%s\n" % bridge)
         fd.write("LINKDELAY=5\n")
 
-    def writeBridgeConfigFile(fd, bridge):
+    def writeBridgeConfigFile(fd, bridge, enabled):
         fd.write("DEVICE=%s\n" % bridge)
-        fd.write("ONBOOT=yes\n")
+        fd.write("ONBOOT=%s\n" % enabled)
         fd.write("TYPE=Bridge\n")
         fd.write("DELAY=0\n")
         fd.write("STP=off\n")
@@ -725,7 +725,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
                 ifcfd.write("check_link_down() { return 1 ; }\n")
             ifcfd.close()
             brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
-            writeBridgeConfigFile(brcfd, b)
+            writeBridgeConfigFile(brcfd, b, "yes")
             if check_link_down_hack:
                 brcfd.write("check_link_down() { return 1 ; }\n")
             brcfd.close()
@@ -736,9 +736,11 @@ def configureNetworking(mounts, iface_config, hn_conf):
             iface = mancfg[i]
             ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
             if not iface['enabled']:
+                brenabled = "no"
                 writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
                 writeConfigFileBridgeDetails(ifcfd, i.replace("eth", "xenbr"))
             else:
+                brenabled = "yes"
                 if iface['use-dhcp']:
                     writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
                     writeConfigFileBridgeDetails(ifcfd, b)
@@ -761,7 +763,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
             ifcfd.close()
 
             brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
-            writeBridgeConfigFile(brcfd, b)
+            writeBridgeConfigFile(brcfd, b, brenabled)
             if check_link_down_hack:
                 brcfd.write("check_link_down() { return 1 ; }\n")
             brcfd.close()
