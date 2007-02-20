@@ -284,7 +284,7 @@ def performInstallation(answers, ui_package):
         installed_repo_ids.extend([ r.identifier() for r in repositories] )
 
         # get more media?
-        done = not (answers.has_key('more-media') and answers['more-media'])
+        done = not (answers.has_key('more-media') and answers['more-media'] and answers['source-media'] == 'local')
         if not done:
             # find repositories that we installed from removable media:
             for r in repositories:
