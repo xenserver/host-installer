@@ -799,7 +799,7 @@ def get_timezone_city(answers):
     # default value?
     default = None
     if answers.has_key('timezone-city'):
-        default = answers['timezone-city'].replace(' ', '_')
+        default = answers['timezone-city'].replace('_', ' ')
 
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
