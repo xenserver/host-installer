@@ -227,12 +227,12 @@ def confirm_erase_volume_groups(answers):
                                 """Some or all of the disks you selected to install %s onto contain parts of LVM volume groups.  Proceeding with the installation will cause these volume groups to be deleted.
 
 %s""" % (PRODUCT_BRAND, affected),
-                                ['Continue', 'Cancel Installation'], width=60)
+                                ['Continue', 'Back'], width=60)
 
     if button in [None, 'continue']:
         return 1
-    elif button == 'cancel installation':
-        return uicontroller.EXIT
+    elif button == 'back':
+        return -1
 
 def select_installation_source(answers):
     ENTRY_LOCAL = 'Local media (CD-ROM)', 'local'
