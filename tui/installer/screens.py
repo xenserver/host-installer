@@ -79,15 +79,6 @@ def hardware_warnings(answers, ram_warning, vt_warning):
     else:
         return 1
 
-def not_enough_space_screen(answers):
-    ButtonChoiceWindow(tui.screen,
-                       "Insufficient disk space",
-                       """Unfortunately, you do not have a disk with enough space to install %s.  You need at least one %sGB or greater disk in the system for the installation to proceed.""" % (PRODUCT_BRAND, str(constants.min_primary_disk_size)),
-                       ['Exit'], width=60)
-
-    # leave the installer:
-    return 1
-
 def get_installation_type(answers, insts):
     if len(insts) == 0:
         answers['install-type'] = constants.INSTALL_TYPE_FRESH
