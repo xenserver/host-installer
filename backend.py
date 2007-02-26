@@ -164,11 +164,12 @@ def getFinalisationSequence(ans):
         seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
     if ans.has_key('post-install-script'):
         seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
-    seq += [
-        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
+    # complete upgrade if appropriate:
+    if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        seq.append( Task(completeUpgrade, A(ans, 'upgrader', 'mounts'), []) )
 
-        Task(writeLog, A(ans, 'primary-disk'), [] ),
-        ]
+    seq.append( Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']) )
+    seq.append( Task(writeLog, A(ans, 'primary-disk'), []) )
 
     return seq
 
@@ -888,3 +889,7 @@ def getUpgrader(source):
 def prepareUpgrade(upgrader):
     """ Gets required state from existing installation. """
     return upgrader.prepareUpgrade()
+
+def completeUpgrade(upgrader, mounts):
+    """ Puts back state into new filesystem. """
+    return upgrader.completeUpgrade(mounts)
