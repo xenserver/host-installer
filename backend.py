@@ -403,14 +403,14 @@ def writeGuestDiskPartitions(disk):
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    diskutil.writePartitionTable(disk, [ -1 ])
+    diskutil.clearDiskPartitions(disk)
 
 def getSRPhysDevs(primary_disk, guest_disks):
     def sr_partition(disk):
         if disk == primary_disk:
             return diskutil.determinePartitionName(disk, 3)
         else:
-            return diskutil.determinePartitionName(disk, 1)
+            return disk
 
     return [sr_partition(disk) for disk in guest_disks]
 

@@ -460,20 +460,25 @@ def select_primary_disk(answers):
     if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         return uicontroller.SKIP_SCREEN
 
-    # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
-    if len(diskEntries) == 1:
-        answers['primary-disk'] = diskEntries[0]
-        return uicontroller.SKIP_SCREEN
 
     entries = []
     
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        if diskutil.blockSizeToGBSize(size) >= constants.min_primary_disk_size:
+        if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size) <= constants.max_primary_disk_size:
             stringEntry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
+
+    # we should have at least one disk (this should be checked before the UI is
+    # started.
+    assert len(entries) != 0
+
+    # if only one disk, set default and skip this screen:
+    if len(diskEntries) == 1:
+        answers['primary-disk'] = diskEntries[0]
+        return uicontroller.SKIP_SCREEN
 
     # default value:
     default = None

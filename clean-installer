@@ -127,10 +127,10 @@ def main():
         diskSizesGB = [diskutil.blockSizeToGBSize(x) for x in diskSizes]
         xelogging.log("Disk sizes: %s" % str(diskSizesGB))
 
-        bigdisks = filter(lambda x: x >= constants.min_primary_disk_size,
-                          diskSizesGB)
-        if bigdisks == []:
-            raise RuntimeError, "Not enough disk space to proceed."
+        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x <= constants.max_primary_disk_size,
+                           diskSizesGB)
+        if len(dom0disks) == 0:
+            raise RuntimeError, "Unable to find a suitable disk (with a size between %dGB and %dGB) to install to." % (constants.min_primary_disk_size, constants.max_primary_disk_size)
 
         # how much RAM do we have?
         ram_found_mb = hardware.getHostTotalMemoryKB() / 1024
