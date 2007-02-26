@@ -278,6 +278,10 @@ def select_installation_source(answers):
     if button == 'back':
         return -1
     else:
+        # if we already have a source media and it has changed, clear the 
+        # source-address:
+        if answers.has_key('source-media') and answers['source-media'] != entry:
+            answers['source-address'] = ""
         answers['source-media'] = entry
         if entry == 'local':
             answers['source-address'] = ""
