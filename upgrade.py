@@ -54,7 +54,7 @@ class Upgrader(object):
         and return a tranformation on the answers dict. """
         return
 
-    def completeUpgrade(self):
+    def completeUpgrade(self, mounts):
         """ Write any data back into the new filesystem
         as needed to follow through the upgrade. """
         pass
@@ -66,6 +66,8 @@ class FirstGenUpgrader(Upgrader):
 
     upgrades_versions = [ (product.Version(0, 4, 3), product.Version(0,4,9)),
                           (product.Version(3, 1, 0), product.Version(3,2,0,'b1')) ]
+
+    mh_dat_filename = '/var/opt/xen/mh/mh.dat'
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
@@ -88,11 +90,37 @@ class FirstGenUpgrader(Upgrader):
                 def_sr = inv['DEFAULT_SR']
             else:
                 def_sr = None
+
+            # preserve vbridges - copy out data from the old mh.dat:
+            cmd = ['chroot', mntpoint, 'python', '-c',
+                   'import sys; '
+                   'sys.path.append("/usr/lib/python"); '
+                   'import xen.xend.sxp as sxp; '
+                   'print sxp.to_string(["mh"] + '
+                   '   sxp.children(sxp.parse(open("' + self.mh_dat_filename + '"))[0], "vbridge"))']
+            rc, out = util.runCmd2(cmd, True)
+            if rc == 0:
+                self.mh_dat = out
+            else:
+                self.mh_dat = None
+                xelogging.log("Unable to preserve virtual bridges - could not parse mh.dat in source filesystem.")
         finally:
             util.umount(mntpoint)    
 
         return (def_sr, self.source.primary_disk)
 
+    def completeUpgrade(self, mounts):
+        if self.mh_dat:
+            # we saved vbridge data - write it back to mh.dat:
+            mhdfn = self.mh_dat_filename.lstrip('/')
+            mh_dat_path = os.path.join(mounts['root'], mhdfn)
+            mh_dat_parent = os.path.dirname(mh_dat_path)
+            os.makedirs(mh_dat_parent)
+            fd = open(mh_dat_path, 'w')
+            fd.write(self.mh_dat)
+            fd.close()
+        else:
+            xelogging.log("No data to write to mh.dat.")
 
 # Upgarders provided here, in preference order:
 class UpgraderList(list):

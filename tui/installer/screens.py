@@ -79,15 +79,6 @@ def hardware_warnings(answers, ram_warning, vt_warning):
     else:
         return 1
 
-def not_enough_space_screen(answers):
-    ButtonChoiceWindow(tui.screen,
-                       "Insufficient disk space",
-                       """Unfortunately, you do not have a disk with enough space to install %s.  You need at least one %sGB or greater disk in the system for the installation to proceed.""" % (PRODUCT_BRAND, str(constants.min_primary_disk_size)),
-                       ['Exit'], width=60)
-
-    # leave the installer:
-    return 1
-
 def get_installation_type(answers, insts):
     if len(insts) == 0:
         answers['install-type'] = constants.INSTALL_TYPE_FRESH
@@ -278,6 +269,10 @@ def select_installation_source(answers):
     if button == 'back':
         return -1
     else:
+        # if we already have a source media and it has changed, clear the 
+        # source-address:
+        if answers.has_key('source-media') and answers['source-media'] != entry:
+            answers['source-address'] = ""
         answers['source-media'] = entry
         if entry == 'local':
             answers['source-address'] = ""
@@ -460,20 +455,25 @@ def select_primary_disk(answers):
     if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         return uicontroller.SKIP_SCREEN
 
-    # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
-    if len(diskEntries) == 1:
-        answers['primary-disk'] = diskEntries[0]
-        return uicontroller.SKIP_SCREEN
 
     entries = []
     
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        if diskutil.blockSizeToGBSize(size) >= constants.min_primary_disk_size:
+        if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size) <= constants.max_primary_disk_size:
             stringEntry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
+
+    # we should have at least one disk (this should be checked before the UI is
+    # started.
+    assert len(entries) != 0
+
+    # if only one disk, set default and skip this screen:
+    if len(diskEntries) == 1:
+        answers['primary-disk'] = diskEntries[0]
+        return uicontroller.SKIP_SCREEN
 
     # default value:
     default = None

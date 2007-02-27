@@ -164,11 +164,12 @@ def getFinalisationSequence(ans):
         seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
     if ans.has_key('post-install-script'):
         seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
-    seq += [
-        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
+    # complete upgrade if appropriate:
+    if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        seq.append( Task(completeUpgrade, A(ans, 'upgrader', 'mounts'), []) )
 
-        Task(writeLog, A(ans, 'primary-disk'), [] ),
-        ]
+    seq.append( Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']) )
+    seq.append( Task(writeLog, A(ans, 'primary-disk'), []) )
 
     return seq
 
@@ -402,14 +403,14 @@ def writeGuestDiskPartitions(disk):
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    diskutil.writePartitionTable(disk, [ -1 ])
+    diskutil.clearDiskPartitions(disk)
 
 def getSRPhysDevs(primary_disk, guest_disks):
     def sr_partition(disk):
         if disk == primary_disk:
             return diskutil.determinePartitionName(disk, 3)
         else:
-            return diskutil.determinePartitionName(disk, 1)
+            return disk
 
     return [sr_partition(disk) for disk in guest_disks]
 
@@ -888,3 +889,7 @@ def getUpgrader(source):
 def prepareUpgrade(upgrader):
     """ Gets required state from existing installation. """
     return upgrader.prepareUpgrade()
+
+def completeUpgrade(upgrader, mounts):
+    """ Puts back state into new filesystem. """
+    return upgrader.completeUpgrade(mounts)
