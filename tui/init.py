@@ -56,7 +56,7 @@ def already_activated():
         form = GridFormHelp(tui.screen, "Installation already started", None, 1, 1)
         tb = TextboxReflowed(50, """You have already activated the installation on a different console!
         
-If this message is unexpected, please try restarting your machine, and enusre you only use one console (either serial, or tty).""")
+If this message is unexpected, please try restarting your machine, and ensure you only use one console (either serial, or tty).""")
         form.add(tb, 0, 0)
         form.run()
 
