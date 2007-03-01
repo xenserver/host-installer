@@ -44,7 +44,7 @@ def interactiveRestore(ui):
         if pd:
             tui.progress.clearModelessDialog()
 
-    tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
+        tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
 
     return True
 
