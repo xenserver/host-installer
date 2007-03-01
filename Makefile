@@ -22,7 +22,6 @@ install:
 	install -m644 generalui.py $(INSTALLER_DIR)
 	install -m644 hardware.py $(INSTALLER_DIR)
 	install -m644 init_constants.py $(INSTALLER_DIR)
-	install -m644 init_simpleui.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
 	install -m644 repository.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)

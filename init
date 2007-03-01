@@ -23,7 +23,6 @@ import time
 import tui
 import tui.init
 import tui.progress
-import init_simpleui
 import generalui
 
 import product
