@@ -272,6 +272,34 @@ class ExistingInstallation(object):
 
         return results
 
+def findXenSourceBackups():
+    """Scans the host and find partitions containing backups of XenSource
+    products.  Returns a list of device node paths to partitions containing
+    said backups. """
+
+    partitions = diskutil.getQualifiedPartitionList()
+    backups = []
+    try:
+        mnt = tempfile.mkdtemp(prefix = 'backup-', dir = '/tmp')
+        for p in partitions:
+            try:
+                util.mount(p, mnt, fstype = 'ext3', options = ['ro'])
+                if os.path.exists(os.path.join(mnt, '.xen-backup-partition')):
+                    if os.path.exists(os.path.join(mnt, constants.INVENTORY_FILE)):
+                        inv = readInventoryFile(os.path.join(mnt, constants.INVENTORY_FILE))
+                        if inv.has_key('PRIMARY_DISK'):
+                            backups.append((p, inv['PRIMARY_DISK']))
+            except util.MountFailureException, e:
+                pass
+            else:
+                util.umount(mnt)
+    finally:
+        while os.path.ismount(mnt):
+            util.umount(mnt)
+        os.rmdir(mnt)
+
+    return backups
+
 def findXenSourceProducts():
     """Scans the host and finds XenSource product installations.
     Returns list of ExistingInstallation objects.
@@ -297,8 +325,6 @@ def findXenSourceProducts():
             # unable to mount it, so ignore it
             continue
 
-        # look for xensource-inventory (note that in Python the
-        # finally block is executed if a continue statement is reached):
         try:
             if os.path.exists(inventory_file):
                 inv = readInventoryFile(inventory_file)
@@ -312,8 +338,6 @@ def findXenSourceProducts():
                     int(inv['BUILD_NUMBER']),
                     diskutil.diskFromPartition(p) )
                     )
-            else:
-                continue
         finally:
             util.umount(mountpoint)
 

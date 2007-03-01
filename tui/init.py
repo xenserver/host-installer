@@ -33,10 +33,11 @@ def get_keymap():
 
     return entry
 
-def choose_operation():
+def choose_operation(display_restore):
     entries = [ 
         (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
         (' * Load a driver', init_constants.OPERATION_LOAD_DRIVER),
+        (' * Restore from backup', init_constants.OPERATION_RESTORE),
         (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
 
@@ -206,3 +207,35 @@ def get_network_config(show_reuse_existing = False,
                        runtime_config = False):
     return tui.network.get_network_config(
         tui.screen, show_reuse_existing, runtime_config)
+
+def select_backup(backups):
+    entries = []
+    for b in backups:
+        backup_partition, restore_disk = b
+        entries.append(("%s, to be restored on %s" %
+                           (backup_partition[5:], restore_disk[5:]), 
+                        b))
+
+    b, e = ListboxChoiceWindow(
+        tui.screen,
+        'Multiple Backups',
+        'More than one backup has been found.  Which would you like to use?',
+        entries,
+        ['Select', 'Cancel']
+        )
+
+    if b in [ None, 'select' ]:
+        return e
+    else:
+        return None
+
+def confirm_restore(backup_partition, disk):
+    b = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Confirm Restore",
+        "Are you sure you want to restore your installation on %s with the backup on %s?\n\nYour existing installation will be overwritten with the backup (though VMs will still be intact).\n\nTHIS OPERATION CANNOT BE UNDONE." % (disk[5:], backup_partition[5:]),
+        ['Restore', 'Cancel'], default=1, width=50
+        )
+
+    return b in ['restore', None]
+

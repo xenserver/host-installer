@@ -26,6 +26,7 @@ import tui.progress
 import init_simpleui
 import generalui
 
+import product
 import diskutil
 import init_constants
 import xelogging
@@ -34,6 +35,7 @@ import util
 import hardware
 import repository
 import tempfile
+import restore
 from hardware import module_map
 
 from version import *
@@ -361,9 +363,10 @@ def main():
             xelogging.writeLog("/tmp/startup-log")
 
         firstTime = True
+        backups = product.findXenSourceBackups()
         try:
             while True:
-                operation = ui.init.choose_operation()
+                operation = ui.init.choose_operation(len(backups) > 0)
 
                 # activate installation on this screen:
                 try:
@@ -397,6 +400,12 @@ def main():
                 # load a driver:
                 elif operation == init_constants.OPERATION_LOAD_DRIVER:
                     driver_repos.extend(doInteractiveLoadDriver(ui))
+
+                # restore
+                elif operation == init_constants.OPERATION_RESTORE:
+                    if not restore.interactiveRestore(ui):
+                        xelogging.writeLog("/tmp/startup-log")
+                        tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
 
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
