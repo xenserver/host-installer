@@ -24,6 +24,7 @@ install:
 	install -m644 init_constants.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
 	install -m644 repository.py $(INSTALLER_DIR)
+	install -m644 restore.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
 # TUI
 	mkdir -p $(INSTALLER_DIR)/tui
