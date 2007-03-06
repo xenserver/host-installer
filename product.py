@@ -18,6 +18,7 @@ import constants
 import version
 import re
 import tempfile
+import xelogging
 
 class SettingsNotAvailable(Exception):
     pass
@@ -156,17 +157,18 @@ class ExistingInstallation(object):
                 raise SettingsNotAvailable
             results['timezone'] = tz
 
-            # hostname: (yes I really do mean the one that isn't in RWS):
-            if not os.path.exists(os.path.join(mntpoint, 'etc/hostname')):
+            # hostname.  We will assume one was set anyway and thus write
+            # it back into the new filesystem.  If one wasn't set then this
+            # will be localhost.localdomain, in which case the old behaviour
+            # will persist anyway:
+            fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/network'), 'r')
+            lines = fd.readlines()
+            fd.close()
+            for line in lines:
+                if line.startswith('HOSTNAME='):
+                    results['manual-hostname'] = (True, line[9:].strip())
+            if not results.has_key('manual-hostname'):
                 results['manual-hostname'] = (False, None)
-            else:
-                # actually get this from the network config:
-                fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/network'), 'r')
-                lines = fd.readlines()
-                fd.close()
-                for line in lines:
-                    if line.startswith('HOSTNAME='):
-                        results['manual-hostname'] = (True, line[9:].strip())
 
             # nameservers:
             if not os.path.exists(os.path.join(mntpoint, 'etc/resolv.conf')):
