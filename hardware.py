@@ -125,7 +125,7 @@ def modprobe(module, params = ""):
 
     return rc
 
-def modprobe_file(module, params = ""):
+def modprobe_file(module, params = "", name = None):
     INSMOD = '/sbin/insmod'
 
     # First use modinfo to find out what the dependants of the
@@ -146,7 +146,10 @@ def modprobe_file(module, params = ""):
     rc = util.runCmd2([INSMOD, module, params])
 
     if rc == 0:
-        _addToModuleList(module, params)
+        if name != None:
+            _addToModuleList(name, params)
+        else:
+            _addToModuleList(module, params)
     else:
         xelogging.log("(Failed.)")
 

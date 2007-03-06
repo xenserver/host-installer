@@ -100,7 +100,7 @@ def doInteractiveLoadDriver(ui):
                     repo_has_drivers = True
                     _, driver_file = tempfile.mkstemp(prefix="driver-", dir="/tmp")
                     p.write(driver_file)
-                    drivers.append(driver_file)
+                    drivers.append( (p.name, driver_file) )
             r.accessor().finish()
 
             if repo_has_drivers:
@@ -108,8 +108,8 @@ def doInteractiveLoadDriver(ui):
                 driver_has_repos = False
 
         total_rc = 0
-        for driver in drivers:
-            rc = hardware.modprobe_file(driver)
+        for name, driver in drivers:
+            rc = hardware.modprobe_file(driver, name = name)
             total_rc += rc
         if total_rc != 0:
             ui.OKDialog("Error", "One or more of your drivers failed to load.")
