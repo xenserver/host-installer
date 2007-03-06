@@ -25,7 +25,10 @@ def requireNetworking(answers, ui):
     """ Display the correct sequence of screens to get networking
     configuration.  Bring up the network according to this configuration.
     If answers is a dictionary, set it's 'runtime-iface-configuration' key
-    to the configuration in the style (all-dhcp, manual-config). """
+    to the configuration in the style (all-dhcp, manual-config). 
+    
+    This function is deprecated in favour of tui.network.requireNetworking, 
+    but remains here for the P2V tool to use."""
     
     direction, config = ui.get_network_config(False, True)
     if direction != 1:
