@@ -330,7 +330,8 @@ class Accessor:
         # Check known locations:
         repos = []
         self.start()
-        for loc in ['', 'packages', 'packages.main', 'packages.linux']:
+        for loc in ['', 'packages', 'packages.main', 'packages.linux',
+                    'packages.site']:
             if Repository.isRepo(self, loc):
                 repos.append(Repository(self, loc))
         self.finish()
