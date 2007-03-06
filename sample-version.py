@@ -22,6 +22,7 @@ COMPANY_NAME_SHORT = "XenSource"
 COPYRIGHT_YEARS = "2006"
 
 BRAND_GUEST = "Xen Virtual Machine"
+BRAND_GUEST_SHORT = "XenVM"
 BRAND_GUESTS = "Xen Virtual Machines"
 BRAND_GUESTS_SHORT = "XenVMs"
 BRAND_CONSOLE = "Administrator Console"
