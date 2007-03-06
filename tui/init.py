@@ -71,9 +71,15 @@ def ask_load_module(m):
 
 def driver_disk_sequence():
     answers = {}
-    seq = [get_driver_source, get_driver_source_location,
-           confirm_load_drivers]
-    rc = uicontroller.runUISequence(seq, answers)
+    uic = uicontroller
+    seq = [
+        uic.Step(get_driver_source),
+        uic.Step(tui.network.requireNetworking,
+                 predicates = [lambda a: a['source-media'] != 'local']),
+        uic.Step(get_driver_source_location),
+        uic.Step(confirm_load_drivers),
+        ]
+    rc = uicontroller.runSequence(seq, answers)
 
     if rc == -1:
         return None
