@@ -137,12 +137,15 @@ def modprobe_file(module, params = "", name = None):
         raise RuntimeError, "Error interrogating module."
     [deps] = filter(lambda x: x.startswith("depends:"),
                     out.split("\n"))
+    module_order = getModuleOrder()
     deps = deps[9:].strip()
     deps = deps.split(',')
     for dep in deps:
-        modprobe(dep)
+        if dep not in module_order:
+            modprobe(dep)
+            module_order.append(dep)
     
-    xelogging.log("Insertung module %s %s" %(module, params))
+    xelogging.log("Insertung module %s %s (%s)" %(module, params, name))
     rc = util.runCmd2([INSMOD, module, params])
 
     if rc == 0:
