@@ -115,7 +115,7 @@ def getPrepSequence(ans):
         if ans['backup-existing-installation']:
             seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), [],
                             progress_text = "Backing up existing installation..."))
-        seq.append(Task(prepareUpgrade, A(ans, 'upgrader'), lambda upgrader: upgrader.prepStateChanges))
+        seq.append(Task(prepareUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ], lambda upgrader, *a: upgrader.prepStateChanges))
 
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
@@ -890,9 +890,9 @@ def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
     return upgrade.getUpgrader(source)
 
-def prepareUpgrade(upgrader):
+def prepareUpgrade(upgrader, *args):
     """ Gets required state from existing installation. """
-    return upgrader.prepareUpgrade()
+    return upgrader.prepareUpgrade(*args)
 
 def completeUpgrade(upgrader, *args):
     """ Puts back state into new filesystem. """

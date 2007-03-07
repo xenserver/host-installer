@@ -75,7 +75,8 @@ class FirstGenUpgrader(Upgrader):
         Upgrader.__init__(self, source)
 
     prepStateChanges = [ 'default-sr-uuid', 'primary-disk' ]
-    def prepareUpgrade(self):
+    prepUpgradeArgs = ['preserve-settings']
+    def prepareUpgrade(self, preserve_settings):
         """ Read default SR UUID, and put it into the input
         state for the backend. """
 
@@ -106,13 +107,20 @@ class FirstGenUpgrader(Upgrader):
             else:
                 self.mh_dat = None
                 xelogging.log("Unable to preserve virtual bridges - could not parse mh.dat in source filesystem.")
+
+            # are we preserving settings?  If so, preserve the xenstored TDB:
+            if preserve_settings:
+                tdb_path = os.path.join(mntpoint, 'var/lib/xenstored/tdb')
+                if os.path.exists(tdb_path):
+                    util.runCmd2(['cp', tdb_path, '/tmp/preserved-tdb'])
+
         finally:
             util.umount(mntpoint)    
 
         return (def_sr, self.source.primary_disk)
 
-    completeUpgradeArgs = ['mounts']
-    def completeUpgrade(self, mounts):
+    completeUpgradeArgs = ['mounts', 'preserve-settings']
+    def completeUpgrade(self, mounts, preserve_settings):
         if self.mh_dat:
             # we saved vbridge data - write it back to mh.dat:
             mhdfn = self.mh_dat_filename.lstrip('/')
@@ -122,6 +130,10 @@ class FirstGenUpgrader(Upgrader):
             fd = open(mh_dat_path, 'w')
             fd.write(self.mh_dat)
             fd.close()
+
+            # restore tdb?
+            if preserve_settings and os.path.exists('/tmp/preserved-tdb'):
+                util.runCmd2(['cp', '/tmp/preserved-tdb', os.path.join(mounts['root'], 'var/lib/xenstored/tdb')])
         else:
             xelogging.log("No data to write to mh.dat.")
 
