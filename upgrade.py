@@ -49,11 +49,13 @@ class Upgrader(object):
     upgrades = classmethod(upgrades)
 
     prepStateChanges = []
+    prepUpgradeArgs = []
     def prepareUpgrade(self):
         """ Collect any state needed from the installation,
         and return a tranformation on the answers dict. """
         return
 
+    completeUpgradeArgs = ['mounts']
     def completeUpgrade(self, mounts):
         """ Write any data back into the new filesystem
         as needed to follow through the upgrade. """
@@ -109,6 +111,7 @@ class FirstGenUpgrader(Upgrader):
 
         return (def_sr, self.source.primary_disk)
 
+    completeUpgradeArgs = ['mounts']
     def completeUpgrade(self, mounts):
         if self.mh_dat:
             # we saved vbridge data - write it back to mh.dat:

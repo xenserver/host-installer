@@ -166,7 +166,7 @@ def getFinalisationSequence(ans):
         seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
     # complete upgrade if appropriate:
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        seq.append( Task(completeUpgrade, A(ans, 'upgrader', 'mounts'), []) )
+        seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
     seq.append( Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']) )
     seq.append( Task(writeLog, A(ans, 'primary-disk'), []) )
@@ -252,6 +252,10 @@ def performInstallation(answers, ui_package):
     if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         if answers['preserve-settings'] == True:
             answers.update(answers['installation-to-overwrite'].readSettings())
+        else:
+            # still need to have same keys present in the reinstall (non upgrade)
+            # case, but we'll set them to None:
+            answers['preserved-license-data'] = None
 
         # we require guest-disks to always be present, but it is not used other than
         # for status reporting when doing a re-install, so set it to empty rather than
@@ -890,6 +894,6 @@ def prepareUpgrade(upgrader):
     """ Gets required state from existing installation. """
     return upgrader.prepareUpgrade()
 
-def completeUpgrade(upgrader, mounts):
+def completeUpgrade(upgrader, *args):
     """ Puts back state into new filesystem. """
-    return upgrader.completeUpgrade(mounts)
+    return upgrader.completeUpgrade(*args)
