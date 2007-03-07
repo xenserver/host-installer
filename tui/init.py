@@ -37,9 +37,11 @@ def choose_operation(display_restore):
     entries = [ 
         (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
         (' * Load a driver', init_constants.OPERATION_LOAD_DRIVER),
-        (' * Restore from backup', init_constants.OPERATION_RESTORE),
         (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
+
+    if display_restore:
+        entries.append( (' * Restore from backup', init_constants.OPERATION_RESTORE) )
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
