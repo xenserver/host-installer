@@ -84,7 +84,8 @@ class Repository:
     def _parse_packages(self, pkgfile):
         pkgtype_mapping = {
             'tbz2' : BzippedPackage,
-            'driver' : DriverPackage
+            'driver' : DriverPackage,
+            'firmware' : FirmwarePackage,
             }
         
         lines = pkgfile.readlines()
@@ -213,6 +214,34 @@ class DriverPackage(Package):
         os.unlink(temploc)
 
         return rc
+
+class FirmwarePackage(Package):
+    def __init__(self, repository, name, size, md5sum, src):
+        (
+            self.repository,
+            self.name,
+            self.size,
+            self.md5sum,
+            self.repository_filename,
+        ) = ( repository, name, long(size), md5sum, src, )
+        self.destination = '/lib/firmware/%s' % os.path.basename(src)
+
+    def __repr__(self):
+        return "<FirmwarePackage: %s>" % self.name
+
+    def pkgLine(self):
+        return "%s %d %s firmware %s" % \
+               (self.name, self.size, self.md5sum, self.repository_filename)
+
+    def provision(self):
+        # write to /lib/firmware for immediate access:
+        self.write(self.destination)
+
+    def install(self, base, progress = lambda x: ()):
+        self.write(os.path.join(base, self.destination))
+
+    def check(self, fast = False, progress = lambda x: ()):
+        return self.repository.accessor().access(self.repository_filename)
 
 class BzippedPackage(Package):
     def __init__(self, repository, name, size, md5sum, required, src, dest):

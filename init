@@ -89,7 +89,13 @@ def doInteractiveLoadDriver(ui):
         drivers = []
         pkglines = []
 
-        # first of all load the drivers:
+        # put firmware in place:
+        for r in repos:
+            for p in r:
+                if p.type == 'firmware':
+                    p.provision()
+
+        # now load the drivers:
         drivers = []
         driver_repos = []
         for r in repos:
@@ -101,6 +107,8 @@ def doInteractiveLoadDriver(ui):
                     _, driver_file = tempfile.mkstemp(prefix="driver-", dir="/tmp")
                     p.write(driver_file)
                     drivers.append( (p.name, driver_file) )
+                elif p.type == 'firmware':
+                    repo_has_drivers = True
             r.accessor().finish()
 
             if repo_has_drivers:
@@ -325,11 +333,14 @@ def main():
     if not os.path.exists('/tmp/lvm') and isPrimaryProcess():
         os.mkdir('/tmp/lvm')
 
-    # make /etc/network writeable:
+    # make /etc/network and /lib/firmware writeable:
     if isPrimaryProcess():
         if not os.path.ismount('/etc/network/'):
             shutil.copytree('/etc/network', '/tmp/network')
             util.bindMount('/tmp/network', '/etc/network')
+        if not os.path.ismount('/lib/firmware'):
+            os.mkdir("/tmp/firmware")
+            util.bindMount("/tmp/firmware", "/lib/firmware")
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
