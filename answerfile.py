@@ -93,7 +93,7 @@ def __parse_answerfile__(answerdoc):
     # manual-hostname:
     mhn = n.getElementsByTagName('hostname')
     if len(mhn) == 1:
-        results['manual-hostname'] = (True, getText(mhn.childNodes))
+        results['manual-hostname'] = (True, getText(mhn[0].childNodes))
     else:
         results['manual-hostname'] = (False, None)
 
