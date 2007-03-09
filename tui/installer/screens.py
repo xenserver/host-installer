@@ -364,6 +364,13 @@ def get_source_location(answers):
                        "No repository was found at that location - please check and try again.",
                        ['Ok']
                        )
+                elif constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in repos]:
+                    ButtonChoiceWindow(
+                       tui.screen,
+                       "No base repository found",
+                       "The specified location does not have a base repository available.",
+                       ['Ok']
+                       )
                 else:
                     done = True
 
