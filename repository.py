@@ -224,7 +224,7 @@ class FirmwarePackage(Package):
             self.md5sum,
             self.repository_filename,
         ) = ( repository, name, long(size), md5sum, src, )
-        self.destination = '/lib/firmware/%s' % os.path.basename(src)
+        self.destination = 'lib/firmware/%s' % os.path.basename(src)
 
     def __repr__(self):
         return "<FirmwarePackage: %s>" % self.name
@@ -235,7 +235,7 @@ class FirmwarePackage(Package):
 
     def provision(self):
         # write to /lib/firmware for immediate access:
-        self.write(self.destination)
+        self.write(os.path.join('/', self.destination))
 
     def install(self, base, progress = lambda x: ()):
         self.write(os.path.join(base, self.destination))
