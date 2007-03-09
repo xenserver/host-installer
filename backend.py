@@ -315,7 +315,9 @@ def performInstallation(answers, ui_package):
     new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
 
     if answers['source-media'] == 'local':
-        util.runCmd2(['/usr/bin/eject'])
+        for r in repositories:
+            if r.accessor().canEject():
+                r.accessor().eject()
 
 def installPackage(progress_callback, mounts, package):
     package.install(mounts['root'], progress_callback)
