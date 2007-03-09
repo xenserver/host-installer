@@ -301,7 +301,7 @@ def linux_pack_warning(answers):
         "Hardware Wwarning",
         """You selected not to install the Linux pack but you system appears to be incapable of running Windows guests.
 
-If you have disabled hardware assist (HVM or AMD-V) support in your BIOS, please re-enable it to enable Windows guest support.  If your system does not support hardware assist, please install the Linux Pack from the second CD (see the user guide for more details)""",
+If you have disabled hardware assist (HVM or AMD-V) support in your BIOS, please re-enable it to enable Windows guest support.  If your system does not support hardware assist, please install the Linux Pack from the second CD (see the user guide for more details).""",
         ['Ok', 'Back']
         )
 
