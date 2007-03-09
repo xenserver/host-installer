@@ -245,6 +245,7 @@ class ExistingInstallation(object):
                 if bootproto == 'dhcp':
                     iface['use-dhcp'] = True
                 elif bootproto == 'none':
+                    iface['use-dhcp'] = False
                     if None in [ipaddr, netmask, gw]:
                         xelogging.log("Unable to parse interface definition for %s - skipping." % device)
                         continue
