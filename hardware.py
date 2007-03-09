@@ -66,7 +66,7 @@ __MODULE_ORDER_FILE__ = "/tmp/module-order"
 class ModuleOrderUnknownException(Exception):
     pass
 
-def getModuleOrder():
+def getModuleOrder(kver = version.KERNEL_VERSION, base = "/"):
     def allKoFiles(directory):
         kofiles = []
         items = os.listdir(directory)
@@ -80,8 +80,8 @@ def getModuleOrder():
         return kofiles
 
     try:
-        def findModuleName(module, all_modules):
-            module = module.replace("_", "-") # start with '-'
+        def findModuleName(original_name, all_modules):
+            module = original_name.replace("_", "-") # start with '-'
             if module in all_modules:
                 return module
             else:
@@ -90,17 +90,14 @@ def getModuleOrder():
                     return module
             return None # not found
         
-        all_modules = allKoFiles("/lib/modules/%s" % version.KERNEL_VERSION)
+        all_modules = allKoFiles(os.path.join(base, "lib/modules/%s" % kver))
         all_modules = [x.replace(".ko", "") for x in all_modules]
 
         mo = open(__MODULE_ORDER_FILE__, 'r')
         lines = [x.strip() for x in mo]
         mo.close()
 
-        # we can put all these in, and findModuleName will return
-        # None if they aren't actually loaded.
-        lines.extend(['ohci-hcd', 'uhci-hcd', 'ehci-hcd',
-                      'usbhid', 'hid', 'usbkbd'])
+        lines.extend(['ohci-hcd', 'uhci-hcd', 'ehci-hcd', 'usbhid'])
         modules = [findModuleName(m, all_modules) for m in lines]
         modules = filter(lambda x: x != None, modules)
         

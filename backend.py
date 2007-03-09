@@ -441,7 +441,7 @@ def createDom0DiskFilesystems(disk):
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
 
 def __mkinitrd(mounts, kernel_version, link):
-    modules_list = ["--with=%s" % x for x in hardware.getModuleOrder()]
+    modules_list = ["--with=%s" % x for x in hardware.getModuleOrder(base=mounts['root'], kver=kernel_version)]
 
     modules_string = " ".join(modules_list)
     output_file = "/boot/initrd-%s.img" % kernel_version
