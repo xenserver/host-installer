@@ -184,7 +184,7 @@ def configureHardware(extra_modules = [],
 
     if ui:
         pd = ui.progress.initProgressDialog(
-            "Preparing for installation",
+            "Preparing for Installation",
             "Your system hardware is being detected and configured...",
             100
             )
