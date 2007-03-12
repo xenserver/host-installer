@@ -62,6 +62,7 @@ def collectLogs(dst):
 
     os.system("cat /proc/bus/pci/devices >%s/pci-log" % dst)
     os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dst)
+    os.system("lspci -n >%s/lspcin-log" % dst)
     os.system("cat /proc/modules >%s/modules-log" % dst)
     os.system("uname -a >%s/uname-log" % dst)
     os.system("ls /sys/block >%s/blockdevs-log" % dst)
