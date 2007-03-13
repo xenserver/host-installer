@@ -26,9 +26,9 @@ INSTALL_TYPE_REINSTALL = 2
 # reports the total system ram after the Xen heap.  The UI should
 # display the value given by MIN_SYSTEM_RAM_MB_RAW.
 min_primary_disk_size = 16 #GB
+max_primary_disk_size = 2047 #GB
 MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
 MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
-
 
 # filesystems and partitions (sizes in MB):
 root_size = 4096
@@ -51,3 +51,5 @@ kbd_data_file = '/opt/xensource/installer/keymaps'
 # os.path.join.
 ANSWERS_FILE = "upgrade_answers"
 INVENTORY_FILE = "etc/xensource-inventory"
+
+MAIN_REPOSITORY_NAME = 'xs:main'

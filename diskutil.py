@@ -76,6 +76,13 @@ def getPartitionList():
 
     return rv
 
+def partitionsOnDisk(dev):
+    if dev.startswith('/dev/'):
+        dev = dev[5:]
+    dev = dev.replace('/', '!')
+    return filter(lambda x: x.startswith(dev),
+                  os.listdir(os.path.join('/sys/block', dev)))
+
 def getQualifiedDiskList():
     return map(lambda x: getQualifiedDeviceName(x), getDiskList())
 
@@ -90,6 +97,11 @@ def getRemovableDeviceList():
             removable_devs.append(d.replace("!", "/"))
 
     return removable_devs
+
+def removable(device):
+    if device.startswith('/dev/'):
+        device = device[5:]
+    return device in getRemovableDeviceList()
 
 def getQualifiedDeviceName(disk):
     return "/dev/%s" % disk

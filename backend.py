@@ -50,13 +50,15 @@ class Task:
     """
 
     def __init__(self, fn, args, returns, args_sensitive = False,
-                 progress_scale = 1, pass_progress_callback = False):
+                 progress_scale = 1, pass_progress_callback = False,
+                 progress_text = None):
         self.fn = fn
         self.args = args
         self.returns = returns
         self.args_sensitive = args_sensitive
         self.progress_scale = progress_scale
         self.pass_progress_callback = pass_progress_callback
+        self.progress_text = progress_text
 
     def execute(self, answers, progress_callback = lambda x: ()):
         args = self.args(answers)
@@ -111,8 +113,9 @@ def getPrepSequence(ans):
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if ans['backup-existing-installation']:
-            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), []))
-        seq.append(Task(prepareUpgrade, A(ans, 'upgrader'), lambda upgrader: upgrader.prepStateChanges))
+            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), [],
+                            progress_text = "Backing up existing installation..."))
+        seq.append(Task(prepareUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ], lambda upgrader, *a: upgrader.prepStateChanges))
 
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
@@ -129,7 +132,8 @@ def getRepoSequence(ans, repos):
                 # have to bind package at the current value, hence the myp nonsense:
                 Task(installPackage, (lambda myp: lambda a: [a['mounts'], myp])(package), [],
                      progress_scale = (package.size / 100),
-                     pass_progress_callback = True)
+                     pass_progress_callback = True,
+                     progress_text = "Installing from %s..." % repo.name())
                 ]
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
@@ -146,9 +150,9 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'default-sr-uuid'), []),
+        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'guest-disks', 'default-sr-uuid'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
-        Task(setRootPassword, A(ans, 'mounts', 'root-password'), []),
+        Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
     if ans['time-config-method'] == 'ntp':
@@ -157,11 +161,12 @@ def getFinalisationSequence(ans):
         seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
     if ans.has_key('post-install-script'):
         seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
-    seq += [
-        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
+    # complete upgrade if appropriate:
+    if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
-        Task(writeLog, A(ans, 'primary-disk'), [] ),
-        ]
+    seq.append( Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']) )
+    seq.append( Task(writeLog, A(ans, 'primary-disk'), []) )
 
     return seq
 
@@ -183,7 +188,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     pd = None
     if ui:
-        pd = ui.initProgressDialog(
+        pd = ui.progress.initProgressDialog(
             "Installing %s" % PRODUCT_BRAND,
             seq_name, progress_total
             )
@@ -198,13 +203,18 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     def progressCallback(x):
         if ui:
-            ui.displayProgressDialog(current + x, pd)
+            ui.progress.displayProgressDialog(current + x, pd)
         
     try:
         current = 0
         for item in sequence:
             if pd:
-                ui.displayProgressDialog(current, pd)
+                if item.progress_text:
+                    text = item.progress_text
+                else:
+                    text = seq_name
+
+                ui.progress.displayProgressDialog(current, pd, updated_text = text)
             updated_state = item.execute(answers, progressCallback)
             if len(updated_state) > 0:
                 xelogging.log(
@@ -220,7 +230,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
         raise
     else:
         if ui and pd:
-            ui.clearModelessDialog()
+            ui.progress.clearModelessDialog()
 
         if cleanup:
             doCleanup(answers['cleanup'])
@@ -235,9 +245,33 @@ def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
+    # update the settings:
+    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        if answers['preserve-settings'] == True:
+            answers.update(answers['installation-to-overwrite'].readSettings())
+        else:
+            # still need to have same keys present in the reinstall (non upgrade)
+            # case, but we'll set them to None:
+            answers['preserved-license-data'] = None
+
+        # we require guest-disks to always be present, but it is not used other than
+        # for status reporting when doing a re-install, so set it to empty rather than
+        # trying to guess what the correct value should be.
+        answers['guest-disks'] = []
+
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
+
+    # install from main repositories:
+    def handleRepos(repos, ans):
+        if len(repos) == 0:
+            raise RuntimeError, "No repository found at the specified location."
+        else:
+            seq_name = "Reading package information..."
+        repo_seq = getRepoSequence(ans, repos)
+        new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
+        return new_ans
 
     done = False
     installed_repo_ids = []
@@ -246,33 +280,41 @@ def performInstallation(answers, ui_package):
             answers['source-media'], answers['source-address']
             )
 
-        # make a list of ones we've not already installed:
+        # only install repositorie s we've not already installed:
         repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
                               all_repositories)
-        
-        if len(repositories) == 0:
-            raise RuntimeError, "No repository found at the specified location."
-        elif len(repositories) == 1:
-            seq_name = "Installing from " + repositories[0].name() + "..."
-        else:
-            seq_name = "Installing %s..." % version.PRODUCT_BRAND
-        repo_seq = getRepoSequence(new_ans, repositories)
-        new_ans = executeSequence(repo_seq, seq_name, new_ans, ui_package, False)
-
-        # record the repos we installed in this round:
-        installed_repo_ids.extend([ r.identifier for r in repositories] )
+        new_ans = handleRepos(repositories, new_ans)
+        installed_repo_ids.extend([ r.identifier() for r in repositories] )
 
         # get more media?
-        done = not (answers.has_key('more-media') and answers['more-media'])
+        done = not (answers.has_key('more-media') and answers['more-media'] and answers['source-media'] == 'local')
         if not done:
-            util.runCmd2(['/usr/bin/eject'])
-            done = not ui_package.more_media_sequence(installed_repo_ids)
+            # find repositories that we installed from removable media:
+            for r in repositories:
+                if r.accessor().canEject():
+                    r.accessor().eject()
+            accept_media, ask_again = ui_package.installer.more_media_sequence(installed_repo_ids)
+            done = not accept_media
+            answers['more-media'] = ask_again
 
+    # install from driver repositories, if any:
+    for driver_repo_def in answers['extra-repos']:
+        xelogging.log("(Now installing from driver repositories that were previously stashed.)")
+        rtype, rloc = driver_repo_def
+        all_repos = repository.repositoriesFromDefinition(rtype, rloc)
+        repos = filter(lambda r: r.identifier() not in installed_repo_ids,
+                       all_repos)
+        new_ans = handleRepos(repos, new_ans)
+        installed_repo_ids.extend([ r.identifier() for r in repositories])
+
+    # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
     new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
 
     if answers['source-media'] == 'local':
-        util.runCmd2(['/usr/bin/eject'])
+        for r in repositories:
+            if r.accessor().canEject():
+                r.accessor().eject()
 
 def installPackage(progress_callback, mounts, package):
     package.install(mounts['root'], progress_callback)
@@ -289,7 +331,7 @@ def configureNTP(mounts, ntp_servers):
 
     ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
     for line in lines:
-        ntpsconf.write(line + "\n")
+        ntpsconf.write(line)
     for server in ntp_servers:
         ntpsconf.write("server %s\n" % server)
     ntpsconf.close()
@@ -301,7 +343,7 @@ def configureTimeManually(mounts, ui_package):
     # display the Set TIme dialog in the chosen UI:
     rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
     answers = {}
-    ui_package.set_time(answers, util.parseTime(time))
+    ui_package.installer.screens.set_time(answers, util.parseTime(time))
         
     newtime = answers['localtime']
     timestr = "%04d-%02d-%02d %02d:%02d:00" % \
@@ -364,7 +406,16 @@ def writeGuestDiskPartitions(disk):
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    diskutil.writePartitionTable(disk, [ -1 ])
+    diskutil.clearDiskPartitions(disk)
+
+def getSRPhysDevs(primary_disk, guest_disks):
+    def sr_partition(disk):
+        if disk == primary_disk:
+            return diskutil.determinePartitionName(disk, 3)
+        else:
+            return disk
+
+    return [sr_partition(disk) for disk in guest_disks]
 
 def prepareStorageRepository(primary_disk, guest_disks):
     if len(guest_disks) == 0:
@@ -374,13 +425,7 @@ def prepareStorageRepository(primary_disk, guest_disks):
     xelogging.log("Preparing default storage repository...")
     sr_uuid = util.getUUID()
 
-    def sr_partition(disk):
-        if disk == primary_disk:
-            return diskutil.determinePartitionName(disk, 3)
-        else:
-            return diskutil.determinePartitionName(disk, 1)
-
-    partitions = [sr_partition(disk) for disk in guest_disks]
+    partitions = getSRPhysDevs(primary_disk, guest_disks)
 
     xelogging.log("Creating storage repository on partitions %s" % partitions)
     args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid] + partitions
@@ -395,7 +440,7 @@ def createDom0DiskFilesystems(disk):
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
 
 def __mkinitrd(mounts, kernel_version, link):
-    modules_list = ["--with=%s" % x for x in hardware.getModuleOrder()]
+    modules_list = ["--with=%s" % x for x in hardware.getModuleOrder(base=mounts['root'], kver=kernel_version)]
 
     modules_string = " ".join(modules_list)
     output_file = "/boot/initrd-%s.img" % kernel_version
@@ -620,71 +665,87 @@ def setTimeZone(mounts, tz):
     # make the localtime link:
     runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
            (tz, mounts['root']))
-    
 
-def setRootPassword(mounts, root_password):
+def setRootPassword(mounts, root_password, pwdtype):
     # avoid using shell here to get around potential security issues.
-    pipe = subprocess.Popen(["/usr/sbin/chroot", "%s" % mounts["root"],
-                             "passwd", "--stdin", "root"],
+    cmd = ["/usr/sbin/chroot", "%s" % mounts["root"], "chpasswd"]
+    if pwdtype == 'pwdhash':
+        cmd.append('-e')
+    pipe = subprocess.Popen(cmd,
                             stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    pipe.stdin.write(root_password)
+    pipe.communicate('root:%s\n' % root_password)
     assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, iface_config, hn_conf):
     check_link_down_hack = True
 
-    def writeDHCPConfigFile(fd, device, hwaddr = None):
+    def writeETHConfigFile(fd, device, proto, hwaddr = None):
         fd.write("DEVICE=%s\n" % device)
-        fd.write("BOOTPROTO=dhcp\n")
+        fd.write("BOOTPROTO=%s\n" % proto)
         fd.write("ONBOOT=yes\n")
-        fd.write("TYPE=ethernet\n")
+        fd.write("TYPE=Ethernet\n")
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
     def writeDisabledConfigFile(fd, device, hwaddr = None):
         fd.write("DEVICE=%s\n" % device)
         fd.write("ONBOOT=no\n")
-        fd.write("TYPE=ethernet\n")
+        fd.write("TYPE=Ethernet\n")
         if hwaddr:
             fd.write("HWADDR=%s\n" % hwaddr)
 
-    # are we all DHCP?
+    def writeConfigFileBridgeDetails(fd, bridge):
+        fd.write("BRIDGE=%s\n" % bridge)
+        fd.write("LINKDELAY=5\n")
+
+    def writeBridgeConfigFile(fd, bridge, enabled):
+        assert enabled in ['yes', 'no']
+        fd.write("DEVICE=%s\n" % bridge)
+        fd.write("ONBOOT=%s\n" % enabled)
+        fd.write("TYPE=Bridge\n")
+        fd.write("DELAY=0\n")
+        fd.write("STP=off\n")
+
+    # are we all DHCP - if so, make a manual configuration to reflect this:
     (alldhcp, mancfg) = iface_config
     if alldhcp:
         ifaces = netutil.getNetifList()
+        mancfg = {}
         for i in ifaces:
-            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
-            writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
-            if check_link_down_hack:
-                ifcfd.write("check_link_down() { return 1 ; }\n")
-            ifcfd.close()
-    else:
-        # no - go through each interface manually:
-        for i in mancfg:
-            iface = mancfg[i]
-            ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
-            if not iface['enabled']:
-                writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
-            else:
-                if iface['use-dhcp']:
-                    writeDHCPConfigFile(ifcfd, i, netutil.getHWAddr(i))
-                else:
-                    ifcfd.write("DEVICE=%s\n" % i)
-                    ifcfd.write("BOOTPROTO=none\n")
-                    hwaddr = netutil.getHWAddr(i)
-                    if hwaddr:
-                        ifcfd.write("HWADDR=%s\n" % hwaddr)
-                    ifcfd.write("ONBOOT=yes\n")
-                    ifcfd.write("TYPE=Ethernet\n")
-                    ifcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
-                    ifcfd.write("IPADDR=%s\n" % iface['ip'])
-                    ifcfd.write("GATEWAY=%s\n" % iface['gateway'])
-                    ifcfd.write("PEERDNS=yes\n")
+            mancfg[i] = {'enabled': True, 'use-dhcp': True}
 
-            if check_link_down_hack:
-                ifcfd.write("check_link_down() { return 1 ; }\n")
-            ifcfd.close()
+    # iterate over the interfaces to write the config files:
+    for i in mancfg:
+        b = i.replace("eth", "xenbr")
+        iface = mancfg[i]
+        ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
+        if not iface['enabled']:
+            brenabled = "no"
+            writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
+            writeConfigFileBridgeDetails(ifcfd, i.replace("eth", "xenbr"))
+        else:
+            brenabled = "yes"
+            if iface['use-dhcp']:
+                writeETHConfigFile(ifcfd, i, "dhcp", netutil.getHWAddr(i))
+            else:
+                writeETHConfigFile(ifcfd, i, "none", netutil.getHWAddr(i))
+            writeConfigFileBridgeDetails(ifcfd, b)
+
+        if check_link_down_hack:
+            ifcfd.write("check_link_down() { return 1 ; }\n")
+        ifcfd.close()
+
+        brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
+        writeBridgeConfigFile(brcfd, b, brenabled)
+        if not iface['use-dhcp']:
+            brcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
+            brcfd.write("IPADDR=%s\n" % iface['ip'])
+            brcfd.write("GATEWAY=%s\n" % iface['gateway'])
+            brcfd.write("PEERDNS=yes\n")
+        if check_link_down_hack:
+            brcfd.write("check_link_down() { return 1 ; }\n")
+        brcfd.close()
 
     # write the configuration file for the loopback interface
     out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['root'], "w")
@@ -715,8 +776,10 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(mounts, primary_disk, default_sr_uuid):
+def writeInventory(mounts, primary_disk, guest_disks, default_sr_uuid):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
+    installID = util.getUUID()
+    default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
@@ -726,7 +789,9 @@ def writeInventory(mounts, primary_disk, default_sr_uuid):
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
     inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
-    inv.write("BACKUP_PARTITION='%s'" % getBackupPartName(primary_disk))
+    inv.write("BACKUP_PARTITION='%s'\n" % getBackupPartName(primary_disk))
+    inv.write("INSTALLATION_UUID='%s'\n" % installID)
+    inv.write("DFEAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
@@ -752,6 +817,8 @@ def backupExisting(existing):
               [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
               ['%s/' % backup_mount]
         util.runCmd2(cmd)
+        util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
+        
     finally:
         for mnt in [primary_mount, backup_mount]:
             util.umount(mnt)
@@ -811,6 +878,10 @@ def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
     return upgrade.getUpgrader(source)
 
-def prepareUpgrade(upgrader):
+def prepareUpgrade(upgrader, *args):
     """ Gets required state from existing installation. """
-    return upgrader.prepareUpgrade()
+    return upgrader.prepareUpgrade(*args)
+
+def completeUpgrade(upgrader, *args):
+    """ Puts back state into new filesystem. """
+    return upgrader.completeUpgrade(*args)

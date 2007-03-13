@@ -10,15 +10,17 @@
 #
 # written by Andrew Peace
 
-# This stuff exists to hide ugliness and hacks that are
-# required for upgrades from the rest of the installer.
+# This stuff exists to hide ugliness and hacks that are required for upgrades
+# from the rest of the installer.
 
 import os
+import tempfile
 
 import product
 import diskutil
 import util
 import constants
+import xelogging
 
 class UpgraderNotAvailable(Exception):
     pass
@@ -47,12 +49,14 @@ class Upgrader(object):
     upgrades = classmethod(upgrades)
 
     prepStateChanges = []
+    prepUpgradeArgs = []
     def prepareUpgrade(self):
         """ Collect any state needed from the installation,
         and return a tranformation on the answers dict. """
         return
 
-    def completeUpgrade(self):
+    completeUpgradeArgs = ['mounts']
+    def completeUpgrade(self, mounts):
         """ Write any data back into the new filesystem
         as needed to follow through the upgrade. """
         pass
@@ -62,14 +66,17 @@ class FirstGenUpgrader(Upgrader):
 
     upgrades_product = "xenenterprise"
 
-    upgrades_versions = [ (product.Version(0, 2, 4), product.THIS_PRODUCT_VERSION),
-                          (product.Version(3, 1, 0, "b1"), product.Version(3,1,0)) ]
+    upgrades_versions = [ (product.Version(0, 4, 3), product.Version(0,4,9)),
+                          (product.Version(3, 1, 0), product.Version(3,2,0)) ]
+
+    mh_dat_filename = '/var/opt/xen/mh/mh.dat'
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
 
     prepStateChanges = [ 'default-sr-uuid', 'primary-disk' ]
-    def prepareUpgrade(self):
+    prepUpgradeArgs = ['preserve-settings']
+    def prepareUpgrade(self, preserve_settings):
         """ Read default SR UUID, and put it into the input
         state for the backend. """
 
@@ -86,10 +93,49 @@ class FirstGenUpgrader(Upgrader):
                 def_sr = inv['DEFAULT_SR']
             else:
                 def_sr = None
+
+            # preserve vbridges - copy out data from the old mh.dat:
+            cmd = ['chroot', mntpoint, 'python', '-c',
+                   'import sys; '
+                   'sys.path.append("/usr/lib/python"); '
+                   'import xen.xend.sxp as sxp; '
+                   'print sxp.to_string(["mh"] + '
+                   '   sxp.children(sxp.parse(open("' + self.mh_dat_filename + '"))[0], "vbridge"))']
+            rc, out = util.runCmd2(cmd, True)
+            if rc == 0:
+                self.mh_dat = out
+            else:
+                self.mh_dat = None
+                xelogging.log("Unable to preserve virtual bridges - could not parse mh.dat in source filesystem.")
+
+            # are we preserving settings?  If so, preserve the xenstored TDB:
+            if preserve_settings:
+                tdb_path = os.path.join(mntpoint, 'var/lib/xenstored/tdb')
+                if os.path.exists(tdb_path):
+                    util.runCmd2(['cp', tdb_path, '/tmp/preserved-tdb'])
+
         finally:
             util.umount(mntpoint)    
 
         return (def_sr, self.source.primary_disk)
+
+    completeUpgradeArgs = ['mounts', 'preserve-settings']
+    def completeUpgrade(self, mounts, preserve_settings):
+        if self.mh_dat:
+            # we saved vbridge data - write it back to mh.dat:
+            mhdfn = self.mh_dat_filename.lstrip('/')
+            mh_dat_path = os.path.join(mounts['root'], mhdfn)
+            mh_dat_parent = os.path.dirname(mh_dat_path)
+            os.makedirs(mh_dat_parent)
+            fd = open(mh_dat_path, 'w')
+            fd.write(self.mh_dat)
+            fd.close()
+
+            # restore tdb?
+            if preserve_settings and os.path.exists('/tmp/preserved-tdb'):
+                util.runCmd2(['cp', '/tmp/preserved-tdb', os.path.join(mounts['root'], 'var/lib/xenstored/tdb')])
+        else:
+            xelogging.log("No data to write to mh.dat.")
 
 # Upgarders provided here, in preference order:
 class UpgraderList(list):

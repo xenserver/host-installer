@@ -15,21 +15,26 @@ install:
 	install -m755 hwdetect $(INSTALLER_DIR)
 	install -m755 support.sh $(SUPPORT_DIR)
 # Others
-	install -m644 answerfile_ui.py $(INSTALLER_DIR)
+	install -m644 answerfile.py $(INSTALLER_DIR)
 	install -m644 backend.py $(INSTALLER_DIR)
 	install -m644 constants.py $(INSTALLER_DIR)
 	install -m644 diskutil.py $(INSTALLER_DIR)
 	install -m644 generalui.py $(INSTALLER_DIR)
 	install -m644 hardware.py $(INSTALLER_DIR)
 	install -m644 init_constants.py $(INSTALLER_DIR)
-	install -m644 init_simpleui.py $(INSTALLER_DIR)
-	install -m644 init_tui.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
 	install -m644 repository.py $(INSTALLER_DIR)
+	install -m644 restore.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
+# TUI
 	mkdir -p $(INSTALLER_DIR)/tui
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
 	install -m644 tui/network.py $(INSTALLER_DIR)/tui
+	install -m644 tui/init.py $(INSTALLER_DIR)/tui
+	install -m644 tui/progress.py $(INSTALLER_DIR)/tui
+	mkdir -p $(INSTALLER_DIR)/tui/installer
+	install -m644 tui/installer/__init__.py $(INSTALLER_DIR)/tui/installer/
+	install -m644 tui/installer/screens.py $(INSTALLER_DIR)/tui/installer/
 	install -m644 uicontroller.py $(INSTALLER_DIR)
 	install -m644 util.py $(INSTALLER_DIR)
 	install -m644 xelogging.py $(INSTALLER_DIR)

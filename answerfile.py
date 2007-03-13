@@ -12,47 +12,32 @@
 
 import util
 import constants
+import xml.dom.minidom
 from xml.dom.minidom import parse
 
 import xelogging
 
-# module globals:
-sub_ui_package = None
-answerFile = None
+def processAnswerfile(location):
+    """ Downloads an answerfile from 'location' -- this is in the URL format
+    used by fetchFile in the util module (which also permits fetching over
+    NFS).  Returns answers ready for the backend to process. """
 
-# allow a sub-interface to specified - progress dialog calls and the
-# init and de-init calls will be passed through.  Dialogs will be translated
-# as no-ops.
-def specifySubUI(subui):
-    global sub_ui_package
-    sub_ui_package = subui
+    xelogging.log("Fetching answerfile from %s" % location)
+    util.fetchFile(location, '/tmp/answerfile')
 
-def specifyAnswerFile(file):
-    global answerFile
-    assert type(file) == str
-
-    util.fetchFile(file, "/tmp/answerfile")
-    
-    answerFile = "/tmp/answerfile"
-
-def init_ui(results, is_subui):
-    global answerFile
-
-    # attempt to import the answers:
+    xmldoc = xml.dom.minidom.parse('/tmp/answerfile')
     try:
-        answerdoc = parse(answerFile)
-        # this function transforms 'results' that we pass in
-        __parse_answerfile__(answerdoc, results)
+        answers = __parse_answerfile__(xmldoc)
     except Exception, e:
-        xelogging.log("Error parsing answerfile.")
+        xelogging.log("Failed to parse answerfile, propogating error.")
         raise
-    
-    # Now pass on initialisation to our sub-UI:
-    if sub_ui_package is not None:
-        sub_ui_package.init_ui(results, True)
+    else:
+        return answers
 
 # get data from a DOM object representing the answerfile:
-def __parse_answerfile__(answerdoc, results):
+def __parse_answerfile__(answerdoc):
+    results = {}
+    
     xelogging.log("Importing XML answerfile.")
 
     # get text from a node:
@@ -92,6 +77,7 @@ def __parse_answerfile__(answerdoc, results):
 
     # root-password:
     results['root-password'] = getText(n.getElementsByTagName('root-password')[0].childNodes)
+    results['root-password-type'] = 'plaintext'
 
     # manual-nameservers:
     mnss = n.getElementsByTagName('nameserver')
@@ -107,7 +93,7 @@ def __parse_answerfile__(answerdoc, results):
     # manual-hostname:
     mhn = n.getElementsByTagName('hostname')
     if len(mhn) == 1:
-        results['manual-hostname'] = (True, getText(mhn.childNodes))
+        results['manual-hostname'] = (True, getText(mhn[0].childNodes))
     else:
         results['manual-hostname'] = (False, None)
 
@@ -162,92 +148,6 @@ def __parse_answerfile__(answerdoc, results):
 
     # currently no supprt for re-installation:
     results['install-type'] = constants.INSTALL_TYPE_FRESH
+    results['preserve-settings'] = False
 
-def end_ui():
-    if sub_ui_package is not None:
-        sub_ui_package.end_ui()
-
-# XXX THESE MUST GO!!!!
-def suspend_ui():
-    pass
-
-def resume_ui():
-    pass
-
-# stubs:
-def welcome_screen(answers):
-    return 1
-def hardware_warnings(answers, ram_warning, vt_warning):
-    return 1
-def eula_screen(answers):
-    return 1
-def get_installation_type(answers, insts):
-    return 1
-def backup_existing_installation(answers):
-    return 1
-def get_keymap(answers):
-    return 1
-def confirm_erase_volume_groups(answers):
-    return 1
-def select_installation_source(answers):
-    return 1
-def setup_runtime_networking(answers):
-    return 1
-def get_source_location(answers):
-    return 1
-def verify_source(answers):
-    return 1
-def select_primary_disk(answers):
-    return 1
-def select_guest_disks(answers):
-    return 1
-def get_root_password(answers):
-    if not answers.has_key('root-password') and sub_ui_package:
-        return sub_ui_package.get_root_password(answers)
-    else:
-        return 1
-def determine_basic_network_config(answers):
-    return 1
-def get_timezone_region(answers):
-    return 1
-def get_timezone_city(answers):
-    return 1
-def get_time_configuration_method(answers):
-    return 1
-def get_ntp_servers(answers):
-    return 1
-def set_time(answers, now):
-    return 1
-def get_name_service_configuration(answers):
-    return 1
-def installation_complete(answers):
-    return 1
-def confirm_installation(answers):
-    return 1
-
-# 0 means don't retry
-def request_media(medianame):
-    return 0
-def error_dialog(message):
-    if sub_ui_package:
-        sub_ui_package.error_dialog(message)
-    else:
-        print "ERROR:"
-        print message
-
-# progress dialogs:
-def initProgressDialog(title, text, total):
-    if sub_ui_package:
-        return sub_ui_package.initProgressDialog(title, text, total)
-
-def displayProgressDialog(current, pd, updated_text = None):
-    if sub_ui_package:
-        sub_ui_package.displayProgressDialog(current, pd)
-
-def showMessageDialog(title, text):
-    if sub_ui_package:
-        sub_ui_package.showMessageDialog(title, text)
-
-def clearModelessDialog():
-    if sub_ui_package:
-        sub_ui_package.clearModelessDialog()
+    return results

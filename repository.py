@@ -12,12 +12,15 @@
 
 import xelogging
 import diskutil
+import hardware
+import version
+import util
 
 import os
 import md5
 import tempfile
 import urllib2
-import util
+import ftplib
 import popen2
 
 class NoRepository(Exception):
@@ -80,7 +83,9 @@ class Repository:
 
     def _parse_packages(self, pkgfile):
         pkgtype_mapping = {
-            'tbz2' : BzippedPackage
+            'tbz2' : BzippedPackage,
+            'driver' : DriverPackage,
+            'firmware' : FirmwarePackage,
             }
         
         lines = pkgfile.readlines()
@@ -120,13 +125,125 @@ class Repository:
             self._accessor.finish()
         return problems
 
+    def copyTo(self, destination):
+        util.assertDir(destination)
+
+        # write the XS-REPOSITORY file:
+        xsrep_fd = open(os.path.join(destination, 'XS-REPOSITORY'), 'w')
+        xsrep_fd.write(self.identifier() + '\n')
+        xsrep_fd.write(self.name() + '\n')
+        xsrep_fd.close()
+
+        # copy the packages and write an XS-PACAKGES file:
+        xspkg_fd = open(os.path.join(destination, 'XS-PACKAGES'), 'w')
+        for pkg in self:
+            xspkg_fd.write(pkg.pkgLine() + '\n')
+            pkg.copy(destination)
+        xspkg_fd.close()
+
     def accessor(self):
         return self._accessor
 
     def __iter__(self):
         return self._packages.__iter__()
 
-class BzippedPackage:
+class Package:
+    def copy(self, destination):
+        """ Writes the package to destination with the same
+        name that it has in the repository.  Saves the user of the
+        class having to know about the repository_filename attribute. """
+        return self.write(os.path.join(destination, self.repository_filename))
+       
+    def write(self, destination):
+        """ Write package to 'destionation'. """
+        pkgpath = self.repository.path(self.repository_filename)
+        package = self.repository.accessor().openAddress(pkgpath)
+
+        xelogging.log("Writing file %s" % destination)
+        dest_fd = open(destination, 'w')
+            
+        data = ""
+        while True:
+            data = package.read(10485760)
+            if data == '':
+                break
+            else:
+                dest_fd.write(data)
+
+        dest_fd.close()
+        package.close()
+
+class DriverPackage(Package):
+    def __init__(self, repository, name, size, md5sum, src, dest):
+        (
+            self.repository,
+            self.name,
+            self.size,
+            self.md5sum,
+            self.repository_filename,
+            self.destination,
+        ) = ( repository, name, long(size), md5sum, src, dest )
+
+        self.destination = self.destination.lstrip('/')
+        self.destination = self.destination.replace("${KERNEL_VERSION}", version.KERNEL_VERSION)
+
+    def __repr__(self):
+        return "<DriverPackage: %s>" % self.name
+
+    def pkgLine(self):
+        return "%s %d %s driver %s %s" % \
+               (self.name, self.size, self.md5sum, self.repository_filename,
+                self.destination)
+
+    def install(self, base, progress = lambda x: ()):
+        self.write(os.path.join(base, self.destination))
+
+    def check(self, fast = False, progress = lambda x: ()):
+        return self.repository.accessor().access(self.repository_filename)
+    
+    def load(self):
+        # Coyp driver to a temporary location:
+        util.assertDir('/tmp/drivers')
+        temploc = os.path.join('/tmp/drivers', self.repository_filename)
+        self.write(temploc)
+
+        # insmod the driver:
+        rc = hardware.modprobe_file(temploc)
+
+        # Remove the driver from the temporary location:
+        os.unlink(temploc)
+
+        return rc
+
+class FirmwarePackage(Package):
+    def __init__(self, repository, name, size, md5sum, src):
+        (
+            self.repository,
+            self.name,
+            self.size,
+            self.md5sum,
+            self.repository_filename,
+        ) = ( repository, name, long(size), md5sum, src, )
+        self.destination = 'lib/firmware/%s' % os.path.basename(src)
+
+    def __repr__(self):
+        return "<FirmwarePackage: %s>" % self.name
+
+    def pkgLine(self):
+        return "%s %d %s firmware %s" % \
+               (self.name, self.size, self.md5sum, self.repository_filename)
+
+    def provision(self):
+        # write to /lib/firmware for immediate access:
+        self.write(os.path.join('/', self.destination))
+
+    def install(self, base, progress = lambda x: ()):
+        self.write(os.path.join(base, self.destination))
+
+    def check(self, fast = False, progress = lambda x: ()):
+        return self.repository.accessor().access(self.repository_filename)
+
+class BzippedPackage(Package):
     def __init__(self, repository, name, size, md5sum, required, src, dest):
         (
             self.repository,
@@ -206,6 +323,10 @@ class BzippedPackage:
             except Exception, e:
                 return False
 
+    def pkgLine(self):
+        return "%s %s %s tbz2 required %s %s" % (
+            self.name, self.size, self.md5sum, self.repository_filename, self.destination)
+
     def __repr__(self):
         return "<BzippedPackage: %s>" % self.name
 
@@ -225,6 +346,9 @@ class Accessor:
         else:
             return True
 
+    def canEject(self):
+        return False
+
     def start(self):
         pass
 
@@ -234,27 +358,54 @@ class Accessor:
     def findRepositories(self):
         # Check known locations:
         repos = []
-        for loc in ['', 'packages', 'packages.main', 'packages.linux']:
+        self.start()
+        for loc in ['', 'packages', 'packages.main', 'packages.linux',
+                    'packages.site']:
             if Repository.isRepo(self, loc):
                 repos.append(Repository(self, loc))
+        self.finish()
         return repos
 
-class MountingAccessor(Accessor):
-    def __init__(self, mount_type, mount_source, mount_options = ['ro']):
+class FilesystemAccessor(Accessor):
+    def __init__(self, location):
+        self.location = location
+
+    def start(self):
+        pass
+
+    def finish(self):
+        pass
+
+    def openAddress(self, addr):
+        return open(os.path.join(self.location, addr), 'r')
+
+class MountingAccessor(FilesystemAccessor):
+    def __init__(self, mount_types, mount_source, mount_options = ['ro']):
         (
-            self.mount_type,
+            self.mount_types,
             self.mount_source,
             self.mount_options
-        ) = (mount_type, mount_source, mount_options)
-        self.mountpoint = None
+        ) = (mount_types, mount_source, mount_options)
         self.start_count = 0
+        self.location = None
 
     def start(self):
         if self.start_count == 0:
-            self.mountpoint = tempfile.mkdtemp(prefix="media-", dir="/tmp")
-            util.mount(self.mount_source, self.mountpoint,
-                       options = self.mount_options,
-                       fstype = self.mount_type)
+            self.location = tempfile.mkdtemp(prefix="media-", dir="/tmp")
+            # try each filesystem in turn:
+            success = False
+            for fs in self.mount_types:
+                try:
+                    util.mount(self.mount_source, self.location,
+                               options = self.mount_options,
+                               fstype = fs)
+                except util.MountFailureException, e:
+                    continue
+                else:
+                    success = True
+                    break
+            if not success:
+                raise util.MountFailureException
         self.start_count += 1
 
     def finish(self):
@@ -262,27 +413,35 @@ class MountingAccessor(Accessor):
             return
         self.start_count = self.start_count - 1
         if self.start_count == 0:
-            util.umount(self.mountpoint)
-            os.rmdir(self.mountpoint)
-            self.mountpoint = None
-
-    def openAddress(self, addr):
-        return open(os.path.join(self.mountpoint, addr), 'r')
+            util.umount(self.location)
+            os.rmdir(self.location)
+            self.location = None
 
     def __del__(self):
-        while self.mountpoint:
+        while self.start_count > 0:
             self.finish()
 
 class DeviceAccessor(MountingAccessor):
-    def __init__(self, device, fs='iso9660'):
+    def __init__(self, device, fs = ['iso9660', 'vfat']):
         """ Return a MountingAccessor for a device 'device', which should
         be a fully qualified path to a device node. """
         MountingAccessor.__init__(self, fs, device)
         self.device = device
 
+    def __repr__(self):
+        return "<DeviceAccessor: %s>" % self.device
+
+    def canEject(self):
+        if diskutil.removable(self.device):
+            return True
+
+    def eject(self):
+        assert self.canEject()
+        util.runCmd2(['/usr/bin/eject', self.device])
+
 class NFSAccessor(MountingAccessor):
     def __init__(self, nfspath):
-        MountingAccessor.__init__(self, 'nfs', nfspath)
+        MountingAccessor.__init__(self, ['nfs'], nfspath)
 
 class URLAccessor(Accessor):
     url_prefixes = ['http://', 'https://', 'ftp://']
@@ -310,6 +469,31 @@ class URLAccessor(Accessor):
     def finish(self):
         pass
 
+    def access(self, path):
+        if not self._url_concat(self.baseAddress, path).startswith('ftp://'):
+            return Accessor.access(self, path)
+
+        path = self._url_concat(self.baseAddress, path)
+
+        # if FTP, override by actually checking the file exists because urllib2 seems
+        # to be not so good at this.
+        try:
+            name = path[6:]
+            server = name[:name.index('/')]
+            location = name[name.index('/') + 1:]
+            fname = os.path.basename(location)
+            directory = os.path.dirname(location)
+
+            # now open a connection to the server and verify that fname is in 
+            ftp = ftplib.FTP(server)
+            ftp.login('', '')
+            ftp.cwd(directory)
+            lst = ftp.nlst()
+            return fname in lst
+        except:
+            # couldn't parse the server name out:
+            return False
+
     def openAddress(self, address):
         return urllib2.urlopen(self._url_concat(self.baseAddress, address))
 
@@ -318,10 +502,11 @@ def repositoriesFromDefinition(media, address):
         # this is a special case as we need to locate the media first
         return findRepositoriesOnMedia()
     else:
-        if media == 'url':
-            accessor = URLAccessor(address)
-        elif media == 'nfs':
-            accessor = NFSAccessor(address)
+        accessors = { 'filesystem': FilesystemAccessor,
+                      'url': URLAccessor,
+                      'nfs': NFSAccessor }
+        if accessors.has_key(media):
+            accessor = accessors[media](address)
         else:
             raise RuntimeError, "Unknown repository media %s" % media
 
@@ -331,25 +516,35 @@ def repositoriesFromDefinition(media, address):
         return rv
 
 def findRepositoriesOnMedia():
-    """ Given a repository ID, searches for that repository
-    on removable media and returns a repository object. """
-
+    """ Returns a list of repositories available on local media. """
+    
     static_devices = [
-    'hda', 'hdb', 'hdc', 'hdd', 'hde', 'hdf',
-    'sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf',
-    'scd0', 'scd1', 'scd2', 'scd3', 'scd4',
-    'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7',
-    'cciss/c0d0', 'cciss/c0d1'
+        'hda', 'hdb', 'hdc', 'hdd', 'hde', 'hdf',
+        'sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf',
+        'scd0', 'scd1', 'scd2', 'scd3', 'scd4',
+        'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7',
+        'cciss/c0d0', 'cciss/c0d1'
     ]
 
     removable_devices = diskutil.getRemovableDeviceList()
     removable_devices = filter(lambda x: not x.startswith('fd'),
                                removable_devices)
 
+    # also scan the partitions of these removable devices:
+    partitions = []
+    for dev in removable_devices:
+        partitions.extend(diskutil.partitionsOnDisk(dev))
+
+    # remove devices we discovered from the static list so we don't
+    # scan them twice:
+    for x in removable_devices:
+        if x in static_devices:
+            static_devices.remove(x)
+
     da = None
     repos = []
     try:
-        for check in removable_devices + static_devices:
+        for check in removable_devices + partitions + static_devices:
             device_path = "/dev/%s" % check
             xelogging.log("Looking for repositories: %s" % device_path)
             if os.path.exists(device_path):
@@ -359,11 +554,12 @@ def findRepositoriesOnMedia():
                 except util.MountFailureException:
                     da = None
                     continue
-                repos = da.findRepositories()
-                if repos:
-                    return repos
+                else:
+                    repos.extend(da.findRepositories())
+                    da.finish()
+                    da = None
     finally:
         if da:
             da.finish()
 
-    return []
+    return repos

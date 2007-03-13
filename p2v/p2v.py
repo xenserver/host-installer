@@ -22,6 +22,7 @@ import os
 import getopt
 import generalui
 import constants
+import traceback
 
 from p2v_error import P2VError, P2VPasswordError, P2VCliError
 from snack import *
@@ -113,21 +114,12 @@ def main():
             finished = False
             firstrun = False
 
-        except P2VError, e:
-            xelogging.log(e)
-            xelogging.writeLog("/tmp/install-log")
-            xelogging.collectLogs('/tmp')
-            closeClogs(clog_fds)
-            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact a Technical Support Representative. Log files have been collected in /tmp.  
-
-Diagnostic output from the P2V operation follows:
-%s""" % (e), ['Ok'], width = 60)
-            ui_package.end_ui()
-            print "P2V Failed: %s" % e
-            sys.exit(constants.EXIT_ERROR)
         except SystemExit: raise
         except Exception, e:
             xelogging.log(e)
+            ex = sys.exc_info()
+            err = str.join("", traceback.format_exception(*ex))
+            xelogging.log(err)
             xelogging.writeLog("/tmp/install-log")
             xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)

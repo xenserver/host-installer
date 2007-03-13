@@ -19,6 +19,10 @@ import urllib2
 import shutil
 import re
 import datetime
+import random
+import string
+
+random.seed()
 
 ###
 # directory/tree management
@@ -57,7 +61,7 @@ def runCmd(command):
     xelogging.logOutput(command + " (rc %d)" % rv, output)
     return rv
 
-def runCmd2(command):
+def runCmd2(command, with_output = False):
     cmd = subprocess.Popen(command,
                            stdout = subprocess.PIPE,
                            stderr = subprocess.PIPE)
@@ -80,7 +84,10 @@ def runCmd2(command):
              "STANDARD ERR:\n" + err
     
     xelogging.logOutput(" ".join(command) + " (rc %d)" % rv, output)
-    return rv
+    if with_output:
+        return rv, out
+    else:
+        return rv
 
 def runCmdWithOutput(command):
     (rv, output) = commands.getstatusoutput(command)
@@ -197,3 +204,7 @@ def getUUID():
 
     return out.strip()
 
+def mkRandomHostname():
+    """ Generate a random hostname of the form xenserver-AAAAAAAA """
+    s = "".join([random.choice(string.ascii_lowercase) for x in range(8)])
+    return "xenserver-%s" % s

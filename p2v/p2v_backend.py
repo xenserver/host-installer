@@ -150,12 +150,16 @@ def finish_agent(os_install, xe_host):
 def finish_agent_error(os_install, xe_host):
     #tell the agent that we're done
     root_password = os_install['root-password']
-    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c vm_uninstall -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
+    if os_install.has_key('uuid'):
+        rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c vm_uninstall -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
 
-    if rc != 0:
-        p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
-        raise P2VError("Failed to finish this P2V to the %s host. Please contact a Technical Support Representative." % (PRODUCT_BRAND))
-    return rc
+        if rc != 0:
+            p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
+            raise P2VError("Failed to finish this P2V to the %s host. Please contact a Technical Support Representative." % (PRODUCT_BRAND))
+        return rc
+    else:
+        # we never got the UUID from the agent.  Assume nothing has to be cleaned up.
+        return 0
  
 def determine_size(os_install):
     os_root_device = os_install[p2v_constants.DEV_NAME]
@@ -301,7 +305,7 @@ def perform_P2V( results ):
     else:
         num_steps = 4
 
-    pd =  ui_package.initProgressDialog('Xen Enterprise P2V',
+    pd =  ui_package.initProgressDialog('%s P2V' % PRODUCT_BRAND,
                                        'Performing P2V operation...',
                                        num_steps)
     os_install['pd'] = pd

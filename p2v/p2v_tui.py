@@ -22,6 +22,7 @@ import p2v_utils
 import p2v_backend
 import time
 import xelogging
+import tui
 import tui.network
 from p2v import closeClogs
 import uicontroller
@@ -33,7 +34,7 @@ screen = None
 def get_network_config(show_reuse_existing = False,
                        runtime_config = False):
     return tui.network.get_network_config(
-        screen, show_reuse_existing, runtime_config)
+        show_reuse_existing, runtime_config)
 
 def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
 		entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
@@ -83,7 +84,8 @@ def init_ui(results):
 
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to %s" % PRODUCT_BRAND)
-    
+    tui.screen = screen
+
 def redraw_screen():
     global screen
     screen.refresh()
@@ -133,7 +135,7 @@ def target_screen(answers):
                         entries,
                         ['Ok', 'Cancel'], width=50)
 
-    if button == "cancel": return -2
+    if button == "cancel": return uicontroller.EXIT
 
     #ask for more info
     if entry == 0:

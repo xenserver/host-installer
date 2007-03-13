@@ -1,17 +1,21 @@
 \documentclass[a4paper]{article}
 \usepackage{anysize}
-\usepackage{palatino}
 \usepackage{theorem}
 
 \newtheorem{testcase}{Test Case}
 
 \begin{document}
 
-\title{Manual test cases for the installer \\  Revision 1}
+\title{Manual test cases for the installer \\  Revision 2}
 \author{Andrew Peace}
 \date{}
 
 \maketitle
+
+This document describes manual tests to validate the correctness of
+the host isntaller.  This revision is designed for use against
+versions of the installer supporting multiple CDs, driver disks, and
+basic Zurich to Geneva answer reconstruction.
 
 \section{Text user interface -- general}
 
@@ -30,8 +34,8 @@ it is not displayed.
 \begin{testcase}
 If you saw the networking configuration dialog as a result of choosing
 HTTP or NFS as an installation source, then you also see the ``Re-use
-existing installation'' option on the network settings screen
-(i.e. when configuring networking for the host).
+existing configuration'' option on the network settings screen
+(i.e.\ when configuring networking for the host).
 \end{testcase}
 
 \begin{testcase}
@@ -65,7 +69,10 @@ is equivalent to pressing Ok:
 \item NTP servers screen;
 \item Network configuration screen;
 \item Name service configuration screen;
-\item Confirmation screen.
+\item Confirmation screen;
+\item Success screen;
+\item Insert more media screen;
+\item Confirm more media screen.
 \end{enumerate}
 \end{testcase}
 
@@ -74,15 +81,16 @@ Going backwards in the installer causes information that has already
 been entered to be the defaults for the previous screens:
 \begin{enumerate}
 \item Select installation source;
-\item HTTP source screen;
-\item NFS source screen;
-\item Time-zone region screen;
-\item Time-zone city screen;
-\item Time configuration screen;
-\item Select primary disk screen;
-\item Select guest disks screen;
-\item Installation type screen;
-\item Back-up existing installation screen;
+\item HTTP source;
+\item NFS source;
+\item Time-zone region;
+\item Time-zone city;
+\item Time configuration;
+\item Select primary disk;
+\item Select guest disks;
+\item Installation type;
+\item Preserve settings;
+\item Back-up existing installation;
 \item Name service configuration.
 \end{enumerate}
 \end{testcase}
@@ -162,7 +170,7 @@ These tests require a host with two disks.
 
 To set up a system for the following tests, boot into a Linux
 environment (this may be done from VT2 on the install CD if you first
-set the LVM\_SYSTEM\_DIR environment-variable to be /tmp -- a better
+set the \texttt{LVM\_SYSTEM\_DIR} environment-variable to be /tmp -- a better
 option is James Bulpin's `cleanrd' environment).  Create an LVM
 physical volume on both disks. Create a single volume group that spans
 both physical volumes.
@@ -206,7 +214,7 @@ On a single disk host, you are not prompted for disks to install to.
 
 \begin{testcase}
 On a single disk host, the text for the ``Confirm installation''
-screen is appropriate.
+screen has appropriate wording.
 \end{testcase}
 
 \begin{testcase}
@@ -219,14 +227,20 @@ On a multi-disk host, if you choose no disks for guest storage, a
 dialog appears warning you but not preventing you from continuing.
 \end{testcase}
 
-The above can be tested with running through the entire installer.
+\begin{testcase}
+On a multi-disk host, the wording for the ``Confirm Installation''
+scren is appropriate.
+\end{testcase}
+
+The above can be tested without running through the entire installer.
 
 \begin{testcase}
-Installation to a single disk with no SR with the UI.
+On a multi-disk host, install to the first disk with no SR with the UI.
 \end{testcase}
 
 \begin{testcase}
-Installation to a single disk with no SR with an answer-file.
+On a multi-disk host, install to the firstdisk with no SR with an
+answer-file.
 \end{testcase}
 
 First remove all logical volumes and volume groups.  Below is a
@@ -249,11 +263,13 @@ DEFAULT\_SR value in xensource-inventory, or that the value is the
 empty string.
 
 \begin{testcase}
-Installation to a single disk with an SR with the UI succeeds.
+On a multi-disk host, installation to a single disk with an SR with
+the UI succeeds.
 \end{testcase}
 
 \begin{testcase}
-Installation to a single disk with an SR with an answer-file succeeds.
+On a multi-disk host, installation to a single disk with an SR with an
+answer-file succeeds.
 \end{testcase}
 
 First remove all logical volumes and volume groups.  Below is a
@@ -276,13 +292,15 @@ created volume group is the same as the UUID in the DEFAULT\_SR field
 of xensource-inventory.
 
 \begin{testcase}
-Installation on a multi-disk host -- first disk only.
+Installation on both disks of a two-disk host using the UI:
+\begin{enumerate}
+\item SR on both disks;
+\item SR on second disk only.
+\end{enumerate}
 \end{testcase}
 
-Re-run above tests on a multi-disk host.
-
 \begin{testcase}
-Installation on both disks of a multi-disk host:
+Installation on both disks of a two-disk host using an naswerfile:
 \begin{enumerate}
 \item SR on both disks;
 \item SR on second disk only.
@@ -292,7 +310,8 @@ Installation on both disks of a multi-disk host:
 \section{Installation Sources}
 
 \begin{testcase}
-Installation succeeds from the various installation sources:
+Installation succeeds from the various installation sources using the
+UI:
 \begin{enumerate}
 \item Local CD
 \item FTP
@@ -302,16 +321,56 @@ Installation succeeds from the various installation sources:
 \end{testcase}
 
 \begin{testcase}
+The `Install Linux Pack CD' option has the correct default:
+\begin{enumerate}
+\item is ticked by default on a machine not supporting HVM/AMD-V;
+\item is not ticked by default on a machine that does support HMV/AMD-V.
+\end{enumerate}
+\end{testcase}
+
+\begin{testcase}
+When installing on a host without hardware assist support, unticking
+the `Install Linux Pack CD' box causes a warning to be displayed on
+the next screen.
+\end{testcase}
+
+\begin{testcase}
+When installing from local media, an error appears when leaving the
+``Select Installation Source'' screen if the first (Base Pack) CD is
+not present.
+\end{testcase}
+
+\begin{testcase}
+Choosing to install the Linux pack has the expected effect of
+requesting the new CD, and installing the Linux XGTs, etc.
+\end{testcase}
+
+\begin{testcase}
+When installing the Linux Pack:
+\begin{enumerate}
+\item the user is appropriately prompted partway through installation
+to swap discs.
+\item the user is only prompted once;
+\item the contents of the media are shown;
+\item the verify function works;
+\item the user can cancel the request for further media, and their
+  installation completes successfully with only the base functionality
+  present;
+\item re-inserting the first disc again shows a screen indicating it
+  is alredy installed.
+\end{enumerate}
+\end{testcase}
+
+\begin{testcase}
 Installation proceeds from the specified media when running using an
 answer-file
 \begin{enumerate}
-\item Local CD
 \item FTP
 \item HTTP
 \item NFS
 \end{enumerate}
 \end{testcase}
-Note that you can specify these by using 'local', 'url', and 'nfs' as
+Note that you can specify these by using 'url', and 'nfs' as
 the 'source-media' value in your answer-file.
 
 \begin{testcase}
@@ -329,9 +388,9 @@ repository:
 \end{testcase}
 
 \begin{testcase}
-If the CD is ejected before the install begins, the installer will
-bring up a user-friendly dialog asking for it to be re-inserted,
-with Retry and Cancel options.
+If the CD is not present when the install begins, the installer will
+bring up a user-friendly dialog asking for it to be re-inserted, with
+Retry and Cancel options.
 \end{testcase}
 
 \begin{testcase}
@@ -352,8 +411,12 @@ the following is true:
 
 \begin{testcase}
 When a package is found to be faulty by the source verification
-option, it is explicitly named in the error dialog.  Only faulty
-packages are listed in this dialog.
+option:
+\begin{enumerate}
+\item It is explicitly named in the error dialog;
+\item Only faulty packages are listed in this dialog;
+\item The package is listed without Python class names or syntax
+(i.e.\ in a sentential form).
 \end{testcase}
 
 \section{Re-install over existing product}
@@ -366,14 +429,23 @@ upgrade versions labelled 0.2.4 and higher.  It is recommended that
 this set of tests should use Zurich Beta as the upgrade source version.
 
 \begin{testcase}
-Re-install option is visible when the installer is run on a machine
-running an upgradeable product.
+On a host with Zurich GA installed:
+\begin{enumerate}
+\item The user may choose to upgrade it;
+\item The user may preserve configuration from it.
+\end{enumerate}
+\end{testcase}
+
+\begin{testcase}
+On a host with a Geneva installation the user may choose to preserve
+VMs from it
 \end{testcase}
 
 \begin{testcase}
 The option to back up an existing installation is available:
 \begin{enumerate}
-\item it is displayed if a re-install option was selected;
+\item it is displayed if an upgrade or preserve VMs option was
+selected;
 \item the correct back-up partition is identified in the dialog text
   (see below);
 \item is is not displayed if the clean install option was selected.
@@ -384,7 +456,7 @@ the product to be overwritten is installed on.)
 
 \begin{testcase}
 If selected, the back-up function should cause the original
-installation to be backed up to the backup partition. 
+installation to be backed up to the backup partition.
 \end{testcase}
 
 \begin{testcase}
@@ -451,6 +523,17 @@ troubleshooting options to work correctly.)
 \begin{testcase}
 If the installer is started on the serial console, it cannot be
 started from VT1; a friendly error message should be displayed.
+\end{testcase}
+
+\section{Driver disks}
+
+\begin{testcase}
+The option to use a driver disk is present on the initial menu.
+\end{testcase}
+
+\begin{testcase}
+When the user chooses to use a driver disk, they are asked the source
+to be used.
 \end{testcase}
 
 \section{Regression avoidance tests}

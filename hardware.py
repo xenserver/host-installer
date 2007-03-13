@@ -66,7 +66,7 @@ __MODULE_ORDER_FILE__ = "/tmp/module-order"
 class ModuleOrderUnknownException(Exception):
     pass
 
-def getModuleOrder():
+def getModuleOrder(kver = version.KERNEL_VERSION, base = "/"):
     def allKoFiles(directory):
         kofiles = []
         items = os.listdir(directory)
@@ -80,8 +80,8 @@ def getModuleOrder():
         return kofiles
 
     try:
-        def findModuleName(module, all_modules):
-            module = module.replace("_", "-") # start with '-'
+        def findModuleName(original_name, all_modules):
+            module = original_name.replace("_", "-") # start with '-'
             if module in all_modules:
                 return module
             else:
@@ -90,17 +90,14 @@ def getModuleOrder():
                     return module
             return None # not found
         
-        all_modules = allKoFiles("/lib/modules/%s" % version.KERNEL_VERSION)
+        all_modules = allKoFiles(os.path.join(base, "lib/modules/%s" % kver))
         all_modules = [x.replace(".ko", "") for x in all_modules]
 
         mo = open(__MODULE_ORDER_FILE__, 'r')
         lines = [x.strip() for x in mo]
         mo.close()
 
-        # we can put all these in, and findModuleName will return
-        # None if they aren't actually loaded.
-        lines.extend(['ohci-hcd', 'uhci-hcd', 'ehci-hcd',
-                      'usbhid', 'hid', 'usbkbd'])
+        lines.extend(['ohci-hcd', 'uhci-hcd', 'ehci-hcd', 'usbhid'])
         modules = [findModuleName(m, all_modules) for m in lines]
         modules = filter(lambda x: x != None, modules)
         
@@ -108,26 +105,72 @@ def getModuleOrder():
     except Exception, e:
         raise ModuleOrderUnknownException, e
 
+def _addToModuleList(module, params):
+    """ Add a module to the module order file. """
+    modlist_file = open(__MODULE_ORDER_FILE__, 'a')
+    modlist_file.write("%s %s\n" % (module, params))
+    modlist_file.close()
+
 def modprobe(module, params = ""):
     xelogging.log("Loading module %s" % " ".join([module, params]))
     rc = util.runCmd("modprobe %s %s" % (module, params))
 
     if rc == 0:
-        modlist_file = open(__MODULE_ORDER_FILE__, 'a')
-        modlist_file.write("%s %s\n" % (module, params))
-        modlist_file.close()
+        _addToModuleList(module, params)
+    else:
+        xelogging.log("(Failed.)")
+
+    return rc
+
+def modprobe_file(module, params = "", name = None):
+    INSMOD = '/sbin/insmod'
+
+    # First use modinfo to find out what the dependants of the
+    # module are and modprobe them:
+    #
+    # deps will initially look like 'depends:    x,y,z'
+    rc, out = util.runCmdWithOutput("modinfo %s" % module)
+    if rc != 0:
+        raise RuntimeError, "Error interrogating module."
+    [deps] = filter(lambda x: x.startswith("depends:"),
+                    out.split("\n"))
+    module_order = getModuleOrder()
+    deps = deps[9:].strip()
+    deps = deps.split(',')
+    for dep in deps:
+        if dep not in module_order:
+            modprobe(dep)
+            module_order.append(dep)
+    
+    xelogging.log("Insertung module %s %s (%s)" %(module, params, name))
+    rc = util.runCmd2([INSMOD, module, params])
+
+    if rc == 0:
+        if name != None:
+            _addToModuleList(name, params)
+        else:
+            _addToModuleList(module, params)
+    else:
+        xelogging.log("(Failed.)")
 
     return rc
 
 ################################################################################
 # These functions assume we're running on Xen.
 
+_vt_support = None
+
 def VTSupportEnabled():
-    assert os.path.exists(constants.XENINFO)
-    rc, caps = util.runCmdWithOutput(constants.XENINFO + " xen-caps")
-    assert rc == 0
-    caps = caps.strip().split(" ")
-    return "hvm-3.0-x86_32" in caps
+    global _vt_support
+
+    # get the answer and cache it if necessary:
+    if _vt_support == None:
+        assert os.path.exists(constants.XENINFO)
+        rc, caps = util.runCmdWithOutput(constants.XENINFO + " xen-caps")
+        assert rc == 0
+        caps = caps.strip().split(" ")
+        _vt_support = "hvm-3.0-x86_32" in caps
+    return _vt_support
 
 def getHostTotalMemoryKB():
     assert os.path.exists(constants.XENINFO)
