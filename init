@@ -420,6 +420,8 @@ def main():
                     if not restore.interactiveRestore(ui):
                         xelogging.writeLog("/tmp/startup-log")
                         tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
+                    else:
+                        break
 
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
