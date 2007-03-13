@@ -23,11 +23,9 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
         return not answers.has_key('preserve-settings') or \
                not answers['preserve-settings']
 
-    def linux_pack_warning_predicate(answers):
-        return vt_warning and (
-            answers['source-media'] == 'local' and
-            answers['more-media'] == False
-            )
+    def local_media_predicate(answers):
+        return answers.has_key('source-media') and \
+               answers['source-media'] == 'local'
 
     seq = [
         Step(uis.welcome_screen),
@@ -46,8 +44,9 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
         Step(uis.confirm_erase_volume_groups,
              predicates=[clean_install_predicate]),
         Step(uis.select_installation_source),
-        Step(uis.linux_pack_warning,
-             predicates=[linux_pack_warning_predicate]),
+        Step(uis.use_extra_media,
+             args=[vt_warning],
+             predicates=[local_media_predicate]),
         Step(uis.setup_runtime_networking),
         Step(uis.get_source_location),
         Step(uis.verify_source),
