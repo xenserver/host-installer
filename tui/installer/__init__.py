@@ -116,8 +116,7 @@ def more_media_sequence(installed_repo_ids):
             ans = ButtonChoiceWindow(tui.screen, "New Media", text, ['Use media', 'Verify media', 'Back'], width=50)
             
             if ans == 'verify media':
-                if tui.installer.screens.interactive_source_verification('local', ''):
-                    tui.progress.OKDialog("Media Check", "No problems were found with your media.")
+                tui.installer.screens.interactive_source_verification('local', '')
             elif ans == 'back':
                 rc = -1
                 done = True

@@ -136,6 +136,8 @@ def makeHumanList(list):
         return ""
     elif len(list) == 1:
         return list[0]
+    elif len(list) == 2:
+        return "%s and %s" % (list[0], list[1])
     else:
         start = ", ".join(list[:len(list) - 1])
         start += ", and %s" % list[len(list) - 1]

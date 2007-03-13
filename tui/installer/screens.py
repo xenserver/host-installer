@@ -453,6 +453,13 @@ def interactive_source_verification(media, address):
                     )
                 return False
             else:
+                repo_names = generalui.makeHumanList( ['"%s"' %x.name() for x in repos])
+                ButtonChoiceWindow(
+                    tui.screen,
+                    "Verification Successful",
+                    "Veification of your installation pack(s) %s completed successfully: no problems were found." % repo_names,
+                    ['Ok']
+                    )
                 return True
 
 
