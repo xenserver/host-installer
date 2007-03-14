@@ -805,7 +805,7 @@ def writeInventory(mounts, primary_disk, guest_disks, default_sr_uuid):
     inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
     inv.write("BACKUP_PARTITION='%s'\n" % getBackupPartName(primary_disk))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
-    inv.write("DFEAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
+    inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
