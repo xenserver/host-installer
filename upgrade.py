@@ -108,12 +108,6 @@ class FirstGenUpgrader(Upgrader):
                 self.mh_dat = None
                 xelogging.log("Unable to preserve virtual bridges - could not parse mh.dat in source filesystem.")
 
-            # are we preserving settings?  If so, preserve the xenstored TDB:
-            if preserve_settings:
-                tdb_path = os.path.join(mntpoint, 'var/lib/xenstored/tdb')
-                if os.path.exists(tdb_path):
-                    util.runCmd2(['cp', tdb_path, '/tmp/preserved-tdb'])
-
         finally:
             util.umount(mntpoint)    
 
@@ -130,10 +124,6 @@ class FirstGenUpgrader(Upgrader):
             fd = open(mh_dat_path, 'w')
             fd.write(self.mh_dat)
             fd.close()
-
-            # restore tdb?
-            if preserve_settings and os.path.exists('/tmp/preserved-tdb'):
-                util.runCmd2(['cp', '/tmp/preserved-tdb', os.path.join(mounts['root'], 'var/lib/xenstored/tdb')])
         else:
             xelogging.log("No data to write to mh.dat.")
 

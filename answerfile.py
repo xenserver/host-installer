@@ -62,6 +62,8 @@ def __parse_answerfile__(answerdoc):
         results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
     # source-media, source-address:
+    if len(n.getElementsByTagName('source')) == 0:
+        raise Exception, "No source media sepcified."
     source = n.getElementsByTagName('source')[0]
     if source.getAttribute('type') == 'local':
         results['source-media'] = 'local'

@@ -233,79 +233,80 @@ def select_installation_source(answers):
 
     # default selection?
     if answers.has_key('source-media'):
-        _, default = selectDefault(answers['source-media'], entries)
+        default = selectDefault(answers['source-media'], entries)
     else:
-        _, default = ENTRY_LOCAL
+        default = ENTRY_LOCAL
 
-    # check the Linux Pack checkbox?
-    if answers.has_key('more-media'):
-        linux_pack = answers['more-media']
-    else:
-        linux_pack = not hardware.VTSupportEnabled()
-    
-    # widgets:
-    text = TextboxReflowed(50, "Please select the type of source you would like to use for this installation:")
-    listbox = Listbox(len(entries))
-    for e in entries:
-        listbox.append(*e)
-    listbox.setCurrent(default)
-    cbMoreMedia = Checkbox("Install Linux Pack CD", linux_pack)
-    buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
-    # callback
-    def lbcallback():
-        cbMoreMedia.setFlags(FLAG_DISABLED, listbox.current() == 'local')
-    listbox.setCallback(lbcallback)
-    lbcallback()
-    gfhDialog = GridFormHelp(tui.screen, "Installation Source", None, 1, 4)
-    gfhDialog.add(text, 0, 0, padding = (0, 0, 0, 1))
-    gfhDialog.add(listbox, 0, 1, padding = (0, 0, 0, 1))
-    gfhDialog.add(cbMoreMedia, 0, 2, padding = (0, 0, 0, 1))
-    gfhDialog.add(buttons, 0, 3)
+    (button, entry) = ListboxChoiceWindow(
+        tui.screen,
+        "Select Installation Source",
+        "Please select the type of source you would like to use for this installation",
+        entries,
+        ['Ok', 'Back'], default=default
+        )
 
-    result = gfhDialog.runOnce()
-    entry = listbox.current()
-    button = buttons.buttonPressed(result)
-
-    if button == 'back':
-        return -1
-    else:
-        # if we already have a source media and it has changed, clear the 
-        # source-address:
+    if button in ["ok", None]:
+        # clear the source-address key?
         if answers.has_key('source-media') and answers['source-media'] != entry:
             answers['source-address'] = ""
-        answers['source-media'] = entry
-        if entry == 'local':
-            answers['source-address'] = ""
-            answers['more-media'] = cbMoreMedia.value()
 
-            # we should check that we can see a CD now:
+        # store their answer:
+        answers['source-media'] = entry
+
+        # if local, check that the media is correct:
+        if entry == 'local':
+            answers['source-address'] = ''
             repos = repository.repositoriesFromDefinition('local', '')
             l = len(repos)
+
+            # did we find a repository?
             if l == 0:
                 tui.OKDialog(
                     "Media not found",
                     "Your installation media could not be found.  Please ensure it is inserted into the drive, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
                     )
                 return 0
+
+            # was it xs:main?
             if constants.MAIN_REPOSITORY_NAME not in [x.identifier() for x in repos]:
                 tui.OKDialog(
                     "Wrong CD",
                     "A XenSource CD was found, but it was not the main install CD.  Please ensure you have the correct CD inserted, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
                     )
                 return 0
+
         return 1
 
-def linux_pack_warning(answers):
-    rc = ButtonChoiceWindow(
-        tui.screen,
-        "Hardware Wwarning",
-        """You selected not to install the Linux pack but you system appears to be incapable of running Windows guests.
+    elif button == "back":
+        return -1
 
-If you have disabled hardware assist (HVM or AMD-V) support in your BIOS, please re-enable it to enable Windows guest support.  If your system does not support hardware assist, please install the Linux Pack from the second CD (see the user guide for more details).""",
-        ['Ok', 'Back']
+def use_extra_media(answers, vt_warning):
+    if vt_warning:
+        extra_text = "\n\nThis is strongly recommended as your system does not appear to support Windows guests.  If your system has hardware assist support, you may need to enable it in the BIOS to activate this capability."
+    else:
+        extra_text = ""
+
+    if answers.has_key('more-media'):
+        if answers['more-media']:
+            default = 0
+        else:
+            default = 1
+    else:
+        default = 0
+
+    rc = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Linux Pack",
+        "Would you like to install the Linux Pack from a second CD?" + extra_text,
+        ['Yes', 'No', 'Back'],
+        default = default
         )
 
-    if rc in ['ok', None]:
+    if rc in ['yes', None]:
+        answers['more-media'] = True
+        return 1
+    elif rc == 'no':
+        answers['more-media'] = False
         return 1
     else:
         return -1
@@ -453,6 +454,13 @@ def interactive_source_verification(media, address):
                     )
                 return False
             else:
+                repo_names = generalui.makeHumanList( ['"%s"' %x.name() for x in repos])
+                ButtonChoiceWindow(
+                    tui.screen,
+                    "Verification Successful",
+                    "Veification of your installation pack(s) %s completed successfully: no problems were found." % repo_names,
+                    ['Ok']
+                    )
                 return True
 
 
