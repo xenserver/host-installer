@@ -255,6 +255,7 @@ def select_installation_source(answers):
 
         # if local, check that the media is correct:
         if entry == 'local':
+            answers['source-address'] = ''
             repos = repository.repositoriesFromDefinition('local', '')
             l = len(repos)
 
