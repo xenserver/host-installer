@@ -92,23 +92,24 @@ def main():
             else:
                 extra_repo_defs.append(('filesystem', val))
 
-    # loading an answerfile?
-    assert ui != None or answerfile_address != None
-    if answerfile_address:
-        results.update(answerfile.processAnswerfile(answerfile_address))
-
-    results['extra-repos'] = extra_repo_defs
-
-    # log the modules that we loaded:
-    xelogging.log("All needed modules should now be loaded. We have loaded:")
-    util.runCmd("lsmod")
-
-    status = constants.EXIT_OK
-
     try:
+        # loading an answerfile?
+        assert ui != None or answerfile_address != None
+
         xelogging.log("Starting user interface")
         if ui:
             ui.init_ui()
+
+        if answerfile_address:
+            results.update(answerfile.processAnswerfile(answerfile_address))
+
+        results['extra-repos'] = extra_repo_defs
+
+        # log the modules that we loaded:
+        xelogging.log("All needed modules should now be loaded. We have loaded:")
+        util.runCmd("lsmod")
+
+        status = constants.EXIT_OK
 
         disks = diskutil.getQualifiedDiskList()
         netifs = netutil.getNetifList()

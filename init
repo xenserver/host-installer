@@ -327,14 +327,18 @@ def main():
 
     xelogging.log("Active output is %s" % active_output)
 
-    # prepare LVM - we need this very early now.  Only attemnpt this in the
-    # "primary" process to avoid a race:
-    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
-    if not os.path.exists('/tmp/lvm') and isPrimaryProcess():
-        os.mkdir('/tmp/lvm')
+    # check that an answerfile was specified if we're being non-interactive:
+    if mode != init_constants.MODE_INTERACTIVE and not (answerfile or verbose_answerfile):
+        xelogging.log("A non-interactive mode was selected, but no answerfile was specified.  Dropping back to interactive mode.")
+        mode = init_constants.MODE_INTERACTIVE
+        ui = tui
 
-    # make /etc/network and /lib/firmware writeable:
+    # make /etc/network and /lib/firmware writeable,
+    # setup LVM:
+    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
     if isPrimaryProcess():
+        if not os.path.exists('/tmp/lvm'):
+            os.mkdir('/tmp/lvm')
         if not os.path.ismount('/etc/network/'):
             shutil.copytree('/etc/network', '/tmp/network')
             util.bindMount('/tmp/network', '/etc/network')
@@ -416,6 +420,8 @@ def main():
                     if not restore.interactiveRestore(ui):
                         xelogging.writeLog("/tmp/startup-log")
                         tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
+                    else:
+                        break
 
                 # P2V:
                 elif operation == init_constants.OPERATION_P2V:
