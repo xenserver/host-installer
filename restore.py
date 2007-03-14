@@ -40,13 +40,13 @@ def interactiveRestore(ui):
         def progress(x):
             if ui and pd:
                 tui.progress.displayProgressDialog(x, pd)
-        restoreFromBackup(backup_partition, disk, progress)
+        rc = restoreFromBackup(backup_partition, disk, progress)
         if pd:
             tui.progress.clearModelessDialog()
+        if rc:
+            tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
 
-        tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
-
-    return True
+    return rc
 
 def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     """ Restore files from backup_partition to the root partition (as
