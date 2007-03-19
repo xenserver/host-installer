@@ -11,6 +11,8 @@
 # written by Andrew Peace & Mark Nijmeijer
 
 import version
+import string
+import random
 
 # exit status
 EXIT_OK = 0
@@ -33,7 +35,8 @@ MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 # filesystems and partitions (sizes in MB):
 root_size = 4096
 rootfs_type = 'ext3'
-rootfs_label = '/-main'
+rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
+                                    for x in range(8)])
 default_sr_firstpartition = 3
 swap_location = '/var/swap/swap.001'
 swap_size = 512
