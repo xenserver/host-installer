@@ -440,17 +440,20 @@ def createDom0DiskFilesystems(disk):
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
 
 def __mkinitrd(mounts, kernel_version, link):
-    modules_list = ["--with=%s" % x for x in hardware.getModuleOrder(base=mounts['root'], kver=kernel_version)]
+    try:
+        util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
+        util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
+        output_file = '/boot/initrd-%s.img' % kernel_version
+        cmd = ['chroot', mounts['root'], 'mkinitrd', output_file, kernel_version]
 
-    modules_string = " ".join(modules_list)
-    output_file = "/boot/initrd-%s.img" % kernel_version
-    
-    cmd = "mkinitrd %s %s %s" % (modules_string, output_file, kernel_version)
-    
-    if util.runCmd("chroot %s %s" % (mounts['root'], cmd)) != 0:
-        raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
-    if link:
-        util.runCmd("ln -sf %s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
+        if util.runCmd2(cmd) != 0:
+            raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
+
+        if link:
+            util.runCmd("ln -sf %s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
+    finally:
+        util.umount(os.path.join(mounts['root'], 'sys'))
+        util.umount(os.path.join(mounts['root'], 'dev'))
 
 def mkinitrd(mounts):
     __mkinitrd(mounts, version.KERNEL_VERSION, True)
