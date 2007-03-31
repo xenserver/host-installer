@@ -134,9 +134,9 @@ def __parse_answerfile__(answerdoc):
         netifs[name] = netif
 
     # keymap:
-    keymap_nodes = n.getElementsByTagName('post-install-script')
+    keymap_nodes = n.getElementsByTagName('keymap')
     if len(keymap_nodes) == 1:
-        results['keymap'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
+        results['keymap'] = getText(keymap_nodes[0].childNodes)
     else:
         xelogging.log("No keymap specified in answer file: defaulting to 'us'")
         results['keymap'] = "us"
