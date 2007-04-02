@@ -1,0 +1,23 @@
+#!/bin/bash
+###
+# Usage: collect-files <output-dir> <input-dir> <dir-to-collect>
+# gets list of deep dependencies from the DDEPS env variable
+
+set -ex
+
+output="$1"
+input="$2"
+collect="$3"
+
+if [ -z "${DDEPS}" ]; then
+  echo DDEPS is empty
+  exit 1
+fi
+
+for d in ${DDEPS}; do
+  odir=${input}/${d}/${collect}
+  if [ -d ${odir} ]; then
+    cp -a ${odir}/* ${output}
+  fi
+done
+

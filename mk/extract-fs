@@ -1,0 +1,26 @@
+#!/bin/bash
+###
+# Copy the contents of a filesystem in file $1 to directory $2:
+#
+# (Wrapped into a script to encapsulate mount/unmount correctly.)
+
+cleanup() {
+    if [ -d "${mnt}" ] ; then
+        while grep -q "${mnt}" /proc/mounts ; do
+	    umount "${mnt}"
+	done
+    fi
+}
+trap "cleanup" EXIT
+
+mnt=$(mktemp -d)
+
+image="$1"
+dest="$2"
+
+mkdir -p ${mnt}
+mkdir -p ${dest}
+mount -o loop,ro ${image} ${mnt}
+(cd ${mnt} && tar -cf - *) | tar -C ${dest} -xf -
+umount ${mnt}
+
