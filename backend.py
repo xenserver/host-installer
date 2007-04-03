@@ -683,9 +683,8 @@ def setRootPassword(mounts, root_password, pwdtype):
 def configureNetworking(mounts, iface_config, hn_conf):
     check_link_down_hack = True
 
-    def writeETHConfigFile(fd, device, proto, hwaddr = None):
+    def writeETHConfigFile(fd, device, hwaddr = None):
         fd.write("DEVICE=%s\n" % device)
-        fd.write("BOOTPROTO=%s\n" % proto)
         fd.write("ONBOOT=yes\n")
         fd.write("TYPE=Ethernet\n")
         if hwaddr:
@@ -700,12 +699,12 @@ def configureNetworking(mounts, iface_config, hn_conf):
 
     def writeConfigFileBridgeDetails(fd, bridge):
         fd.write("BRIDGE=%s\n" % bridge)
-        fd.write("LINKDELAY=5\n")
 
-    def writeBridgeConfigFile(fd, bridge, enabled):
+    def writeBridgeConfigFile(fd, bridge, enabled, proto):
         assert enabled in ['yes', 'no']
         fd.write("DEVICE=%s\n" % bridge)
         fd.write("ONBOOT=%s\n" % enabled)
+        fd.write("BOOTPROTO=%s\n" % proto)
         fd.write("TYPE=Bridge\n")
         fd.write("DELAY=0\n")
         fd.write("STP=off\n")
@@ -729,10 +728,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
             writeConfigFileBridgeDetails(ifcfd, i.replace("eth", "xenbr"))
         else:
             brenabled = "yes"
-            if iface['use-dhcp']:
-                writeETHConfigFile(ifcfd, i, "dhcp", netutil.getHWAddr(i))
-            else:
-                writeETHConfigFile(ifcfd, i, "none", netutil.getHWAddr(i))
+            writeETHConfigFile(ifcfd, i, netutil.getHWAddr(i))
             writeConfigFileBridgeDetails(ifcfd, b)
 
         if check_link_down_hack:
@@ -740,8 +736,10 @@ def configureNetworking(mounts, iface_config, hn_conf):
         ifcfd.close()
 
         brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
-        writeBridgeConfigFile(brcfd, b, brenabled)
-        if not iface['use-dhcp']:
+        if iface['use-dhcp']:
+            writeBridgeConfigFile(brcfd, b, "dhcp", brenabled)
+        else:
+            writeBridgeConfigFile(brcfd, b, "none", brenabled)
             brcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
             brcfd.write("IPADDR=%s\n" % iface['ip'])
             brcfd.write("GATEWAY=%s\n" % iface['gateway'])
