@@ -700,7 +700,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
     def writeConfigFileBridgeDetails(fd, bridge):
         fd.write("BRIDGE=%s\n" % bridge)
 
-    def writeBridgeConfigFile(fd, bridge, enabled, proto):
+    def writeBridgeConfigFile(fd, bridge, proto, enabled):
         assert enabled in ['yes', 'no']
         fd.write("DEVICE=%s\n" % bridge)
         fd.write("ONBOOT=%s\n" % enabled)
