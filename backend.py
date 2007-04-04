@@ -629,6 +629,8 @@ def enableAgent(mounts):
                   'chkconfig', '--add', 'xenservices' ])
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', '--add', 'xapi' ])
+    util.runCmd2(['chroot', mounts['root'],
+                  'chkconfig', '--add', 'xapissl' ])
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
