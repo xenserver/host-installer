@@ -107,9 +107,6 @@ def getPrepSequence(ans):
             if gd != ans['primary-disk']:
                 seq.append(Task(writeGuestDiskPartitions,
                                 (lambda mygd: (lambda _: [mygd]))(gd), []))
-        seq += [
-            Task(prepareStorageRepository, As(ans, 'primary-disk', 'guest-disks'), ['default-sr-uuid']),
-            ]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if ans['backup-existing-installation']:
@@ -150,11 +147,16 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'guest-disks', 'default-sr-uuid'), []),
+        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'guest-disks'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
+    # on fresh installs, prepare the storage repository as required:
+    if ans['install-type'] == INSTALL_TYPE_FRESH:
+         seq += [
+            Task(prepareStorageRepositories, As(ans, 'mounts', 'primary-disk', 'guest-disks'), []),
+            ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
     elif ans['time-config-method'] == 'manual':
@@ -417,21 +419,19 @@ def getSRPhysDevs(primary_disk, guest_disks):
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def prepareStorageRepository(primary_disk, guest_disks):
+def prepareStorageRepositories(mounts, primary_disk, guest_disks):
     if len(guest_disks) == 0:
-        xelogging.log("Not creating a default storage repository.")
+        xelogging.log("No storage repository requested.")
         return None
 
-    xelogging.log("Preparing default storage repository...")
-    sr_uuid = util.getUUID()
+    xelogging.log("Arranging for storage repositories to be created at first boot...")
 
     partitions = getSRPhysDevs(primary_disk, guest_disks)
 
-    xelogging.log("Creating storage repository on partitions %s" % partitions)
-    args = ['sm', 'create', '-f', '-vv', '-m', '/tmp', '-U', sr_uuid] + partitions
-    assert util.runCmd2(args) == 0
-    xelogging.log("Storage repository created with UUID %s" % sr_uuid)
-    return sr_uuid
+    fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
+    for p in partitions:
+        fd.write("xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s' >/dev/null\n" % (p, p))
+    fd.close()
 
 ###
 # Create dom0 disk file-systems:
@@ -779,7 +779,7 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(mounts, primary_disk, guest_disks, default_sr_uuid):
+def writeInventory(mounts, primary_disk, guest_disks):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     installID = util.getUUID()
     controlID = util.getUUID()
@@ -791,7 +791,6 @@ def writeInventory(mounts, primary_disk, guest_disks, default_sr_uuid):
     inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
-    inv.write("DEFAULT_SR='%s'\n" % default_sr_uuid)
     inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
     inv.write("BACKUP_PARTITION='%s'\n" % getBackupPartName(primary_disk))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
