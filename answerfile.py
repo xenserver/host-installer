@@ -50,6 +50,16 @@ def __parse_answerfile__(answerdoc):
 
     n = answerdoc.documentElement
 
+    # storage type (lvm or ext):
+    srtype_node = n.getAttribute("srtype")
+    if srtype_node in ['', 'ext']:
+        srtype = constants.SR_TYPE_EXT
+    elif srtype_node in ['lvm']:
+        srtype = constants.SR_TYPE_LVM
+    else:
+        raise RuntimeError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'"
+    results['sr-type'] = srtype
+
     # primary-disk:
     results['primary-disk'] = "/dev/%s" % getText(n.getElementsByTagName('primary-disk')[0].childNodes)
     pd_has_guest_storage = True and n.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]

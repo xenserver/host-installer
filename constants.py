@@ -23,6 +23,10 @@ EXIT_USER_CANCEL = 2
 INSTALL_TYPE_FRESH = 1
 INSTALL_TYPE_REINSTALL = 2
 
+# sr types:
+SR_TYPE_LVM = 1
+SR_TYPE_EXT = 2
+
 # minimum hardware specs:
 # memory checks should be done against MIN_SYSTEM_RAM_MB since libxc
 # reports the total system ram after the Xen heap.  The UI should

@@ -155,7 +155,7 @@ def getFinalisationSequence(ans):
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
          seq += [
-            Task(prepareStorageRepositories, As(ans, 'mounts', 'primary-disk', 'guest-disks'), []),
+            Task(prepareStorageRepositories, As(ans, 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -260,6 +260,9 @@ def performInstallation(answers, ui_package):
         # for status reporting when doing a re-install, so set it to empty rather than
         # trying to guess what the correct value should be.
         answers['guest-disks'] = []
+    else:
+        if not answers.has_key('sr-type'):
+            answers['sr-type'] = constants.SR_TYPE_EXT
 
     # perform installation:
     prep_seq = getPrepSequence(answers)
@@ -419,7 +422,7 @@ def getSRPhysDevs(primary_disk, guest_disks):
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def prepareStorageRepositories(mounts, primary_disk, guest_disks):
+def prepareStorageRepositories(mounts, primary_disk, guest_disks, sr_type):
     if len(guest_disks) == 0:
         xelogging.log("No storage repository requested.")
         return None
@@ -429,8 +432,15 @@ def prepareStorageRepositories(mounts, primary_disk, guest_disks):
     partitions = getSRPhysDevs(primary_disk, guest_disks)
 
     fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
-    for p in partitions:
-        fd.write("xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s' >/dev/null\n" % (p, p))
+    if sr_type == constants.SR_TYPE_EXT:
+        for p in partitions:
+            fd.write("xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s'\n" % (p, p))
+    elif sr_type == constants.SR_TYPE_LVM:
+        device_config_devs = " ".join(partitions)
+        fd.write("xe sr-create name-label='Auto-created spanning LVM SR on %s' physical-size=0 type=lvm content-type=user device-config-devs='%s'\n" % (device_config_devs, device_config_devs))
+    else:
+        raise RuntimeError, "Unknown value for sr-type."
+
     fd.close()
 
 ###
