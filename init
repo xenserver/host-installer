@@ -335,16 +335,9 @@ def main():
 
     # make /etc/network and /lib/firmware writeable,
     # setup LVM:
-    os.environ['LVM_SYSTEM_DIR'] = '/tmp/lvm'
     if isPrimaryProcess():
-        if not os.path.exists('/tmp/lvm'):
-            os.mkdir('/tmp/lvm')
-        if not os.path.ismount('/etc/network/'):
-            shutil.copytree('/etc/network', '/tmp/network')
-            util.bindMount('/tmp/network', '/etc/network')
-        if not os.path.ismount('/lib/firmware'):
+        if not os.path.isdir('/lib/firmware'):
             os.mkdir("/tmp/firmware")
-            util.bindMount("/tmp/firmware", "/lib/firmware")
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
