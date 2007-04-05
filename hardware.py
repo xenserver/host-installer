@@ -59,65 +59,20 @@ module_map = {
 
 
 ###
-# Module loading and order retrieval
+# Module loading
 
-__MODULE_ORDER_FILE__ = "/tmp/module-order"
+def module_present(module):
+    mtmp = module.replace('-', '_')
+    pm = open('/proc/modules', 'r')
+    loaded_modules = pm.readlines()
+    pm.close()
 
-class ModuleOrderUnknownException(Exception):
-    pass
-
-def getModuleOrder(kver = version.KERNEL_VERSION, base = "/"):
-    def allKoFiles(directory):
-        kofiles = []
-        items = os.listdir(directory)
-        for item in items:
-            if item.endswith(".ko"):
-                kofiles.append(item)
-            itemabs = os.path.join(directory, item)
-            if os.path.isdir(itemabs):
-                kofiles.extend(allKoFiles(itemabs))
-
-        return kofiles
-
-    try:
-        def findModuleName(original_name, all_modules):
-            module = original_name.replace("_", "-") # start with '-'
-            if module in all_modules:
-                return module
-            else:
-                module = module.replace("-", "_")
-                if module in all_modules:
-                    return module
-            return None # not found
-        
-        all_modules = allKoFiles(os.path.join(base, "lib/modules/%s" % kver))
-        all_modules = [x.replace(".ko", "") for x in all_modules]
-
-        mo = open(__MODULE_ORDER_FILE__, 'r')
-        lines = [x.strip() for x in mo]
-        mo.close()
-
-        lines.extend(['ohci-hcd', 'uhci-hcd', 'ehci-hcd', 'usbhid'])
-        modules = [findModuleName(m, all_modules) for m in lines]
-        modules = filter(lambda x: x != None, modules)
-        
-        return modules
-    except Exception, e:
-        raise ModuleOrderUnknownException, e
-
-def _addToModuleList(module, params):
-    """ Add a module to the module order file. """
-    modlist_file = open(__MODULE_ORDER_FILE__, 'a')
-    modlist_file.write("%s %s\n" % (module, params))
-    modlist_file.close()
+    return mtmp in [x.replace('-', '_') for x in loaded_modules]
 
 def modprobe(module, params = ""):
     xelogging.log("Loading module %s" % " ".join([module, params]))
     rc = util.runCmd("modprobe %s %s" % (module, params))
-
-    if rc == 0:
-        _addToModuleList(module, params)
-    else:
+    if rc != 0:
         xelogging.log("(Failed.)")
 
     return rc
@@ -134,23 +89,16 @@ def modprobe_file(module, params = "", name = None):
         raise RuntimeError, "Error interrogating module."
     [deps] = filter(lambda x: x.startswith("depends:"),
                     out.split("\n"))
-    module_order = getModuleOrder()
     deps = deps[9:].strip()
     deps = deps.split(',')
     for dep in deps:
-        if dep not in module_order:
+        if not module_present(dep):
             modprobe(dep)
-            module_order.append(dep)
     
     xelogging.log("Insertung module %s %s (%s)" %(module, params, name))
     rc = util.runCmd2([INSMOD, module, params])
 
-    if rc == 0:
-        if name != None:
-            _addToModuleList(name, params)
-        else:
-            _addToModuleList(module, params)
-    else:
+    if rc != 0:
         xelogging.log("(Failed.)")
 
     return rc
