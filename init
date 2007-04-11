@@ -336,8 +336,10 @@ def main():
     # make /etc/network and /lib/firmware writeable,
     # setup LVM:
     if isPrimaryProcess():
-        if not os.path.isdir('/lib/firmware'):
-            os.mkdir("/tmp/firmware")
+        util.assertDir('/lib/firmware')
+        util.assertDir('/var/lib')
+        util.assertDir('/var/run')
+        util.assertDir('/var/lock')
 
     # start the user interface:
     xelogging.log("Starting 'init' user interface")
