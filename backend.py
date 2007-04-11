@@ -694,6 +694,7 @@ def setRootPassword(mounts, root_password, pwdtype):
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, iface_config, hn_conf):
     check_link_down_hack = True
+    network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
 
     def writeETHConfigFile(fd, device, hwaddr = None):
         fd.write("DEVICE=%s\n" % device)
@@ -721,6 +722,12 @@ def configureNetworking(mounts, iface_config, hn_conf):
         fd.write("DELAY=0\n")
         fd.write("STP=off\n")
 
+    # remove any files that may be present in the filesystem already, 
+    # particularly those created by kudzu:
+    network_scripts = os.listdir(network_scripts_dir)
+    for s in filter(lambda x: x.startswith('ifcfg-eth'), network_scripts):
+        os.unlink(os.path.join(network_scripts_dir, s))
+
     # are we all DHCP - if so, make a manual configuration to reflect this:
     (alldhcp, mancfg) = iface_config
     if alldhcp:
@@ -733,7 +740,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
     for i in mancfg:
         b = i.replace("eth", "xenbr")
         iface = mancfg[i]
-        ifcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], i), "w")
+        ifcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % i), 'w')
         if not iface['enabled']:
             brenabled = "no"
             writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
@@ -747,7 +754,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
             ifcfd.write("check_link_down() { return 1 ; }\n")
         ifcfd.close()
 
-        brcfd = open("%s/etc/sysconfig/network-scripts/ifcfg-%s" % (mounts['root'], b), "w")
+        brcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % b), 'w')
         if iface['use-dhcp']:
             writeBridgeConfigFile(brcfd, b, "dhcp", brenabled)
         else:
@@ -761,7 +768,7 @@ def configureNetworking(mounts, iface_config, hn_conf):
         brcfd.close()
 
     # write the configuration file for the loopback interface
-    out = open("%s/etc/sysconfig/network-scripts/ifcfg-lo" % mounts['root'], "w")
+    out = open(os.path.join(network_scripts_dir, 'ifcfg-lo'), 'w')
     out.write("DEVICE=lo\n")
     out.write("IPADDR=127.0.0.1\n")
     out.write("NETMASK=255.0.0.0\n")
