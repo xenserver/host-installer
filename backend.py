@@ -115,6 +115,7 @@ def getPrepSequence(ans):
         seq.append(Task(prepareUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ], lambda upgrader, *a: upgrader.prepStateChanges))
 
     seq += [
+        Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
         ]
@@ -147,7 +148,7 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'mounts', 'primary-disk', 'guest-disks'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -155,7 +156,7 @@ def getFinalisationSequence(ans):
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
          seq += [
-            Task(prepareStorageRepositories, As(ans, 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
+            Task(prepareStorageRepositories, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -422,7 +423,7 @@ def getSRPhysDevs(primary_disk, guest_disks):
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def prepareStorageRepositories(mounts, primary_disk, guest_disks, sr_type):
+def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, sr_type):
     if len(guest_disks) == 0:
         xelogging.log("No storage repository requested.")
         return None
@@ -434,10 +435,10 @@ def prepareStorageRepositories(mounts, primary_disk, guest_disks, sr_type):
     fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
     if sr_type == constants.SR_TYPE_EXT:
         for p in partitions:
-            fd.write("xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s'\n" % (p, p))
+            fd.write("/opt/xensource/bin/xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s' host-uuid='%s'\n" % (p, p, install_uuid))
     elif sr_type == constants.SR_TYPE_LVM:
         device_config_devs = " ".join(partitions)
-        fd.write("xe sr-create name-label='Auto-created spanning LVM SR on %s' physical-size=0 type=lvm content-type=user device-config-devs='%s'\n" % (device_config_devs, device_config_devs))
+        fd.write("/opt/xensource/bin/xe sr-create name-label='Auto-created spanning LVM SR on %s' physical-size=0 type=lvm content-type=user device-config-devs='%s' host-uuid='%s'\n" % (device_config_devs, device_config_devs, install_uuid))
     else:
         raise RuntimeError, "Unknown value for sr-type."
 
@@ -796,9 +797,8 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(mounts, primary_disk, guest_disks):
+def writeInventory(installID, mounts, primary_disk, guest_disks):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
-    installID = util.getUUID()
     controlID = util.getUUID()
     default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
