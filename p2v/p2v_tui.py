@@ -6,10 +6,11 @@
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
-# XEN CLEAN INSTALLER
+# P2V TOOL
 # Text user interface functions
 #
-# written by Andrew Peace
+# written by Mark Nijmeijer
+# updated by Andrew Peace
 
 from snack import *
 from version import *
