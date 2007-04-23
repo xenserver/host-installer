@@ -65,13 +65,10 @@ def getPCIInfo(interface):
         return "<Information unknown.>"
 
 def __readOneLineFile__(filename):
-    try:
-        f = open(filename)
-        value = f.readline().strip('\n')
-        f.close()
-        return value
-    except Exception, e:
-        raise e
+    f = open(filename)
+    value = f.readline().strip('\n')
+    f.close()
+    return value
 
 def getHWAddr(iface):
     return __readOneLineFile__('/sys/class/net/%s/address' % iface)
