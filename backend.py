@@ -461,7 +461,7 @@ def __mkinitrd(mounts, kernel_version, link):
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
         output_file = '/boot/initrd-%s.img' % kernel_version
-        cmd = ['chroot', mounts['root'], 'mkinitrd', output_file, kernel_version]
+        cmd = ['chroot', mounts['root'], 'mkinitrd', '--with', 'ide-generic', output_file, kernel_version]
 
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
