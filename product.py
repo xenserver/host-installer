@@ -107,7 +107,7 @@ class Version(object):
     cmp_version_number = classmethod(cmp_version_number)
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
-XENSERVER_3_1_0 = Version(3,1,0)
+XENSERVER_3_2_0 = Version(3,2,0)
 
 class ExistingInstallation(object):
     def __init__(self, name, brand, version, build,
@@ -133,7 +133,7 @@ class ExistingInstallation(object):
     
     def readSettings(self):
         """ Read settings from the installation, retusn a results dictionary. """
-        if not self.version == XENSERVER_3_1_0:
+        if not self.version == XENSERVER_3_2_0:
             raise SettingsNotAvailable
         
         mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
@@ -146,7 +146,7 @@ class ExistingInstallation(object):
             results['primary-disk'] = self.primary_disk
 
             # timezone:
-            fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/clock'), 'r')
+            fd = open(os.path.join(mntpoint, 'etc/sysconfig/clock'), 'r')
             lines = fd.readlines()
             fd.close()
             tz = None
@@ -161,7 +161,7 @@ class ExistingInstallation(object):
             # it back into the new filesystem.  If one wasn't set then this
             # will be localhost.localdomain, in which case the old behaviour
             # will persist anyway:
-            fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/network'), 'r')
+            fd = open(os.path.join(mntpoint, 'etc/sysconfig/network'), 'r')
             lines = fd.readlines()
             fd.close()
             for line in lines:
@@ -175,7 +175,7 @@ class ExistingInstallation(object):
                 results['manual-nameservers'] = (False, None)
             else:
                 ns = []
-                fd = open(os.path.join(mntpoint, 'rws/etc/resolv.conf'), 'r')
+                fd = open(os.path.join(mntpoint, 'etc/resolv.conf'), 'r')
                 lines = fd.readlines()
                 fd.close()
                 for line in lines:
@@ -184,7 +184,7 @@ class ExistingInstallation(object):
                 results['manual-nameservers'] = (True, ns)
 
             # ntp servers:
-            fd = open(os.path.join(mntpoint, 'rws/etc/ntp.conf'), 'r')
+            fd = open(os.path.join(mntpoint, 'etc/ntp.conf'), 'r')
             lines = fd.readlines()
             fd.close()
             ntps = []
@@ -194,7 +194,7 @@ class ExistingInstallation(object):
             results['ntp-servers'] = ntps
 
             # keyboard:
-            fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/keyboard'), 'r')
+            fd = open(os.path.join(mntpoint, 'etc/sysconfig/keyboard'), 'r')
             lines = fd.readlines()
             fd.close()
             for line in lines:
@@ -204,56 +204,45 @@ class ExistingInstallation(object):
                 raise SettingsNotAvailable, "Error reading keymap data."
 
             # network:
-            network_files = os.listdir(os.path.join(mntpoint, 'rws/etc/sysconfig/network-scripts'))
+            # This is ugly.  If a static IP was used the configuration will be
+            # on the bridge, if DHCP was used hte bootproto value will be on
+            # the interface.  So, we check the bridge file for bootproto and
+            # then if necessary we check the interface for bootproto.
+            netscripts_dir = os.path.join(mntpoint, 'etc/sysconfig/network-scripts')
             network_files = filter(lambda x: x.startswith('ifcfg-eth'),
-                                   network_files)
+                                   os.listdir(netscripts_dir))
+            network_numbers = [ int(x[9:]) for x in network_files ]
 
             interfaces = {}
-            for nf in network_files:
-                fd = open(os.path.join(mntpoint, 'rws/etc/sysconfig/network-scripts', nf), 'r')
-                lines = fd.readlines()
-                fd.close()
-                devvice = bootproto = onboot = None
-                netmask = ipaddr = gw = None
-                for line in lines:
-                    if line.startswith('DEVICE='):
-                        device = line[7:].strip()
-                    elif line.startswith('BOOTPROTO='):
-                        bootproto = line[10:].strip()
-                    elif line.startswith('ONBOOT='):
-                        onboot = line[7:].strip()
-                    elif line.startswith('NETMASK='):
-                        netmask = line[8:].strip()
-                    elif line.startswith('IPADDR='):
-                        ipaddr = line[7:].strip()
-                    elif line.startswith('GATEWAY='):
-                        gw = line[8:].strip()
+            for number in network_numbers:
+                eth_file = os.path.join(netscripts_dir, "ifcfg-eth%d" % number)
+                bridge_file = os.path.join(netscripts_dir, "ifcfg-xenbr%d" % number)
+                files = [ eth_file, bridge_file ]
+
+                # we can only get this right if we have both the ethX and xenbrX
+                # file, so skip the interface if we are missing one:
+                if False in [ os.path.exists(x) for x in files ]:
+                    xelogging.log("Skipping interface %d" % number)
+                    continue
+
+                eth_config = readNetworkScriptFile(eth_file)
+                bridge_config = readNetworkScriptFile(bridge_file)
 
                 iface = {}
-                # now work out what the results version is:
-                # - check sanity:
-                if onboot not in ['yes', 'no']:
-                    xelogging.log("ONBOOT value not recognised - skipping interface file" % nf)
-                    continue
-                if bootproto not in ['dhcp', 'none']:
-                    xelogging.log("BOOTPROTO value not recognised - skipping interface file" % nf)
-                    continue
 
-                # enabled?
-                iface['enabled'] = onboot == 'yes'
-
-                if bootproto == 'dhcp':
-                    iface['use-dhcp'] = True
-                elif bootproto == 'none':
-                    iface['use-dhcp'] = False
-                    if None in [ipaddr, netmask, gw]:
-                        xelogging.log("Unable to parse interface definition for %s - skipping." % device)
-                        continue
-                    iface['ip'] = ipaddr
-                    iface['subnet-mask'] = netmask
-                    iface['gateway'] = gw
-
-                interfaces[device] = iface
+                if eth_config['ONBOOT'] == 'no':
+                    iface['enabled'] = False
+                else:
+                    iface['enabled'] = True
+                    
+                    if eth_config['BOOTPROTO'] == "dhcp":
+                        iface['use-dhcp'] = True
+                    else:
+                        iface['ip'] = bridge_config['IPADDR']
+                        iface['gateway'] = bridge_config['GATEWAY']
+                        iface['subnet-mask'] = bridge_config['NETMASK']
+                
+                interfaces['eth%d' % number] = iface
 
             # root password:
             rc, out = util.runCmdWithOutput(
@@ -347,23 +336,39 @@ def findXenSourceProducts():
     return installs
 
 def readInventoryFile(filename):
-    """Reads a xensource-inventory file.  Note that
-    'split' is not used to separate name=value as this
-    fails if the value has an = in it."""
+    return readKeyValueFile(filename, strip_quotes = True, assert_quotes = True)
+
+def readNetworkScriptFile(filename):
+    netkeys = [
+        'BOOTPROTO', 'ONBOOT', 'DEVICE', 'TYPE', 'HWADDR', 'BRIDGE', 'LINEDELAY',
+        'DELAY', 'STP', 'NETMASK', 'IPADDR', 'NETMASK', 'GATEWAY', 'PEERDNS',
+        'NETWORK', 'BROADCAST', 'NAME'
+        ]
+    return readKeyValueFile(filename, allowed_keys = netkeys, strip_quotes = True,
+                            assert_quotes = False)
+
+def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True, assert_quotes = True):
+    """ Reads a KEY=Value style file (e.g. xensource-inventory). Returns a 
+    dictionary of key/values in the file.  Not designed for use with large files
+    as the file is read entirely into memory."""
 
     f = open(filename, "r")
-    lines = [x.rstrip("\n") for x in f.readlines()]
+    lines = [x.strip("\n") for x in f.readlines()]
     f.close()
 
-    # Split "a=1" into ("a", "1"), and a=b=c into ("a", "b=c"):
+    # remove lines contain
+    if allowed_keys:
+        lines = filter(lambda x: True in [x.startswith(y) for y in allowed_keys],
+                       lines)
+    
     defs = [ (l[:l.find("=")], l[(l.find("=") + 1):]) for l in lines ]
 
-    rv = {}
-    for (name, value) in defs:
-        # if these fail, then our assumption about the format
-        # of the inventory file have changed:
-        assert value.startswith("'") and value.endswith("'")
-        value = value[1:len(value) - 1]
-        rv[name] = value
+    if strip_quotes:
+        def quotestrip(x):
+            if assert_quotes:
+                assert x.startswith("'") and x.endswith("'")
+            return x.strip("'")
+        defs = [ (a, quotestrip(b)) for (a,b) in defs ]
 
-    return rv
+    return dict(defs)
+
