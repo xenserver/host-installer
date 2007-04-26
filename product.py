@@ -51,6 +51,7 @@ class Version(object):
     from_string = classmethod(from_string)
 
     def __lt__(self, v):
+        if not type(v) == type(self): return False
         assert not self.ANY in [self.major, self.minor, self.release]
         return ( self.major < v.major or
                  (self.major == v.major and self.minor < v.minor) or
@@ -58,18 +59,22 @@ class Version(object):
                  (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_suffix(self.suffix,v.suffix) == -1) )
 
     def __eq__(self, v):
+        if not type(v) == type(self): return False
         return ( self.cmp_version_number(self.major, v.major) == 0 and
                  self.cmp_version_number(self.minor, v.minor) == 0 and
                  self.cmp_version_number(self.release, v.release) == 0  and
                  self.suffix == v.suffix )
 
     def __le__(self, v):
+        if not type(v) == type(self): return False
         return self < v or self == v
 
     def __ge__(self, v):
+        if not type(v) == type(self): return False
         return self > v or self == v
     
     def __gt__(self, v):
+        if not type(v) == type(self): return False
         assert not self.ANY in [self.major, self.minor, self.release]
         return ( self.major > v.major or
                  (self.major == v.major and self.minor > v.minor) or

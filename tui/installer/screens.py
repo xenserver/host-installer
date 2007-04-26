@@ -24,6 +24,8 @@ import repository
 import hardware
 import util
 import socket
+import version
+import product
 
 from snack import *
 
@@ -225,6 +227,63 @@ def confirm_erase_volume_groups(answers):
     elif button == 'back':
         return -1
 
+(
+    REPOCHK_NO_ACCESS,
+    REPOCHK_NO_REPO,
+    REPOCHK_NO_BASE_REPO,
+    REPOCHK_PRODUCT_VERSION_MISMATCH,
+    REPOCHK_NO_ERRORS
+) = range(5)
+
+def check_repo_def(definition, require_base_repo):
+    """ Check that the repository source defintiion gives access to suitable
+    repositories. """
+    try:
+        repos = repository.repositoriesFromDefinition(*definition)
+    except:
+        return REPOCHK_NO_ACCESS
+    else:
+        if len(repos) == 0:
+            return REPOCHK_NO_REPO
+        elif constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in repos] and require_base_repo:
+            return REPOCHK_NO_BASE_REPO
+        elif False in [ r.compatible_with(version.PRODUCT_BRAND, product.THIS_PRODUCT_VERSION) for r in repos ]:
+            return REPOCHK_PRODUCT_VERSION_MISMATCH
+
+    return REPOCHK_NO_ERRORS
+
+def interactive_check_repo_def(defintiion, require_base_repo):
+    """ Check repo defintiion and display an appropriate dialog based
+    on outcome.  Returns boolean indicating whether to continue with
+    the definition given or not. """
+
+    rc = check_repo_def(defintiion, require_base_repo)
+    if rc == REPOCHK_NO_ACCESS:
+        ButtonChoiceWindow(
+            tui.screen,
+            "Problem with location",
+            "Setup was unable to access the location you specified - please check and try again.",
+            ['Ok']
+            )
+    elif rc in [REPOCHK_NO_REPO, REPOCHK_NO_BASE_REPO]:
+        ButtonChoiceWindow(
+           tui.screen,
+           "Problem with location",
+           "A base installation repository was not found at that location.  Please check and try again.",
+           ['Ok']
+           )
+    elif rc == REPOCHK_PRODUCT_VERSION_MISMATCH:
+        cont = ButtonChoiceWindow(
+            tui.screen,
+            "Version Mismatch",
+            "The location you specified contains packages designed for a different version of %s.\n\nThis may result in failures during installation, or an incorrect installation of the product." % version.PRODUCT_BRAND,
+            ['Continue Anyway', 'Back']
+            )
+        return cont in ['yes', None]
+    else:
+        return True
+
+
 def select_installation_source(answers):
     ENTRY_LOCAL = 'Local media (CD-ROM)', 'local'
     ENTRY_URL = 'HTTP or FTP', 'url'
@@ -255,24 +314,7 @@ def select_installation_source(answers):
 
         # if local, check that the media is correct:
         if entry == 'local':
-            answers['source-address'] = ''
-            repos = repository.repositoriesFromDefinition('local', '')
-            l = len(repos)
-
-            # did we find a repository?
-            if l == 0:
-                tui.OKDialog(
-                    "Media not found",
-                    "Your installation media could not be found.  Please ensure it is inserted into the drive, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
-                    )
-                return 0
-
-            # was it xs:main?
-            if constants.MAIN_REPOSITORY_NAME not in [x.identifier() for x in repos]:
-                tui.OKDialog(
-                    "Wrong CD",
-                    "A XenSource CD was found, but it was not the main install CD.  Please ensure you have the correct CD inserted, and try again.  If you continue to have problems, please consult your user guide or Technical Support Representative."
-                    )
+            if not interactive_check_repo_def(('local', ''), True):
                 return 0
 
         return 1
@@ -344,37 +386,7 @@ def get_source_location(answers):
         answers['source-address'] = result[0]
 
         if button in ['ok', None]:
-            location = result[0]
-            # santiy check the location given
-            try:
-                repos = repository.repositoriesFromDefinition(
-                    answers['source-media'], location
-                    )
-            except:
-                ButtonChoiceWindow(
-                    tui.screen,
-                    "Problem with location",
-                    "Setup was unable to access the location you specified - please check and try again.",
-                    ['Ok']
-                    )
-            else:
-                if len(repos) == 0:
-                    ButtonChoiceWindow(
-                       tui.screen,
-                       "Problem with location",
-                       "No repository was found at that location - please check and try again.",
-                       ['Ok']
-                       )
-                elif constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in repos]:
-                    ButtonChoiceWindow(
-                       tui.screen,
-                       "No base repository found",
-                       "The specified location does not have a base repository available.",
-                       ['Ok']
-                       )
-                else:
-                    done = True
-
+            done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
         elif button == "back":
             done = True
             

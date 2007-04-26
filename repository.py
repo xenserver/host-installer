@@ -41,6 +41,8 @@ class Repository:
     def __init__(self, accessor, base = ""):
         self._accessor = accessor
         self._base = base
+        self._product_brand = None
+        self._product_version = None
 
         accessor.start()
 
@@ -71,6 +73,19 @@ class Repository:
         lines = repofile.readlines()
         self._identifier = lines[0].strip()
         self._name = lines[1].strip()
+        if len(lines) >= 4:
+            self._product_brand = lines[2]
+            try:
+                self._product_version = product.Version.from_string(lines[3])
+            except:
+                self._product_version = None
+        else:
+            self._product_brand = None
+            self._product_version = None
+
+    def compatible_with(self, brand, version):
+        return self._product_brand in [brand, None] and \
+               self._product_version in [version, None]
 
     def name(self):
         return self._name
