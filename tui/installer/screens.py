@@ -279,7 +279,7 @@ def interactive_check_repo_def(defintiion, require_base_repo):
             "The location you specified contains packages designed for a different version of %s.\n\nThis may result in failures during installation, or an incorrect installation of the product." % version.PRODUCT_BRAND,
             ['Continue Anyway', 'Back']
             )
-        return cont in ['yes', None]
+        return cont in ['continue anyway', None]
     else:
         return True
 
