@@ -13,6 +13,8 @@
 from snack import *
 from version import *
 import snackutil
+import pdb
+import xelogging
 
 screen = None
 
@@ -29,3 +31,43 @@ def end_ui():
 
 def OKDialog(title, text, hasCancel = False):
     return snackutil.OKDialog(screen, title, text, hasCancel)
+
+def error_dialog(exc, trace):
+    if screen:
+        exc_str = str(exc)
+
+        # If the error has a string representation, make the text
+        # more helpful by displaying it.
+        if exc_str == "":
+            text = "An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details."
+        else:
+            text = "An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % exc_str
+
+        bb = ButtonBar(screen, ['Reboot'])
+        t = TextboxReflowed(50, text, maxHeight = screen.height - 13)
+        screen.pushHelpLine("  Press <Enter> to reboot.")
+        g = GridFormHelp(screen, "Error occurred", None, 1, 2)
+        g.add(t, 0, 0, padding = (0, 0, 0, 1))
+        g.add(bb, 0, 1, growx = 1)
+        g.addHotKey("F2")
+        result = g.runOnce()
+        screen.popHelpLine()
+
+        # did they press the secret F2 key that activates debugging
+        # features?
+        if result == "F2":
+            traceback_dialog(trace)
+    else:
+        xelogging.log("A text UI error dialog was requested, but the UI has not been initialised yet.")
+
+def traceback_dialog(trace):
+    result = ButtonChoiceWindow(
+        screen, "Traceback",
+        "The traceback was as follows:\n\n" + trace,
+        ['Ok', 'Start PDB'], width=60
+        )
+    if result == "start pdb":
+        screen.suspend()
+        pdb.set_trace()
+        screen.resume()
+

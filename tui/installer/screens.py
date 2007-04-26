@@ -1023,14 +1023,6 @@ Please remove any local media from the drive, and press enter to reboot.""" % PR
                        ['Ok'])
 
     return 1
-                      
-def error_dialog(message):
-    if tui.screen:
-        ButtonChoiceWindow(tui.screen, "Error occurred",
-                           message,
-                           ['Reboot'], width=50)
-    else:
-        xelogging.log("Error dialog requested, but UI not initialised yet.")
 
 def request_media(medianame):
     button = ButtonChoiceWindow(tui.screen, "Media Not Found",
