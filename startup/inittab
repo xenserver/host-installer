@@ -16,8 +16,7 @@
 # Startup the system
 null::sysinit:/bin/mount -o remount,rw /
 null::sysinit:/bin/mount -t proc proc /proc
-null::sysinit:/bin/mount -a
-null::sysinit:/bin/hostname -F /etc/hostname
+null::sysinit:/bin/mount -t devpts none /dev/pts
 null::sysinit:/sbin/ifconfig lo 127.0.0.1 up
 null::sysinit:/sbin/route add -net 127.0.0.0 netmask 255.0.0.0 lo
 # now run any rc scripts
@@ -31,6 +30,7 @@ tty2::respawn:/sbin/getty -n -l /bin/sh 38400 tty2
 ttyS0::once:/sbin/getty -n -l /opt/xensource/installer/preinit -L ttyS0 115200 vt100
 
 # Logging junk
+null::sysinit:/bin/mkdir -p /var/log
 null::sysinit:/bin/touch /var/log/messages
 null::respawn:/sbin/syslogd -n -m 0
 null::respawn:/sbin/klogd -n
