@@ -27,27 +27,46 @@ class Version(object):
     ANY = -1
     INF = 999
     
-    def __init__(self, major, minor, release, suffix = ""):
+    def __init__(self, major, minor, release, build = ANY, suffix = "", buildsuffix = ""):
         assert type(major) is int
         assert type(minor) is int
         assert type(release) is int
         self.major = major
         self.minor = minor
         self.release = release
+        self.build = build
         self.suffix = suffix
+        self.buildsuffix = buildsuffix
 
     def from_string(cls, vstr):
-        """ Create a version object, given an input string.  vstr should be of the
-        form a.b.cs where a, b, c are numbers, and s is an alphanumeric, possibly
-        empty, string. """
-        version_substrings = vstr.split(".")
-        assert len(version_substrings) == 3
-        match = re.match("([0-9]+)(.*)", version_substrings[2])
-        return cls(int(version_substrings[0]),
-                   int(version_substrings[1]),
-                   int(match.group(1)),
-                   match.group(2))
-    
+        """ Create a Version object given an input string vstr.  vstr should be
+        of one of the following forms:
+
+            a.b.cs   a.b.cs-bt
+
+        for integers a, b, c, and b representing the major, minor, relase, and
+        build number elements of the version.  s and t are alphanumeric strings
+        that begin with an alphabetic character to distinguish them from c and
+        b respectively.  s and t should NOT contain the hyphen character. """
+
+        if vstr.find("-") != -1:
+            vs, bs = vstr.split("-")
+        else:
+            vs, bs = vstr, None
+            vbuild = cls.ANY
+            vbuildsuffix = ""
+
+        vmaj_s, vmin_s, vrelsuf_s = vs.split(".")
+        match = re.match("([0-9]+)(.*)", vrelsuf_s)
+        vrel_s, vsuf_s = match.group(1), match.group(2)
+
+        if bs:
+            match = re.match("([0-9]+)(.*)", bs)
+            vbuild = int(match.group(1))
+            vbuildsuffix = match.group(2)
+
+        return cls(int(vmaj_s), int(vmin_s), int(vrel_s), suffix = vsuf_s,
+                   build = vbuild, buildsuffix = vbuildsuffix)
     from_string = classmethod(from_string)
 
     def __lt__(self, v):
@@ -63,6 +82,7 @@ class Version(object):
         return ( self.cmp_version_number(self.major, v.major) == 0 and
                  self.cmp_version_number(self.minor, v.minor) == 0 and
                  self.cmp_version_number(self.release, v.release) == 0  and
+                 self.cmp_version_number(self.build, v.build) == 0 and
                  self.suffix == v.suffix )
 
     def __le__(self, v):
@@ -82,7 +102,10 @@ class Version(object):
                  (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_suffix(self.suffix, v.suffix) == 1) )
 
     def __str__(self):
-        return "%d.%d.%d%s" % (self.major, self.minor, self.release, self.suffix)
+        if self.build == self.ANY:
+            return "%d.%d.%d%s" % (self.major, self.minor, self.release, self.suffix)
+        else:
+            return "%d.%d.%d%s-%d%s" % (self.major, self.minor, self.release, self.suffix, self.build, self.buildsuffix)
 
     def cmp_suffix(cls, s1, s2):
         """ Compare suffixes.  Empty suffix is bigger than anything, else

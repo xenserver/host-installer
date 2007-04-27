@@ -10,18 +10,19 @@
 #
 # written by Andrew Peace
 
-import xelogging
-import diskutil
-import hardware
-import version
-import util
-
 import os
 import md5
 import tempfile
 import urllib2
 import ftplib
 import popen2
+
+import xelogging
+import diskutil
+import hardware
+import version
+import util
+import product
 
 class NoRepository(Exception):
     pass
@@ -70,9 +71,9 @@ class Repository:
 
     def _parse_repofile(self, repofile):
         """ Parse repository data -- get repository identifier and name. """
-        lines = repofile.readlines()
-        self._identifier = lines[0].strip()
-        self._name = lines[1].strip()
+        lines = [x.strip() for x in repofile.readlines()]
+        self._identifier = lines[0]
+        self._name = lines[1]
         if len(lines) >= 4:
             self._product_brand = lines[2]
             try:
