@@ -195,11 +195,6 @@ def main():
         xelogging.collectLogs("/tmp")
 
         # now display a friendly error dialog:
-        def showerror(txt):
-            if ui:
-                ui.error_dialog(e, txt)
-            else:
-                xelogging.log(txt)
         if ui:
             ui.error_dialog(e, err)
         else:
