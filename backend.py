@@ -480,7 +480,6 @@ def installGrub(mounts, disk):
     # prepare extra mounts for installing GRUB:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
-    util.bindMount("/tmp", "%s/tmp" % mounts['root'])
 
     # this is a nasty hack but unavoidable (I think): grub-install
     # uses df to work out what the root device is, but df's output is
@@ -583,7 +582,6 @@ def installGrub(mounts, disk):
     if os.path.exists("%s/proc/mounts" % mounts['root']):
         os.unlink("%s/proc/mounts" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
-    util.umount("%s/tmp" % mounts['root'])
 
 ##########
 # mounting and unmounting of various volumes
