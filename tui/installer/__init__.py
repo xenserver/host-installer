@@ -19,7 +19,11 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
                answers.has_key('installation-to-overwrite') and \
                answers['installation-to-overwrite'].settingsAvailable()
 
-    def clean_install_predicate(answers):
+    is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
+    is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
+    is_using_remote_media_fn = lambda a: a['source-media'] in ['url', 'nfs']
+
+    def not_preserve_settings(answers):
         return not answers.has_key('preserve-settings') or \
                not answers['preserve-settings']
 
@@ -27,43 +31,50 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local'
 
+    if len(installed_products) == 0:
+        results['install-type'] = constants.INSTALL_TYPE_FRESH
+        results['preserve-settings'] = False
+
     seq = [
         Step(uis.welcome_screen),
         Step(uis.eula_screen),
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],
              predicates=[lambda _:(ram_warning or vt_warning)]),
-        Step(uis.get_installation_type, args=[installed_products]),
+        Step(uis.get_installation_type, args=[installed_products],
+             predicates=[lambda _:len(installed_products) > 0]),
         Step(uis.ask_preserve_settings,
              predicates=[ask_preserve_settings_predicate]),
-        Step(uis.backup_existing_installation),
+        Step(uis.backup_existing_installation,
+             predicates=[is_reinstall_fn]),
         Step(uis.select_primary_disk,
-             predicates=[clean_install_predicate]),
+             predicates=[is_clean_install_fn]),
         Step(uis.select_guest_disks,
-             predicates=[clean_install_predicate]),
+             predicates=[is_clean_install_fn]),
         Step(uis.confirm_erase_volume_groups,
-             predicates=[clean_install_predicate]),
+             predicates=[is_clean_install_fn]),
         Step(uis.select_installation_source),
-        Step(uis.use_extra_media,
-             args=[vt_warning],
+        Step(uis.use_extra_media, args=[vt_warning],
              predicates=[local_media_predicate]),
-        Step(uis.setup_runtime_networking),
-        Step(uis.get_source_location),
+        Step(uis.setup_runtime_networking, 
+             predicates=[is_using_remote_media_fn]),
+        Step(uis.get_source_location,
+             predicates=[is_using_remote_media_fn]),
         Step(uis.verify_source),
         Step(uis.get_root_password,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.get_timezone_region,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.get_timezone_city,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.get_time_configuration_method,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.get_ntp_servers,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.determine_basic_network_config,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.get_name_service_configuration,
-             predicates=[clean_install_predicate]),
+             predicates=[not_preserve_settings]),
         Step(uis.confirm_installation),
         ]
     return uicontroller.runSequence(seq, results)

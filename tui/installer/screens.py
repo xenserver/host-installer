@@ -82,11 +82,6 @@ def hardware_warnings(answers, ram_warning, vt_warning):
         return 1
 
 def get_installation_type(answers, insts):
-    if len(insts) == 0:
-        answers['install-type'] = constants.INSTALL_TYPE_FRESH
-        answers['preserve-settings'] = False
-        return uicontroller.SKIP_SCREEN
-
     entries = [ ("Perform clean installation", None) ]
     for x in insts:
         if x.settingsAvailable():
@@ -148,9 +143,6 @@ WARNING: Only settings initially configured using the installer will be preserve
         return -1
 
 def backup_existing_installation(answers):
-    if answers['install-type'] != constants.INSTALL_TYPE_REINSTALL:
-        return uicontroller.SKIP_SCREEN
-
     # default selection:
     if answers.has_key('backup-existing-installation'):
         if answers['backup-existing-installation']:
@@ -202,10 +194,6 @@ def eula_screen(answers):
                 ['Ok'])
 
 def confirm_erase_volume_groups(answers):
-    # if install type is re-install, skip this screen:
-    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        return uicontroller.SKIP_SCREEN
-
     problems = diskutil.findProblematicVGs(answers['guest-disks'])
     if len(problems) == 0:
         return uicontroller.SKIP_SCREEN
@@ -354,15 +342,9 @@ def use_extra_media(answers, vt_warning):
         return -1
 
 def setup_runtime_networking(answers):
-    if answers['source-media'] not in ['url', 'nfs']:
-        return uicontroller.SKIP_SCREEN
-
     return tui.network.requireNetworking(answers)
 
 def get_source_location(answers):
-    if answers['source-media'] not in ['url', 'nfs']:
-        return uicontroller.SKIP_SCREEN
-
     if answers['source-media'] == 'url':
         text = "Please enter the URL for your HTTP or FTP repository"
         label = "URL:"
@@ -380,7 +362,7 @@ def get_source_location(answers):
             tui.screen,
             "Specify Repository",
             text,
-            [(label, default)], entryWidth = 50,
+            [(label, default)], entryWidth = 50, width = 50,
             buttons = ['Ok', 'Back'])
             
         answers['source-address'] = result[0]
@@ -478,10 +460,6 @@ def interactive_source_verification(media, address):
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
-    # if re-install, skip this screen:
-    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        return uicontroller.SKIP_SCREEN
-
     diskEntries = diskutil.getQualifiedDiskList()
 
     entries = []
@@ -523,10 +501,6 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
     if button == "back": return -1
 
 def select_guest_disks(answers):
-    # if re-install, skip this screen:
-    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        return uicontroller.SKIP_SCREEN
-
     # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
     if len(diskEntries) == 1:
