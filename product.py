@@ -138,18 +138,15 @@ THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 XENSERVER_3_2_0 = Version(3,2,0)
 
 class ExistingInstallation(object):
-    def __init__(self, name, brand, version, build,
-                 primary_disk):
-        assert type(build) is int
+    def __init__(self, name, brand, version, primary_disk):
         self.name = name
         self.brand = brand
         self.version = version
-        self.build = build
         self.primary_disk = primary_disk
 
     def __str__(self):
-        return "%s v%s (%d) on %s" % (
-            self.brand, str(self.version), self.build, self.primary_disk)
+        return "%s v%s on %s" % (
+            self.brand, str(self.version), self.primary_disk)
 
     def settingsAvailable(self):
         try:
@@ -348,16 +345,14 @@ def findXenSourceProducts():
         try:
             if os.path.exists(inventory_file):
                 inv = readInventoryFile(inventory_file)
-
-                # parse the version string:
-                installs.append(
-                    ExistingInstallation(
+                inst = ExistingInstallation(
                     inv['PRODUCT_NAME'],
                     inv['PRODUCT_BRAND'],
-                    Version.from_string(inv['PRODUCT_VERSION']),
-                    int(inv['BUILD_NUMBER']),
-                    diskutil.diskFromPartition(p) )
+                    Version.from_string("%s-%s" % (inv['PRODUCT_VERSION'], inv['BUILD_NUMBER'])),
+                    diskutil.diskFromPartition(p) 
                     )
+                xelogging.log("Found an installation: %s" % str(inst))
+                installs.append(inst)
         finally:
             util.umount(mountpoint)
 
