@@ -302,6 +302,7 @@ def select_installation_source(answers):
 
         # if local, check that the media is correct:
         if entry == 'local':
+            answers['source-address'] = ""
             if not interactive_check_repo_def(('local', ''), True):
                 return 0
 
