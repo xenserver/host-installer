@@ -201,7 +201,7 @@ def main():
             txt = "An error has occurred and the installation must be aborted.  Please refer to your user guide, or contact a Technical Support Representative, for further details."
             if str != "":
                 txt += "\n\nThe error was: %s" % str(e)
-            xelogging.log("txt")
+            xelogging.log(txt)
 
         # clean up the screen
         if ui:
