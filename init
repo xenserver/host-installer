@@ -255,7 +255,11 @@ def isPrimaryProcess():
 
 def main():
     global active_output
-    
+
+    # switch to ISO 8859-1 mode so line drawing characters work as expected on 
+    # vt100 terminals.
+    print "\033%@"
+
     # clog fds: add tty3
     clog_fds = []
     try:
