@@ -21,6 +21,7 @@ import re
 import datetime
 import random
 import string
+import tempfile
 
 random.seed()
 
@@ -118,6 +119,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
     cmd.append(dev)
     cmd.append(mountpoint)
 
+    xelogging.log("Mount command is %s" % str(cmd))
     rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
                           stderr = subprocess.PIPE).wait()
     if rc != 0:
@@ -158,8 +160,8 @@ class InvalidSource(Exception):
 #  file://blah
 #  nfs://server:/path/blah
 def fetchFile(source, dest):
-    unmount = []
-    
+    cleanup_dirs = []
+
     try:
         # if it's NFS, then mount the NFS server then treat like
         # file://:
@@ -173,13 +175,13 @@ def fetchFile(source, dest):
             if dirpart[0] != '/':
                 raise InvalidSource("Directory part of NFS path was not an absolute path.")
             filepart = os.path.basename(path)
+            xelogging.log("Split nfs path into server: %s, directory: %s, file: %s." % (server, dirpart, filepart))
 
-            # make sure the mountpoint exists
-            if not os.path.exists("/tmp/nfsmount"):
-                os.mkdir("/tmp/nfsmount")
-
-            mount('%s:%s' % (server, dirpart), "/tmp/nfsmount")
-            source = 'file:///tmp/nfsmount/%s' % filepart
+            # make a mountpoint:
+            mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'fetchfile-nfs-')
+            mount('%s:%s' % (server, dirpart), mntpoint, fstype = "nfs", options = ['ro'])
+            cleanup_dirs.append(mntpoint)
+            source = 'file://%s/%s' % (mntpoint, filepart)
 
         if source[:5] == 'http:' or \
                source[:5] == 'file:' or \
@@ -194,9 +196,9 @@ def fetchFile(source, dest):
             raise InvalidSource("Unknown source type.")
 
     finally:
-        # make sure we unmount anything we mounted:
-        for m in unmount:
-            umount(m)
+        for d in cleanup_dirs:
+            umount(d)
+            os.rmdir(d)
 
 def getUUID():
     rc, out = runCmdWithOutput('uuidgen')
