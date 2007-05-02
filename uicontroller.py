@@ -17,7 +17,7 @@ EXIT = -101
 LEFT_BACKWARDS = -1
 
 class Step:
-    def __init__(self, fn, args = [], predicates = [lambda x: True]):
+    def __init__(self, fn, args = [], predicates = []):
         self.fn = fn
         self.args = args
         self.predicates = predicates
