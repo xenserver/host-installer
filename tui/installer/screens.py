@@ -26,6 +26,7 @@ import util
 import socket
 import version
 import product
+import netutil
 
 from snack import *
 
@@ -80,6 +81,21 @@ def hardware_warnings(answers, ram_warning, vt_warning):
         return -1
     else:
         return 1
+
+def get_admin_interface(answers):
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?")
+    if direction == 1:
+        answers['net-admin-interface'] = iface
+    return direction
+
+def get_admin_interface_configuration(answers):
+    assert answers.has_key('net-admin-interface')
+    rc, conf = tui.network.get_iface_configuration(
+        answers['net-admin-interface'], txt = "Please specify how networking should be configured for the management interface on this host."
+        )
+    if rc == 1:
+        answers['net-admin-configuration'] = conf
+    return rc
 
 def get_installation_type(answers, insts):
     entries = [ ("Perform clean installation", None) ]
@@ -761,18 +777,6 @@ def get_name_service_configuration(answers):
         return 1
     else:
         return -1
-
-def determine_basic_network_config(answers):
-    # XXX nasty way of telling if we already asked:
-    reuse_available = answers.has_key('source-media') and answers['source-media'] in ['url', 'nfs']
-    direction, config = tui.network.get_network_config(reuse_available)
-    if direction == 1:
-        if config == None:
-            (dhcp, manual) = answers['runtime-iface-configuration']
-            answers['iface-configuration'] = (dhcp, manual.copy())
-        else:
-            answers['iface-configuration'] = config
-    return direction
 
 def get_timezone_region(answers):
     entries = generalui.getTimeZoneRegions()

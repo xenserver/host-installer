@@ -19,6 +19,11 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
                answers.has_key('installation-to-overwrite') and \
                answers['installation-to-overwrite'].settingsAvailable()
 
+    netifs = netutil.getNetifList()
+    has_multiple_nics = lambda _: len(netifs) > 1
+    if len(netifs) == 1:
+        results['net-admin-interface'] = netifs[0]
+
     is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
     is_using_remote_media_fn = lambda a: a['source-media'] in ['url', 'nfs']
@@ -71,7 +76,9 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
              predicates=[not_preserve_settings]),
         Step(uis.get_ntp_servers,
              predicates=[not_preserve_settings]),
-        Step(uis.determine_basic_network_config,
+        Step(uis.get_admin_interface,
+             predicates=[not_preserve_settings, has_multiple_nics]),
+        Step(uis.get_admin_interface_configuration,
              predicates=[not_preserve_settings]),
         Step(uis.get_name_service_configuration,
              predicates=[not_preserve_settings]),

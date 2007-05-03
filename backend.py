@@ -143,12 +143,12 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'iface-configuration', 'manual-hostname'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-interface'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -697,35 +697,8 @@ def setRootPassword(mounts, root_password, pwdtype):
     assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, iface_config, hn_conf):
-    check_link_down_hack = True
+def configureNetworking(mounts, admin_iface, admin_config, hn_conf):
     network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
-
-    def writeETHConfigFile(fd, device, hwaddr = None):
-        fd.write("DEVICE=%s\n" % device)
-        fd.write("ONBOOT=yes\n")
-        fd.write("TYPE=Ethernet\n")
-        if hwaddr:
-            fd.write("HWADDR=%s\n" % hwaddr)
-
-    def writeDisabledConfigFile(fd, device, hwaddr = None):
-        fd.write("DEVICE=%s\n" % device)
-        fd.write("ONBOOT=no\n")
-        fd.write("TYPE=Ethernet\n")
-        if hwaddr:
-            fd.write("HWADDR=%s\n" % hwaddr)
-
-    def writeConfigFileBridgeDetails(fd, bridge):
-        fd.write("BRIDGE=%s\n" % bridge)
-
-    def writeBridgeConfigFile(fd, bridge, proto, enabled):
-        assert enabled in ['yes', 'no']
-        fd.write("DEVICE=%s\n" % bridge)
-        fd.write("ONBOOT=%s\n" % enabled)
-        fd.write("BOOTPROTO=%s\n" % proto)
-        fd.write("TYPE=Bridge\n")
-        fd.write("DELAY=0\n")
-        fd.write("STP=off\n")
 
     # remove any files that may be present in the filesystem already, 
     # particularly those created by kudzu:
@@ -733,43 +706,40 @@ def configureNetworking(mounts, iface_config, hn_conf):
     for s in filter(lambda x: x.startswith('ifcfg-eth'), network_scripts):
         os.unlink(os.path.join(network_scripts_dir, s))
 
-    # are we all DHCP - if so, make a manual configuration to reflect this:
-    (alldhcp, mancfg) = iface_config
-    if alldhcp:
-        ifaces = netutil.getNetifList()
-        mancfg = {}
-        for i in ifaces:
-            mancfg[i] = {'enabled': True, 'use-dhcp': True}
-
     # iterate over the interfaces to write the config files:
-    for i in mancfg:
+    netifs = netutil.getNetifList()
+    for i in netifs:
         b = i.replace("eth", "xenbr")
-        iface = mancfg[i]
         ifcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % i), 'w')
-        if not iface['enabled']:
-            brenabled = "no"
-            writeDisabledConfigFile(ifcfd, i, netutil.getHWAddr(i))
-            writeConfigFileBridgeDetails(ifcfd, i.replace("eth", "xenbr"))
-        else:
-            brenabled = "yes"
-            writeETHConfigFile(ifcfd, i, netutil.getHWAddr(i))
-            writeConfigFileBridgeDetails(ifcfd, b)
-
-        if check_link_down_hack:
-            ifcfd.write("check_link_down() { return 1 ; }\n")
+        ifcfd.write("DEVICE=%s\n" % i)
+        ifcfd.write("ONBOOT=yes\n")
+        ifcfd.write("TYPE=Ethernet\n")
+        hwaddr = netutil.getHWAddr(i)
+        if hwaddr:
+            ifcfd.write("HWADDR=%s\n" % hwaddr)
+        ifcfd.write("BRIDGE=%s\n" % b)
+        ifcfd.write("check_link_down() { return 1 ; }\n")
         ifcfd.close()
 
         brcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % b), 'w')
-        if iface['use-dhcp']:
-            writeBridgeConfigFile(brcfd, b, "dhcp", brenabled)
-        else:
-            writeBridgeConfigFile(brcfd, b, "none", brenabled)
-            brcfd.write("NETMASK=%s\n" % iface['subnet-mask'])
-            brcfd.write("IPADDR=%s\n" % iface['ip'])
-            brcfd.write("GATEWAY=%s\n" % iface['gateway'])
-            brcfd.write("PEERDNS=yes\n")
-        if check_link_down_hack:
-            brcfd.write("check_link_down() { return 1 ; }\n")
+        
+        brcfd.write("DEVICE=%s\n" % b)
+        brcfd.write("ONBOOT=yes\n")
+        brcfd.write("TYPE=Bridge\n")
+        brcfd.write("DELAY=0\n")
+        brcfd.write("STP=off\n")
+        
+        if i == admin_iface:
+            if admin_config['use-dhcp']:
+                brcfd.write("BOOTPROTO=dhcp\n")
+            else:
+                brcfd.write("BOOTPROTO=none\n") 
+                brcfd.write("NETMASK=%s\n" % admin_config['subnet-mask'])
+                brcfd.write("IPADDR=%s\n" % admin_config['ip'])
+                brcfd.write("GATEWAY=%s\n" % admin_config['gateway'])
+                brcfd.write("PEERDNS=yes\n")
+
+        brcfd.write("check_link_down() { return 1 ; }\n")
         brcfd.close()
 
     # write the configuration file for the loopback interface
@@ -801,7 +771,7 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(installID, mounts, primary_disk, guest_disks):
+def writeInventory(installID, mounts, primary_disk, guest_disks, admin_iface):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     controlID = util.getUUID()
     default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
@@ -817,6 +787,10 @@ def writeInventory(installID, mounts, primary_disk, guest_disks):
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
+    
+    assert admin_iface.startswith("eth")
+    admin_bridge = "xenbr%s" % admin_iface[3:]
+    inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):

@@ -119,29 +119,20 @@ def __parse_answerfile__(answerdoc):
     results['time-config-method'] = 'ntp'
 
     # iface-configuration
-    netifs = { }
-    for netifnode in n.getElementsByTagName('interface'):
-        name = netifnode.getAttribute('name')
-        proto = netifnode.getAttribute('proto')
-        enabled = netifnode.getAttribute('enabled')
-
-        netif = { }
-        if proto == 'static':
-            ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
-            subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
-            gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
-
-            netif = { 'use-dhcp' : False ,
-                      'enabled' : (enabled == 'yes'),
-                      'ip' : ip,
-                      'subnet-mask' : subnetmask,
-                      'gateway' : gateway }
-
-        elif proto == 'dhcp':
-            netif = { 'use-dhcp' : True,
-                      'enabled' : (enabled == 'yes') }
-
-        netifs[name] = netif
+    netifnode = n.getElementsByTagName('admin-interface')[0]
+    results['net-admin-interface'] = netifnode.getAttribute('name')
+    proto = netifnode.getAttribute('proto')
+    if proto == 'static':
+        ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
+        subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
+        gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
+        results['net-admin-configuration'] = { 'use-dhcp' : False ,
+                    'enabled' : True,
+                    'ip' : ip,
+                    'subnet-mask' : subnetmask,
+                    'gateway' : gateway }
+    elif proto == 'dhcp':
+        results['net-admin-configuration'] = { 'use-dhcp' : True, 'enabled' : True }
 
     # keymap:
     keymap_nodes = n.getElementsByTagName('keymap')
@@ -155,8 +146,6 @@ def __parse_answerfile__(answerdoc):
     pis_nodes = n.getElementsByTagName('post-install-script')
     if len(pis_nodes) == 1:
         results['post-install-script'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
-    
-    results['iface-configuration'] = (False, netifs)
 
     # currently no supprt for re-installation:
     results['install-type'] = constants.INSTALL_TYPE_FRESH

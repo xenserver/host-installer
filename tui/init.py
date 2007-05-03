@@ -211,11 +211,6 @@ def ask_host_password_screen(answers):
     else:
         return 1
 
-def get_network_config(show_reuse_existing = False,
-                       runtime_config = False):
-    return tui.network.get_network_config(
-        tui.screen, show_reuse_existing, runtime_config)
-
 def select_backup(backups):
     entries = []
     for b in backups:

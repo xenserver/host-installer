@@ -21,59 +21,6 @@ import netutil
 
 from util import runCmdWithOutput
 
-def requireNetworking(answers, ui):
-    """ Display the correct sequence of screens to get networking
-    configuration.  Bring up the network according to this configuration.
-    If answers is a dictionary, set it's 'runtime-iface-configuration' key
-    to the configuration in the style (all-dhcp, manual-config). 
-    
-    This function is deprecated in favour of tui.network.requireNetworking, 
-    but remains here for the P2V tool to use."""
-    
-    direction, config = ui.get_network_config(False, True)
-    if direction != 1:
-        return direction
-    else:
-        # configure and check the network before proceeding
-        # - canonicalise the config given to us.  This is
-        #   to be tidied up later.
-        dhcp, manual = config
-        if dhcp:
-            config = {}
-            for i in netutil.getNetifList():
-                config[i] = { 'use-dhcp': True,
-                              'enabled' : True, }
-        else:
-            config = manual
-        netutil.writeDebStyleInterfaceFile(config, '/etc/network/interfaces')
-
-        pd = ui.initProgressDialog(
-            "Configuring Networking",
-            "Configuring network interfaces, please wait...",
-            len(config.keys())
-            )
-
-        count = 0
-        for i in config:
-            ui.displayProgressDialog(count, pd, "Configuring interface %s" % i)
-            netutil.ifup(i)
-            count += 1
-
-        ui.displayProgressDialog(count, pd, "Verifying configuration...")
-
-        # check that we have *some* network:
-        anyup = True in [ netutil.interfaceUp(i) for i in config.keys() ]
-        if not anyup:
-            # no interfaces were up: error out, then go to start:
-            ui.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
-            direction = 0
-        else:
-            if answers and type(answers) == dict:
-                answers['runtime-iface-configuration'] = (False, config)
-        ui.clearModelessDialog()
-        
-        return direction
-
 def getTimeZoneRegions():
     tzf = open(constants.timezone_data_file)
     lines = tzf.readlines()
