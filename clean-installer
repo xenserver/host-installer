@@ -173,7 +173,7 @@ def main():
             xelogging.log("Starting actual installation")       
             backend.performInstallation(results, ui)
 
-            if ui:
+            if ui and not answerfile_address:
                 ui.installer.screens.installation_complete()
             
             xelogging.log("The installation completed successfully.")
