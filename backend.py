@@ -168,8 +168,11 @@ def getFinalisationSequence(ans):
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
-    seq.append( Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']) )
-    seq.append( Task(writeLog, A(ans, 'primary-disk'), []) )
+    seq += [
+        Task(writei18n, A(ans, 'mounts'), []),
+        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
+        Task(writeLog, A(ans, 'primary-disk'), [])
+        ]
 
     return seq
 
@@ -872,6 +875,13 @@ def writeLog(primary_disk):
             pass
     except:
         pass
+
+def writei18n(mounts):
+    path = os.path.join(mounts['root'], 'etc', 'sysconfig', 'i18n')
+    fd = open(path, 'w')
+    fd.write('LANG="en_US.UTF-8\n')
+    fd.write('SYSFONT="drdos8x8"\n')
+    fd.close()
 
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
