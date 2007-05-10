@@ -42,9 +42,9 @@ def get_iface_configuration(iface, txt = None, show_identify = True):
                            "Identify Interface",
                            """Name: %s
 
-MAC Address; %s
+MAC Address: %s
 
-PCI details; %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)),
+PCI details: %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)),
                            ['Ok'], width=60)
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field ]:
