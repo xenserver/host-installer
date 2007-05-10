@@ -879,7 +879,7 @@ def writeLog(primary_disk):
 def writei18n(mounts):
     path = os.path.join(mounts['root'], 'etc', 'sysconfig', 'i18n')
     fd = open(path, 'w')
-    fd.write('LANG="en_US.UTF-8\n')
+    fd.write('LANG="en_US.UTF-8"\n')
     fd.write('SYSFONT="drdos8x8"\n')
     fd.close()
 
