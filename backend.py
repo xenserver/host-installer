@@ -459,25 +459,26 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
 def createDom0DiskFilesystems(disk):
     assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
 
-def __mkinitrd(mounts, kernel_version, link):
+def __mkinitrd(mounts, kernel_version):
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
-        output_file = '/boot/initrd-%s.img' % kernel_version
+        output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
         cmd = ['chroot', mounts['root'], 'mkinitrd', '--with', 'ide-generic', output_file, kernel_version]
 
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
-
-        if link:
-            util.runCmd("ln -sf %s %s/boot/initrd-2.6-xen.img" % (output_file, mounts['root']))
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
 
 def mkinitrd(mounts):
-    __mkinitrd(mounts, version.KERNEL_VERSION, True)
-    __mkinitrd(mounts, version.KDUMP_VERSION, False)
+    __mkinitrd(mounts, version.KERNEL_VERSION)
+    __mkinitrd(mounts, version.KDUMP_VERSION)
+
+    # make the initrd-2.6-xen.img symlink:
+    initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
+    util.runCmd2(["ln", "-sf", initrd_name, "%s/boot/initrd-2.6-xen.img" % mounts['root']])
 
 def installGrub(mounts, disk):
     # prepare extra mounts for installing GRUB:
