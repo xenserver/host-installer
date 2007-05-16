@@ -228,47 +228,6 @@ class ExistingInstallation(object):
             if not results.has_key('keymap'):
                 raise SettingsNotAvailable, "Error reading keymap data."
 
-            # network:
-            # This is ugly.  If a static IP was used the configuration will be
-            # on the bridge, if DHCP was used hte bootproto value will be on
-            # the interface.  So, we check the bridge file for bootproto and
-            # then if necessary we check the interface for bootproto.
-            netscripts_dir = os.path.join(mntpoint, 'etc/sysconfig/network-scripts')
-            network_files = filter(lambda x: x.startswith('ifcfg-eth'),
-                                   os.listdir(netscripts_dir))
-            network_numbers = [ int(x[9:]) for x in network_files ]
-
-            interfaces = {}
-            for number in network_numbers:
-                eth_file = os.path.join(netscripts_dir, "ifcfg-eth%d" % number)
-                bridge_file = os.path.join(netscripts_dir, "ifcfg-xenbr%d" % number)
-                files = [ eth_file, bridge_file ]
-
-                # we can only get this right if we have both the ethX and xenbrX
-                # file, so skip the interface if we are missing one:
-                if False in [ os.path.exists(x) for x in files ]:
-                    xelogging.log("Skipping interface %d" % number)
-                    continue
-
-                eth_config = readNetworkScriptFile(eth_file)
-                bridge_config = readNetworkScriptFile(bridge_file)
-
-                iface = {}
-
-                if eth_config['ONBOOT'] == 'no':
-                    iface['enabled'] = False
-                else:
-                    iface['enabled'] = True
-                    
-                    if eth_config['BOOTPROTO'] == "dhcp":
-                        iface['use-dhcp'] = True
-                    else:
-                        iface['ip'] = bridge_config['IPADDR']
-                        iface['gateway'] = bridge_config['GATEWAY']
-                        iface['subnet-mask'] = bridge_config['NETMASK']
-                
-                interfaces['eth%d' % number] = iface
-
             # root password:
             rc, out = util.runCmdWithOutput(
                 'chroot %s python -c \'import pwd; print pwd.getpwnam("root")[1]\'' % mntpoint
@@ -279,8 +238,6 @@ class ExistingInstallation(object):
             else:
                 results['root-password-type'] = 'pwdhash'
                 results['root-password'] = out.strip()
-
-            results['iface-configuration'] = (False, interfaces)
 
             # don't care about this too much.
             results['time-config-method'] = 'ntp'
