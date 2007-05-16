@@ -436,6 +436,8 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
     partitions = getSRPhysDevs(primary_disk, guest_disks)
 
     fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
+    for p in partitions:
+        fd.write("/opt/xensource/bin/diskprep -f %s\n" % p)
     if sr_type == constants.SR_TYPE_EXT:
         for p in partitions:
             fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s' host-uuid='%s')\n" % (p, p, install_uuid))
