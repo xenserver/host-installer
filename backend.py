@@ -266,7 +266,7 @@ def performInstallation(answers, ui_package):
         answers['guest-disks'] = []
     else:
         if not answers.has_key('sr-type'):
-            answers['sr-type'] = constants.SR_TYPE_EXT
+            answers['sr-type'] = constants.SR_TYPE_LVM
 
     # perform installation:
     prep_seq = getPrepSequence(answers)
