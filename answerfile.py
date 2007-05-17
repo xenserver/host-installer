@@ -52,10 +52,10 @@ def __parse_answerfile__(answerdoc):
 
     # storage type (lvm or ext):
     srtype_node = n.getAttribute("srtype")
-    if srtype_node in ['', 'ext']:
-        srtype = constants.SR_TYPE_EXT
-    elif srtype_node in ['lvm']:
+    if srtype_node in ['', 'lvm']:
         srtype = constants.SR_TYPE_LVM
+    elif srtype_node in ['ext']:
+        srtype = constants.SR_TYPE_EXT
     else:
         raise RuntimeError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'"
     results['sr-type'] = srtype
