@@ -14,8 +14,6 @@ import os
 import os.path
 import xml.sax.saxutils
 
-import p2v_tui
-import p2v_uicontroller
 import findroot
 import sys
 import time
@@ -153,7 +151,7 @@ def rio_p2v(answers, use_tui = True):
     rc = xapi.VM.set_is_a_template(session, guest_ref, False)
     assert rc['Status'] == 'Success'
 
-    rc = xapi.VM.start(session, guest_ref)
+    rc = xapi.VM.start(session, guest_ref, False, False)
     assert rc['Status'] == 'Success'
 
     # wait for it to get an IP address:

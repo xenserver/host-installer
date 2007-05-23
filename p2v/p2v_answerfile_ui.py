@@ -13,7 +13,6 @@
 
 from snack import *
 from version import *
-import p2v_uicontroller
 import findroot
 import os
 import sys
@@ -160,6 +159,12 @@ def welcome_screen(answers):
 def get_network_config(show_reuse_existing = False,
                        runtime_config = False):
     return 1
+
+def get_target(answers):
+    pass
+
+def select_sr(answers):
+    pass
 
 def target_screen(answers):
     return 1

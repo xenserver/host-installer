@@ -26,90 +26,19 @@ import time
 import xelogging
 import tui
 import tui.network
+import tui.progress
 from p2v import closeClogs
 import uicontroller
 import xmlrpclib
 
 from p2v_error import P2VMountError, P2VCliError
 
-screen = None
-
-def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
-		entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
-    bb = ButtonBar(screen, buttons);
-    t = TextboxReflowed(width, text)
-
-    count = 0
-    for n in prompts:
-        count = count + 1
-
-    sg = Grid(2, count)
-
-    count = 0
-    entryList = []
-    for n in prompts:
-        if (type(n) == types.TupleType):
-            (n, e) = n
-            e = Entry(entryWidth, e)
-        else:
-            e = Entry(entryWidth)
-
-	sg.setField(Label(n), 0, count, padding = (0, 0, 1, 0), anchorLeft = 1)
-	sg.setField(e, 1, count, anchorLeft = 1)
-	count = count + 1
-	entryList.append(e)
-
-    g = GridFormHelp(screen, title, help, 1, 3)
-
-    g.add(t, 0, 0, padding = (0, 0, 0, 1))
-    g.add(sg, 0, 1, padding = (0, 0, 0, 1))
-    g.add(bb, 0, 2, growx = 1)
-
-    result = g.runOnce()
-
-    entryValues = []
-    count = 0
-    for n in prompts:
-        entryValues.append(entryList[count].value())
-        count = count + 1
-
-    return (bb.buttonPressed(result), tuple(entryValues))
-
-# functions to start and end the GUI - these create and destroy a snack screen as
-# appropriate.
-def init_ui(results):
-    global screen
-
-    screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s" % PRODUCT_BRAND)
-    tui.screen = screen
-
-def redraw_screen():
-    global screen
-    screen.refresh()
-    
-def end_ui():
-    global screen
-
-    if screen:
-        screen.finish()
-
-def suspend_ui():
-    global screen
-    if screen:
-        screen.suspend()
-        
-def resume_ui():
-    global screen
-    if screen:
-        screen.resume()
-
+def requireNetworking(answers):
+    return tui.network.requireNetworking(answers)
 
 # welcome screen:
 def welcome_screen(answers):
-    global screen
-
-    button = ButtonChoiceWindow(screen,
+    button = ButtonChoiceWindow(tui.screen,
                        "Welcome to %s P2V" % PRODUCT_BRAND,
                        """This will copy a locally-installed OS filesystem and convert it into a %s running on a %s, or to a template on an NFS share that can be imported to a %s.""" % (BRAND_GUEST_SHORT, BRAND_SERVER, BRAND_SERVER),
                        ['Ok', 'Cancel'], width=50)
@@ -120,9 +49,7 @@ def welcome_screen(answers):
 
 # specify target
 def get_target(answers):
-    global screen
-
-    bb = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
+    bb = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
     t = TextboxReflowed(40, "Which %s host would you like to save your %s to?" % (PRODUCT_BRAND, BRAND_GUEST))
     e_host = Entry(25)
     e_user = Entry(25)
@@ -136,7 +63,7 @@ def get_target(answers):
     entries.setField(Textbox(10, 1, "Password"), 0, 2)
     entries.setField(e_pw, 1, 2)
 
-    gf = GridFormHelp(screen, 'Target Host', None, 1, 3)
+    gf = GridFormHelp(tui.screen, 'Target Host', None, 1, 3)
     gf.add(t, 0, 0, padding = (0, 0, 0, 1))
     gf.add(entries, 0, 1, padding = (0, 0, 0, 1))
     gf.add(bb, 0, 2)
@@ -165,7 +92,7 @@ def get_target(answers):
             ok = False
         if not ok:
             ButtonChoiceWindow(
-                screen, "Error", "Unable to connect to server.  Please check the details and try again.",
+                tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.",
                 ['Back']
                 )
             return 0
@@ -200,7 +127,7 @@ def select_sr(answers):
 
     server.session.logout(session)
     rc, entry = ListboxChoiceWindow(
-        screen, "Storage repository", "Which storage repository would you like to create disk images in?",
+        tui.screen, "Storage repository", "Which storage repository would you like to create disk images in?",
         list_srs, ['Ok', 'Back'], width=70
         )
 
@@ -209,88 +136,6 @@ def select_sr(answers):
         return 1
     else:
         return -1
-
-# NFS or XenEnterprise taurget (XXX deprecated)
-def target_screen(answers):
-    global screen
-    
-    hn = ""
-
-    entries = [ '%s' % BRAND_SERVER,
-                'NFS Server' ]
-
-    (button, entry) = ListboxChoiceWindow(screen,
-                        "Target Choice",
-                        """Please choose the target you want send the P2V image of your machine to.""",
-                        entries,
-                        ['Ok', 'Cancel'], width=50)
-
-    if button == "cancel": return uicontroller.EXIT
-
-    #ask for more info
-    if entry == 0:
-        # preset the hostname
-        if answers.has_key(p2v_constants.XE_HOST):
-            hn = answers[p2v_constants.XE_HOST]
-
-        complete = False
-        while not complete:
-            answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_SSH
-            (button, xehost) = MyEntryWindow(screen,
-                    "%s Information" % BRAND_SERVER,
-                    "Please enter the %s information: " % BRAND_SERVER,
-                    [('Hostname or IP:', hn)],
-                    buttons= ['Ok', 'Back'])
-
-            if button == 'back':
-                return 0;
-
-            if len(xehost[0]) > 0:
-                answers[p2v_constants.XE_HOST] = xehost[0]
-                complete = True
-            else:
-                ButtonChoiceWindow(screen,
-                    "Invalid Entry",
-                    "Invalid %s Information. Please review the information you entered." % (BRAND_SERVER),
-                    buttons = ['Ok'])
-                
-    elif entry == 1:
-        complete = False
-        while not complete:
-            hn = ""
-            p = ""
-            if answers.has_key(p2v_constants.NFS_HOST):
-                hn = answers[p2v_constants.NFS_HOST]
-            if answers.has_key(p2v_constants.NFS_PATH):
-                p = answers[p2v_constants.NFS_PATH]
-            answers[p2v_constants.XEN_TARGET] = p2v_constants.XEN_TARGET_NFS
-            (button, (nfshost, nfspath)) = MyEntryWindow(screen,
-                 "NFS Server Information",
-                "Please enter the NFS server information: ",
-                [('Hostname or IP:', hn), ('Path:', p)],
-                buttons= ['Ok', 'Back'])
-            answers[p2v_constants.NFS_HOST] = nfshost
-            answers[p2v_constants.NFS_PATH] = nfspath
-
-            if button == 'back':
-                return 0;
-
-            try:
-                displayPleaseWaitDialog("Validating NFS information")
-                p2v_backend.validate_nfs_path(nfshost, nfspath)
-                removePleaseWaitDialog();
-            except P2VMountError, e:
-                ButtonChoiceWindow(screen,
-                    "Cannot Connect",
-                    "Failed to connect to %s:%s. Please re-enter the correct information." % (nfshost, nfspath),
-                    buttons = ['Ok'])
-            else:
-                complete = True
-  
-
-    #dump_answers(answers)
-    #advance to next screen:
-    return 1
 
 def get_os_installs(answers):
     os_installs = findroot.findroot()
@@ -313,13 +158,12 @@ def isP2Vable(os):
 
 #let the user chose the OS install
 def os_install_screen(answers):
-    global screen
     os_install_strings = []
     supported_os_installs = []
 
-    displayPleaseWaitDialog("Scanning for installed operating systems")
+    tui.progress.showMessageDialog("Working", "Scanning for installed operating systems, please wait...")
     os_installs = get_os_installs(answers)
-    removePleaseWaitDialog()
+    tui.progress.clearModelessDialog()
 
     for os in os_installs: 
         if isP2Vable(os):
@@ -327,7 +171,7 @@ def os_install_screen(answers):
             supported_os_installs.append(os)
     
     if len(os_install_strings) > 0:
-        (button, entry) = ListboxChoiceWindow(screen,
+        (button, entry) = ListboxChoiceWindow(tui.screen,
                 "OS Installs",
                 "Which OS install do you want to P2V?",
                 os_install_strings,
@@ -341,17 +185,16 @@ def os_install_screen(answers):
             return -1
     else: 
         # TODO, CA-2747  pull this out of a supported OS list.
-        ButtonChoiceWindow(screen, "Error", """No supported operating systems found. 
+        ButtonChoiceWindow(tui.screen, "Error", """No supported operating systems found. 
 Please see the documentation for a list of supported operating systems, file systems and volume management technologies.""",  ['Ok'], width=50)
         return -2
     
     if button == "back": 
-        ButtonChoiceWindow(screen, "debug", """Back Pressed""",  ['Ok'], width=50)
+        ButtonChoiceWindow(tui.screen, "debug", """Back Pressed""",  ['Ok'], width=50)
         return 1
 
 def description_screen(answers):
-    global screen
-    (button, description) = EntryWindow(screen,
+    (button, description) = EntryWindow(tui.screen,
                 "P2V Description",
                 "Please enter a description (optional): ",
                 ['Description:'],
@@ -365,18 +208,16 @@ def description_screen(answers):
         return -1
 
 def size_screen(answers):
-    global screen
-    
-    displayPleaseWaitDialog("""Determining size of the selected operating system""")
+    tui.progress.showMessageDialog("Working", "Determining size of the selected operating system, please wait...")
     p2v_backend.determine_size(answers['osinstall'])
-    removePleaseWaitDialog()
+    tui.progress.clearModelessDialog()
 
     total_size = str(long(answers['osinstall'][p2v_constants.FS_TOTAL_SIZE]) / 1024**2)
     used_size = str(long(answers['osinstall'][p2v_constants.FS_USED_SIZE]) / 1024**2)
     new_size = long(0)
     success = False
     while not success:
-        (button, size) = MyEntryWindow(screen,
+        (button, size) = EntryWindow(tui.screen,
                 "Enter Volume Size",
                 """Please enter the size of the volume that will be created on the %s. 
                 
@@ -389,7 +230,7 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
             continue
 
         if long(size[0]) < long(used_size):
-            ButtonChoiceWindow(screen,
+            ButtonChoiceWindow(tui.screen,
                 "Size too small",
                 "Minimum size = %s MB." % used_size,
                 buttons = ['Ok'])
@@ -403,58 +244,14 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
     else:
         return -1
 
-
-
-def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
-                        entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
-    bb = ButtonBar(screen, buttons)
-    t = TextboxReflowed(width, text)
-
-    count = 0
-    for n in prompts:
-        count = count + 1
-
-    sg = Grid(2, count)
-
-    count = 0
-    entryList = []
-    for n in prompts:
-        if (type(n) == types.TupleType):
-            (n, e) = n
-        else:
-            e = Entry(entryWidth, password = 1)
-
-        sg.setField(Label(n), 0, count, padding = (0, 0, 1, 0), anchorLeft = 1)
-        sg.setField(e, 1, count, anchorLeft = 1)
-        count = count + 1
-        entryList.append(e)
-
-    g = GridFormHelp(screen, title, help, 1, 3)
-
-    g.add(t, 0, 0, padding = (0, 0, 0, 1)) 
-    g.add(sg, 0, 1, padding = (0, 0, 0, 1))
-    g.add(bb, 0, 2, growx = 1)
-
-    result = g.runOnce()
-
-    entryValues = []
-    count = 0
-    for n in prompts:
-        entryValues.append(entryList[count].value())
-        count = count + 1
-
-    return (bb.buttonPressed(result), tuple(entryValues))
-
-
 def get_root_password(answers):
-    global screen
     done = False
 
     #oh, what a dirty way of skipping unwanted screens
     if answers[p2v_constants.XEN_TARGET] != p2v_constants.XEN_TARGET_SSH:
         return 1;
    
-    (button, result) = PasswordEntryWindow(screen,
+    (button, result) = PasswordEntryWindow(tui.screen,
                                  "Enter Password",
                                 "Please enter the root password for the %s" % BRAND_SERVER,
                                  ['Password'],
@@ -468,85 +265,19 @@ def get_root_password(answers):
     osinstall['root-password'] = result[0]
     return 1
 
-
 def dump_answers(answers):
-    global screen
-
     for key in answers.keys():
-        ButtonChoiceWindow(screen,
+        ButtonChoiceWindow(tui.screen,
             "keys",
             """key = %s, value = %s""" % (key, answers[key]),
             ['Ok'], width=50)
 
-
 def finish_screen(answers):
-    global screen
     xelogging.writeLog("/tmp/install-log")
     xelogging.collectLogs('/tmp')
-    ButtonChoiceWindow(screen, "Finish P2V", """P2V operation successfully completed. Please press enter to reboot the machine.""", ['Ok'], width = 50)
+    ButtonChoiceWindow(tui.screen, "Finish P2V", """P2V operation successfully completed. Please press enter to reboot the machine.""", ['Ok'], width = 50)
     return 1
     
 def failed_screen(answers):
-    global screen
-    ButtonChoiceWindow(screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
+    ButtonChoiceWindow(tui.screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
     return 1
-
-def displayPleaseWaitDialog(wait_text):
-    global screen
-    form = GridFormHelp(screen, "Please wait...", None, 1, 3)
-    t = Textbox(60, 3, """Please wait:
-%s.
-This can take a long time...""" % wait_text)
-    form.add(t, 0, 0, padding = (0,0,0,1))
-    form.draw()
-    screen.refresh()
-    
-def removePleaseWaitDialog():
-    global screen
-    screen.popWindow()
-
-###
-# Progress dialog:
-def initProgressDialog(title, text, total):
-    global screen
-    
-    form = GridFormHelp(screen, title, None, 1, 3)
-    
-    t = Textbox(60, 1, text)
-    t2 = Textbox(60, 1, "testtext")
-    scale = Scale(60, total)
-    form.add(t, 0, 0, padding = (0,0,0,1))
-    form.add(t2, 0, 1, padding = (0,0,0,0))
-    form.add(scale, 0, 2, padding = (0,0,0,0))
-
-    return (form, scale, t2)
-
-def displayProgressDialog(current, (form, scale, t2), t2_text = ""):
-    global screen
-    
-    t2.setText(t2_text)
-    scale.set(current)
-
-    form.draw()
-    screen.refresh()
-    
-    time.sleep(.5)
-
-def clearModelessDialog():
-    global screen
-    
-    screen.popWindow()
-
-clearProgressDialog = clearModelessDialog
-
-def displayButtonChoiceWindow(screen, title, text, 
-		       buttons = [ 'Ok', 'Cancel' ], 
-		       width = 40, x = None, y = None, help = None):
-    ButtonChoiceWindow(screen, title, text,
-            buttons, width, x, y, help)
- 
-###
-# Simple 'OK' dialog for external use:
-
-def OKDialog(title, text):
-    return snackutil.OKDialog(screen, title, text)

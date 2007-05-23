@@ -16,7 +16,5 @@ install:
 	install -m644 p2v_backend.py $(P2V_DIR)
 	install -m644 p2v_constants.py $(P2V_DIR)
 	install -m644 p2v_error.py $(P2V_DIR)
-	install -m644 p2v_pyanswerfile_ui.py $(P2V_DIR)
 	install -m644 p2v_tui.py $(P2V_DIR)
-	install -m644 p2v_uicontroller.py $(P2V_DIR)
 	install -m644 p2v_utils.py $(P2V_DIR)

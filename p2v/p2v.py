@@ -11,6 +11,7 @@
 #
 # written by Andrew Peace & Mark Nijmeijer
 
+import tui
 import p2v_tui
 import uicontroller
 import p2v_answerfile_ui
@@ -19,12 +20,10 @@ import findroot
 import p2v_backend
 import xelogging
 import os
-import getopt
 import generalui
 import constants
 import traceback
 
-from p2v_error import P2VError, P2VPasswordError, P2VCliError
 from snack import *
 from getopt import getopt, GetoptError
 from version import *
@@ -43,6 +42,7 @@ def closeClogs(clog_fds):
 
 def main():
     global ui_package
+
     clog_fds = []
 
     try:
@@ -56,7 +56,6 @@ def main():
 
     for (opt, val) in opts:
         if opt == "--answerfile":
-            #p2v_answerfile_ui.specifySubUI(ui_package)
             ui_package = p2v_answerfile_ui
             p2v_backend.specifyUI(ui_package)
             p2v_answerfile_ui.specifyAnswerFile(val)
@@ -68,18 +67,19 @@ def main():
             except:
                 print "Error adding continuous log %s." % val
  
-    results = { 'ui-package': ui_package }
-
     os.environ['LVM_SYSTEM_DIR'] = '/tmp'
-    ui_package.init_ui(results)
+    tui.init_ui()
 
     firstrun = True
     finished = False
+
+    results = {}
     
     while finished == False:
         if firstrun:
             seq = [
                 ui_package.welcome_screen,
+                ui_package.requireNetworking,
                 ui_package.get_target,
                 ui_package.select_sr,
                 ui_package.os_install_screen,
@@ -107,31 +107,29 @@ def main():
                 ui_package.finish_screen({})
             else:
                 ui_package.failed_screen({})
-            ui_package.end_ui()
+            tui.end_ui()
             p2v_backend.print_results(results)
             finished = True
 
-        except (P2VPasswordError, P2VCliError), e:
-            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", str(e), ['Ok'], width = 60)
-            finished = False
-            firstrun = False
-
         except SystemExit: raise
         except Exception, e:
-            xelogging.log(e)
             ex = sys.exc_info()
             err = str.join("", traceback.format_exception(*ex))
+            xelogging.log("P2V FAILED.")
+            xelogging.log("A fatal exception occurred:")
             xelogging.log(err)
-            xelogging.writeLog("/tmp/install-log")
+
+            # write logs where possible:
+            xelogging.writeLog("/tmp/p2v-log")
+
+            # display a dialog if UI is available:
+            tui.error_dialog(e, err)
+
             xelogging.collectLogs('/tmp')
             closeClogs(clog_fds)
-            # clean up the screen
-            ui_package.displayButtonChoiceWindow(p2v_tui.screen, "P2V Failed", """P2V operation failed. Please contact a Technical Support Representative. Log files have been collected in /tmp.  
 
-Diagnostic output from the P2V operation follows:
-%s""" % (e), ['Ok'], width = 60)
-            ui_package.end_ui()
-            print "P2V Failed: %s" % e
+            # clean up the screen
+            tui.end_ui()
             sys.exit(1)
 
     #eject CD if success

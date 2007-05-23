@@ -164,7 +164,6 @@ def determine_size(mntpnt, dev_name):
     p2v_utils.trace_message("\n\nFS used Usage : %s, FS total usage : %s\n" % (used_out, total_out))
     used_size = long(0)
     total_size = long(0)
-    
 
     split_used_size = used_out.split('\n')
     split_total_size = total_out.split('\n')
@@ -227,99 +226,6 @@ def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
         # assume the umount works
         umount_dev(item)
 
-def handle_root(mntpnt, dev_name, pd = None):
-    rc = 0
-    fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
-    fstab = load_fstab(fp)
-    fp.close()
-    
-    if pd != None:
-        ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
-                                       
-    devices = scan()
-    
-    active_mounts = []
-    p2v_utils.trace_message("* Need to mount:")
-    mounts = find_extra_mounts(fstab, devices)
-    for mount_info in mounts:
-        #p2v_utils.trace_message("  --", mount_info)
-        extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
-
-        rc = mount_dev(mount_info[0], mount_info[2],
-                       extra_mntpnt, mount_info[3] + ",ro")
-        if rc != 0:
-            raise P2VError("Failed to handle root - mount failed.")
-
-        active_mounts.append(extra_mntpnt)
-
-    if pd != None:
-        ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
-
-    hostname = findHostName(mntpnt)
-    os.chdir(mntpnt)
-    tar_basefilename = "p2v%s.%s.tar.bz2" % (hostname, os.path.basename(dev_name))
-    base_dirname = "/tmp/xenpending/"
-    tar_filename = "%s%s" % (base_dirname, tar_basefilename)
-    rc, out = run_command("tar cjvSf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
-    if not rc == 0:
-        raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % (rc, out))
-    
-    if pd != None:
-        ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
-    rc, md5_out = run_command("md5sum %s | awk '{print $1}'" % tar_filename)
-    if rc != 0:
-        raise P2VError("Failed to handle root - md5sum failed")
-    os.chdir("/")
-
-    for item in active_mounts:
-        # assume the umount works
-        umount_dev(item)
-
-    return (0, base_dirname, tar_basefilename, md5_out)
-
-def handle_root_ssh(mntpnt, dev_name, hostname, target_directory, keyfile, pd = None):
-    rc = 0
-    fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
-    fstab = load_fstab(fp)
-    fp.close()
-    
-    if pd != None:
-        ui_package.displayProgressDialog(1, pd, " - Scanning and mounting devices")
-                                       
-    devices = scan()
-    
-    active_mounts = []
-    p2v_utils.trace_message("* Need to mount:")
-    mounts = find_extra_mounts(fstab, devices)
-    for mount_info in mounts:
-        #p2v_utils.trace_message("  --", mount_info)
-        extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
-
-        rc = mount_dev(mount_info[0], mount_info[2],
-                       extra_mntpnt, mount_info[3] + ",ro")
-        if rc != 0:
-            raise P2VError("Failed to handle root - mount failed.")
-
-        active_mounts.append(extra_mntpnt)
-
-    if pd != None:
-        ui_package.displayProgressDialog(2, pd, " - Transferring root filesystem")
-
-    os.chdir(mntpnt)
-    rc, out = run_command('tar zScf - . | ssh -oServerAliveInterval=10 -oStrictHostKeyChecking=no -oUserKnownHostsFile=/dev/null -i %s %s " cd %s ; tar zxf - "' % 
-                         (keyfile, hostname, target_directory))
-    if not rc == 0:
-        raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % (rc, out))
-    
-    os.chdir("/")
-    for item in active_mounts:
-        # assume the umount works
-        umount_dev(item)
-
-    return 0
-
-
-
 def mount_os_root(dev_name, dev_attrs):
     mntbase = "/tmp/mnt"
     mnt = mntbase + "/" + os.path.basename(dev_name)
@@ -370,7 +276,6 @@ def findHostName(mnt):
             if (name) == 'HOSTNAME':
                 hostname = value
                 return hostname
-
  
     return hostname
     
@@ -421,25 +326,6 @@ def findroot():
                    
     #run_command("sleep 2")
     return results
-
-def create_xgt(xgt_create_dir, xgt_filename, template_filename, tar_filename):
-    old_path = os.getcwd()
-
-    os.chdir(xgt_create_dir)
-    command = "mkdir -p %s" % xgt_filename
-    rc, out = run_command(command)
-    if rc != 0:
-        os.chdir(old_path)
-        raise P2VError("Failed to create xgt - mkdir %s failed" % xgt_filename)
-
-    command = "mv %s %s %s" % (template_filename, tar_filename, os.path.join(xgt_create_dir, xgt_filename))
-    rc, out = run_command(command)
-    if rc != 0:
-        os.chdir(old_path)
-        raise P2VError("Failed to create xgt - moving failed")
-
-    os.chdir(old_path)
-    return
 
 def get_mem_info():
     command = "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"
