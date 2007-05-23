@@ -80,9 +80,8 @@ def main():
         if firstrun:
             seq = [
                 ui_package.welcome_screen,
-                (generalui.requireNetworking, (ui_package, )),
                 ui_package.get_target,
-                ui_package,select_sr,
+                ui_package.select_sr,
                 ui_package.os_install_screen,
                 ui_package.description_screen,
                 ui_package.size_screen,
@@ -96,7 +95,9 @@ def main():
             rc = uicontroller.runUISequence(seq, results)
 
             if rc != -1 and rc != uicontroller.EXIT:
-                rc = p2v_backend.perform_P2V(results)
+                # we'll use exception for error propogation etc shortly:
+                p2v_backend.rio_p2v(results, True)
+                rc = 0
             else:
                 ui_package.end_ui()
                 closeClogs(clog_fds)

@@ -34,11 +34,6 @@ from p2v_error import P2VMountError, P2VCliError
 
 screen = None
 
-def get_network_config(show_reuse_existing = False,
-                       runtime_config = False):
-    return tui.network.get_network_config(
-        show_reuse_existing, runtime_config)
-
 def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
 		entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
     bb = ButtonBar(screen, buttons);

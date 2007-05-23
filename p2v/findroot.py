@@ -13,7 +13,9 @@ import commands
 import p2v_constants
 import p2v_utils
 import p2v_tui
-
+import popen2
+import httpput
+import urllib
 from p2v_error import P2VError
 
 ui_package = p2v_tui
@@ -182,6 +184,48 @@ def determine_size(mntpnt, dev_name):
 
     return str(used_size * 1024), str(total_size * 1024)
 
+def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
+    rc = 0
+    fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
+    fstab = load_fstab(fp)
+    fp.close()
+    
+    if pd != None:
+        ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
+                                       
+    devices = scan()
+    
+    active_mounts = []
+    p2v_utils.trace_message("* Need to mount:")
+    mounts = find_extra_mounts(fstab, devices)
+    for mount_info in mounts:
+        #p2v_utils.trace_message("  --", mount_info)
+        extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
+
+        rc = mount_dev(mount_info[0], mount_info[2],
+                       extra_mntpnt, mount_info[3] + ",ro")
+        if rc != 0:
+            raise P2VError("Failed to handle root - mount failed.")
+
+        active_mounts.append(extra_mntpnt)
+
+    if pd != None:
+        ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
+
+    hostname = findHostName(mntpnt)
+    pipe = popen2.Popen3("tar -C '%s' -cjSf - ." % mntpnt)
+    path = "/unpack-tar?" + urllib.urlencode({'volume': 'xvda1', 'compression': 'bzip2'})
+    httpput.put(host, port, path, pipe.fromchild)
+    pipe.tochild.close()
+    pipe.fromchild.close()
+    rc = pipe.wait()
+
+    if pd != None:
+        ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
+
+    for item in active_mounts:
+        # assume the umount works
+        umount_dev(item)
 
 def handle_root(mntpnt, dev_name, pd = None):
     rc = 0
@@ -218,7 +262,7 @@ def handle_root(mntpnt, dev_name, pd = None):
     tar_filename = "%s%s" % (base_dirname, tar_basefilename)
     rc, out = run_command("tar cjvSf %s . %s" % (tar_filename, p2v_utils.show_debug_output()))
     if not rc == 0:
-        raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % rc, out)
+        raise P2VError("Failed to handle root - tar failed with %d ( out = %s ) " % (rc, out))
     
     if pd != None:
         ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")

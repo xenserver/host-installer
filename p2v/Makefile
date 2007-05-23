@@ -12,6 +12,7 @@ install:
 	install -m755 read_osversion.sh $(P2V_DIR)
 
 	install -m644 p2v_answerfile_ui.py $(P2V_DIR)
+	install -m644 httpput.py $(P2V_DIR)
 	install -m644 p2v_backend.py $(P2V_DIR)
 	install -m644 p2v_constants.py $(P2V_DIR)
 	install -m644 p2v_error.py $(P2V_DIR)
