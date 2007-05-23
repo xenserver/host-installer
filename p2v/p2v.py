@@ -81,11 +81,12 @@ def main():
             seq = [
                 ui_package.welcome_screen,
                 (generalui.requireNetworking, (ui_package, )),
+                ui_package.get_target,
+                ui_package,select_sr,
                 ui_package.os_install_screen,
                 ui_package.description_screen,
                 ui_package.size_screen,
-                ui_package.target_screen,
-                ui_package.get_root_password ]
+                ]
         else:
             seq = [ 
                 ui_package.target_screen,

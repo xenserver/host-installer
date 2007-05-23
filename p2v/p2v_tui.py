@@ -16,6 +16,7 @@ from snack import *
 from version import *
 import snackutil
 import findroot
+import re
 import os
 import sys
 import p2v_constants
@@ -27,6 +28,7 @@ import tui
 import tui.network
 from p2v import closeClogs
 import uicontroller
+import xmlrpclib
 
 from p2v_error import P2VMountError, P2VCliError
 
@@ -44,18 +46,18 @@ def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
 
     count = 0
     for n in prompts:
-	count = count + 1
+        count = count + 1
 
     sg = Grid(2, count)
 
     count = 0
     entryList = []
     for n in prompts:
-	if (type(n) == types.TupleType):
-	    (n, e) = n
-	    e = Entry(entryWidth, e)
-	else:
-	    e = Entry(entryWidth)
+        if (type(n) == types.TupleType):
+            (n, e) = n
+            e = Entry(entryWidth, e)
+        else:
+            e = Entry(entryWidth)
 
 	sg.setField(Label(n), 0, count, padding = (0, 0, 1, 0), anchorLeft = 1)
 	sg.setField(e, 1, count, anchorLeft = 1)
@@ -73,8 +75,8 @@ def MyEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
     entryValues = []
     count = 0
     for n in prompts:
-	entryValues.append(entryList[count].value())
-	count = count + 1
+        entryValues.append(entryList[count].value())
+        count = count + 1
 
     return (bb.buttonPressed(result), tuple(entryValues))
 
@@ -121,7 +123,99 @@ def welcome_screen(answers):
     if button == "cancel": return uicontroller.EXIT
     return 1
 
-# NFS or XenEnterprise target
+# specify target
+def get_target(answers):
+    global screen
+
+    bb = ButtonBar(screen, [('Ok', 'ok'), ('Back', 'back')])
+    t = TextboxReflowed(40, "Which %s host would you like to save your %s to?" % (PRODUCT_BRAND, BRAND_GUEST))
+    e_host = Entry(25)
+    e_user = Entry(25)
+    e_pw = Entry (25, password=1)
+
+    entries = Grid(2, 3)
+    entries.setField(Textbox(10, 1, "Host"), 0, 0)
+    entries.setField(e_host, 1, 0)
+    entries.setField(Textbox(10, 1, "User"), 0, 1)
+    entries.setField(e_user, 1, 1)
+    entries.setField(Textbox(10, 1, "Password"), 0, 2)
+    entries.setField(e_pw, 1, 2)
+
+    gf = GridFormHelp(screen, 'Target Host', None, 1, 3)
+    gf.add(t, 0, 0, padding = (0, 0, 0, 1))
+    gf.add(entries, 0, 1, padding = (0, 0, 0, 1))
+    gf.add(bb, 0, 2)
+
+    result = gf.runOnce()
+    if bb.buttonPressed(result) == 'back':
+        return -1
+    else:
+        # check we can connect to the server:
+        host = e_host.value()
+        if not host.startswith('http://'):
+            host = "http://" + host
+        user = e_user.value()
+        pw = e_pw.value()
+        ok = True
+        try:
+            server = xmlrpclib.Server(host)
+            rc = server.session.login_with_password(user, pw)
+            success, session = (rc['Status'] == "Success"), rc['Value']
+            if not success:
+                ok = False
+            else:
+                server.session.logout(session)
+        except Exception, e:
+            print e
+            ok = False
+        if not ok:
+            ButtonChoiceWindow(
+                screen, "Error", "Unable to connect to server.  Please check the details and try again.",
+                ['Back']
+                )
+            return 0
+        else:
+            answers['target-host-name'] = host
+            answers['target-host-user'] = user
+            answers['target-host-password'] = pw
+            return 1
+
+# select storage repository:
+# TODO better error checking.
+def select_sr(answers):
+    # login
+    server = xmlrpclib.Server(answers['target-host-name'])
+    rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
+    session = rc['Value']
+
+    # get a list of SRs
+    rc = server.SR.get_all(session)
+    sr_uuids = rc['Value']
+    list_srs = []
+    for sr in sr_uuids:
+        name_rc = server.SR.get_name_label(session, sr)
+        name = name_rc['Value']
+        uuid_rc = server.SR.get_uuid(session, sr)
+        uuid = uuid_rc['Value']
+        if name == "":
+            item = (uuid, uuid)
+        else:
+            item = (name, uuid)
+        list_srs.append(item)
+
+    server.session.logout(session)
+    rc, entry = ListboxChoiceWindow(
+        screen, "Storage repository", "Which storage repository would you like to create disk images in?",
+        list_srs, ['Ok', 'Back'], width=70
+        )
+
+    if rc in [None, 'ok']:
+        answers['target-sr'] = entry
+        return 1
+    else:
+        return -1
+
+# NFS or XenEnterprise taurget (XXX deprecated)
 def target_screen(answers):
     global screen
     
