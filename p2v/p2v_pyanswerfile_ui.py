@@ -13,7 +13,6 @@
 
 from snack import *
 from version import *
-import p2v_uicontroller
 import findroot
 import os
 import sys
