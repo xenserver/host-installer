@@ -27,6 +27,7 @@ import traceback
 from snack import *
 from getopt import getopt, GetoptError
 from version import *
+from uicontroller import Step
 
 ui_package = p2v_tui
 
@@ -74,25 +75,25 @@ def main():
     finished = False
 
     results = {}
-    
     while finished == False:
         if firstrun:
             seq = [
-                ui_package.welcome_screen,
-                ui_package.requireNetworking,
-                ui_package.get_target,
-                ui_package.select_sr,
-                ui_package.os_install_screen,
-                ui_package.description_screen,
-                ui_package.size_screen,
+                Step(ui_package.welcome_screen),
+                Step(ui_package.requireNetworking),
+                Step(ui_package.get_target),
+                Step(ui_package.select_sr),
+                Step(ui_package.os_install_screen),
+                Step(ui_package.description_screen),
+                Step(ui_package.size_screen),
                 ]
         else:
             seq = [ 
-                ui_package.target_screen,
-                ui_package.get_root_password ]
+                Step(ui_package.target_screen),
+                Step(ui_package.get_root_password) 
+                ]
             
         try:
-            rc = uicontroller.runUISequence(seq, results)
+            rc = uicontroller.runSequence(seq, results)
 
             if rc != -1 and rc != uicontroller.EXIT:
                 # we'll use exception for error propogation etc shortly:

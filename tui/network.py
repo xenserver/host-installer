@@ -25,7 +25,7 @@ def get_autoconfig_ifaces():
    
     seq = []
     for x in netutil.getNetifList():
-        seq.append((my_get_iface_configuration, (x,)))
+        seq.append(uicontroller.Step(my_get_iface_configuration, args = [x]))
 
     # when this was written this branch would never be taken
     # since we require at least one NIC at setup time:
@@ -33,7 +33,7 @@ def get_autoconfig_ifaces():
         return uicontroller.SKIP_SCREEN, {}
 
     subdict = {}
-    rv = uicontroller.runUISequence(seq, subdict)
+    rv = uicontroller.runSequence(seq, subdict)
     return rv, subdict
 
 def get_iface_configuration(iface, txt = None, show_identify = True):
