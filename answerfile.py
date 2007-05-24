@@ -12,10 +12,13 @@
 
 import util
 import constants
-import xml.dom.minidom
-from xml.dom.minidom import parse
-
+import product
 import xelogging
+
+import xml.dom.minidom
+
+class AnswerfileError(Exception):
+    pass
 
 def processAnswerfile(location):
     """ Downloads an answerfile from 'location' -- this is in the URL format
@@ -26,29 +29,36 @@ def processAnswerfile(location):
     util.fetchFile(location, '/tmp/answerfile')
 
     xmldoc = xml.dom.minidom.parse('/tmp/answerfile')
-    try:
-        answers = __parse_answerfile__(xmldoc)
-    except Exception, e:
-        xelogging.log("Failed to parse answerfile, propogating error.")
-        raise
-    else:
-        return answers
+    n = xmldoc.documentElement
 
-# get data from a DOM object representing the answerfile:
-def __parse_answerfile__(answerdoc):
-    results = {}
-    
     xelogging.log("Importing XML answerfile.")
 
-    # get text from a node:
-    def getText(nodelist):
-        rc = ""
-        for node in nodelist:
-            if node.nodeType == node.TEXT_NODE:
-                rc = rc + node.data
-        return rc.encode()
+    # fresh install or upgrade?
+    install_type = n.getAttribute("mode")
+    if install_type in ['', 'fresh']:
+        results = parseFreshInstall(n)
+    elif install_type == "reinstall":
+        results = parseReinstall(n)
+    elif install_type == "upgrade":
+        results = parseUpgrade(n)
 
-    n = answerdoc.documentElement
+    return results
+
+# get text from a node:
+def getText(nodelist):
+    rc = ""
+    for node in nodelist:
+        if node.nodeType == node.TEXT_NODE:
+            rc = rc + node.data
+    return rc.encode()
+
+def parseFreshInstall(n):
+    """ n is the top-level document node of the answerfile.  Parses the
+    answerfile if it is for a fresh install. """
+    results = {}
+
+    results['install-type'] = constants.INSTALL_TYPE_FRESH
+    results['preserve-settings'] = False
 
     # storage type (lvm or ext):
     srtype_node = n.getAttribute("srtype")
@@ -63,7 +73,7 @@ def __parse_answerfile__(answerdoc):
     # primary-disk:
     results['primary-disk'] = "/dev/%s" % getText(n.getElementsByTagName('primary-disk')[0].childNodes)
     pd_has_guest_storage = True and n.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
-    
+
     # guest-disks:
     results['guest-disks'] = []
     if pd_has_guest_storage:
@@ -71,27 +81,80 @@ def __parse_answerfile__(answerdoc):
     for disk in n.getElementsByTagName('guest-disk'):
         results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
-    # source-media, source-address:
-    if len(n.getElementsByTagName('source')) == 0:
-        raise Exception, "No source media sepcified."
-    source = n.getElementsByTagName('source')[0]
-    if source.getAttribute('type') == 'local':
-        results['source-media'] = 'local'
-        results['source-address'] = "Install disc"
-    elif source.getAttribute('type') == 'url':
-        results['source-media'] = 'url'
-        results['source-address'] = getText(source.childNodes)
-    elif source.getAttribute('type') == 'nfs':
-        results['source-media'] = 'nfs'
-        results['source-address'] = getText(source.childNodes)
+    results.update(parseSource(n))
+    results.update(parseInterfaces(n))
+    results.update(parseRootPassword(n))
+    results.update(parseNSConfig(n))
+    results.update(parseTimeConfig(n))
+    results.update(parseKeymap(n))
+    results.update(parseScripts(n))
+
+    return results
+
+def parseReinstall(n):
+    results = {}
+
+    results['install-type'] = constants.INSTALL_TYPE_REINSTALL
+    results.update(parseExistingInstallation(n))
+    results['preserve-settings'] = False
+
+    results.update(parseSource(n))
+    results.update(parseInterfaces(n))
+    results.update(parseRootPassword(n))
+    results.update(parseNSConfig(n))
+    results.update(parseTimeConfig(n))
+    results.update(parseKeymap(n))
+    results.update(parseScripts(n))
+
+    return results
+
+def parseUpgrade(n):
+    results = {}
+
+    results['install-type'] = constants.INSTALL_TYPE_REINSTALL
+    results.update(parseExistingInstallation(n))
+    results['preserve-settings'] = True
+    results['backup-existing-installation'] = False
+
+    results.update(parseSource(n))
+    results.update(parseInterfaces(n))
+    results.update(parseScripts(n))
+
+    return results
+
+### -- code to parse individual parts of the answerfile past this point.
+
+def parseScripts(n):
+    results = {}
+    pis_nodes = n.getElementsByTagName('post-install-script')
+    if len(pis_nodes) == 1:
+        results['post-install-script'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
+    return results
+
+def parseKeymap(n):
+    results = {}
+    keymap_nodes = n.getElementsByTagName('keymap')
+    if len(keymap_nodes) == 1:
+        results['keymap'] = getText(keymap_nodes[0].childNodes)
     else:
-        raise Exception, "No source media specified."
+        xelogging.log("No keymap specified in answer file: defaulting to 'us'")
+        results['keymap'] = "us"
+    return results
 
-    # root-password:
-    results['root-password'] = getText(n.getElementsByTagName('root-password')[0].childNodes)
-    results['root-password-type'] = 'plaintext'
+def parseTimeConfig(n):
+    results = {}
+    results['timezone'] = getText(n.getElementsByTagName('timezone')[0].childNodes)
 
-    # manual-nameservers:
+    # ntp-servers:
+    results['ntp-servers'] = []
+    for disk in n.getElementsByTagName('ntp-servers'):
+        results['ntp-servers'].append(getText(disk.childNodes))
+    results['time-config-method'] = 'ntp'
+
+    return results
+
+def parseNSConfig(n):
+    results = {}
     mnss = n.getElementsByTagName('nameserver')
     if len(mnss) == 0:
         # no manual nameservers:
@@ -108,17 +171,26 @@ def __parse_answerfile__(answerdoc):
         results['manual-hostname'] = (True, getText(mhn[0].childNodes))
     else:
         results['manual-hostname'] = (False, None)
+    return results
 
-    # timezone:
-    results['timezone'] = getText(n.getElementsByTagName('timezone')[0].childNodes)
+def parseRootPassword(n):
+    results = {}
+    results['root-password'] = getText(n.getElementsByTagName('root-password')[0].childNodes)
+    results['root-password-type'] = 'plaintext'
+    return results
 
-    # ntp-servers:
-    results['ntp-servers'] = []
-    for disk in n.getElementsByTagName('ntp-servers'):
-        results['ntp-servers'].append(getText(disk.childNodes))
-    results['time-config-method'] = 'ntp'
+def parseExistingInstallation(n):
+    results = {}
+    disk = "/dev/" + getText(n.getElementsByTagName('existing-installation')[0].childNodes)
+    installations = product.findXenSourceProducts()
+    installations = filter(lambda x: x.primary_disk == disk, installations)
+    if len(installations) != 1:
+        raise AnswerfileError, "Could not locate the installation specified to be reinstalled."
+    results['installation-to-overwrite'] = installations[0]
+    return results
 
-    # iface-configuration
+def parseInterfaces(n):
+    results = {}
     netifnode = n.getElementsByTagName('admin-interface')[0]
     results['net-admin-interface'] = netifnode.getAttribute('name')
     proto = netifnode.getAttribute('proto')
@@ -133,22 +205,22 @@ def __parse_answerfile__(answerdoc):
                     'gateway' : gateway }
     elif proto == 'dhcp':
         results['net-admin-configuration'] = { 'use-dhcp' : True, 'enabled' : True }
+    return results
 
-    # keymap:
-    keymap_nodes = n.getElementsByTagName('keymap')
-    if len(keymap_nodes) == 1:
-        results['keymap'] = getText(keymap_nodes[0].childNodes)
+def parseSource(n):
+    results = {}
+    if len(n.getElementsByTagName('source')) == 0:
+        raise AnswerfileError, "No source media sepcified."
+    source = n.getElementsByTagName('source')[0]
+    if source.getAttribute('type') == 'local':
+        results['source-media'] = 'local'
+        results['source-address'] = "Install disc"
+    elif source.getAttribute('type') == 'url':
+        results['source-media'] = 'url'
+        results['source-address'] = getText(source.childNodes)
+    elif source.getAttribute('type') == 'nfs':
+        results['source-media'] = 'nfs'
+        results['source-address'] = getText(source.childNodes)
     else:
-        xelogging.log("No keymap specified in answer file: defaulting to 'us'")
-        results['keymap'] = "us"
-
-    # post-install-script
-    pis_nodes = n.getElementsByTagName('post-install-script')
-    if len(pis_nodes) == 1:
-        results['post-install-script'] = getText(n.getElementsByTagName('post-install-script')[0].childNodes)
-
-    # currently no supprt for re-installation:
-    results['install-type'] = constants.INSTALL_TYPE_FRESH
-    results['preserve-settings'] = False
-
+        raise AnswerfileError, "No source media specified."
     return results
