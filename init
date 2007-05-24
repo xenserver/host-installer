@@ -87,7 +87,6 @@ def doInteractiveLoadDriver(ui):
         media, address = rc
         repos = repository.repositoriesFromDefinition(media, address)
         drivers = []
-        pkglines = []
 
         # put firmware in place:
         for r in repos:
@@ -142,10 +141,10 @@ def doInteractiveLoadDriver(ui):
 # (i.e. modules.pcimap), but I don't entirely understand where
 # these come from or oif they're complete.
 def discoverHardware():
-    rc1, out1 = commands.getstatusoutput("discover --enable-all --module ide")
-    rc2, out2 = commands.getstatusoutput("discover --enable-all --module scsi")
-    rc3, out3 = commands.getstatusoutput("discover --enable-all --module all")
-    rc4, out4 = commands.getstatusoutput("/opt/xensource/installer/hwdetect")
+    _, out1 = commands.getstatusoutput("discover --enable-all --module ide")
+    _, out2 = commands.getstatusoutput("discover --enable-all --module scsi")
+    _, out3 = commands.getstatusoutput("discover --enable-all --module all")
+    _, out4 = commands.getstatusoutput("/opt/xensource/installer/hwdetect")
     out = out1 + "\n" + out2 + "\n" + out3 + "\n" + out4
     out = out.split("\n")
     
@@ -173,11 +172,7 @@ def discoverHardware():
     xelogging.log("Hardware disocvery complete.")
     return rv
 
-
-def configureHardware(extra_modules = [],
-                      blacklist = [],
-                      ui = None,
-                      interactive = False):
+def configureHardware(extra_modules, blacklist, ui, interactive):
     """Detect and configure hardware"""
 
     assert not interactive or (interactive and ui)
@@ -458,7 +453,6 @@ def main():
                 os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
             else:
                 os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
-            os.system("reboot")
 
         elif mode == init_constants.MODE_UPGRADE:
             raise Exception, "Upgrade not supported in this mode."
@@ -468,15 +462,11 @@ def main():
                 os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
             else:
                 os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3")
-            os.system("reboot")
 
     # Everything finished - from here we just shut down and reboot
 
     if ui:
         ui.end_ui()
-
-    if os.path.ismount('/etc/network'):
-        util.umount('/etc/network')
 
     # stop logging to tty3:
     for logfd in clog_fds:
