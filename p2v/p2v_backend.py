@@ -70,20 +70,6 @@ def finish_agent(os_install, xe_host):
         raise P2VError("Failed to finish this P2V to the %s host. Please contact a Technical Support Representative." % (PRODUCT_BRAND))
     return rc
     
-def finish_agent_error(os_install, xe_host):
-    #tell the agent that we're done
-    root_password = os_install['root-password']
-    if os_install.has_key('uuid'):
-        rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c vm_uninstall -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
-
-        if rc != 0:
-            p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
-            raise P2VError("Failed to finish this P2V to the %s host. Please contact a Technical Support Representative." % (PRODUCT_BRAND))
-        return rc
-    else:
-        # we never got the UUID from the agent.  Assume nothing has to be cleaned up.
-        return 0
- 
 def determine_size(os_install):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
