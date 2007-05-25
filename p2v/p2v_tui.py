@@ -108,21 +108,23 @@ def select_sr(answers):
     # login
     server = xmlrpclib.Server(answers['target-host-name'])
     rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
+    assert rc['Status'] == 'Success', "Failure logging in to server that previously worked."
     session = rc['Value']
 
     # get a list of SRs
-    rc = server.SR.get_all(session)
-    sr_uuids = rc['Value']
+    rc = server.SR.get_all_records(session)
+    assert rc['Status'] == 'Success', "Failure calling server.SR.get_all_records(%s)" % session
+
+    srs = rc['Value']
     list_srs = []
-    for sr in sr_uuids:
-        name_rc = server.SR.get_name_label(session, sr)
-        name = name_rc['Value']
-        uuid_rc = server.SR.get_uuid(session, sr)
-        uuid = uuid_rc['Value']
-        if name == "":
-            item = (uuid, uuid)
+    for sr in srs.values():
+        if sr['content_type'] == "iso":
+            continue
+        if sr['name_label'] != "":
+            name = sr['name_label']
         else:
-            item = (name, uuid)
+            name = sr['uuid']
+        item = (name, sr['uuid'])
         list_srs.append(item)
 
     server.session.logout(session)
