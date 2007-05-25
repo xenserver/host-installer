@@ -69,16 +69,6 @@ def umount_dev(mntpnt):
     rc, out = run_command("umount %s" % (mntpnt))
     return rc
 
-def umount_all_dev(devices):
-    fp = open("/proc/mounts")
-    mounts = load_fstab(fp)
-    for dev_name, dev_attrs in devices.items():
-        candidates = [ x[0] for x in mounts.keys() if x[1] == dev_name ]
-        if not len(candidates):
-            continue
-        assert(len(candidates) == 1)
-        umount_dev(candidates[0])
-
 def load_fstab(fp):
     fstab = {}
     for line in fp.readlines():
@@ -345,8 +335,6 @@ if __name__ == '__main__':
     mntbase = "/tmp/mnt"
 
     devices = scan()
-
-    umount_all_dev(devices)
 
     for dev_name, dev_attrs in devices.items():
         if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
