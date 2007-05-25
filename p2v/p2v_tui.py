@@ -88,11 +88,8 @@ def get_target(answers):
             else:
                 server.session.logout(session)
         except Exception, e:
-            print e
-            ok = False
-        if not ok:
             ButtonChoiceWindow(
-                tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.",
+                tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'" % str(e),
                 ['Back']
                 )
             return 0
@@ -246,40 +243,9 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
     else:
         return -1
 
-def get_root_password(answers):
-    done = False
-
-    #oh, what a dirty way of skipping unwanted screens
-    if answers[p2v_constants.XEN_TARGET] != p2v_constants.XEN_TARGET_SSH:
-        return 1;
-   
-    (button, result) = PasswordEntryWindow(tui.screen,
-                                 "Enter Password",
-                                "Please enter the root password for the %s" % BRAND_SERVER,
-                                 ['Password'],
-                                 buttons = ['Ok', 'Back'])
-    if button == 'back' or button == None:
-        return -1
-        
-    # if they didn't select OK we should have returned already
-    assert button == 'ok'
-    osinstall = answers['osinstall']
-    osinstall['root-password'] = result[0]
-    return 1
-
-def dump_answers(answers):
-    for key in answers.keys():
-        ButtonChoiceWindow(tui.screen,
-            "keys",
-            """key = %s, value = %s""" % (key, answers[key]),
-            ['Ok'], width=50)
-
 def finish_screen(answers):
     xelogging.writeLog("/tmp/install-log")
     xelogging.collectLogs('/tmp')
     ButtonChoiceWindow(tui.screen, "Finish P2V", """P2V operation successfully completed. Please press enter to reboot the machine.""", ['Ok'], width = 50)
     return 1
-    
-def failed_screen(answers):
-    ButtonChoiceWindow(tui.screen, "Finish P2V", """P2V operation failed""", ['Ok'], width = 50)
-    return 1
+

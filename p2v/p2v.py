@@ -53,7 +53,7 @@ def main():
                             "clog="])
     except GetoptError:
         print "This program takes no arguments."
-        sys.exit(1)
+        return 2
 
     for (opt, val) in opts:
         if opt == "--answerfile":
@@ -71,71 +71,55 @@ def main():
     os.environ['LVM_SYSTEM_DIR'] = '/tmp'
     tui.init_ui()
 
-    firstrun = True
-    finished = False
-
     results = {}
-    while finished == False:
-        if firstrun:
-            seq = [
-                Step(ui_package.welcome_screen),
-                Step(ui_package.requireNetworking),
-                Step(ui_package.get_target),
-                Step(ui_package.select_sr),
-                Step(ui_package.os_install_screen),
-                Step(ui_package.description_screen),
-                Step(ui_package.size_screen),
-                ]
-        else:
-            seq = [ 
-                Step(ui_package.target_screen),
-                Step(ui_package.get_root_password) 
-                ]
+    try:
+        seq = [
+            Step(ui_package.welcome_screen),
+            Step(ui_package.requireNetworking),
+            Step(ui_package.get_target),
+            Step(ui_package.select_sr),
+            Step(ui_package.os_install_screen),
+            Step(ui_package.description_screen),
+            Step(ui_package.size_screen),
+            ]
             
-        try:
-            rc = uicontroller.runSequence(seq, results)
+        rc = uicontroller.runSequence(seq, results)
 
-            if rc != -1 and rc != uicontroller.EXIT:
-                # we'll use exception for error propogation etc shortly:
-                p2v_backend.rio_p2v(results, True)
-                rc = 0
-            else:
-                ui_package.end_ui()
-                closeClogs(clog_fds)
-                sys.exit(constants.EXIT_USER_CANCEL)
-        
-            if rc == 0:
-                ui_package.finish_screen({})
-            else:
-                ui_package.failed_screen({})
-            tui.end_ui()
-            p2v_backend.print_results(results)
-            finished = True
-
-        except SystemExit: raise
-        except Exception, e:
-            ex = sys.exc_info()
-            err = str.join("", traceback.format_exception(*ex))
-            xelogging.log("P2V FAILED.")
-            xelogging.log("A fatal exception occurred:")
-            xelogging.log(err)
-
-            # write logs where possible:
-            xelogging.writeLog("/tmp/p2v-log")
-
-            # display a dialog if UI is available:
-            tui.error_dialog(e, err)
-
-            xelogging.collectLogs('/tmp')
+        if rc != -1 and rc != uicontroller.EXIT:
+            p2v_backend.rio_p2v(results, True)
+        else:
+            ui_package.end_ui()
             closeClogs(clog_fds)
+            return constants.EXIT_USER_CANCEL
+        
+        ui_package.finish_screen({})
+        tui.end_ui()
 
-            # clean up the screen
-            tui.end_ui()
-            sys.exit(1)
+    except SystemExit: raise
+    except Exception, e:
+        ex = sys.exc_info()
+        err = str.join("", traceback.format_exception(*ex))
+        xelogging.log("P2V FAILED.")
+        xelogging.log("A fatal exception occurred:")
+        xelogging.log(err)
+
+        # write logs where possible:
+        xelogging.writeLog("/tmp/p2v-log")
+
+        # display a dialog if UI is available:
+        tui.error_dialog(e, err)
+
+        xelogging.collectLogs('/tmp')
+        closeClogs(clog_fds)
+
+        # clean up the screen
+        tui.end_ui()
+        return 2
 
     #eject CD if success
     p2v_backend.ejectCD()
     closeClogs(clog_fds)
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

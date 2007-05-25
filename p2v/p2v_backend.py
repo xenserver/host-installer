@@ -43,7 +43,6 @@ def specifyUI(ui):
     global ui_package
     ui_package = ui
 
-
 def print_results( results ):
     if p2v_utils.is_debug():
         for key in results.keys():
@@ -53,23 +52,6 @@ def print_results( results ):
 def append_hostname(os_install): 
     os_install[p2v_constants.HOST_NAME] = os.uname()[1]
 
-def generate_ssh_key():
-    rc = 0
-
-    if not os.path.exists(p2v_constants.SSH_KEY_FILE):
-        rc, out = findroot.run_command('echo "y" | /usr/bin/ssh-keygen -t rsa -P "" -f %s'% p2v_constants.SSH_KEY_FILE);
-    return (rc, p2v_constants.SSH_KEY_FILE)
- 
-def finish_agent(os_install, xe_host):
-    #tell the agent that we're done
-    root_password = os_install['root-password']
-    rc, out =  findroot.run_command("/opt/xensource/installer/xecli -h '%s' -c finishp2v -p '%s' '%s'"% (xe_host, root_password, os_install['uuid']))
-
-    if rc != 0:
-        p2v_utils.trace_message("Failed to finishp2v (%s)" % out)
-        raise P2VError("Failed to finish this P2V to the %s host. Please contact a Technical Support Representative." % (PRODUCT_BRAND))
-    return rc
-    
 def determine_size(os_install):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
@@ -125,26 +107,31 @@ def rio_p2v(answers, use_tui = True):
         tui.progress.showMessageDialog("Working", "Provisioning the target virtual machine...")
 
     rc = xapi.VM.get_by_name_label(session, template_name)
-    assert rc['Status'] == 'Success'
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to get reference to template '%s'" % template_name
     template_refs = rc['Value']
     assert len(template_refs) == 1
     [ template_ref ] = template_refs
 
     rc = xapi.VM.clone(session, template_ref, "New P2Vd guest")
-    assert rc['Status'] == 'Success'
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to clone template %s" % template_ref
     guest_ref = rc['Value']
 
     rc = xapi.VM.set_is_a_template(session, guest_ref, False)
-    assert rc['Status'] == 'Success'
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to unset template flag on new guest."
 
     rc = xapi.VM.start(session, guest_ref, False, False)
-    assert rc['Status'] == 'Success'
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to start the guest."
 
     # wait for it to get an IP address:
     p2v_server = None
     for i in range(5):
         rc = xapi.VM.get_other_config(session, guest_ref)
-        assert rc['Status'] == 'Success'
+        if rc['Status'] != 'Success':
+            raise RuntimeError, "Unable to get other config field for ref %s" % guest_ref
         value = rc['Value']
         if value.has_key('ip'):
             p2v_server_ip = value['ip']
@@ -172,7 +159,7 @@ def rio_p2v(answers, use_tui = True):
     # use the old functions for now to make the tarball:
     if use_tui:
         tui.progress.clearModelessDialog()
-        tui.progress.showMessageDialog("Working", "Transferring filesystems - this will take a long time..")
+        tui.progress.showMessageDialog("Working", "Transferring filesystems - this will take a long time...")
 
     os_root_device = answers['osinstall'][p2v_constants.DEV_NAME]
     dev_attrs = answers['osinstall'][p2v_constants.DEV_ATTRS]

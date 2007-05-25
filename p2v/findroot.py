@@ -202,7 +202,7 @@ def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
         ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
 
     hostname = findHostName(mntpnt)
-    pipe = popen2.Popen3("tar -C '%s' -cjSf - ." % mntpnt)
+    pipe = popen2.Popen3("tar -C '%s' -cjSf - . 2>/dev/null" % mntpnt)
     path = "/unpack-tar?" + urllib.urlencode({'volume': 'xvda1', 'compression': 'bzip2'})
     httpput.put(host, port, path, pipe.fromchild)
     pipe.tochild.close()
