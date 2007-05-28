@@ -142,7 +142,7 @@ class FirstGenUpgrader(Upgrader):
         pdmap = {}
         for sr in srs:
             vg_name = "VG_XenStorage-%s" % sr
-            rc, out = util.runCmdWithOutput("vgs -o vg_name,pv_name --noheadings --separator :")
+            rc, out = util.runCmd("vgs -o vg_name,pv_name --noheadings --separator :", with_output = True)
             if rc == 0:
                 # we can work with this:
                 lines = [x.strip() for x in out.split("\n")]

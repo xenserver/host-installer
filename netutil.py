@@ -57,7 +57,7 @@ def getPCIInfo(interface):
     devpath = os.path.realpath('/sys/class/net/%s/device' % interface)
     slot = devpath[len(devpath) - 7:]
 
-    rc, output = util.runCmdWithOutput('lspci -i /usr/share/misc/pci.ids -s %s' % slot)
+    rc, output = util.runCmd('lspci -i /usr/share/misc/pci.ids -s %s' % slot, with_output=True)
 
     if rc == 0:
         return output

@@ -32,25 +32,8 @@ def log(txt):
         fd.write(txt)
         fd.flush()
 
-def logOutput(header, txt):
-    """ Add header,txt to the log, treating them as output from execution of a
-    command, and so formatting them appropraitely. """
-
-    global __log__
-
-    if txt == "":
-        txt = "* NO OUTPUT: %s.\n" % header
-    else:
-        txt = "* START OUTPUT: %s\n%s\n* END OUTPUT: %s\n\n" % (header, txt, header)
-    __log__ += txt
-
-    for fd in continuous_logs:
-        fd.write(txt)
-        fd.flush()
-
 def writeLog(destination):
     """ Write the log as it stands to 'destination'. """
-
     global __log__
     
     dfd = open(destination, "w")
@@ -59,7 +42,6 @@ def writeLog(destination):
 
 def collectLogs(dst):
     """ Make a support tarball including all logs (and some more) from 'dst'."""
-
     os.system("cat /proc/bus/pci/devices >%s/pci-log" % dst)
     os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dst)
     os.system("lspci -n >%s/lspcin-log" % dst)

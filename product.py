@@ -229,8 +229,9 @@ class ExistingInstallation(object):
                 raise SettingsNotAvailable, "Error reading keymap data."
 
             # root password:
-            rc, out = util.runCmdWithOutput(
-                'chroot %s python -c \'import pwd; print pwd.getpwnam("root")[1]\'' % mntpoint
+            rc, out = util.runCmd(
+                'chroot %s python -c \'import pwd; print pwd.getpwnam("root")[1]\'' % mntpoint,
+                with_output = True
                 )
 
             if rc != 0:

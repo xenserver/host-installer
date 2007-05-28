@@ -15,11 +15,7 @@ import uicontroller
 import time
 import datetime
 import util
-import diskutil
 import constants
-import netutil
-
-from util import runCmdWithOutput
 
 def getTimeZoneRegions():
     tzf = open(constants.timezone_data_file)

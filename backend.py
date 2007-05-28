@@ -350,7 +350,7 @@ def configureNTP(mounts, ntp_servers):
 
 def configureTimeManually(mounts, ui_package):
     # display the Set TIme dialog in the chosen UI:
-    rc, time = util.runCmdWithOutput('chroot %s timeutil getLocalTime' % mounts['root'])
+    rc, time = util.runCmd('chroot %s timeutil getLocalTime' % mounts['root'], with_output = True)
     answers = {}
     ui_package.installer.screens.set_time(answers, util.parseTime(time))
         
@@ -459,7 +459,7 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    assert runCmd("mkfs.%s -L %s %s" % (rootfs_type, rootfs_label, getRootPartName(disk))) == 0
+    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, getRootPartName(disk)]) == 0
 
 def __mkinitrd(mounts, kernel_version):
     try:
@@ -521,7 +521,7 @@ def installGrub(mounts, disk):
 
     # select an appropriate default (normal or serial) based on
     # how we are being installed:
-    rc, tty = util.runCmdWithOutput("tty")
+    rc, tty = util.runCmd("tty", with_output = True)
     if tty.startswith("/dev/ttyS") and rc == 0:
         grubconf += "serial --unit=0 --speed=115200\n"
         grubconf += "terminal --timeout=10 console serial\n"

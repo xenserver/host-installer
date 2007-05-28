@@ -57,10 +57,16 @@ def copyFilesFromDir(sourcedir, dest):
 ###
 # shell
 
-def runCmd(command):
+def runCmd(command, with_output = False):
     (rv, output) = commands.getstatusoutput(command)
-    xelogging.logOutput(command + " (rc %d)" % rv, output)
-    return rv
+    l = "ran %s; rc %d" % (command, rv)
+    if output:
+        l += "; output follows:\n" + output
+    xelogging.log(l)
+    if with_output:
+        return rv, output
+    else:
+        return rv
 
 def runCmd2(command, with_output = False):
     cmd = subprocess.Popen(command,
@@ -84,16 +90,16 @@ def runCmd2(command, with_output = False):
     output = "STANDARD OUT:\n" + out + \
              "STANDARD ERR:\n" + err
     
-    xelogging.logOutput(" ".join(command) + " (rc %d)" % rv, output)
+    l = "ran %s; rc %d" % (str(command), rv)
+    if out:
+        l += "\nSTANDARD OUT:\n" + out
+    if err:
+        l += "\nSTANDARD ERROR:\n" + err
+    xelogging.log(l)
     if with_output:
         return rv, out
     else:
         return rv
-
-def runCmdWithOutput(command):
-    (rv, output) = commands.getstatusoutput(command)
-    xelogging.logOutput(command, output)
-    return (rv, output)
 
 ###
 # mounting/unmounting
@@ -201,7 +207,7 @@ def fetchFile(source, dest):
             os.rmdir(d)
 
 def getUUID():
-    rc, out = runCmdWithOutput('uuidgen')
+    rc, out = runCmd('uuidgen', with_output = True)
     assert rc == 0
 
     return out.strip()

@@ -84,7 +84,7 @@ def modprobe_file(module, params = "", name = None):
     # module are and modprobe them:
     #
     # deps will initially look like 'depends:    x,y,z'
-    rc, out = util.runCmdWithOutput("modinfo %s" % module)
+    rc, out = util.runCmd("modinfo %s" % module, with_output = True)
     if rc != 0:
         raise RuntimeError, "Error interrogating module."
     [deps] = filter(lambda x: x.startswith("depends:"),
@@ -114,7 +114,7 @@ def VTSupportEnabled():
     # get the answer and cache it if necessary:
     if _vt_support == None:
         assert os.path.exists(constants.XENINFO)
-        rc, caps = util.runCmdWithOutput(constants.XENINFO + " xen-caps")
+        rc, caps = util.runCmd(constants.XENINFO + " xen-caps", with_output = True)
         assert rc == 0
         caps = caps.strip().split(" ")
         _vt_support = "hvm-3.0-x86_32" in caps
@@ -122,6 +122,6 @@ def VTSupportEnabled():
 
 def getHostTotalMemoryKB():
     assert os.path.exists(constants.XENINFO)
-    rc, mem = util.runCmdWithOutput(constants.XENINFO + " host-total-mem")
+    rc, mem = util.runCmd(constants.XENINFO + " host-total-mem", with_output = True)
     assert rc == 0
     return int(mem.strip())
