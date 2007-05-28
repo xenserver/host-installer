@@ -19,7 +19,6 @@ import sys
 import time
 import p2v_constants
 import p2v_tui
-import p2v_utils
 import util
 import xelogging
 import xmlrpclib
@@ -42,12 +41,6 @@ local_mount_path = "/tmp/xenpending"
 def specifyUI(ui):
     global ui_package
     ui_package = ui
-
-def print_results( results ):
-    if p2v_utils.is_debug():
-        for key in results.keys():
-            sys.stderr.write( "result.key = %s \t\t" % key )
-            sys.stderr.write( "result.value = %s\n" % results[key] )
 
 def append_hostname(os_install): 
     os_install[p2v_constants.HOST_NAME] = os.uname()[1]

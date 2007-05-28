@@ -17,4 +17,3 @@ install:
 	install -m644 p2v_constants.py $(P2V_DIR)
 	install -m644 p2v_error.py $(P2V_DIR)
 	install -m644 p2v_tui.py $(P2V_DIR)
-	install -m644 p2v_utils.py $(P2V_DIR)

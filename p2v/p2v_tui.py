@@ -20,7 +20,6 @@ import re
 import os
 import sys
 import p2v_constants
-import p2v_utils
 import p2v_backend
 import time
 import xelogging
@@ -177,7 +176,7 @@ def os_install_screen(answers):
                 ['Ok', 'Back'])
             
         if button == "ok" or button == None:
-            p2v_utils.trace_message("os_install = " + str(supported_os_installs[entry]))
+            xelogging.log("os_install = " + str(supported_os_installs[entry]))
             answers['osinstall'] = supported_os_installs[entry]
             return 1
         else:
@@ -187,10 +186,6 @@ def os_install_screen(answers):
         ButtonChoiceWindow(tui.screen, "Error", """No supported operating systems found. 
 Please see the documentation for a list of supported operating systems, file systems and volume management technologies.""",  ['Ok'], width=50)
         return -2
-    
-    if button == "back": 
-        ButtonChoiceWindow(tui.screen, "debug", """Back Pressed""",  ['Ok'], width=50)
-        return 1
 
 def description_screen(answers):
     (button, description) = EntryWindow(tui.screen,

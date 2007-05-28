@@ -17,7 +17,6 @@ import findroot
 import os
 import sys
 import p2v_constants
-import p2v_utils
 import p2v_backend
 import time
 import xelogging
@@ -89,9 +88,9 @@ def __parse_answerfile__(answerdoc, results):
         r = getValue(n, key)
         if r is not None:
             results[key] = r
-            p2v_utils.trace_message(key + " = " + results[key])
+            xelogging.log(key + " = " + results[key])
         else:
-            p2v_utils.trace_message(key + " not found.")
+            xelogging.log(key + " not found.")
 
     keyList = [ p2v_constants.UUID,
                 p2v_constants.DESCRIPTION,
@@ -117,9 +116,9 @@ def __parse_answerfile__(answerdoc, results):
             r = getValue(n, key)
             if r is not None:
                 results[p2v_constants.OS_INSTALL][key] = r
-                p2v_utils.trace_message("  " + key + " = " + results[p2v_constants.OS_INSTALL][key])
+                xelogging.log("  " + key + " = " + results[p2v_constants.OS_INSTALL][key])
             else:
-                p2v_utils.trace_message(key + " not found.")
+                xelogging.log(key + " not found.")
 
         keyList = [ p2v_constants.DEV_ATTRS_TYPE,
                     p2v_constants.DEV_ATTRS_PATH,
@@ -132,9 +131,9 @@ def __parse_answerfile__(answerdoc, results):
                 r = getValue(n, key)
                 if r is not None:
                     results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key] = r
-                    p2v_utils.trace_message("    " + key + " = " + results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key])
+                    xelogging.log("    " + key + " = " + results[p2v_constants.OS_INSTALL][p2v_constants.DEV_ATTRS][key])
                 else:
-                    p2v_utils.trace_message(key + " not found.")
+                    xelogging.log(key + " not found.")
 
        
 

@@ -11,21 +11,21 @@ import sys
 import time
 import commands
 import p2v_constants
-import p2v_utils
 import p2v_tui
 import popen2
 import httpput
 import urllib
+import xelogging
 from p2v_error import P2VError
 
 ui_package = p2v_tui
 
 
 def run_command(cmd):
-    p2v_utils.trace_message("running: %s\n" % cmd)
+    xelogging.log("running: %s" % cmd)
     rc, out = commands.getstatusoutput(cmd)
     if rc != 0:
-        p2v_utils.trace_message("Failed %d: %s\n" % (rc, out))
+        xelogging.log("Failed %d: %s" % (rc, out))
     return (rc, out)
 
 def parse_blkid(line):
@@ -61,8 +61,8 @@ def scan():
 def mount_dev(dev, dev_type, mntpnt, options):
     umount_dev(mntpnt) # just a precaution, don't care if it fails
     rc, out = run_command("echo 1 > /proc/sys/kernel/printk")
-    rc, out = run_command("mount -o %s -t %s %s %s %s" % (options, dev_type,
-                                                       dev, mntpnt, p2v_utils.show_debug_output()))
+    rc, out = run_command("mount -o %s -t %s %s %s" % (options, dev_type,
+                                                       dev, mntpnt))
     return rc
 
 def umount_dev(mntpnt):
@@ -122,7 +122,6 @@ def determine_size(mntpnt, dev_name):
     devices = scan()
 
     active_mounts = []
-    p2v_utils.trace_message("* Need to mount:")
     mounts = find_extra_mounts(fstab, devices)
     for mount_info in mounts:
 #        p2v_utils.trace_message("  --", mount_info)
@@ -139,33 +138,33 @@ def determine_size(mntpnt, dev_name):
     #df reports in 1K blocks
     # get the used size
     command = "df -kP | grep %s | awk '{print $3}'" % mntpnt
-    p2v_utils.trace_message("going to run : %s" % command)
+    xelogging.log("going to run : %s" % command)
     rc, used_out = run_command(command);
     if rc != 0:
         raise P2VError("Failed to determine used size - df failed")
 
     #get the total size
     command = "df -kP | grep %s | awk '{print $2}'" % mntpnt
-    p2v_utils.trace_message("going to run : %s" % command)
+    xelogging.log("going to run : %s" % command)
     rc, total_out = run_command(command);
     if rc != 0:
         raise P2VError("Failed to determine used size - df failed")
     
-    p2v_utils.trace_message("\n\nFS used Usage : %s, FS total usage : %s\n" % (used_out, total_out))
+    xelogging.log("FS used Usage : %s, FS total usage : %s" % (used_out, total_out))
     used_size = long(0)
     total_size = long(0)
 
     split_used_size = used_out.split('\n')
     split_total_size = total_out.split('\n')
     for o in split_used_size:
-        p2v_utils.trace_message("\n\nFS used Usage : %s\n\n" % o)
+        xelogging.log("FS used Usage : %s" % o)
         used_size += long(o)
     for o in split_total_size:
-        p2v_utils.trace_message("\n\nFS total Usage : %s\n\n" % o)
+        xelogging.log("FS total Usage : %s" % o)
         total_size += long(o)
         
-    p2v_utils.trace_message("\n\nFinal FS used Usage : %d\n\n" % used_size)
-    p2v_utils.trace_message("\n\nFinal FS total Usage : %d\n\n" % total_size)
+    xelogging.log("Final FS used Usage : %d" % used_size)
+    xelogging.log("Final FS total Usage : %d" % total_size)
 
     for item in active_mounts:
         # assume the umount works
@@ -174,18 +173,13 @@ def determine_size(mntpnt, dev_name):
     return str(used_size * 1024), str(total_size * 1024)
 
 def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
-    rc = 0
     fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
     fstab = load_fstab(fp)
     fp.close()
-    
-    if pd != None:
-        ui_package.displayProgressDialog(0, pd, " - Scanning and mounting devices")
-                                       
+
     devices = scan()
     
     active_mounts = []
-    p2v_utils.trace_message("* Need to mount:")
     mounts = find_extra_mounts(fstab, devices)
     for mount_info in mounts:
         #p2v_utils.trace_message("  --", mount_info)
@@ -198,9 +192,6 @@ def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
 
         active_mounts.append(extra_mntpnt)
 
-    if pd != None:
-        ui_package.displayProgressDialog(1, pd, " - Compressing root filesystem")
-
     hostname = findHostName(mntpnt)
     pipe = popen2.Popen3("tar -C '%s' -cjSf - . 2>/dev/null" % mntpnt)
     path = "/unpack-tar?" + urllib.urlencode({'volume': 'xvda1', 'compression': 'bzip2'})
@@ -208,9 +199,6 @@ def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
     pipe.tochild.close()
     pipe.fromchild.close()
     rc = pipe.wait()
-
-    if pd != None:
-        ui_package.displayProgressDialog(2, pd, " - Calculating md5sum")
 
     for item in active_mounts:
         # assume the umount works
@@ -221,7 +209,7 @@ def mount_os_root(dev_name, dev_attrs):
     mnt = mntbase + "/" + os.path.basename(dev_name)
     rc, out = run_command("mkdir -p %s" % (mnt))
     if rc != 0:
-        p2v_utils.trace_message("mkdir failed\n")
+        xelogging.log("mkdir failed")
         raise P2VError("Failed to mount os root - mkdir failed")
     
     rc = mount_dev(dev_name, dev_attrs['type'], mnt, 'ro')
@@ -273,7 +261,7 @@ def inspect_root(dev_name, dev_attrs, results):
     mnt = mount_os_root(dev_name, dev_attrs)
     fstab_path = os.path.join(mnt, 'etc', 'fstab')
     if os.path.exists(fstab_path):
-       p2v_utils.trace_message("* Found root partition on %s" % dev_name)
+       xelogging.log("* Found root partition on %s" % dev_name)
 
        #scan fstab for EVMS
        fp = open(fstab_path)
@@ -281,18 +269,18 @@ def inspect_root(dev_name, dev_attrs, results):
        fp.close()
        for ((mntpnt, dev), info) in fstab.items():
            if dev.find("/evms/") != -1:
-               p2v_utils.trace_message("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
+               xelogging.log("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
                return
 
        rc, out = run_command("/opt/xensource/installer/read_osversion.sh " + mnt)
        if rc == 0:
-           p2v_utils.trace_message("read_osversion succeeded : out = %s" % out)
+           xelogging.log("read_osversion succeeded : out = %s" % out)
            parts = out.split('\n')
            if len(parts) > 0:
                os_install = {}
-               p2v_utils.trace_message("found os name: %s" % parts[0])
-               p2v_utils.trace_message("found os version : %s" % parts[1])
-               p2v_utils.trace_message("os is : %s" % parts[2])
+               xelogging.log("found os name: %s" % parts[0])
+               xelogging.log("found os version : %s" % parts[1])
+               xelogging.log("os is : %s" % parts[2])
                
                os_install[p2v_constants.OS_NAME] = parts[0]
                os_install[p2v_constants.OS_VERSION] = parts[1]
@@ -302,7 +290,7 @@ def inspect_root(dev_name, dev_attrs, results):
                os_install[p2v_constants.HOST_NAME] = findHostName(mnt)
                results.append(os_install)
        else:
-           p2v_utils.trace_message("read_osversion failed : out = %s" % out)
+           xelogging.log("read_osversion failed : out = %s" % out)
            raise P2VError("Failed to inspect root - read_osversion failed.")
     umount_dev(mnt)
 
@@ -341,20 +329,20 @@ if __name__ == '__main__':
             mnt = mntbase + "/" + os.path.basename(dev_name)
             rc, out = run_command("mkdir -p %s" % (mnt))
             if rc != 0:
-                p2v_utils.trace_message("mkdir failed\n")
+                xelogging.log("mkdir failed")
                 sys.exit(1)
 
             rc = mount_dev(dev_name, dev_attrs[p2v_constants.DEV_ATTRS_TYPE], mnt, 'ro')
             if rc != 0:
-                p2v_utils.trace_message("Failed to mount mnt")
+                xelogging.log("Failed to mount mnt")
                 continue
                 #sys.exit(rc)
 
             if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
-                p2v_utils.trace_message("* Found root partition on %s" % dev_name)
+                xelogging.log("* Found root partition on %s" % dev_name)
                 rc, tar_dirname, tar_filename, md5sum = handle_root(mnt, dev_name)
                 if rc != 0:
-                    p2v_utils.trace_message("%s failed\n" % dev_name)
+                    xelogging.log("%s failed" % dev_name)
                     sys.exit(rc)
 
             umount_dev(mnt)
