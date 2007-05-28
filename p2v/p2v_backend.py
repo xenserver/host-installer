@@ -106,6 +106,7 @@ def rio_p2v(answers, use_tui = True):
         tui.progress.clearModelessDialog()
         tui.progress.showMessageDialog("Working", "Provisioning the target virtual machine...")
 
+    xelogging.log("Looking for P2V server template")
     rc = xapi.VM.get_by_name_label(session, template_name)
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to get reference to template '%s'" % template_name
@@ -113,6 +114,7 @@ def rio_p2v(answers, use_tui = True):
     assert len(template_refs) == 1
     [ template_ref ] = template_refs
 
+    xelogging.log("Cloning a new P2V server")
     rc = xapi.VM.clone(session, template_ref, "New P2Vd guest")
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to clone template %s" % template_ref
@@ -122,12 +124,14 @@ def rio_p2v(answers, use_tui = True):
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to unset template flag on new guest."
 
+    xelogging.log("Starting P2V server")
     rc = xapi.VM.start(session, guest_ref, False, False)
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to start the guest."
 
     # wait for it to get an IP address:
     p2v_server = None
+    xelogging.log("Waiting for P2V server to give us an IP address")
     for i in range(5):
         rc = xapi.VM.get_other_config(session, guest_ref)
         if rc['Status'] != 'Success':
@@ -142,10 +146,12 @@ def rio_p2v(answers, use_tui = True):
 
     # need to write some proper error checking code...!:
     assert p2v_server and p2v_server_ip
+    xelogging.log("IP address is %s" % p2v_server_ip)
 
     def p2v_server_call(cmd, args):
         query_string = urllib.urlencode(args)
         address = p2v_server + "/" + cmd + "?" + query_string
+        xelogging.log("About to call p2v server: %s" % address)
         r = urllib2.urlopen(address)
         r.close()
 
@@ -166,7 +172,6 @@ def rio_p2v(answers, use_tui = True):
     mntpoint = findroot.mount_os_root(os_root_device, dev_attrs)
     findroot.rio_handle_root(p2v_server_ip, 81, mntpoint, os_root_device)
 
-    # use the old functions for now to make the tarball:
     if use_tui:
         tui.progress.clearModelessDialog()
         tui.progress.showMessageDialog("Working", "Completing transformation...")
