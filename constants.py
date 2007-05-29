@@ -36,6 +36,8 @@ max_primary_disk_size = 2047 #GB
 MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
 MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 
+DOM0_MEM=524288
+
 # filesystems and partitions (sizes in MB):
 root_size = 4096
 rootfs_type = 'ext3'
