@@ -173,6 +173,7 @@ def determine_size(mntpnt, dev_name):
     return str(used_size * 1024), str(total_size * 1024)
 
 def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
+    """ Returns a boolean indicating whether we had to mount /boot separately or not. """
     fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
     fstab = load_fstab(fp)
     fp.close()
@@ -203,6 +204,8 @@ def rio_handle_root(host, port, mntpnt, dev_name, pd = None):
     for item in active_mounts:
         # assume the umount works
         umount_dev(item)
+
+    return True in [x[1] == '/boot' for x in mounts]
 
 def mount_os_root(dev_name, dev_attrs):
     mntbase = "/tmp/mnt"
@@ -340,7 +343,7 @@ if __name__ == '__main__':
 
             if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
                 xelogging.log("* Found root partition on %s" % dev_name)
-                rc, tar_dirname, tar_filename, md5sum = handle_root(mnt, dev_name)
+                #rc, tar_dirname, tar_filename, md5sum = handle_root(mnt, dev_name)
                 if rc != 0:
                     xelogging.log("%s failed" % dev_name)
                     sys.exit(rc)

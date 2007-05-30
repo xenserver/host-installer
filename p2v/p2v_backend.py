@@ -163,14 +163,14 @@ def rio_p2v(answers, use_tui = True):
     os_root_device = answers['osinstall'][p2v_constants.DEV_NAME]
     dev_attrs = answers['osinstall'][p2v_constants.DEV_ATTRS]
     mntpoint = findroot.mount_os_root(os_root_device, dev_attrs)
-    findroot.rio_handle_root(p2v_server_ip, 81, mntpoint, os_root_device)
+    boot_merged = findroot.rio_handle_root(p2v_server_ip, 81, mntpoint, os_root_device)
 
     if use_tui:
         tui.progress.clearModelessDialog()
         tui.progress.showMessageDialog("Working", "Completing transformation...")
 
     p2v_server_call('update-fstab', {'root-vol': 'xvda1'})
-    p2v_server_call('paravirtualise', {'root-vol': 'xvda1'})
+    p2v_server_call('paravirtualise', {'root-vol': 'xvda1', 'boot-merged': str(boot_merged).lower()})
     p2v_server_call('completed', {})
 
     if use_tui:
