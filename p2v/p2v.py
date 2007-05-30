@@ -117,6 +117,8 @@ def main():
         tui.end_ui()
         return 2
 
+    xelogging.writeLog("/tmp/p2v-log")
+
     #eject CD if success
     p2v_backend.ejectCD()
     closeClogs(clog_fds)
