@@ -149,7 +149,7 @@ def rio_p2v(answers, use_tui = True):
         r.close()
 
     # add a disk, partition it with a big partition, format the partition:
-    p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['osinstall'][p2v_constants.FS_TOTAL_SIZE]),
+    p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
         'sr': answers['target-sr'], 'bootable': 'true'})
     p2v_server_call('partition-disk', {'volume': 'xvda', 'part1': '-1'})
     p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3'})

@@ -208,7 +208,6 @@ def size_screen(answers):
 
     total_size = str(long(answers['osinstall'][p2v_constants.FS_TOTAL_SIZE]) / 1024**2)
     used_size = str(long(answers['osinstall'][p2v_constants.FS_USED_SIZE]) / 1024**2)
-    new_size = long(0)
     success = False
     while not success:
         (button, size) = EntryWindow(tui.screen,
@@ -218,10 +217,6 @@ def size_screen(answers):
 Currently, %s MB is in use by the chosen operating system.  The default size of the volume is 150%% of the used size or 4096 MB, whichever is bigger.""" % (BRAND_SERVER, used_size),
                 [('Size in MB:', total_size)],
                 buttons = ['Ok', 'Back'])
-        try:
-            l = long(size[0])
-        except ValueError:
-            continue
 
         if long(size[0]) < long(used_size):
             ButtonChoiceWindow(tui.screen,
@@ -229,14 +224,24 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
                 "Minimum size = %s MB." % used_size,
                 buttons = ['Ok'])
         else:
-            new_size = long(size[0]) * 1024**2
+            new_size = long(size[0])
             success = True
 
     if button == "ok" or button == None:
-        answers['osinstall'][p2v_constants.FS_TOTAL_SIZE] = str(new_size)
+        answers['target-vm-disksize-mb'] = new_size
         return 1
     else:
         return -1
+
+def confirm_screen(answers):
+    button = ButtonChoiceWindow(tui.screen, "Confirm Operation",
+        "All required information has now been collection.  The data transfer may take a long time and cause significant network traffic.",
+        ['Start Transfer', 'Back'], width = 40)
+
+    if button in ['start transfer', None]:
+        return 1
+    else:
+        return 0
 
 def finish_screen(answers):
     xelogging.writeLog("/tmp/install-log")

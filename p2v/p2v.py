@@ -81,6 +81,7 @@ def main():
             Step(ui_package.os_install_screen),
             Step(ui_package.description_screen),
             Step(ui_package.size_screen),
+            Step(ui_package.confirm_screen),
             ]
             
         rc = uicontroller.runSequence(seq, results)
