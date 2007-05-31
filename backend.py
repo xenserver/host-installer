@@ -544,32 +544,32 @@ def installGrub(mounts, disk):
     # Generic boot entries first
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /boot/xen.gz dom0_mem=%d lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
+    grubconf += "   kernel /boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
     grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 print-fatal-signals=2\n" % (constants.rootfs_label)
     grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
 
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /boot/xen.gz com1=115200,8n1 console=com1,tty dom0_mem=%d lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
+    grubconf += "   kernel /boot/xen.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
     grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=ttyS0,115200n8 print-fatal-signals=2\n" % (constants.rootfs_label)
     grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
     
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic dom0_mem=%d com1=115200,8n1 console=com1,tty\n" % constants.DOM0_MEM
+    grubconf += "   kernel /boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic dom0_mem=%dM com1=115200,8n1 console=com1,tty\n" % constants.DOM0_MEM
     grubconf += "   module /boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (constants.rootfs_label)
     grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
 
     # Entries with specific versions
     grubconf += "title %s (Xen %s / Linux %s)\n" % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION)
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /boot/xen-%s.gz dom0_mem=%d lowmem_emergency_pool=16M crashkernel=64M@32M\n" % (version.XEN_VERSION, constants.DOM0_MEM)
+    grubconf += "   kernel /boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % (version.XEN_VERSION, constants.DOM0_MEM)
     grubconf += "   module /boot/vmlinuz-%s root=LABEL=%s ro console=tty0\n" % (version.KERNEL_VERSION, constants.rootfs_label)
     grubconf += "   module /boot/initrd-%s.img\n\n" % version.KERNEL_VERSION
 
     grubconf += "title %s (Serial, Xen %s / Linux %s)\n" % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION)
     grubconf += "   root %s\n" % rootdisk
-    grubconf += "   kernel /boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=%d lowmem_emergency_pool=16M crashkernel=64M@32M\n" % (version.XEN_VERSION, constants.DOM0_MEM)
+    grubconf += "   kernel /boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % (version.XEN_VERSION, constants.DOM0_MEM)
     grubconf += "   module /boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, constants.rootfs_label)
     grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
 
