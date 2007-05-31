@@ -97,16 +97,16 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                       os.path.join(dest_mnt, 'boot', 'grub', 'menu.lst')])
 
         #find out the label
-        [v,out] = util.runCmd2(['grep', '"root\=LABEL"', '/tmp/menu.lst'], True)
+        [v,out] = util.runCmd2(['grep', 'root=LABEL', '/tmp/menu.lst'], True)
         p = re.compile('root=LABEL=root-\w+')
         labels = p.findall(out)
 
         if (len(labels)==0):
-           raise
+            raise
         else:
-           #just take the first one
+            #just take the first one
             newlabel=labels[0]
-            util.runCmd2(['e2label', restore_partition, newlabel[len('root=LABEL=root-'):]])
+            util.runCmd2(['e2label', restore_partition, newlabel[len('root=LABEL='):]])
 
         xelogging.log("Bootloader restoration complete.")
         xelogging.log("Restore successful.")
