@@ -545,13 +545,13 @@ def installGrub(mounts, disk):
     grubconf += "title %s\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
-    grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 print-fatal-signals=2\n" % (constants.rootfs_label)
+    grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0\n" % (constants.rootfs_label)
     grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
 
     grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
     grubconf += "   root %s\n" % rootdisk
     grubconf += "   kernel /boot/xen.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
-    grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=ttyS0,115200n8 print-fatal-signals=2\n" % (constants.rootfs_label)
+    grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (constants.rootfs_label)
     grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
     
     grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
