@@ -89,7 +89,7 @@ def main():
         if rc != -1 and rc != uicontroller.EXIT:
             p2v_backend.rio_p2v(results, True)
         else:
-            ui_package.end_ui()
+            tui.end_ui()
             closeClogs(clog_fds)
             return constants.EXIT_USER_CANCEL
         
