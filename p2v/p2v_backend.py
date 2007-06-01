@@ -152,7 +152,13 @@ def rio_p2v(answers, use_tui = True):
     p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
         'sr': answers['target-sr'], 'bootable': 'true'})
     p2v_server_call('partition-disk', {'volume': 'xvda', 'part1': '-1'})
-    p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3'})
+
+    # if RHEL 3 we need to use a more limited set of ext3 options than the default set:
+    if answers['osinstall']['osname'] == "Red Hat" and answers['osinstall']['osversion'].startswith("3."):
+        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'fsopts': 'none,has_journal,filetype,sparse_super'})
+    else:
+        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3'})
+
     p2v_server_call('set-fs-metadata', {'volume': 'xvda1', 'mntpoint': '/'})
 
     # use the old functions for now to make the tarball:
