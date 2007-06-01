@@ -449,9 +449,10 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
 
     # now write out configuration for default pool configuration:
     fd.write("POOL_UUID=$(/opt/xensource/bin/xe pool-list params=uuid --minimal)\n")
+    fd.write("HOST_UUID=$(/opt/xensource/bin/xe host-list params=uuid --minimal)\n")
     fd.write("/opt/xensource/bin/xe pool-param-set uuid=${POOL_UUID} default-SR=${SR}\n")
-    fd.write("/opt/xensource/bin/xe pool-param-set uuid=${POOL_UUID} crash-dump-SR=${SR}\n")
-    fd.write("/opt/xensource/bin/xe pool-param-set uuid=${POOL_UUID} suspend-image-SR=${SR}\n")
+    fd.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} crash-dump-sr-uuid=${SR}\n")
+    fd.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} suspend-image-sr-uuid=${SR}\n")
 
     fd.close()
 
