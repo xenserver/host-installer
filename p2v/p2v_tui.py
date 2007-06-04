@@ -241,7 +241,7 @@ def confirm_screen(answers):
     if button in ['start transfer', None]:
         return 1
     else:
-        return 0
+        return -1
 
 def finish_screen(answers):
     xelogging.writeLog("/tmp/install-log")
