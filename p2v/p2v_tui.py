@@ -73,8 +73,8 @@ def get_target(answers):
     else:
         # check we can connect to the server:
         host = e_host.value()
-        if not host.startswith('http://'):
-            host = "http://" + host
+        if not host.startswith('https://') or not host.startswith('http://'):
+            host = "https://" + host
         user = e_user.value()
         pw = e_pw.value()
         ok = True
