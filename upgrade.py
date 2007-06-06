@@ -161,6 +161,15 @@ class FirstGenUpgrader(Upgrader):
             upgrade_script.write("PBD=$(/opt/xensource/bin/xe pbd-create host-uuid=%s device-config-device='%s' sr-uuid=${SR})\n" % (inst_uuid, pd_string))
             # - plug the PBD to enable scanning:
             upgrade_script.write("/opt/xensource/bin/xe pbd-plug uuid=${PBD}\n")
+        
+        # - set pool and host paramaters like we would in a standard firstboot
+        #   script:
+        sr = pdmap.keys()[0]
+        upgrade_script.write("POOL_UUID=$(/opt/xensource/bin/xe pool-list params=uuid --minimal)\n")
+        upgrade_script.write("HOST_UUID=$(/opt/xensource/bin/xe host-list params=uuid --minimal)\n")
+        upgrade_script.write("/opt/xensource/bin/xe pool-param-set uuid=${POOL_UUID} default-SR=${SR}\n")
+        upgrade_script.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} crash-dump-sr-uuid=${SR}\n")
+        upgrade_script.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} suspend-image-sr-uuid=${SR}\n")
 
         # - migrate database:
         upgrade_script.write("/opt/xensource/bin/metadata_upgrade >/tmp/md_upgrade.sh\n")
