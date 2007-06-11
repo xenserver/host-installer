@@ -112,7 +112,6 @@ def doInteractiveLoadDriver(ui):
 
             if repo_has_drivers:
                 driver_repos.append(r)
-                driver_has_repos = False
 
         total_rc = 0
         for name, driver in drivers:
