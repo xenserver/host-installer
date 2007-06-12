@@ -35,9 +35,12 @@ ui_package = p2v_tui
 from p2v_error import P2VError, P2VPasswordError, P2VMountError, P2VCliError
 from version import *
 
-#globals
+# globals
 dropbox_path = "/opt/xensource/packages/xgt/"
 local_mount_path = "/tmp/xenpending"
+
+class P2VServerError(Exception):
+    pass
 
 def specifyUI(ui):
     global ui_package
@@ -150,8 +153,12 @@ def rio_p2v(answers, use_tui = True):
         response = conn.getresponse()
 
         xelogging.log("Response was %d %s" % (response.status, response.reason))
+        body = response.read()
         if body:
-            xelogging.log("Body was %s" % response.read())
+            xelogging.log("Body was %s" % body)
+        
+        if response.status != 200:
+            raise P2VServerError, response.status
 
     # add a disk, partition it with a big partition, format the partition:
     p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
