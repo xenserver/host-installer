@@ -39,7 +39,7 @@ def requireNetworking(answers):
 def welcome_screen(answers):
     button = ButtonChoiceWindow(tui.screen,
                        "Welcome to %s P2V" % PRODUCT_BRAND,
-                       """This will copy a locally-installed OS filesystem and convert it into a %s running on a %s, or to a template on an NFS share that can be imported to a %s.""" % (BRAND_GUEST_SHORT, BRAND_SERVER, BRAND_SERVER),
+                       """This tool will copy a locally-installed operating system into a %s running on a %s.""" % (BRAND_GUEST_SHORT, BRAND_SERVER),
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
