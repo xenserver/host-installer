@@ -27,6 +27,7 @@ import tui.progress
 
 import urllib
 import urllib2
+import httplib
 import httpput
 
 ui_package = p2v_tui
@@ -123,7 +124,6 @@ def rio_p2v(answers, use_tui = True):
         raise RuntimeError, "Unable to start the guest."
 
     # wait for it to get an IP address:
-    p2v_server = None
     xelogging.log("Waiting for P2V server to give us an IP address")
     for i in range(5):
         rc = xapi.VM.get_other_config(session, guest_ref)
@@ -132,21 +132,26 @@ def rio_p2v(answers, use_tui = True):
         value = rc['Value']
         if value.has_key('ip'):
             p2v_server_ip = value['ip']
-            p2v_server = "http://" + p2v_server_ip + ":81"
+            p2v_server_port = 81
             break
         else:
             time.sleep(5)
 
     # need to write some proper error checking code...!:
-    assert p2v_server and p2v_server_ip
+    assert p2v_server_ip
     xelogging.log("IP address is %s" % p2v_server_ip)
 
     def p2v_server_call(cmd, args):
         query_string = urllib.urlencode(args)
-        address = p2v_server + "/" + cmd + "?" + query_string
+        conn = httplib.HTTPConnection(p2v_server_ip, p2v_server_port)
+        address = "/" + cmd + "?" + query_string
         xelogging.log("About to call p2v server: %s" % address)
-        r = urllib2.urlopen(address)
-        r.close()
+        conn.request("GET", address)
+        response = conn.getresponse()
+
+        xelogging.log("Response was %d %s" % (response.status, response.reason))
+        if body:
+            xelogging.log("Body was %s" % response.read())
 
     # add a disk, partition it with a big partition, format the partition:
     p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
