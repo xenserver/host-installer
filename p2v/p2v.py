@@ -93,7 +93,10 @@ def main():
             closeClogs(clog_fds)
             return constants.EXIT_USER_CANCEL
         
-        ui_package.finish_screen({})
+        xelogging.log("P2V successfully completed.")
+        xelogging.writeLog("/tmp/p2v-log")
+
+        ui_package.finish_screen()
         tui.end_ui()
 
     except SystemExit: raise
@@ -116,8 +119,6 @@ def main():
         # clean up the screen
         tui.end_ui()
         return 2
-
-    xelogging.writeLog("/tmp/p2v-log")
 
     #eject CD if success
     p2v_backend.ejectCD()

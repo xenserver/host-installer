@@ -243,7 +243,7 @@ def confirm_screen(answers):
     else:
         return -1
 
-def finish_screen(answers):
+def finish_screen():
     xelogging.writeLog("/tmp/install-log")
     xelogging.collectLogs('/tmp')
     ButtonChoiceWindow(tui.screen, "Finish P2V", """P2V operation successfully completed. Please press enter to reboot the machine.""", ['Ok'], width = 50)
