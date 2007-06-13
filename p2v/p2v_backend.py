@@ -149,7 +149,8 @@ def rio_p2v(answers, use_tui = True):
         conn = httplib.HTTPConnection(p2v_server_ip, p2v_server_port)
         address = "/" + cmd + "?" + query_string
         xelogging.log("About to call p2v server: %s" % address)
-        conn.request("GET", address)
+        conn.request("GET", address, 
+                     headers = {'Connection': 'close'})
         response = conn.getresponse()
 
         xelogging.log("Response was %d %s" % (response.status, response.reason))
@@ -159,6 +160,8 @@ def rio_p2v(answers, use_tui = True):
         
         if response.status != 200:
             raise P2VServerError, response.status
+
+        conn.close()
 
     # add a disk, partition it with a big partition, format the partition:
     p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
