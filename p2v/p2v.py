@@ -111,7 +111,7 @@ def main():
         xelogging.writeLog("/tmp/p2v-log")
 
         # display a dialog if UI is available:
-        tui.error_dialog(e, err)
+        tui.exn_error_dialog("p2v-log", False)
 
         xelogging.collectLogs('/tmp')
         closeClogs(clog_fds)

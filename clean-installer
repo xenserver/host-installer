@@ -196,11 +196,9 @@ def main():
 
         # now display a friendly error dialog:
         if ui:
-            ui.error_dialog(e, err)
+            ui.exn_error_dialog("install-log", True)
         else:
-            txt = "An error has occurred and the installation must be aborted.  Please refer to your user guide, or contact a Technical Support Representative, for further details."
-            if str != "":
-                txt += "\n\nThe error was: %s" % str(e)
+            txt = constants.error_string(str(e), 'install-log', True)
             xelogging.log(txt)
 
         # clean up the screen

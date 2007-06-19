@@ -14,7 +14,10 @@ from snack import *
 from version import *
 import snackutil
 import pdb
+import traceback
 import xelogging
+import constants
+import sys
 
 screen = None
 
@@ -32,16 +35,12 @@ def end_ui():
 def OKDialog(title, text, hasCancel = False):
     return snackutil.OKDialog(screen, title, text, hasCancel)
 
-def error_dialog(exc, trace):
+def exn_error_dialog(logname, with_hd):
     if screen:
-        exc_str = str(exc)
+        _, exn, _ = sys.exc_info()
+        exn_str = str(exn)
 
-        # If the error has a string representation, make the text
-        # more helpful by displaying it.
-        if exc_str == "":
-            text = "An error has occurred and the installation must be aborted.  The details of the error can be found in the installation log, which will be written to /tmp/install-log and /boot/install-log on your hard disk if possible.\n\nPlease refer to your user guide or, contact a Technical Support Representative, for more details."
-        else:
-            text = "An error has occurred and the installation must be aborted.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details." % exc_str
+        text = constants.error_string(exn_str, logname, with_hd)
 
         bb = ButtonBar(screen, ['Reboot'])
         t = TextboxReflowed(50, text, maxHeight = screen.height - 13)
@@ -56,18 +55,20 @@ def error_dialog(exc, trace):
         # did they press the secret F2 key that activates debugging
         # features?
         if result == "F2":
-            traceback_dialog(trace)
+            traceback_dialog()
     else:
         xelogging.log("A text UI error dialog was requested, but the UI has not been initialised yet.")
 
-def traceback_dialog(trace):
+def traceback_dialog():
+    exn_type, exn, tb = sys.exc_info()
     result = ButtonChoiceWindow(
         screen, "Traceback",
-        "The traceback was as follows:\n\n" + trace,
+        "The traceback was as follows:\n\n" + str.join("", traceback.format_exception(exn_type, exn, tb)),
         ['Ok', 'Start PDB'], width=60
         )
     if result == "start pdb":
         screen.suspend()
-        pdb.set_trace()
+        pdb.post_mortem(tb)
         screen.resume()
+    del tb
 
