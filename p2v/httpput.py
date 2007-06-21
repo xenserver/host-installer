@@ -6,7 +6,7 @@
 
 import httplib
 
-def put(host, port, path, fobj, chunksize = 524288):
+def put(host, port, path, fobj, chunksize = 524288, https = False):
     """ Simple client-side put function.  Doesn't currently deal with redirects
     or authentication of any kind.  Returns the HTTP status code.  Does not
     read the body of the response. 
@@ -15,7 +15,10 @@ def put(host, port, path, fobj, chunksize = 524288):
     fobj is an object that implements 'read'; provides data to be encoded and
     sent to server. """
 
-    conn = httplib.HTTPConnection(host, port)
+    if https:
+        conn = httplib.HTTPSConnection(host, port)
+    else:
+        conn = httplib.HTTPConnection(host, port)
     conn.putrequest("PUT", path)
     conn.putheader("Transfer-Encoding", "chunked")
     conn.putheader("Expect", "100-continue")

@@ -126,31 +126,49 @@ def rio_p2v(answers, use_tui = True):
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to start the guest."
 
+    rc = xapi.VM.get_uuid(session, guest_ref)
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to get UUID of our new P2V guest."
+    p2v_server_uuid = rc['Value']
+
+    rc = xapi.VM.get_resident_on(session, guest_ref)
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to get a reference to the host the guest is running on."
+    host_ref = rc['Value']
+
+    rc = xapi.host.get_address(session, host_ref)
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to get address of host %s" % host_ref
+    host_address = rc['Value']
+
     # wait for it to get an IP address:
-    xelogging.log("Waiting for P2V server to give us an IP address")
+    xelogging.log("Waiting for P2V server to signal ready state")
+    p2v_server_ready = False
     for i in range(5):
         rc = xapi.VM.get_other_config(session, guest_ref)
         if rc['Status'] != 'Success':
             raise RuntimeError, "Unable to get other config field for ref %s" % guest_ref
         value = rc['Value']
-        if value.has_key('ip'):
-            p2v_server_ip = value['ip']
-            p2v_server_port = 81
+        if value.has_key('ip') or value.has_key('ready'):
+            p2v_server_ready = True
             break
         else:
-            time.sleep(5)
+            time.sleep(10)
 
-    # need to write some proper error checking code...!:
-    assert p2v_server_ip
-    xelogging.log("IP address is %s" % p2v_server_ip)
+    if not p2v_server_ready:
+        raise RuntimeError, "P2V server did not signify ready state"
 
     def p2v_server_call(cmd, args):
+        """ This function makes HTTP GET calls to the server via the xapi proxy
+        code, so we connect to xapi on which the server is resident, then do a
+        GET with the full address of the client, so that calls go via the 
+        'guest-installer' network. """
+        conn = httplib.HTTPSConnection(host_address)
+
         query_string = urllib.urlencode(args)
-        conn = httplib.HTTPConnection(p2v_server_ip, p2v_server_port)
-        address = "/" + cmd + "?" + query_string
+        address = "http://" + p2v_server_uuid + ":81/" + cmd + "?" + query_string
         xelogging.log("About to call p2v server: %s" % address)
-        conn.request("GET", address, 
-                     headers = {'Connection': 'close'})
+        conn.request("GET", address, headers = {'Connection': 'close'})
         response = conn.getresponse()
 
         xelogging.log("Response was %d %s" % (response.status, response.reason))
@@ -184,7 +202,7 @@ def rio_p2v(answers, use_tui = True):
     os_root_device = answers['osinstall'][p2v_constants.DEV_NAME]
     dev_attrs = answers['osinstall'][p2v_constants.DEV_ATTRS]
     mntpoint = findroot.mount_os_root(os_root_device, dev_attrs)
-    boot_merged = findroot.rio_handle_root(p2v_server_ip, 81, mntpoint, os_root_device)
+    boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device)
 
     if use_tui:
         tui.progress.clearModelessDialog()
