@@ -436,20 +436,21 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
     partitions = getSRPhysDevs(primary_disk, guest_disks)
 
     fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
+    fd.write("POOL_UUID=$(/opt/xensource/bin/xe pool-list params=uuid --minimal)\n")
+    fd.write("HOST_UUID=$(/opt/xensource/bin/xe host-list params=uuid --minimal)\n")
+    fd.write("HOST_NAME=$(/opt/xensource/bin/xe host-list uuid=${HOST_UUID} params=hostname --minimal)\n")
     for p in partitions:
         fd.write("/opt/xensource/bin/diskprep -f %s\n" % p)
     if sr_type == constants.SR_TYPE_EXT:
         for p in partitions:
-            fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label='Auto-created SR on %s' physical-size=0 type=ext content-type=user device-config-device='%s' host-uuid='%s')\n" % (p, p, install_uuid))
+            fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label=\"Local storage on ${HOST_NAME}\" physical-size=0 type=ext content-type=user device-config-device='%s' host-uuid='%s')\n" % (p, install_uuid))
     elif sr_type == constants.SR_TYPE_LVM:
         device_config_devs = ",".join(partitions)
-        fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label='Auto-created spanning LVM SR on %s' physical-size=0 type=lvm content-type=user device-config-device='%s' host-uuid='%s')\n" % (device_config_devs, device_config_devs, install_uuid))
+        fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label=\"Local storage on ${HOST_NAME}\" physical-size=0 type=lvm content-type=user device-config-device='%s' host-uuid='%s')\n" % (device_config_devs, install_uuid))
     else:
         raise RuntimeError, "Unknown value for sr-type."
 
     # now write out configuration for default pool configuration:
-    fd.write("POOL_UUID=$(/opt/xensource/bin/xe pool-list params=uuid --minimal)\n")
-    fd.write("HOST_UUID=$(/opt/xensource/bin/xe host-list params=uuid --minimal)\n")
     fd.write("/opt/xensource/bin/xe pool-param-set uuid=${POOL_UUID} default-SR=${SR}\n")
     fd.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} crash-dump-sr-uuid=${SR}\n")
     fd.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} suspend-image-sr-uuid=${SR}\n")
