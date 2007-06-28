@@ -47,9 +47,9 @@ def selectDefault(key, entries):
 def welcome_screen(answers):
     button = ButtonChoiceWindow(tui.screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
-                                """This setup tool will install %s on your server.
+                                """This setup tool will install %s on your server.  Installing %s will erase all data on the disks selected for use unless an upgrade option is chosen.
 
-This install will overwrite data on any hard drives you select to use during the install process. Please make sure you have backed up any data on this system before proceeding with the product install.""" % PRODUCT_BRAND,
+Please make sure you have backed up any data you wish to preserve before proceeding with the installation.""" % (PRODUCT_BRAND, PRODUCT_BRAND),
                                 ['Ok', 'Cancel Installation'], width = 60)
 
     # advance to next screen:
@@ -600,11 +600,11 @@ def get_root_password(answers):
     done = False
         
     while not done:
-        (button, result) = snackutil.PasswordEntryWindow(tui.screen,
-                                               "Set Password",
-                                               "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from the %s.)" % (BRAND_SERVER, BRAND_CONSOLE),
-                                               ['Password', 'Confirm'],
-                                               buttons = ['Ok', 'Back'])
+        (button, result) = snackutil.PasswordEntryWindow(
+            tui.screen, "Set Password",
+            "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from %s.)" % (BRAND_SERVER, BRAND_CONSOLE), 
+            ['Password', 'Confirm'], buttons = ['Ok', 'Back'],
+            )
         if button == 'back':
             return -1
         
@@ -789,7 +789,7 @@ def get_timezone_region(answers):
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
         "Select Time Zone",
-        "Please select the geographical area that the managed host is in.",
+        "Please select the geographical area that your %s is in:" % BRAND_SERVER,
         entries, ['Ok', 'Back'], height = 8, scroll = 1,
         default = default)
 
@@ -810,7 +810,7 @@ def get_timezone_city(answers):
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
         "Select Time Zone",
-        "Please select the localised area that the managed host is in (press a letter to jump to that place in the list).",
+        "Please select the city or area that the managed host is in (press a letter to jump to that place in the list):",
         map(lambda x: x.replace('_', ' '), entries),
         ['Ok', 'Back'], height = 8, scroll = 1, default = default)
 

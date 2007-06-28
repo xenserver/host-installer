@@ -270,7 +270,7 @@ def performInstallation(answers, ui_package):
 
     # perform installation:
     prep_seq = getPrepSequence(answers)
-    new_ans = executeSequence(prep_seq, "Preparing for Installation...", answers, ui_package, False)
+    new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
 
     # install from main repositories:
     def handleRepos(repos, ans):
