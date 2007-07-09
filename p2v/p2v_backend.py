@@ -117,9 +117,9 @@ def rio_p2v(answers, use_tui = True):
         raise RuntimeError, "Unable to clone template %s" % template_ref
     guest_ref = rc['Value']
 
-    rc = xapi.VM.set_is_a_template(session, guest_ref, False)
+    rc = xapi.VM.provision(session, guest_ref)
     if rc['Status'] != 'Success':
-        raise RuntimeError, "Unable to unset template flag on new guest."
+        raise RuntimeError, "Unable to provision VM."
 
     xelogging.log("Starting P2V server")
     rc = xapi.VM.start(session, guest_ref, False, False)
@@ -211,6 +211,26 @@ def rio_p2v(answers, use_tui = True):
     p2v_server_call('update-fstab', {'root-vol': 'xvda1'})
     p2v_server_call('paravirtualise', {'root-vol': 'xvda1', 'boot-merged': str(boot_merged).lower()})
     p2v_server_call('completed', {})
+
+    xelogging.log("Destroying the guest's vifs")
+
+    # wait for the guest to go down then unplug and destroy the guest's vifs:
+    for i in range(20):
+        rc = xapi.VM.get_power_state(session, guest_ref)
+        if rc['Status'] == 'Success':
+            if rc['Value'] == 'Halted':
+                break
+        time.sleep(5)
+
+    rc = xapi.VM.get_VIFs(session, guest_ref)
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to get a list of VIFs associated with the P2V target"
+    vifs = rc['Value']
+    for vif in vifs:
+        xapi.VIF.unplug(session, vif)
+        xapi.VIF.destroy(session, vif)
+
+    xapi.session.logout(session)
 
     if use_tui:
         tui.progress.clearModelessDialog()
