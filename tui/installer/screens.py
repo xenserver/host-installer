@@ -537,7 +537,7 @@ def select_guest_disks(answers):
         entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
         entries.append((entry, de))
         
-    text = TextboxReflowed(50, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created on each disk.  You can choose not to prepare any storage if you wish to create an advanced configuration after install." % BRAND_GUEST)
+    text = TextboxReflowed(50, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
     cbt = CheckboxTree(4, 1)
     for (c_text, c_item) in entries:
