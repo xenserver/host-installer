@@ -718,19 +718,20 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf):
     netifs = netutil.getNetifList()
     for i in netifs:
         b = i.replace("eth", "xenbr")
+        hwaddr = netutil.getHWAddr(i)
+        xelogging.log("Writing ifcfg-%s (%s)" % (i, hwaddr))
         ifcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % i), 'w')
         ifcfd.write("DEVICE=%s\n" % i)
         ifcfd.write("ONBOOT=yes\n")
         ifcfd.write("TYPE=Ethernet\n")
-        hwaddr = netutil.getHWAddr(i)
         if hwaddr:
             ifcfd.write("HWADDR=%s\n" % hwaddr)
         ifcfd.write("BRIDGE=%s\n" % b)
         ifcfd.write("check_link_down() { return 1 ; }\n")
         ifcfd.close()
 
+        xelogging.log("Writing ifcfg-%s" % b)
         brcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % b), 'w')
-        
         brcfd.write("DEVICE=%s\n" % b)
         brcfd.write("ONBOOT=yes\n")
         brcfd.write("TYPE=Bridge\n")
