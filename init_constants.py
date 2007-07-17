@@ -10,17 +10,14 @@
 #
 # written by Andrew Peace
 
+OPERATION_REBOOT = -1
 (
+    OPERATION_NONE,
     OPERATION_INSTALL,
     OPERATION_UPGRADE,
     OPERATION_LOAD_DRIVER,
     OPERATION_RESTORE,
     OPERATION_P2V,
-) = range(5)
-
-MODE_INTERACTIVE  = 0
-MODE_INSTALL      = 1
-MODE_UPGRADE      = 2
-MODE_P2V          = 3
+) = range(6)
 
 HW_CONFIG_COMPLETED_STAMP = "/tmp/.hw-config-completed.stamp"

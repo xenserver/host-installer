@@ -40,18 +40,9 @@ from hardware import module_map
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 
-base_modules = ['sd-mod',
-                'sr-mod',
-                'dm-mod',
-                'ide-cd',
-                'ide-disk',
-                'ide-generic',
-                'loop',
-                'ata_piix',
-                'rtc',
-                'reiserfs',
-                'ext3',
-		'usb-storage']
+base_modules = ['sd-mod', 'sr-mod', 'dm-mod', 'ide-cd', 'ide-disk',
+                'ide-generic', 'loop', 'ata_piix', 'rtc', 'reiserfs',
+                'ext3', 'usb-storage']
 
 active_output = 'tty1'
 
@@ -268,10 +259,6 @@ def main():
     pk.write('1')
     pk.close()
 
-    # mount all fstab filesystems if they're not already mounted:
-    if os.system("grep -q 'sysfs' /proc/mounts") != 0:
-        util.runCmd('mount -t sysfs none /sys')
-
     # start portmap so NFS mounting works:
     util.runCmd('portmap')
 
@@ -292,27 +279,28 @@ def main():
         print "Incorrect arguments."
         sys.exit(1)
 
-    mode = init_constants.MODE_INTERACTIVE
+    operation = None    
     ui = tui
     extra_modules = []
     user_blacklist = []
     answerfile = None
     verbose_answerfile = None
     interactive_modules = False
+    interactive = True
     driver_repos = []
 
     for (opt, val) in opts:
         if opt == "--install":
-            mode = init_constants.MODE_INSTALL
-        if opt == "--upgrade":
-            mode = init_constants.MODE_UPGRADE
+            operation = init_constants.OPERATION_INSTALL
         if opt == "--p2v":
-            mode = init_constants.MODE_P2V
+            operation = init_constants.OPERATION_P2V
         if opt == '--interactive-modules':
             interactive_modules = True
         if opt == "--answerfile":
             answerfile = val
+            interactive = False
         if opt == "--verbose-answerfile":
+            interactive = False
             ui = None
             xelogging.continuous_logs.append(sys.stdout)
             verbose_answerfile = val
@@ -326,26 +314,22 @@ def main():
     xelogging.log("Active output is %s" % active_output)
 
     # check that an answerfile was specified if we're being non-interactive:
-    if mode != init_constants.MODE_INTERACTIVE and not (answerfile or verbose_answerfile):
-        xelogging.log("A non-interactive mode was selected, but no answerfile was specified.  Dropping back to interactive mode.")
-        mode = init_constants.MODE_INTERACTIVE
+    if not interactive and not operation:
+        xelogging.log("No operation specified for answerfile - dropping back to interactive mode.")
+        interactive = True
         ui = tui
 
-    # make /etc/network and /lib/firmware writeable,
-    # setup LVM:
+    # start the user interface:
+    if ui:
+        xelogging.log("Starting 'init' user interface")
+        ui.init_ui()
+
+    # first, configure the hardware, make /etc/network and /lib/firmate, etc.:
     if isPrimaryProcess():
         util.assertDir('/lib/firmware')
         util.assertDir('/var/lib')
         util.assertDir('/var/run')
         util.assertDir('/var/lock')
-
-    # start the user interface:
-    xelogging.log("Starting 'init' user interface")
-    if ui:
-        ui.init_ui()
-
-    # first, configure the hardware:
-    if isPrimaryProcess():
         configureHardware(extra_modules, user_blacklist,
                           ui, interactive_modules)
     else:
@@ -360,122 +344,107 @@ def main():
             ui.progress.clearModelessDialog()
 
     # let the user choose what they would like to do:
-    if mode == init_constants.MODE_INTERACTIVE:
+    keymap_string = ""
+    if interactive:
         # choose keymap
         kmap = ui.init.get_keymap()
+        keymap_string = "--keymap %s" % kmap
         xelogging.log("Loading keymap %s" % kmap)
         util.runCmd2(["/bin/loadkeys", kmap])
 
         if isPrimaryProcess():
             xelogging.writeLog("/tmp/startup-log")
+    else:
+        if isPrimaryProcess():
+            configureNetworking(ui)
 
-        firstTime = True
-        backups = product.findXenSourceBackups()
-        try:
-            while True:
+    backups = product.findXenSourceBackups()
+    try:
+        while True:
+            # if interactive, set the operation:
+            if interactive and not operation:
                 operation = ui.init.choose_operation(len(backups) > 0)
 
-                # activate installation on this screen:
-                try:
+            # activate installation on this screen:
+            # this primary process stuff is kinda lame but we'll have to stick
+            # with it for now...:
+            try:
+                if not interactive:
+                    if not isPrimaryProcess():
+                        raise AlreadyActivated
+                else:
                     activateScreen()
                     if not isPrimaryProcess():
                         xelogging.log("WARNING: Operation started on a console different that the one specified as being default on the kernel command-line")
-                except AlreadyActivated:
+            except AlreadyActivated:
+                if ui:
                     ui.init.already_activated()
-                    break
+                break
 
-                # reboot (process this action before hardware
-                # detection to save the weirdness of detecting
-                # hardware to then immediately reboot):
-                if operation == -1:
-                    break
+            if operation == init_constants.OPERATION_REBOOT:
+                break
 
-                def exit_status_of_rc(rc):
-                    return rc >> 8
+            def exit_status_of_rc(rc):
+                return rc >> 8
 
-                # clean install:
-                if operation == init_constants.OPERATION_INSTALL:
-                    xelogging.log("Starting clean installation")
-                    driver_repo_string = " ".join(["--extrarepo %s" % d for d in driver_repos])
-                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 --keymap %s %s " % (kmap, driver_repo_string))
-                    rc = exit_status_of_rc(s)
-                    if rc == EXIT_OK or rc == EXIT_ERROR: 
-                        break
-                    else:
-                        pass
+            # clean install:
+            if operation == init_constants.OPERATION_INSTALL:
+                xelogging.log("Starting clean installation")
+                driver_repo_string = " ".join(["--extrarepo %s" % d for d in driver_repos])
+                if answerfile:
+                    s = os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
+                elif verbose_answerfile:
+                    s = os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
+                else:
+                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 %s" % keymap_string)
+                rc = exit_status_of_rc(s)
 
-                # load a driver:
-                elif operation == init_constants.OPERATION_LOAD_DRIVER:
-                    driver_repos.extend(doInteractiveLoadDriver(ui))
+            # load a driver:
+            elif operation == init_constants.OPERATION_LOAD_DRIVER:
+                driver_repos.extend(doInteractiveLoadDriver(ui))
+                rc = None
 
-                # restore
-                elif operation == init_constants.OPERATION_RESTORE:
-                    if not restore.interactiveRestore(ui):
-                        xelogging.writeLog("/tmp/startup-log")
-                        tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
-                    else:
-                        break
+            # restore
+            elif operation == init_constants.OPERATION_RESTORE:
+                if not restore.interactiveRestore(ui):
+                    xelogging.writeLog("/tmp/startup-log")
+                    tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
+                    rc = EXIT_ERROR
+                else:
+                    rc = EXIT_OK
 
-                # P2V:
-                elif operation == init_constants.OPERATION_P2V:
-                    xelogging.log("Starting P2V")
+            # P2V:
+            elif operation == init_constants.OPERATION_P2V:
+                xelogging.log("Starting P2V")
+                if answerfile:
+                    s = os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
+                else:
                     s = os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3")
-                    rc = exit_status_of_rc(s)
-                    if rc == EXIT_OK or rc == EXIT_ERROR:
-                        break
-                    else:
-                        pass
+                rc = exit_status_of_rc(s)
 
-        except Exception:
+            operation = None
+            # if we're non-interactive, or weren't canceled, force us to exit:
+            if rc == EXIT_OK or rc == EXIT_ERROR or not interactive:
+                break
+
+    finally:
+        if ui:
             ui.end_ui()
-            raise
 
-    # non-interactive:
-    else:
-        # terminate on any screen that wasn't supposed to be used:
-        if isPrimaryProcess():
-            activateScreen()
-        else:
-            if ui:
-                ui.init.already_activated()
-            sys.exit(0)
-
-        configureNetworking(ui)
-
-        if isPrimaryProcess():
-            xelogging.writeLog("/tmp/startup-log")
-
-        if mode == init_constants.MODE_INSTALL:
-            if answerfile:
-                os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
-            elif verbose_answerfile:
-                os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
-            else:
-                os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3")
-
-        elif mode == init_constants.MODE_UPGRADE:
-            raise Exception, "Upgrade not supported in this mode."
-                
-        elif mode == init_constants.MODE_P2V:
-            if answerfile:
-                os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
-            else:
-                os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3")
-
-    # Everything finished - from here we just shut down and reboot
-
-    if ui:
-        ui.end_ui()
-
-    # stop logging to tty3:
-    for logfd in clog_fds:
-        try:
-            xelogging.continuous_logs.remove(logfd)
-        except:
-            pass
-        logfd.close()
+        # stop logging to tty3:
+        for logfd in clog_fds:
+            try:
+                xelogging.continuous_logs.remove(logfd)
+            except:
+                pass
+            logfd.close()
 
 if __name__ == "__main__":
     main()
-    os.system("reboot")
-    
+
+    # only reboot if we're the primary process:
+    if isPrimaryProcess():
+        os.system("reboot")
+    else:
+        sys.exit(0)
+
