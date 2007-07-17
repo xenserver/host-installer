@@ -138,8 +138,10 @@ class FirstGenUpgrader(Upgrader):
         else:
             xelogging.log("No data to write to mh.dat.")
 
-        # get a mapping of SR to physical devices:
+        # get a mapping of SR to physical devices, and write a mapping of old
+        # invalid LV UUIDs to new valid ones, renaming the volumes as we go:
         pdmap = {}
+        lvmap_fd = open(os.path.join(mounts['root'], 'var', 'xapi', 'lv-mapping'), 'w')
         for sr in srs:
             vg_name = "VG_XenStorage-%s" % sr
             rc, out = util.runCmd("vgs -o vg_name,pv_name --noheadings --separator :", with_output = True)
@@ -149,6 +151,23 @@ class FirstGenUpgrader(Upgrader):
                 related = filter(lambda x: x.startswith(vg_name), lines)
                 physdevs = [pv for (_, pv) in [x.split(":") for x in related]]
                 pdmap[sr] = physdevs
+
+            # map invalid UUIDs to valid ones:
+            rc, out = util.runCmd("lvs -o lv_name --noheadings %s" % vg_name, with_output = True)
+            if rc == 0:
+                lvs = [x.strip() for x in out.split("\n")]
+                lvs = filter(lambda x: x.startswith("LV-"), lvs)
+                for lv in lvs:
+                    uuid = util.getUUID()
+                    bad_uuid = lv[3:]
+                    gd = bad_uuid.split(".")
+                    if len(gd) != 2:
+                        continue
+                    guest, disk = gd
+                    new_lv = "LV-" + uuid
+                    print >>lvmap_fd, lv, guest, disk, uuid
+                    util.runCmd2(['lvrename', vg_name, lv, new_lv])
+        lvmap_fd.close()
 
         # now write out a first-boot script to migrate user data:
         # - migrate SRs
