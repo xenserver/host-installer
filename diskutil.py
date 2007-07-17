@@ -17,21 +17,26 @@ import util
 import popen2
 import xelogging
 
-disk_nodes = [
-    # sda -> sdp:
-    (8, 0),   (8,16),   (8, 32),  (8, 48),  (8, 64),  (8, 80), 
-    (8, 96),  (8, 112), (8, 128), (8, 144), (8, 160), (8, 176), 
-    (8, 192), (8, 208), (8, 224), (8, 240),
+# hd* -> (ide has majors 3, 22, 33, 34, 56, 57, 88, 89, 90, 91, each major has
+# two disks, with minors 0... and 64...)
+ide_majors = [ 3, 22, 33, 34, 56, 57, 88, 89, 90, 91 ]
+disk_nodes  = [ (x, 0) for x in ide_majors ]
+disk_nodes += [ (x, 64) for x in ide_majors ]
 
-    # hda -> hdh:
-    (3,0), (3, 64), (22, 0), (22, 64), (33, 0), (33, 64),
-    (34, 0), (34, 64)
-    ]
+# sd* -> (sd-mod has majors 8, 65 ... 71: each device has eight minors, each 
+# major has sixteen disks).
+disk_nodes += [ (8, x * 16) for x in range(16) ]
+disk_nodes += [ (66, x * 16) for x in range(16) ]
+disk_nodes += [ (67, x * 16) for x in range(16) ]
+disk_nodes += [ (68, x * 16) for x in range(16) ]
+disk_nodes += [ (69, x * 16) for x in range(16) ]
+disk_nodes += [ (70, x * 16) for x in range(16) ]
+disk_nodes += [ (71, x * 16) for x in range(16) ]
 
 # c{0,1,2}d0 -> c{0,1,2}d15
-disk_nodes += map(lambda x: (104, x * 16), range(0, 15))
-disk_nodes += map(lambda x: (105, x * 16), range(0, 15))
-disk_nodes += map(lambda x: (106, x * 16), range(0, 15))
+disk_nodes += [ (104, x * 16) for x in range(0, 15) ]
+disk_nodes += [ (105, x * 16) for x in range(0, 15) ]
+disk_nodes += [ (106, x * 16) for x in range(0, 15) ]
 
 def getDiskList():
     # read the partition tables:
