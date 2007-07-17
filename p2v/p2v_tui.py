@@ -135,20 +135,6 @@ def select_sr(answers):
     else:
         return -1
 
-# TODO, CA-2747  pull this out of a supported OS list.
-def isP2Vable(os):
-    if os[p2v_constants.BITS] != "32":
-        return False
-
-    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('4'):
-        return True;
-    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('3'):
-        return True;
-    if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION].startswith('9'):
-        return True;
-
-    return False;
-
 #let the user chose the OS install
 def os_install_screen(answers):
     os_install_strings = []
@@ -159,7 +145,7 @@ def os_install_screen(answers):
     tui.progress.clearModelessDialog()
 
     for os in os_installs: 
-        if isP2Vable(os):
+        if findroot.isP2Vable(os):
             os_install_strings.append(os[p2v_constants.OS_NAME] + " " + os[p2v_constants.OS_VERSION] + "  (" + os[p2v_constants.DEV_NAME] + ")")
             supported_os_installs.append(os)
     
@@ -178,9 +164,8 @@ def os_install_screen(answers):
             return -1
     else: 
         # TODO, CA-2747  pull this out of a supported OS list.
-        ButtonChoiceWindow(tui.screen, "Error", """No supported operating systems found. 
-Please see the documentation for a list of supported operating systems, file systems and volume management technologies.""",  ['Ok'], width=50)
-        return -2
+        xelogging.log("No supported operating systems found.")
+        raise RuntimeError, "No supported operating systems found.  Please refer to the user guide for a list of supported operating systems and volume management technologies."
 
 def description_screen(answers):
     (button, description) = EntryWindow(tui.screen,

@@ -72,6 +72,7 @@ def main():
     tui.init_ui()
 
     results = {}
+
     try:
         seq = [
             Step(ui_package.welcome_screen),
@@ -99,7 +100,6 @@ def main():
         ui_package.finish_screen()
         tui.end_ui()
 
-    except SystemExit: raise
     except Exception, e:
         ex = sys.exc_info()
         err = str.join("", traceback.format_exception(*ex))
@@ -118,7 +118,7 @@ def main():
 
         # clean up the screen
         tui.end_ui()
-        return 2
+        return constants.EXIT_ERROR
 
     #eject CD if success
     p2v_backend.ejectCD()

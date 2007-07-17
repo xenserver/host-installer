@@ -308,6 +308,20 @@ def findroot():
     #run_command("sleep 2")
     return results
 
+# TODO, CA-2747  pull this out of a supported OS list.
+def isP2Vable(os):
+    if os[p2v_constants.BITS] != "32":
+        return False
+
+    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('4'):
+        return True
+    if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('3'):
+        return True
+    if os[p2v_constants.OS_NAME] == "SuSE" and os[p2v_constants.OS_VERSION].startswith('9'):
+        return True
+
+    return False
+
 def get_mem_info():
     command = "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"
     rc, out = run_command(command)
