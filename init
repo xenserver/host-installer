@@ -406,12 +406,10 @@ def main():
 
             # restore
             elif operation == init_constants.OPERATION_RESTORE:
-                if not restore.interactiveRestore(ui):
+                rc = restore.interactiveRestore(ui)
+                if rc == EXIT_ERROR:
                     xelogging.writeLog("/tmp/startup-log")
                     tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
-                    rc = EXIT_ERROR
-                else:
-                    rc = EXIT_OK
 
             # P2V:
             elif operation == init_constants.OPERATION_P2V:
