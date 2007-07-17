@@ -11,15 +11,12 @@ import sys
 import time
 import commands
 import p2v_constants
-import p2v_tui
 import popen2
 import httpput
 import urllib
 import xelogging
 import util
 from p2v_error import P2VError
-
-ui_package = p2v_tui
 
 def parse_blkid(line):
     """Take a line of the form '/dev/foo: key="val" key="val" ...' and return

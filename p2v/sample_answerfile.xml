@@ -1,30 +1,11 @@
 <?xml version="1.0"?>
-<p2v>
- <xen-target>ssh</xen-target>
- <xehost>10.100.1.108</xehost>
- <nfshost>nfsserver.host.domain.com</nfshost>
- <nfspath>/sample/path</nfspath>
- <root-password>SampleSecret</root-password>
- <osinstall>
-  <uuid>06c0d3e0-ef9e-44c4-ad07-9547794de000</uuid>
-  <description>Sample description</description>
-  <hostname>sample.host.domain.com</hostname>
-  <osname>Red Hat</osname>
-  <osversion>4.1</osversion>
-  <fs_used_size>1024000000</fs_used_size>
-  <fs_total_size>2048000000</fs_total_size>
-  <cpu_count>1</cpu_count>
-  <total_mem>512</total_mem>
-  <p2v_path>/var/opt/xen/vm/06c0d3e0-ef9e-44c4-ad07-9547794de000</p2v_path>
-  <dev_name>/dev/sda2</dev_name>
-  <dev_attrs>
-   <type>ext3</type>
-   <path>/</path>
-   <label>SampleLabel</label>
-  </dev_attrs>
-  <tarfilename>Sample.tar.gz</tarfilename>
-  <tardirname>/sample/dir/name/</tardirname>
-  <md5sum>1234567890</md5sum>
-  <mac>00:12:3F:AA:00:AA</mac>
- </osinstall>
-</p2v>
+<conversion>
+    <root>sda2</root>
+    <target>
+        <host>konexion</host>
+        <user>root</user>
+        <password>xenroot</password>
+        <sr>ceca6352-bde9-4d08-a6fa-69afb7e491c9</sr>
+        <size>4096</size>
+    </target>
+</conversion>

@@ -18,7 +18,6 @@ import findroot
 import sys
 import time
 import p2v_constants
-import p2v_tui
 import util
 import xelogging
 import xmlrpclib
@@ -30,8 +29,6 @@ import urllib2
 import httplib
 import httpput
 
-ui_package = p2v_tui
-
 from p2v_error import P2VError, P2VPasswordError, P2VMountError, P2VCliError
 from version import *
 
@@ -41,10 +38,6 @@ local_mount_path = "/tmp/xenpending"
 
 class P2VServerError(Exception):
     pass
-
-def specifyUI(ui):
-    global ui_package
-    ui_package = ui
 
 def append_hostname(os_install): 
     os_install[p2v_constants.HOST_NAME] = os.uname()[1]
@@ -185,7 +178,7 @@ def rio_p2v(answers, use_tui = True):
 
     p2v_server_call('set-fs-metadata', {'volume': 'xvda1', 'mntpoint': '/'})
 
-    # use the old functions for now to make the tarball:
+    # transfer filesystem(s):
     if use_tui:
         tui.progress.clearModelessDialog()
         tui.progress.showMessageDialog("Working", "Transferring filesystems - this will take a long time...")
@@ -193,6 +186,7 @@ def rio_p2v(answers, use_tui = True):
     os_root_device = answers['osinstall'][p2v_constants.DEV_NAME]
     dev_attrs = answers['osinstall'][p2v_constants.DEV_ATTRS]
     mntpoint = findroot.mount_os_root(os_root_device, dev_attrs)
+    xelogging.log("Starting to transfer filesystems")
     boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device)
 
     if use_tui:

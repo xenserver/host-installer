@@ -14,7 +14,7 @@
 import tui
 import p2v_tui
 import uicontroller
-import p2v_answerfile_ui
+import p2v_answerfile
 import sys
 import findroot
 import p2v_backend
@@ -29,8 +29,6 @@ from getopt import getopt, GetoptError
 from version import *
 from uicontroller import Step
 
-ui_package = p2v_tui
-
 def closeClogs(clog_fds):
     # close continuous logs:
     for logfd in clog_fds:
@@ -42,24 +40,26 @@ def closeClogs(clog_fds):
 
 
 def main():
-    global ui_package
-
     clog_fds = []
 
     try:
-        (opts, _) = getopt(sys.argv[1:],
-                           "",
-                           [ "answerfile=",
-                            "clog="])
+        (opts, _) = getopt(
+            sys.argv[1:], "", [ "answerfile=", "clog=",
+                "verbose-answerfile="]
+            )
     except GetoptError:
         print "This program takes no arguments."
         return 2
 
+    answerfile = None
+    ui = p2v_tui
     for (opt, val) in opts:
         if opt == "--answerfile":
-            ui_package = p2v_answerfile_ui
-            p2v_backend.specifyUI(ui_package)
-            p2v_answerfile_ui.specifyAnswerFile(val)
+            answerfile = val
+        if opt == "--verbose-answerfile":
+            answerfile = val
+            ui = None
+            xelogging.continuous_logs.append(sys.stdout)
         if opt == "--clog":
             try:
                 fd = open(val, "w")
@@ -69,35 +69,39 @@ def main():
                 print "Error adding continuous log %s." % val
  
     os.environ['LVM_SYSTEM_DIR'] = '/tmp'
-    tui.init_ui()
-
-    results = {}
+    if ui:
+        tui.init_ui()
 
     try:
-        seq = [
-            Step(ui_package.welcome_screen),
-            Step(ui_package.requireNetworking),
-            Step(ui_package.get_target),
-            Step(ui_package.select_sr),
-            Step(ui_package.os_install_screen),
-            Step(ui_package.size_screen),
-            Step(ui_package.confirm_screen),
-            ]
-            
-        rc = uicontroller.runSequence(seq, results)
-
-        if rc != -1 and rc != uicontroller.EXIT:
-            p2v_backend.rio_p2v(results, True)
+        if answerfile:
+            results = p2v_answerfile.processAnswerfile(answerfile)
         else:
-            tui.end_ui()
-            closeClogs(clog_fds)
-            return constants.EXIT_USER_CANCEL
+            seq = [
+                Step(ui.welcome_screen),
+                Step(ui.requireNetworking),
+                Step(ui.get_target),
+                Step(ui.select_sr),
+                Step(ui.os_install_screen),
+                Step(ui.size_screen),
+                Step(ui.confirm_screen),
+                ]
+            
+            results = {}
+            rc = uicontroller.runSequence(seq, results)
+        
+            if rc == uicontroller.EXIT:
+                tui.end_ui()
+                closeClogs(clog_fds)
+                return constants.EXIT_USER_CANCEL
+
+        p2v_backend.rio_p2v(results, ui != None)
         
         xelogging.log("P2V successfully completed.")
         xelogging.writeLog("/tmp/p2v-log")
 
-        ui_package.finish_screen()
-        tui.end_ui()
+        if ui:
+            ui.finish_screen()
+            tui.end_ui()
 
     except Exception, e:
         ex = sys.exc_info()
@@ -110,13 +114,15 @@ def main():
         xelogging.writeLog("/tmp/p2v-log")
 
         # display a dialog if UI is available:
-        tui.exn_error_dialog("p2v-log", False)
+        if ui:
+            tui.exn_error_dialog("p2v-log", False)
 
         xelogging.collectLogs('/tmp')
         closeClogs(clog_fds)
 
         # clean up the screen
-        tui.end_ui()
+        if ui:
+            tui.end_ui()
         return constants.EXIT_ERROR
 
     #eject CD if success

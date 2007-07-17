@@ -416,6 +416,8 @@ def main():
                 xelogging.log("Starting P2V")
                 if answerfile:
                     s = os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
+                elif verbose_answerfile:
+                    s = os.system("/opt/xensource/installer/p2v.py --verbose-answerfile %s" % verbose_answerfile)
                 else:
                     s = os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3")
                 rc = exit_status_of_rc(s)
