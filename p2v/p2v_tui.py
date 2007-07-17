@@ -135,11 +135,6 @@ def select_sr(answers):
     else:
         return -1
 
-def get_os_installs(answers):
-    os_installs = findroot.findroot()
-    
-    return os_installs
-
 # TODO, CA-2747  pull this out of a supported OS list.
 def isP2Vable(os):
     if os[p2v_constants.BITS] != "32":
@@ -160,7 +155,7 @@ def os_install_screen(answers):
     supported_os_installs = []
 
     tui.progress.showMessageDialog("Working", "Scanning for installed operating systems, please wait...")
-    os_installs = get_os_installs(answers)
+    os_installs = findroot.findroot()
     tui.progress.clearModelessDialog()
 
     for os in os_installs: 
