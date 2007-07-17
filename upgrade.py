@@ -173,7 +173,8 @@ class FirstGenUpgrader(Upgrader):
 
         # - migrate database:
         upgrade_script.write("/opt/xensource/bin/metadata_upgrade >/tmp/md_upgrade.sh\n")
-        upgrade_script.write("bash /tmp/md_upgrade.sh\n")
+        upgrade_script.write("cat /tmp/md_upgrade.sh && echo ---\n")
+        upgrade_script.write("bash -x /tmp/md_upgrade.sh\n")
         upgrade_script.write("rm /tmp/md_upgrade.sh\n")
 
         upgrade_script.close()
