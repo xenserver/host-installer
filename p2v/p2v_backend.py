@@ -77,15 +77,6 @@ def determine_size(os_install):
     os_install[p2v_constants.FS_TOTAL_SIZE] = total_size
     findroot.umount_dev( os_root_mount_point )
     
-
-def check_rw_mount(local_mount_path):
-    rc, out = findroot.run_command('touch %s/rwtest' % local_mount_path)
-    if rc != 0:
-        return rc
-
-    findroot.run_command('rm %s/rwtest' % local_mount_path)
-    return 0
-
 def rio_p2v(answers, use_tui = True):
     if use_tui:
         tui.progress.showMessageDialog("Working", "Connecting to server...")
@@ -260,4 +251,4 @@ def ejectCD():
                     util.umount('/tmp/cdmnt')
 
     if os.path.exists('/usr/bin/eject') and device != None:
-        findroot.run_command('/usr/bin/eject %s' % device)
+        util.runCmd2(['/usr/bin/eject', device])

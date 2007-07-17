@@ -23,7 +23,6 @@ import xelogging
 import util
 
 from p2v_error import P2VMountError
-from findroot import run_command
 
 from xml.dom.minidom import parse
 
@@ -175,9 +174,6 @@ def description_screen(answers):
     return 1
 
 def size_screen(answers):
-    #activate LVM
-    run_command("vgscan")
-    run_command("vgchange -a y")
     return 1
 
 def get_root_password(answers):

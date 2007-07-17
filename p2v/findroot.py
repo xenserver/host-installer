@@ -16,17 +16,10 @@ import popen2
 import httpput
 import urllib
 import xelogging
+import util
 from p2v_error import P2VError
 
 ui_package = p2v_tui
-
-
-def run_command(cmd):
-    xelogging.log("running: %s" % cmd)
-    rc, out = commands.getstatusoutput(cmd)
-    if rc != 0:
-        xelogging.log("Failed %d: %s" % (rc, out))
-    return (rc, out)
 
 def parse_blkid(line):
     """Take a line of the form '/dev/foo: key="val" key="val" ...' and return
@@ -47,9 +40,9 @@ def scan():
     devices = {}
     
     #activate LVM
-    run_command("vgscan")
-    run_command("vgchange -a y")
-    rc, out = run_command("/sbin/blkid -c /dev/null")
+    util.runCmd2(['vgscan'])
+    util.runCmd2(['vgchange', '-a', 'y'])
+    rc, out = util.runCmd("/sbin/blkid -c /dev/null", with_output = True)
     if rc == 0 and out:
         for line in out.split("\n"):
             attrs = parse_blkid(line)
@@ -58,15 +51,15 @@ def scan():
         raise P2VError("Failed to scan devices")
     return devices
 
+# to be deprecated in favour of util.mount
 def mount_dev(dev, dev_type, mntpnt, options):
     umount_dev(mntpnt) # just a precaution, don't care if it fails
-    rc, out = run_command("echo 1 > /proc/sys/kernel/printk")
-    rc, out = run_command("mount -o %s -t %s %s %s" % (options, dev_type,
-                                                       dev, mntpnt))
+    rc = util.runCmd2(["mount", "-o", options, "-t", dev_type, dev, mntpnt])
     return rc
 
+# to be deprecated in favour of util.unmount
 def umount_dev(mntpnt):
-    rc, out = run_command("umount %s" % (mntpnt))
+    rc = util.runCmd2(["umount", mntpnt])
     return rc
 
 def load_fstab(fp):
@@ -137,16 +130,14 @@ def determine_size(mntpnt, dev_name):
 
     #df reports in 1K blocks
     # get the used size
-    command = "df -kP | grep %s | awk '{print $3}'" % mntpnt
-    xelogging.log("going to run : %s" % command)
-    rc, used_out = run_command(command);
+    rc, used_out = util.runCmd("df -kP | grep %s | awk '{print $3}'" % mntpnt, 
+                               with_output = True)
     if rc != 0:
         raise P2VError("Failed to determine used size - df failed")
 
     #get the total size
-    command = "df -kP | grep %s | awk '{print $2}'" % mntpnt
-    xelogging.log("going to run : %s" % command)
-    rc, total_out = run_command(command);
+    rc, total_out = util.runCmd("df -kP | grep %s | awk '{print $2}'" % mntpnt,
+                                with_output = True)
     if rc != 0:
         raise P2VError("Failed to determine used size - df failed")
     
@@ -210,14 +201,10 @@ def rio_handle_root(xapi_host, p2v_vm_uuid, mntpnt, dev_name, pd = None):
 def mount_os_root(dev_name, dev_attrs):
     mntbase = "/tmp/mnt"
     mnt = mntbase + "/" + os.path.basename(dev_name)
-    rc, out = run_command("mkdir -p %s" % (mnt))
-    if rc != 0:
-        xelogging.log("mkdir failed")
-        raise P2VError("Failed to mount os root - mkdir failed")
+    if not os.path.exists(mnt):
+        os.makedirs(mnt)
     
     rc = mount_dev(dev_name, dev_attrs['type'], mnt, 'ro')
-#    if rc != 0:
-#       raise P2VError("Failed to mount os root")
     return mnt
 
 def findHostName(mnt):
@@ -275,7 +262,7 @@ def inspect_root(dev_name, dev_attrs, results):
                xelogging.log("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
                return
 
-       rc, out = run_command("/opt/xensource/installer/read_osversion.sh " + mnt)
+       rc, out = util.runCmd("/opt/xensource/installer/read_osversion.sh " + mnt, with_output = True)
        if rc == 0:
            xelogging.log("read_osversion succeeded : out = %s" % out)
            parts = out.split('\n')
@@ -305,7 +292,6 @@ def findroot():
         if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
             inspect_root(dev_name, dev_attrs, results)
                    
-    #run_command("sleep 2")
     return results
 
 # TODO, CA-2747  pull this out of a supported OS list.
@@ -322,20 +308,6 @@ def isP2Vable(os):
 
     return False
 
-def get_mem_info():
-    command = "cat /proc/meminfo | grep MemTotal | awk '{print $2}'"
-    rc, out = run_command(command)
-    if rc != 0:
-        raise P2VError("Failed to get mem size")
-    return out
-
-def get_cpu_count():
-    command = "cat /proc/cpuinfo | grep processor | wc -l"
-    rc, out = run_command(command)
-    if rc != 0:
-        raise P2VError("Failed to get cpu count")
-    return out
-
 if __name__ == '__main__':
     mntbase = "/tmp/mnt"
 
@@ -344,22 +316,15 @@ if __name__ == '__main__':
     for dev_name, dev_attrs in devices.items():
         if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
             mnt = mntbase + "/" + os.path.basename(dev_name)
-            rc, out = run_command("mkdir -p %s" % (mnt))
-            if rc != 0:
-                xelogging.log("mkdir failed")
-                sys.exit(1)
+            if not os.path.exists(mnt):
+                os.makedirs(mnt)
 
             rc = mount_dev(dev_name, dev_attrs[p2v_constants.DEV_ATTRS_TYPE], mnt, 'ro')
             if rc != 0:
                 xelogging.log("Failed to mount mnt")
                 continue
-                #sys.exit(rc)
 
             if os.path.exists(os.path.join(mnt, 'etc', 'fstab')):
                 xelogging.log("* Found root partition on %s" % dev_name)
-                #rc, tar_dirname, tar_filename, md5sum = handle_root(mnt, dev_name)
-                if rc != 0:
-                    xelogging.log("%s failed" % dev_name)
-                    sys.exit(rc)
 
             umount_dev(mnt)
