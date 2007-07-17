@@ -167,20 +167,6 @@ def os_install_screen(answers):
         xelogging.log("No supported operating systems found.")
         raise RuntimeError, "No supported operating systems found.  Please refer to the user guide for a list of supported operating systems and volume management technologies."
 
-def description_screen(answers):
-    (button, description) = EntryWindow(tui.screen,
-                "P2V Description",
-                "Please enter a description (optional): ",
-                ['Description:'],
-                buttons= ['Ok', 'Back'])
-
-    if button == "ok" or button == None:
-        osinstall = answers['osinstall']
-        osinstall[p2v_constants.DESCRIPTION] = description[0].replace ("'", "_")
-        return 1
-    else:
-        return -1
-
 def size_screen(answers):
     tui.progress.showMessageDialog("Working", "Determining size of the selected operating system, please wait...")
     p2v_backend.determine_size(answers['osinstall'])

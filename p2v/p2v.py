@@ -80,7 +80,6 @@ def main():
             Step(ui_package.get_target),
             Step(ui_package.select_sr),
             Step(ui_package.os_install_screen),
-            Step(ui_package.description_screen),
             Step(ui_package.size_screen),
             Step(ui_package.confirm_screen),
             ]
