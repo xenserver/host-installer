@@ -58,6 +58,9 @@ def processAnswerfile(location):
     host = getText(target_n.getElementsByTagName("host")[0].childNodes)
     if True not in [ host.startswith(x) for x in ['http://', 'https://'] ]:
         host = "https://" + host
+    name_nodes = target_n.getElementsByTagName("vm-name")
+    if len(name_nodes) == 1:
+        results['vm-name'] = getText(name_nodes[0].childNodes)
     results['target-host-name'] = host
     results['target-host-user'] = getText(target_n.getElementsByTagName("user")[0].childNodes)
     results['target-host-password'] = getText(target_n.getElementsByTagName("password")[0].childNodes)

@@ -95,8 +95,13 @@ def rio_p2v(answers, use_tui = True):
     assert len(template_refs) == 1
     [ template_ref ] = template_refs
 
+    if not answers.has_key('vm-name'):
+        vm_name = "New P2Vd guest"
+    else:
+        vm_name = answers['vm-name']
+
     xelogging.log("Cloning a new P2V server")
-    rc = xapi.VM.clone(session, template_ref, "New P2Vd guest")
+    rc = xapi.VM.clone(session, template_ref, vm_name)
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to clone template %s" % template_ref
     guest_ref = rc['Value']

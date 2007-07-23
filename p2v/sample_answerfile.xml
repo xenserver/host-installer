@@ -2,6 +2,7 @@
 <conversion>
     <root>sda2</root>
     <target>
+        <vm-name>New Red Hat guest (P2V)</vm-name>
         <host>konexion</host>
         <user>root</user>
         <password>xenroot</password>
