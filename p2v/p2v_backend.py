@@ -28,6 +28,7 @@ import urllib
 import urllib2
 import httplib
 import httpput
+import tempfile
 
 from p2v_error import P2VError, P2VPasswordError, P2VMountError, P2VCliError
 from version import *
@@ -45,13 +46,23 @@ def append_hostname(os_install):
 def determine_size(os_install):
     os_root_device = os_install[p2v_constants.DEV_NAME]
     dev_attrs = os_install[p2v_constants.DEV_ATTRS]
-    os_root_mount_point = findroot.mount_os_root( os_root_device, dev_attrs )
 
     total_size_l = long(0)
     used_size_l = long(0)
 
-    #findroot.determine_size returns in bytes
-    (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
+    os_root_mount_point = tempfile.mkdtemp(dir = "/tmp", prefix="p2v-sizecheck-")
+    try:
+        util.mount(
+            os_root_device, os_root_mount_point, fstype = dev_attrs['type'],
+            options = ['ro']
+            )
+
+        # findroot.determine_size returns in bytes
+        (used_size, total_size) = findroot.determine_size(os_root_mount_point, os_root_device )
+    finally:
+        while os.path.ismount(os_root_mount_point):
+            util.umount(os_root_mount_point)
+        os.rmdir(os_root_mount_point)
     
     # adjust total size to 150% of used size, with a minimum of 4Gb
     total_size_l = (long(used_size) * 3) / 2
@@ -68,7 +79,6 @@ def determine_size(os_install):
     
     os_install[p2v_constants.FS_USED_SIZE] = used_size
     os_install[p2v_constants.FS_TOTAL_SIZE] = total_size
-    findroot.umount_dev( os_root_mount_point )
     
 def rio_p2v(answers, use_tui = True):
     if use_tui:
@@ -190,9 +200,17 @@ def rio_p2v(answers, use_tui = True):
 
     os_root_device = answers['osinstall'][p2v_constants.DEV_NAME]
     dev_attrs = answers['osinstall'][p2v_constants.DEV_ATTRS]
-    mntpoint = findroot.mount_os_root(os_root_device, dev_attrs)
-    xelogging.log("Starting to transfer filesystems")
-    boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device)
+
+    # make a temporary mountpoint:
+    mntpoint = tempfile.mkdtemp(dir = "/tmp", prefix="p2v-root")
+    try:
+        util.mount(os_root_device, mntpoint, options = ['ro'])
+        xelogging.log("Starting to transfer filesystems")
+        boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device)
+    finally:
+        while os.path.ismount(mntpoint):
+            util.umount(mntpoint)
+        os.rmdir(mntpoint)
 
     if use_tui:
         tui.progress.clearModelessDialog()

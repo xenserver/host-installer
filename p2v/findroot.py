@@ -15,6 +15,7 @@ import popen2
 import httpput
 import urllib
 import xelogging
+import tempfile
 import util
 from p2v_error import P2VError
 
@@ -114,7 +115,6 @@ def determine_size(mntpnt, dev_name):
     active_mounts = []
     mounts = find_extra_mounts(fstab, devices)
     for mount_info in mounts:
-#        p2v_utils.trace_message("  --", mount_info)
         extra_mntpnt = os.path.join(mntpnt, mount_info[1][1:])
 
         rc = mount_dev(mount_info[0], mount_info[2],
@@ -195,15 +195,6 @@ def rio_handle_root(xapi_host, p2v_vm_uuid, mntpnt, dev_name, pd = None):
 
     return True in [x[1] == '/boot' for x in mounts]
 
-def mount_os_root(dev_name, dev_attrs):
-    mntbase = "/tmp/mnt"
-    mnt = mntbase + "/" + os.path.basename(dev_name)
-    if not os.path.exists(mnt):
-        os.makedirs(mnt)
-    
-    rc = mount_dev(dev_name, dev_attrs['type'], mnt, 'ro')
-    return mnt
-
 def findHostName(mnt):
     hostname = "localhost"
     #generic
@@ -245,41 +236,46 @@ def findHostName(mnt):
     return hostname
     
 def inspect_root(dev_name, dev_attrs, results):
-    mnt = mount_os_root(dev_name, dev_attrs)
-    fstab_path = os.path.join(mnt, 'etc', 'fstab')
-    if os.path.exists(fstab_path):
-       xelogging.log("* Found root partition on %s" % dev_name)
+    mnt = tempfile.mkdtemp(dir = "/tmp", prefix = "p2v-inspect-")
+    util.mount(dev_name, mnt, fstype = dev_attrs['type'])
+    try:
+        fstab_path = os.path.join(mnt, 'etc', 'fstab')
+        if os.path.exists(fstab_path):
+            xelogging.log("* Found root partition on %s" % dev_name)
 
-       #scan fstab for EVMS
-       fp = open(fstab_path)
-       fstab = load_fstab(fp)
-       fp.close()
-       for ((mntpnt, dev), info) in fstab.items():
-           if dev.find("/evms/") != -1:
-               xelogging.log("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
-               return
+            #scan fstab for EVMS
+            fp = open(fstab_path)
+            fstab = load_fstab(fp)
+            fp.close()
+            for ((mntpnt, dev), info) in fstab.items():
+                if dev.find("/evms/") != -1:
+                    xelogging.log("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
+                    return
 
-       rc, out = util.runCmd("/opt/xensource/installer/read_osversion.sh " + mnt, with_output = True)
-       if rc == 0:
-           xelogging.log("read_osversion succeeded : out = %s" % out)
-           parts = out.split('\n')
-           if len(parts) > 0:
-               os_install = {}
-               xelogging.log("found os name: %s" % parts[0])
-               xelogging.log("found os version : %s" % parts[1])
-               xelogging.log("os is : %s" % parts[2])
-               
-               os_install[p2v_constants.OS_NAME] = parts[0]
-               os_install[p2v_constants.OS_VERSION] = parts[1]
-               os_install[p2v_constants.BITS] = parts[2]
-               os_install[p2v_constants.DEV_NAME] = dev_name
-               os_install[p2v_constants.DEV_ATTRS] = dev_attrs
-               os_install[p2v_constants.HOST_NAME] = findHostName(mnt)
-               results.append(os_install)
-       else:
-           xelogging.log("read_osversion failed : out = %s" % out)
-           raise P2VError("Failed to inspect root - read_osversion failed.")
-    umount_dev(mnt)
+            rc, out = util.runCmd("/opt/xensource/installer/read_osversion.sh " + mnt, with_output = True)
+            if rc == 0:
+                xelogging.log("read_osversion succeeded : out = %s" % out)
+                parts = out.split('\n')
+                if len(parts) > 0:
+                    os_install = {}
+                    xelogging.log("found os name: %s" % parts[0])
+                    xelogging.log("found os version : %s" % parts[1])
+                    xelogging.log("os is : %s" % parts[2])
+                    
+                    os_install[p2v_constants.OS_NAME] = parts[0]
+                    os_install[p2v_constants.OS_VERSION] = parts[1]
+                    os_install[p2v_constants.BITS] = parts[2]
+                    os_install[p2v_constants.DEV_NAME] = dev_name
+                    os_install[p2v_constants.DEV_ATTRS] = dev_attrs
+                    os_install[p2v_constants.HOST_NAME] = findHostName(mnt)
+                    results.append(os_install)
+            else:
+                xelogging.log("read_osversion failed : out = %s" % out)
+                raise P2VError, "Failed to inspect root - read_osversion failed."
+    finally:
+        while os.path.ismount(mnt):
+            util.umount(mnt)
+        os.rmdir(mnt)
 
 def findroot():
     devices = scan()
