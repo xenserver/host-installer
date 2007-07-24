@@ -35,11 +35,15 @@ def getUpgrader(src):
     return __upgraders__.getUpgrader(src.name, src.version)(src)
 
 class Upgrader(object):
-    """ Base class for upgraders.  Superclasses should define an upgrades
-    variable that is a triple of the product, the lowest version they support
-    upgrading from, and the highest version. """
+    """ Base class for upgraders.  Superclasses should define an
+    upgrades_product variable that is the product they upgrade, and an 
+    upgrades_versions that is a list of pairs of version extents they support
+    upgrading."""
+
+    requires_backup = False
 
     def __init__(self, source):
+        """ source is the ExistingInstallation object we're to upgrade. """
         self.source = source
 
     def upgrades(cls, product, version):
@@ -63,12 +67,9 @@ class Upgrader(object):
 
 class FirstGenUpgrader(Upgrader):
     """ Upgrade XenServer series products version 3.1 and 3.2. """
-
     upgrades_product = "xenenterprise"
-
     upgrades_versions = [ (product.Version(0, 4, 3), product.Version(0,4,9)),
                           (product.Version(3, 1, 0), product.Version(3,2,0)) ]
-
     mh_dat_filename = '/var/opt/xen/mh/mh.dat'
 
     def __init__(self, source):
@@ -80,7 +81,7 @@ class FirstGenUpgrader(Upgrader):
         """ Read default SR UUID, and put it into the input state for the
         backend.  Also, get a list of SRs on the box. """
 
-        root = diskutil.determinePartitionName(self.source.primary_disk, 1)
+        root = self.source.getRootPartition()
         def_sr = None
         srs = []
         try:
@@ -198,6 +199,61 @@ class FirstGenUpgrader(Upgrader):
 
         upgrade_script.close()
 
+class SecondGenUpgrader(Upgrader):
+    """ Upgrader class for series 4 products. """
+    upgrades_product = "xenenterprise"
+    upgrades_versions = [ (product.Version(4, 0, 0, suffix = 'b2'), product.Version(4, 0, 0)) ]
+    requires_backup = True
+
+    def __init__(self, source):
+        Upgrader.__init__(self, source)
+
+    prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid']
+    prepStateChanges = ['installation-uuid', 'control-domain-uuid', 'primary-disk']
+    def prepareUpgrade(self, installID, controlID):
+        """ Try to preserve the installation and control-domain UUIDs from
+        xensource-inventory."""
+        try:
+            installID = self.source.getInventoryValue("INSTALLATION_UUID")
+            controlID = self.source.getInventoryValue("CONTROL_DOMAIN_UUID")
+            # test for presence:
+            _ = self.source.getInventoryValue("BACKUP_PARTITION")
+
+            pd = self.source.primary_disk
+        except KeyError:
+            raise RuntimeError, "Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-invenotry file.  Aborting installation; please replace these keys and try again."
+
+        return installID, controlID, pd
+
+    completeUpgradeArgs = ['mounts']
+    def completeUpgrade(self, mounts):
+        xelogging.log("Restoring preserved files")
+        backup_volume = self.source.getInventoryValue("BACKUP_PARTITION")
+        tds = None
+        try:
+            tds = tempfile.mkdtemp(dir = "/tmp", prefix = "upgrade-src-")
+            util.mount(backup_volume, tds)
+
+            util.assertDir(os.path.join(mounts['root'], "var/xapi"))
+            util.assertDir(os.path.join(mounts['root'], "etc/xensource"))
+
+            # restore files:
+            restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 'etc/xensource/xapi.conf',
+                       'etc/xensource/license', 'var/xapi/state.db']
+            for f in restore:
+                src = os.path.join(tds, f)
+                dst = os.path.join(mounts['root'], f)
+                if os.path.exists(src):
+                    xelogging.log("Restoring /%s" % f)
+                    util.runCmd2(['cp', src, dst])
+                else:
+                    xelogging.log("WARNING: /%s did not exist in the backup image." % f)
+        finally:
+            if tds:
+                if os.path.ismount(tds):
+                    util.umount(tds)
+                os.rmdir(tds)
+
 # Upgarders provided here, in preference order:
 class UpgraderList(list):
     def getUpgrader(self, product, version):
@@ -212,4 +268,4 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ FirstGenUpgrader ])
+__upgraders__ = UpgraderList([ FirstGenUpgrader, SecondGenUpgrader ])

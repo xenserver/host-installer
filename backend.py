@@ -97,7 +97,10 @@ A = lambda ans, *params: ( lambda a: [a[param] for param in params] )
 As = lambda ans, *params: ( lambda _: [ans[param] for param in params] )
 
 def getPrepSequence(ans):
-    seq = []
+    seq = [ 
+        Task(util.getUUID, As(ans), ['installation-uuid']),
+        Task(util.getUUID, As(ans), ['control-domain-uuid']),
+        ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
@@ -115,7 +118,6 @@ def getPrepSequence(ans):
         seq.append(Task(prepareUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ], lambda upgrader, *a: upgrader.prepStateChanges))
 
     seq += [
-        Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
         ]
@@ -148,7 +150,7 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-interface'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-interface'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -380,10 +382,6 @@ def removeBlockingVGs(disks):
         util.runCmd2(['vgreduce', '--removemissing', vg])
         util.runCmd2(['lvremove', vg])
         util.runCmd2(['vgremove', vg])
-
-#def getSwapPartName(disk):
-#    global swap_name, vgname
-#    return "/dev/%s/%s" % (vgname, swap_name)
 
 def getRootPartNumber(disk):
     return 1
@@ -785,9 +783,8 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(installID, mounts, primary_disk, guest_disks, admin_iface):
+def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_iface):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
-    controlID = util.getUUID()
     default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
@@ -815,6 +812,7 @@ def touchSshAuthorizedKeys(mounts):
 def backupExisting(existing):
     primary_partition = getRootPartName(existing.primary_disk)
     backup_partition = getBackupPartName(existing.primary_disk)
+    xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
 
     # format the backup partition:
     util.runCmd2(['mkfs.ext3', backup_partition])
@@ -825,7 +823,7 @@ def backupExisting(existing):
     for mnt in [primary_mount, backup_mount]:
         util.assertDir(mnt)
     try:
-        util.mount(primary_partition, primary_mount)
+        util.mount(primary_partition, primary_mount, options = ['ro'])
         util.mount(backup_partition,  backup_mount)
         cmd = ['cp', '-a'] + \
               [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \

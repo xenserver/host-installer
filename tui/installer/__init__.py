@@ -5,6 +5,7 @@ import hardware
 import netutil
 import repository
 import constants
+import upgrade
 
 from snack import *
 
@@ -27,6 +28,10 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
     is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
     is_using_remote_media_fn = lambda a: a['source-media'] in ['url', 'nfs']
+
+    def requires_backup(answers):
+        return upgrade.getUpgrader(answers['installation-to-overwrite']).requires_backup
+    not_requires_backup = lambda a: not requires_backup(a)
 
     def not_preserve_settings(answers):
         return not answers.has_key('preserve-settings') or \
@@ -51,7 +56,9 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
         Step(uis.ask_preserve_settings,
              predicates=[ask_preserve_settings_predicate]),
         Step(uis.backup_existing_installation,
-             predicates=[is_reinstall_fn]),
+             predicates=[is_reinstall_fn, not_requires_backup]),
+        Step(uis.force_backup_screen,
+             predicates=[is_reinstall_fn, requires_backup]),
         Step(uis.select_primary_disk,
              predicates=[is_clean_install_fn]),
         Step(uis.select_guest_disks,

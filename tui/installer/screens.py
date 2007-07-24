@@ -26,6 +26,7 @@ import util
 import socket
 import version
 import product
+import upgrade
 import netutil
 
 from snack import *
@@ -100,10 +101,10 @@ def get_admin_interface_configuration(answers):
 def get_installation_type(answers, insts):
     entries = [ ("Perform clean installation", None) ]
     for x in insts:
-        if x.settingsAvailable():
+        if x.version < product.THIS_PRODUCT_VERSION:
             entries.append(("Upgrade %s" % str(x), (x, True)))
         else:
-            entries.append(("Preserve %s from %s" % (BRAND_GUESTS_SHORT, str(x)), (x, False)))
+            entries.append(("Freshen %s" % str(x), (x, False)))
 
     # default value?
     if answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
@@ -154,6 +155,23 @@ WARNING: Only settings initially configured using the installer will be preserve
 
     if rv in ['yes', 'no', None]:
         answers['preserve-settings'] = rv != 'no'
+        return 1
+    else:
+        return -1
+
+def force_backup_screen(answers):
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "Back-up Existing Installation",
+        """The installer needs to create a backup of your existing installation.
+
+This will erase data currently on the backup partition (which includes previous backups performed by the installer, and backups installed onto the host use the CLI's 'host-restore' function.
+
+Continue with installation?""",
+        ['Continue', 'Back']
+        )
+    if button in ['continue', None]:
+        answers['backup-existing-installation'] = True
         return 1
     else:
         return -1

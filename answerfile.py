@@ -97,6 +97,7 @@ def parseReinstall(n):
     results['install-type'] = constants.INSTALL_TYPE_REINSTALL
     results.update(parseExistingInstallation(n))
     results['preserve-settings'] = False
+    results['backup-existing-installation'] = True
 
     results.update(parseSource(n))
     results.update(parseInterfaces(n))

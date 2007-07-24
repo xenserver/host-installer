@@ -138,15 +138,22 @@ THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 XENSERVER_3_2_0 = Version(3,2,0)
 
 class ExistingInstallation(object):
-    def __init__(self, name, brand, version, primary_disk):
+    def __init__(self, name, brand, version, primary_disk, inventory):
         self.name = name
         self.brand = brand
         self.version = version
         self.primary_disk = primary_disk
+        self.inventory = inventory
 
     def __str__(self):
         return "%s v%s on %s" % (
             self.brand, str(self.version), self.primary_disk)
+
+    def getInventoryValue(self, k):
+        return self.inventory[k]
+
+    def getRootPartition(self):
+        return diskutil.determinePartitionName(self.primary_disk, 1)
 
     def settingsAvailable(self):
         try:
@@ -162,10 +169,10 @@ class ExistingInstallation(object):
             raise SettingsNotAvailable
         
         mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
-        root = diskutil.determinePartitionName(self.primary_disk, 1)
+        root = self.getRootPartition()
         results = {}
         try:
-            util.mount(root, mntpoint)
+            util.mount(root, mntpoint, options = ['ro'])
 
             # primary disk:
             results['primary-disk'] = self.primary_disk
@@ -307,7 +314,8 @@ def findXenSourceProducts():
                     inv['PRODUCT_NAME'],
                     inv['PRODUCT_BRAND'],
                     Version.from_string("%s-%s" % (inv['PRODUCT_VERSION'], inv['BUILD_NUMBER'])),
-                    diskutil.diskFromPartition(p) 
+                    diskutil.diskFromPartition(p),
+                    inv
                     )
                 xelogging.log("Found an installation: %s" % str(inst))
                 installs.append(inst)
