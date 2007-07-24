@@ -30,7 +30,8 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
     is_using_remote_media_fn = lambda a: a['source-media'] in ['url', 'nfs']
 
     def requires_backup(answers):
-        return upgrade.getUpgrader(answers['installation-to-overwrite']).requires_backup
+        return answers.has_key("installation-to-overwrite") and \
+               upgrade.getUpgrader(answers['installation-to-overwrite']).requires_backup
     not_requires_backup = lambda a: not requires_backup(a)
 
     def not_preserve_settings(answers):
