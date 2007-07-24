@@ -138,7 +138,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installGrub, A(ans, 'mounts', 'primary-disk'), []),
+        Task(installGrubWrapper, A(ans, 'mounts', 'primary-disk'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -484,11 +484,22 @@ def mkinitrd(mounts):
     initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
     util.runCmd2(["ln", "-sf", initrd_name, "%s/boot/initrd-2.6-xen.img" % mounts['root']])
 
-def installGrub(mounts, disk):
+def installGrubWrapper(mounts, disk):
     # prepare extra mounts for installing GRUB:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
 
+    try:
+        installGrub(mounts, disk)
+    finally:
+        # done installing - undo our extra mounts:
+        util.umount("%s/dev" % mounts['root'])
+        # try to unlink /proc/mounts in case /etc/mtab is a symlink
+        if os.path.exists("%s/proc/mounts" % mounts['root']):
+            os.unlink("%s/proc/mounts" % mounts['root'])
+        util.umount("%s/sys" % mounts['root'])
+
+def installGrub(mounts, disk):
     # this is a nasty hack but unavoidable (I think): grub-install
     # uses df to work out what the root device is, but df's output is
     # incorrect within the chroot.  Therefore, we fake out /etc/mtab
@@ -581,15 +592,9 @@ def installGrub(mounts, disk):
     menulst_file.write(grubconf)
     menulst_file.close()
 
-    # now perform our own installation, onto the MBR of hd0:
-    assert runCmd("chroot %s grub-install --no-floppy --recheck '(%s)'" % (mounts['root'], grubroot)) == 0
-
-    # done installing - undo our extra mounts:
-    util.umount("%s/dev" % mounts['root'])
-    # try to unlink /proc/mounts in case /etc/mtab is a symlink
-    if os.path.exists("%s/proc/mounts" % mounts['root']):
-        os.unlink("%s/proc/mounts" % mounts['root'])
-    util.umount("%s/sys" % mounts['root'])
+    # now perform our own installation, onto the MBR of the selected disk:
+    xelogging.log("About to install GRUB.  Install to disk %s, root=%s" % (grubroot, rootdisk))
+    assert util.runCmd2(["chroot", mounts['root'], "grub-install", "--no-floppy", "--recheck", grubroot]) == 0
 
 ##########
 # mounting and unmounting of various volumes
