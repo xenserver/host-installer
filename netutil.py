@@ -13,6 +13,23 @@
 import os
 import util
 
+class NIC:
+    def __init__(self, name, hwaddr, pci_string):
+        self.name = name
+        self.hwaddr = hwaddr
+        self.pci_string = pci_string
+
+    def __repr__(self):
+        return "<NIC: %s (%s)>" % (self.name, self.hwaddr)
+
+def scanConfiguration():
+    """ Returns a dictionary of string -> NIC with a snapshot of the NIC
+    configuration."""
+    conf = {}
+    for nif in getNetifList():
+        conf[nif] = NIC(nif, getHWAddr(nif), getPCIInfo(nif))
+    return conf
+
 def getNetifList():
     all = os.listdir("/sys/class/net")
     relevant = filter(lambda x: x.startswith("eth"), all)

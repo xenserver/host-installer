@@ -18,33 +18,15 @@ import version
 
 from snack import *
 
-def get_autoconfig_ifaces():
-    def my_get_iface_configuration(answers, iface):
-        rv, answers[iface] = get_iface_configuration(iface)
-        return rv
-   
-    seq = []
-    for x in netutil.getNetifList():
-        seq.append(uicontroller.Step(my_get_iface_configuration, args = [x]))
-
-    # when this was written this branch would never be taken
-    # since we require at least one NIC at setup time:
-    if len(seq) == 0:
-        return uicontroller.SKIP_SCREEN, {}
-
-    subdict = {}
-    rv = uicontroller.runSequence(seq, subdict)
-    return rv, subdict
-
-def get_iface_configuration(iface, txt = None, show_identify = True):
-    def identify_interface(iface):
+def get_iface_configuration(nic, txt = None, show_identify = True):
+    def identify_interface(nic):
         ButtonChoiceWindow(tui.screen,
                            "Identify Interface",
                            """Name: %s
 
 MAC Address: %s
 
-PCI details: %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)),
+PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
                            ['Ok'], width=60)
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field ]:
@@ -52,7 +34,7 @@ PCI details: %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
 
     gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
     if txt == None:
-        txt = "Configuration for %s (%s)" % (iface, netutil.getHWAddr(iface))
+        txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
     text = TextboxReflowed(45, txt)
     if show_identify:
         b = [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")]
@@ -94,7 +76,7 @@ PCI details: %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
         result = gf.run()
         # do we display a popup then continue, or leave the loop?
         if buttons.buttonPressed(result) == 'identify':
-            identify_interface(iface)
+            identify_interface(nic)
         else:
             # leave the loop - 'ok', F12, or 'back' was pressed:
             tui.screen.popWindow()
@@ -110,9 +92,15 @@ PCI details: %s""" % (iface, netutil.getHWAddr(iface), netutil.getPCIInfo(iface)
     elif buttons.buttonPressed(result) == 'back':
         return -1, None
 
-def select_netif(text):
-    netifs = [("%s (%s)" % (x, netutil.getHWAddr(x)), x) for x in netutil.getNetifList()]
-    rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netifs,
+def select_netif(text, conf):
+    """ Display a screen that displays a choice of network interfaces to the
+    user, with 'text' as the informative text as the data, and conf being the
+    netutil.scanConfiguration() output to be used. """
+
+    netifs = conf.keys()
+    netifs.sort()
+    netif_list = [("%s (%s)" % ((x, conf[x].hwaddr)), x) for x in netifs]
+    rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,
                                     ['Ok', 'Back'], width=45)
     if rc in ['ok', None]:
         return 1, entry
@@ -124,28 +112,36 @@ def requireNetworking(answers):
     configuration.  Bring up the network according to this configuration.
     If answers is a dictionary, set it's 'runtime-iface-configuration' key
     to the configuration in the style (all-dhcp, manual-config). """
-    
+
+    nethw = netutil.scanConfiguration()
+
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:
     def select_interface(answers):
-        direction, iface = select_netif("%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND))
+        """ Show the dialog for selecting an interface.  Sets
+        answers['interface'] to the name of the interface selected (a
+        string). """
+        direction, iface = select_netif("%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND), nethw)
         if direction == 1:
             answers['interface'] = iface
         return direction
-    def specify_configuration(answers, text):
-        direction, conf = get_iface_configuration(answers['interface'], text)
+
+    def specify_configuration(answers, txt):
+        """ Show the dialog for setting nic config.  Sets answers['config']
+        to the configuration used.  Assumes ansewrs['interface'] is a string
+        identifying by name the interface to configure. """
+        direction, conf = get_iface_configuration(nethw[answers['interface']], txt)
         if direction == 1:
             answers['config'] = conf
         return direction
 
-    netifs = netutil.getNetifList()
     conf_dict = {}
-    if len(netifs) > 1:
+    if len(nethw.keys()) > 1:
         seq = [ uicontroller.Step(select_interface), 
                 uicontroller.Step(specify_configuration, args=[None]) ]
     else:
         text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % version.PRODUCT_BRAND
-        conf_dict['interface'] = netifs[0]
+        conf_dict['interface'] = nethw.keys()[0]
         seq = [ uicontroller.Step(specify_configuration, args=[text]) ]
     direction = uicontroller.runSequence(seq, conf_dict)
 
@@ -162,7 +158,6 @@ def requireNetworking(answers):
 
         # check that we have *some* network:
         if not netutil.interfaceUp(conf_dict['interface']):
-            # no interfaces were up: error out, then go to start:
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
             direction = 0
         else:

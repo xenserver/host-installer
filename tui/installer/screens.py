@@ -84,15 +84,16 @@ def hardware_warnings(answers, ram_warning, vt_warning):
         return 1
 
 def get_admin_interface(answers):
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?")
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'])
     if direction == 1:
         answers['net-admin-interface'] = iface
     return direction
 
 def get_admin_interface_configuration(answers):
     assert answers.has_key('net-admin-interface')
+    nic = answers['network-hardware'][answers['net-admin-interface']]
     rc, conf = tui.network.get_iface_configuration(
-        answers['net-admin-interface'], txt = "Please specify how networking should be configured for the management interface on this host."
+        nic, txt = "Please specify how networking should be configured for the management interface on this host."
         )
     if rc == 1:
         answers['net-admin-configuration'] = conf

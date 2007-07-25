@@ -112,15 +112,19 @@ def main():
         status = constants.EXIT_OK
 
         disks = diskutil.getQualifiedDiskList()
-        netifs = netutil.getNetifList()
+        nethw = netutil.scanConfiguration()        
 
         # make sure we have discovered at least one disk and
         # at lesat one network interface:
         if len(disks) == 0:
             raise RuntimeError, "No disks found on this host."
 
-        if len(netifs) == 0:
+        if len(nethw.keys()) == 0:
             raise RuntimeError, "No network interfaces found on this host."
+
+        # record the network configuration at startup so it remains consistent
+        # in the face of kudzu:
+        results['network-hardware'] = nethw
 
         # make sure that we have enough disk space:
         xelogging.log("Found disks: %s" % str(disks))

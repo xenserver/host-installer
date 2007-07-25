@@ -145,7 +145,7 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'network-hardware'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
@@ -708,7 +708,14 @@ def setRootPassword(mounts, root_password, pwdtype):
     assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_config, hn_conf):
+def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
+    """ Write the ifcfg files to the filesystem at mounts['root'].  We use the
+    network hardware configuration described by nethw, which is the output of
+    netutil.scanConfiguration, as the basis of which files to write.  This 
+    ensures that if this has changed since the user selected the interface,
+    e.g. by kudzu, then we still write out the configuration that would 
+    otherwise be written (preventing renaming of eth*). """
+
     network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
 
     # remove any files that may be present in the filesystem already, 
@@ -718,10 +725,10 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf):
         os.unlink(os.path.join(network_scripts_dir, s))
 
     # iterate over the interfaces to write the config files:
-    netifs = netutil.getNetifList()
+    netifs = nethw.keys()
     for i in netifs:
         b = i.replace("eth", "xenbr")
-        hwaddr = netutil.getHWAddr(i)
+        hwaddr = nethw[i].name
         xelogging.log("Writing ifcfg-%s (%s)" % (i, hwaddr))
         ifcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % i), 'w')
         ifcfd.write("DEVICE=%s\n" % i)
