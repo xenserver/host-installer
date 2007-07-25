@@ -26,6 +26,7 @@ disk_nodes += [ (x, 64) for x in ide_majors ]
 # sd* -> (sd-mod has majors 8, 65 ... 71: each device has eight minors, each 
 # major has sixteen disks).
 disk_nodes += [ (8, x * 16) for x in range(16) ]
+disk_nodes += [ (65, x * 16) for x in range(16) ]
 disk_nodes += [ (66, x * 16) for x in range(16) ]
 disk_nodes += [ (67, x * 16) for x in range(16) ]
 disk_nodes += [ (68, x * 16) for x in range(16) ]
