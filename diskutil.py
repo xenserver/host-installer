@@ -34,10 +34,14 @@ disk_nodes += [ (69, x * 16) for x in range(16) ]
 disk_nodes += [ (70, x * 16) for x in range(16) ]
 disk_nodes += [ (71, x * 16) for x in range(16) ]
 
-# c{0,1,2}d0 -> c{0,1,2}d15
-disk_nodes += [ (104, x * 16) for x in range(0, 15) ]
-disk_nodes += [ (105, x * 16) for x in range(0, 15) ]
-disk_nodes += [ (106, x * 16) for x in range(0, 15) ]
+# /dev/cciss : c[0-7]d[0-15]: Compaq Next Generation Drive Array
+# /dev/ida   : c[0-7]d[0-15]: Compaq Intelligent Drive Array
+for major in range(72, 80) + range(104, 112):
+    disk_nodes += [ (major, x * 16) for x in range(16) ]
+
+# /dev/rd    : c[0-7]d[0-31]: Mylex DAC960 PCI RAID controller
+for major in range(48, 56):
+    disk_nodes += [ (major, x * 8) for x in range(32) ]
 
 def getDiskList():
     # read the partition tables:
@@ -126,7 +130,7 @@ def diskFromPartition(partition):
             numlen += 1
 
     # is it a cciss?
-    if partition[:10] == '/dev/cciss':
+    if True in [partition.startswith(x) for x in ['/dev/cciss', '/dev/ida', '/dev/rd']]:
         numlen += 1 # need to get rid of trailing 'p'
     return partition[:len(partition) - numlen]
         
