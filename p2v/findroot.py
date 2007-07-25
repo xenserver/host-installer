@@ -260,11 +260,13 @@ def inspect_root(dev_name, dev_attrs, results):
                     os_install = {}
                     xelogging.log("found os name: %s" % parts[0])
                     xelogging.log("found os version : %s" % parts[1])
-                    xelogging.log("os is : %s" % parts[2])
-                    
+
                     os_install[p2v_constants.OS_NAME] = parts[0]
                     os_install[p2v_constants.OS_VERSION] = parts[1]
-                    os_install[p2v_constants.BITS] = parts[2]
+                    if detect64bits(mnt):
+                        os_install[p2v_constants.BITS] = 64
+                    else:
+                        os_install[p2v_constants.BITS] = 32
                     os_install[p2v_constants.DEV_NAME] = dev_name
                     os_install[p2v_constants.DEV_ATTRS] = dev_attrs
                     os_install[p2v_constants.HOST_NAME] = findHostName(mnt)
@@ -276,6 +278,13 @@ def inspect_root(dev_name, dev_attrs, results):
         while os.path.ismount(mnt):
             util.umount(mnt)
         os.rmdir(mnt)
+
+def detect64bits(root_mnt):
+    lib_dir = os.path.join(root_mnt, "lib")
+    if not os.path.exists(lib_dir):
+        raise RuntimeError, "No /lib directory"
+    lib_files = os.listdir(lib_dir)
+    return True in [x.startswith("ld-linux-x86-64") for x in lib_files]
 
 def findroot():
     devices = scan()
@@ -289,7 +298,7 @@ def findroot():
 
 # TODO, CA-2747  pull this out of a supported OS list.
 def isP2Vable(os):
-    if os[p2v_constants.BITS] != "32":
+    if os[p2v_constants.BITS] != 32:
         return False
 
     if os[p2v_constants.OS_NAME] == "Red Hat" and os[p2v_constants.OS_VERSION].startswith('4'):

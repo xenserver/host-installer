@@ -10,32 +10,32 @@ ROOT_PATH=${1:-"/"}
 which_release_file () {
 	local ROOT=$1
 	test -e "$ROOT/etc/redhat-release" &&
-		 printf "redhat-release" && return 0
+		 echo "redhat-release" && return 0
 	test -e "$ROOT/etc/SuSE-release" &&
-		 printf "SuSE-release" && return 0
+		 echo "SuSE-release" && return 0
 	test -e "$ROOT/etc/fedora-release" &&
-		 printf "fedora-release" && return 0
+		 echo "fedora-release" && return 0
 	test -e "$ROOT/etc/debian_version" &&
-		 printf "debian_version" && return 0
+		 echo "debian_version" && return 0
 }
 
 which_os () {
 	local filename=$1
 	case "$filename" in
 	"redhat-release")
-		printf "Red Hat"
+		echo "Red Hat"
 		;;
 	"SuSE-release")
-		printf "SuSE"
+		echo "SuSE"
 		;;
 	"fedora-release")
-		printf "Fedora"
+		echo "Fedora"
 		;;
 	"debian_version")
-		printf "Debian"
+		echo "Debian"
 		;;
 	*)
-		printf "unknown"
+		echo "unknown"
 		;;
 	esac
 }
@@ -48,7 +48,7 @@ which_distro_version () {
 
 	case "$distro" in
         "Fedora")
-		printf "unknown"
+		echo "unknown"
                 ;;
         "Red Hat")
                 # hairy sed call
@@ -56,39 +56,21 @@ which_distro_version () {
                 # Red Hat Enterprise Linux AS release 3 (Taroon Update 4)
                 # and end up with '3.4'
                 result=`echo $CONTENTS | sed -e 's/Red Hat Enterprise Linux \(.*\) release //' -e 's/CentOS release //' -e 's/ (\(.*\) Update \([0-9]*\))/\.\2/' -e 's/ (\(.*\))//'`
-                printf $result
+                echo $result
                 ;;
         "SuSE")
 		result=`awk '/SUSE LINUX Ent.*/ {dist="sles"; sp="sp1"} /VERSION/ {version=$3} /PATCHLEVEL/ {sp="sp"$3} END {print version sp}' $filename`
-                printf $result
+                echo $result
                 ;;
         *)
-                printf "$CONTENTS"
+                echo "$CONTENTS"
                 ;;
         esac
-}
-
-determine_32_or_64 () {
-    local ROOT=$1
-    chroot $ROOT file /sbin/init | grep "32-bit" &> /dev/null
-    if [ $? -eq 0 ] ; then
-        printf "32"
-        return
-    fi
-    chroot $ROOT file /sbin/init | grep "64-bit" &> /dev/null
-    if [ $? -eq 0 ] ; then
-        printf "64"
-        return
-    fi
-
-    printf "Unknown"
-    return
 }
 
 release_file=`which_release_file $ROOT_PATH`
 distro=`which_os $release_file`
 version=`which_distro_version "$distro" $ROOT_PATH/etc/$release_file`
-is32or64=`determine_32_or_64 $ROOT_PATH`
 
-printf "$distro\n$version\n$is32or64\n"
-exit 0
+echo "$distro"
+echo "$version"
