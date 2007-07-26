@@ -728,7 +728,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
     netifs = nethw.keys()
     for i in netifs:
         b = i.replace("eth", "xenbr")
-        hwaddr = nethw[i].name
+        hwaddr = nethw[i].hwaddr
         xelogging.log("Writing ifcfg-%s (%s)" % (i, hwaddr))
         ifcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % i), 'w')
         ifcfd.write("DEVICE=%s\n" % i)
