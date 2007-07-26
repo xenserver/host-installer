@@ -267,7 +267,6 @@ def main():
         (opts, _) = getopt(sys.argv[1:],
                            "",
                            ["install",
-                            "upgrade",
                             "p2v",
                             "interactive-modules",
                             "answerfile=",
@@ -379,7 +378,9 @@ def main():
             except AlreadyActivated:
                 if ui:
                     ui.init.already_activated()
-                break
+                else:
+                    print "Installation started on alternative console %s" % active_output
+                return False
 
             if operation == init_constants.OPERATION_REBOOT:
                 break
@@ -439,12 +440,9 @@ def main():
                 pass
             logfd.close()
 
+    return True
+
 if __name__ == "__main__":
-    main()
-
-    # only reboot if we're the primary process:
-    if isPrimaryProcess():
+    reboot = main()
+    if reboot == True:
         os.system("reboot")
-    else:
-        sys.exit(0)
-
