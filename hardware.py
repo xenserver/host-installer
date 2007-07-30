@@ -77,6 +77,18 @@ def modprobe(module, params = ""):
 
     return rc
 
+def module_file_uname(module):
+    rc, out = util.runCmd("modinfo %s" % module, with_output = True)
+    if rc != 0:
+        raise RuntimeError, "Error interrogating module"
+    vermagics = filter(lambda x: x.startswith("vermagic:"), out.split("\n"))
+    if len(vermagics) != 1:
+        raise RuntimeError, "No version magic field for module %s" % module
+    vermagic = vermagics[0]
+
+    vermagic = vermagic[10:].strip()
+    return vermagic.split(" ")[0]
+
 def modprobe_file(module, params = "", name = None):
     INSMOD = '/sbin/insmod'
 
@@ -90,10 +102,11 @@ def modprobe_file(module, params = "", name = None):
     [deps] = filter(lambda x: x.startswith("depends:"),
                     out.split("\n"))
     deps = deps[9:].strip()
-    deps = deps.split(',')
-    for dep in deps:
-        if not module_present(dep):
-            modprobe(dep)
+    if deps != "":
+        deps = deps.split(',')
+        for dep in deps:
+            if not module_present(dep):
+                modprobe(dep)
     
     xelogging.log("Insertung module %s %s (%s)" %(module, params, name))
     rc = util.runCmd2([INSMOD, module, params])

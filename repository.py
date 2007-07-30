@@ -153,7 +153,14 @@ class Repository:
         # copy the packages and write an XS-PACAKGES file:
         xspkg_fd = open(os.path.join(destination, 'XS-PACKAGES'), 'w')
         for pkg in self:
+            repo_dir = os.path.dirname(pkg.repository_filename)
+            target_dir = os.path.join(destination, repo_dir)
+            util.assertDir(target_dir)
             xspkg_fd.write(pkg.pkgLine() + '\n')
+
+            # pkg.copy will use the full path for us, we just have to make sure
+            # the appropriate directory exists before using it (c.f. the
+            # the assertDir above).
             pkg.copy(destination)
         xspkg_fd.close()
 
@@ -172,6 +179,7 @@ class Package:
        
     def write(self, destination):
         """ Write package to 'destionation'. """
+        xelogging.log("Writing %s to %s" % (str(self), destination))
         pkgpath = self.repository.path(self.repository_filename)
         package = self.repository.accessor().openAddress(pkgpath)
 
