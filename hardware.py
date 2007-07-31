@@ -55,6 +55,18 @@ module_map = {
     "tridentfb"    : [],
     "vfb"          : [],
     "vga16fb"      : [],
+
+    # blacklist agp modules (we don't need them and they can cause compatibility issues):
+    "ali-agp"      : [],
+    "amd64-agp"    : [],
+    "via-agp"      : [],
+    "intel-agp"    : [],
+    "sworks-agp"   : [],
+    "sis-agp"      : [],
+    "nvidia-agp"   : [],
+    "ati-agp"      : [],
+    "amd-k7-agp"   : [],
+    "efficeon-agp" : [],
     }
 
 
