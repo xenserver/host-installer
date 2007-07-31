@@ -414,15 +414,21 @@ def get_source_location(answers):
 # verify the installation source?
 def verify_source(answers):
     done = False
-    while not done:
-        SKIP, VERIFY = range(2)
-        entries = [ ("Skip verification", SKIP),
-                    ("Verify Installation Source", VERIFY), ]
+    SKIP, VERIFY = range(2)
+    entries = [ ("Skip verification", SKIP),
+                ("Verify Installation Source", VERIFY), ]
 
+    if answers['source-media'] == 'local':
+        text = "Would you like to test your media?"
+        default = selectDefault(VERIFY, entries)
+    else:
+        text = "Would you like to test your installation repository?  This may cause significant network traffic."
+        default = selectDefault(SKIP, entries)
+
+    while not done:
         (button, entry) = ListboxChoiceWindow(
-            tui.screen, "Verify Installation Source",
-            "Would you like to verify the integrity of your installation repository/media?  (This may take a while to complete and could cause significant network traffic if performing a network installation.)",
-            entries, ['Ok', 'Back'])
+            tui.screen, "Verify Installation Source", text,
+            entries, ['Ok', 'Back'], default = default)
         if entry == SKIP:
             done = True
         elif button != 'back' and entry == VERIFY:
@@ -430,6 +436,7 @@ def verify_source(answers):
             done = interactive_source_verification(
                 answers['source-media'], answers['source-address']
                 )
+
     if button == 'back':
         return -1
     else:
