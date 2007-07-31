@@ -429,13 +429,13 @@ def verify_source(answers):
         (button, entry) = ListboxChoiceWindow(
             tui.screen, "Verify Installation Source", text,
             entries, ['Ok', 'Back'], default = default)
-        if entry == SKIP:
-            done = True
-        elif button != 'back' and entry == VERIFY:
+        if button != 'back' and entry == VERIFY:
             # we need to do the verification:
             done = interactive_source_verification(
                 answers['source-media'], answers['source-address']
                 )
+        else:
+            done = True
 
     if button == 'back':
         return -1
