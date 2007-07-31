@@ -154,6 +154,7 @@ def requireNetworking(answers):
             "Networking",
             "Configuring network interface, please wait...",
             )
+        netutil.ifdown(conf_dict['interface'])
         netutil.ifup(conf_dict['interface'])
 
         # check that we have *some* network:

@@ -61,7 +61,10 @@ def writeDebStyleInterfaceFile(configuration, filename):
 # simple wrapper for calling the local ifup script:
 def ifup(interface):
     assert interface in getNetifList()
-    return util.runCmd("ifup %s" % interface)
+    return util.runCmd2(['ifup', interface])
+
+def ifdown(interface):
+    return util.runCmd2(['ifdown', interface])
 
 # work out if an interface is up:
 IFF_UP = 1
