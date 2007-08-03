@@ -332,20 +332,20 @@ def installPackage(progress_callback, mounts, package):
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):
-    # read in the old NTP configuration, remove the server
-    # lines and write out a new one:
-    ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
-    lines = ntpsconf.readlines()
-    ntpsconf.close()
+    # If NTP servers were specified, update the NTP config file:
+    if len(ntp_servers) > 0:
+        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
+        lines = ntpsconf.readlines()
+        ntpsconf.close()
 
-    lines = filter(lambda x: not x.startswith('server '), lines)
+        lines = filter(lambda x: not x.startswith('server '), lines)
 
-    ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
-    for line in lines:
-        ntpsconf.write(line)
-    for server in ntp_servers:
-        ntpsconf.write("server %s\n" % server)
-    ntpsconf.close()
+        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
+        for line in lines:
+            ntpsconf.write(line)
+        for server in ntp_servers:
+            ntpsconf.write("server %s\n" % server)
+        ntpsconf.close()
 
     # now turn on the ntp service:
     util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
