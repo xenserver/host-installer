@@ -60,17 +60,25 @@ def umount_dev(mntpnt):
     rc = util.runCmd2(["umount", mntpnt])
     return rc
 
-def load_fstab(fp):
-    fstab = {}
-    for line in fp.readlines():
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-        pieces = line.split()
-        if ',' in pieces[3]:
-            pieces[3] = [ x.strip() for x in pieces[3].split(',') ]
-        fstab[(pieces[1], pieces[0])] = pieces
-    return fstab
+def load_fstab(fstab_file):
+    fp = None
+    try:
+        fp = open(fstab_file, 'r')
+        fstab = {}
+        for line in fp:
+            if '#' in line:
+                line = line[0:line.index('#')]
+            line = line.strip()
+            if not line:
+                continue
+            pieces = line.split()
+            if ',' in pieces[3]:
+                pieces[3] = [ x.strip() for x in pieces[3].split(',') ]
+            fstab[(pieces[1], pieces[0])] = pieces
+        return fstab
+    finally:
+        if fp:
+            fp.close()
 
 def find_dev_for_label(devices, label):
     for value in devices.values():
@@ -106,9 +114,7 @@ def find_extra_mounts(fstab, devices):
 
 #returns in bytes
 def determine_size(mntpnt, dev_name):
-    fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
-    fstab = load_fstab(fp)
-    fp.close()
+    fstab = load_fstab(os.path.join(mntpnt, 'etc', 'fstab'))
     
     devices = scan()
 
@@ -162,9 +168,7 @@ def determine_size(mntpnt, dev_name):
 
 def rio_handle_root(xapi_host, p2v_vm_uuid, mntpnt, dev_name, pd = None):
     """ Returns a boolean indicating whether we had to mount /boot separately or not. """
-    fp = open(os.path.join(mntpnt, 'etc', 'fstab'))
-    fstab = load_fstab(fp)
-    fp.close()
+    fstab = load_fstab(os.path.join(mntpnt, 'etc', 'fstab'))
 
     devices = scan()
     
@@ -244,9 +248,7 @@ def inspect_root(dev_name, dev_attrs, results):
             xelogging.log("* Found root partition on %s" % dev_name)
 
             #scan fstab for EVMS
-            fp = open(fstab_path)
-            fstab = load_fstab(fp)
-            fp.close()
+            fstab = load_fstab(fstab_path)
             for ((mntpnt, dev), info) in fstab.items():
                 if dev.find("/evms/") != -1:
                     xelogging.log("Usage of EVMS detected. Skipping his root partition (%s)" % dev_name)
