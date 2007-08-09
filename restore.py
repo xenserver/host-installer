@@ -65,7 +65,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     xelogging.log("Restoring to partition %s." % restore_partition)
 
     # first, format the primary disk:
-    if util.runCmd2(['mkfs.ext3', '-L', constants.rootfs_label, restore_partition]) != 0:
+    if util.runCmd2(['mkfs.ext3', restore_partition]) != 0:
         return False
 
     # mount both volumes:
@@ -95,20 +95,20 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
         # preserve menu.lst:
         util.runCmd2(['cp', os.path.join(backup_mnt, "boot", "grub", "menu.lst"), '/tmp'])
         mounts = {'root': dest_mnt, 'boot': os.path.join(dest_mnt, 'boot')}
-        backend.installGrub(mounts, disk)
+        backend.installGrubWrapper(mounts, disk)
         util.runCmd2(['cp', '/tmp/menu.lst',
                       os.path.join(dest_mnt, 'boot', 'grub', 'menu.lst')])
 
-        #find out the label
-        [v,out] = util.runCmd2(['grep', 'root=LABEL', '/tmp/menu.lst'], True)
+        # find out the label
+        v, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/menu.lst'], with_output = True)
         p = re.compile('root=LABEL=root-\w+')
         labels = p.findall(out)
 
-        if (len(labels)==0):
-            raise
+        if len(labels) == 0:
+            raise RuntimeError, "Failed to find label required for root filesystem."
         else:
-            #just take the first one
-            newlabel=labels[0]
+            # just take the first one
+            newlabel = labels[0]
             util.runCmd2(['e2label', restore_partition, newlabel[len('root=LABEL='):]])
 
         xelogging.log("Bootloader restoration complete.")
