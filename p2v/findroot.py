@@ -19,6 +19,9 @@ import tempfile
 import util
 from p2v_error import P2VError
 
+class MalformedRoot(Exception):
+    pass
+
 def parse_blkid(line):
     """Take a line of the form '/dev/foo: key="val" key="val" ...' and return
 a dictionary created from the key/value pairs and the /dev entry as 'path'"""
@@ -284,7 +287,7 @@ def inspect_root(dev_name, dev_attrs, results):
 def detect64bits(root_mnt):
     lib_dir = os.path.join(root_mnt, "lib")
     if not os.path.exists(lib_dir):
-        raise RuntimeError, "No /lib directory"
+        raise MalformedRoot, "No /lib directory"
     lib_files = os.listdir(lib_dir)
     return True in [x.startswith("ld-linux-x86-64") for x in lib_files]
 
@@ -294,7 +297,11 @@ def findroot():
 
     for dev_name, dev_attrs in devices.items():
         if dev_attrs.has_key(p2v_constants.DEV_ATTRS_TYPE) and dev_attrs[p2v_constants.DEV_ATTRS_TYPE] in ('ext2', 'ext3', 'reiserfs'):
-            inspect_root(dev_name, dev_attrs, results)
+            try:
+                inspect_root(dev_name, dev_attrs, results)
+            except MalformedRoot, e:
+                xelogging.log("Encountered malformed root filesystem: skipping.  (%s)" % str(e))
+                continue
                    
     return results
 
