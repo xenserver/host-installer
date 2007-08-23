@@ -156,6 +156,7 @@ class FirstGenUpgrader(Upgrader):
             # map invalid UUIDs to valid ones:
             rc, out = util.runCmd("lvs -o lv_name --noheadings %s" % vg_name, with_output = True)
             if rc == 0:
+                xelogging.log("Renaming volumes with deprecated format for SR %s" % sr)
                 lvs = [x.strip() for x in out.split("\n")]
                 lvs = filter(lambda x: x.startswith("LV-"), lvs)
                 for lv in lvs:
@@ -166,6 +167,7 @@ class FirstGenUpgrader(Upgrader):
                         continue
                     guest, disk = gd
                     new_lv = "LV-" + uuid
+                    xelogging.log("Mapping %s to %s" % (lv, new_lv))
                     print >>lvmap_fd, lv, guest, disk, uuid
                     util.runCmd2(['lvrename', vg_name, lv, new_lv])
         lvmap_fd.close()
