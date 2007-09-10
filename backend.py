@@ -739,7 +739,6 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
         if hwaddr:
             ifcfd.write("HWADDR=%s\n" % hwaddr)
         ifcfd.write("BRIDGE=%s\n" % b)
-        ifcfd.write("check_link_down() { return 1 ; }\n")
         ifcfd.close()
 
         xelogging.log("Writing ifcfg-%s" % b)
@@ -760,7 +759,6 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
                 brcfd.write("GATEWAY=%s\n" % admin_config['gateway'])
                 brcfd.write("PEERDNS=yes\n")
 
-        brcfd.write("check_link_down() { return 1 ; }\n")
         brcfd.close()
 
     # write the configuration file for the loopback interface
