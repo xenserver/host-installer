@@ -434,8 +434,8 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
     partitions = getSRPhysDevs(primary_disk, guest_disks)
 
     fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
-    fd.write("xe sr-create type=udev name-label=\"Local hotplug disk devices\" sm-config:type=block device-config-location=/dev/xapi/block\n")
-    fd.write("xe sr-create type=udev name-label=\"Local hotplug CD devices\" sm-config:type=cd device-config-location=/dev/xapi/cd\n")
+    fd.write("xe sr-create type=udev name-label=\"Local hotplug disk devices\" sm-config:type=block device-config-location=/dev/xapi/block content-type=disk\n")
+    fd.write("xe sr-create type=udev name-label=\"Local hotplug CD devices\" sm-config:type=cd device-config-location=/dev/xapi/cd content-type=iso\n")
     fd.write("POOL_UUID=$(/opt/xensource/bin/xe pool-list params=uuid --minimal)\n")
     fd.write("HOST_UUID=$(/opt/xensource/bin/xe host-list params=uuid --minimal)\n")
     fd.write("HOST_NAME=$(/opt/xensource/bin/xe host-list uuid=${HOST_UUID} params=hostname --minimal)\n")
