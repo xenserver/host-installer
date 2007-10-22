@@ -84,3 +84,5 @@ ANSWERS_FILE = "upgrade_answers"
 INVENTORY_FILE = "etc/xensource-inventory"
 
 MAIN_REPOSITORY_NAME = 'xs:main'
+
+FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"

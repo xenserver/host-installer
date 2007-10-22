@@ -429,31 +429,21 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
         xelogging.log("No storage repository requested.")
         return None
 
+    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
+
     xelogging.log("Arranging for storage repositories to be created at first boot...")
 
     partitions = getSRPhysDevs(primary_disk, guest_disks)
 
-    fd = open(os.path.join(mounts['root'], 'var/xapi/firstboot-SR-commands'), 'w')
-    fd.write("xe sr-create type=udev name-label=\"Local hotplug disk devices\" sm-config:type=block device-config-location=/dev/xapi/block content-type=disk\n")
-    fd.write("xe sr-create type=udev name-label=\"Local hotplug CD devices\" sm-config:type=cd device-config-location=/dev/xapi/cd content-type=iso\n")
-    fd.write("POOL_UUID=$(/opt/xensource/bin/xe pool-list params=uuid --minimal)\n")
-    fd.write("HOST_UUID=$(/opt/xensource/bin/xe host-list params=uuid --minimal)\n")
-    fd.write("HOST_NAME=$(/opt/xensource/bin/xe host-list uuid=${HOST_UUID} params=hostname --minimal)\n")
-    for p in partitions:
-        fd.write("/opt/xensource/bin/diskprep -f %s\n" % p)
-    if sr_type == constants.SR_TYPE_EXT:
-        for p in partitions:
-            fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label=\"Local storage on ${HOST_NAME}\" physical-size=0 type=ext content-type=user device-config-device='%s' host-uuid='%s')\n" % (p, install_uuid))
-    elif sr_type == constants.SR_TYPE_LVM:
-        device_config_devs = ",".join(partitions)
-        fd.write("SR=$(/opt/xensource/bin/xe sr-create name-label=\"Local storage on ${HOST_NAME}\" physical-size=0 type=lvm content-type=user device-config-device='%s' host-uuid='%s')\n" % (device_config_devs, install_uuid))
-    else:
-        raise RuntimeError, "Unknown value for sr-type."
+    sr_type_strings = { constants.SR_TYPE_EXT: 'ext', 
+                        constants.SR_TYPE_LVM: 'lvm' }
+    sr_type_string = sr_type_strings[sr_type]
 
-    # now write out configuration for default pool configuration:
-    fd.write("/opt/xensource/bin/xe pool-param-set uuid=${POOL_UUID} default-SR=${SR}\n")
-    fd.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} crash-dump-sr-uuid=${SR}\n")
-    fd.write("/opt/xensource/bin/xe host-param-set uuid=${HOST_UUID} suspend-image-sr-uuid=${SR}\n")
+    # write a config file for the prepare-storage firstboot script:
+    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
+    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
+    print >>fd, "PARTITIONS='%s'" % str.join(" ", partitions)
+    print >>fd, "TYPE='%s'" % sr_type_string
 
     fd.close()
 
@@ -713,12 +703,12 @@ def setRootPassword(mounts, root_password, pwdtype):
 
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
-    """ Write the ifcfg files to the filesystem at mounts['root'].  We use the
-    network hardware configuration described by nethw, which is the output of
-    netutil.scanConfiguration, as the basis of which files to write.  This 
-    ensures that if this has changed since the user selected the interface,
-    e.g. by kudzu, then we still write out the configuration that would 
-    otherwise be written (preventing renaming of eth*). """
+    """ Writes configuration files that the firstboot scripts will consume to
+    configure interfaces via the CLI.  Writes a loopback device configuration.
+    to /etc/sysconfig/network-scripts, and removes any other configuration
+    files from that directory."""
+
+    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
 
@@ -728,51 +718,37 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
     for s in filter(lambda x: x.startswith('ifcfg-eth'), network_scripts):
         os.unlink(os.path.join(network_scripts_dir, s))
 
-    # iterate over the interfaces to write the config files:
-    netifs = nethw.keys()
-    for i in netifs:
-        b = i.replace("eth", "xenbr")
-        hwaddr = nethw[i].hwaddr
-        xelogging.log("Writing ifcfg-%s (%s)" % (i, hwaddr))
-        ifcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % i), 'w')
-        ifcfd.write("DEVICE=%s\n" % i)
-        ifcfd.write("ONBOOT=yes\n")
-        ifcfd.write("TYPE=Ethernet\n")
-        if hwaddr:
-            ifcfd.write("HWADDR=%s\n" % hwaddr)
-        ifcfd.write("BRIDGE=%s\n" % b)
-        ifcfd.close()
-
-        xelogging.log("Writing ifcfg-%s" % b)
-        brcfd = open(os.path.join(network_scripts_dir, 'ifcfg-%s' % b), 'w')
-        brcfd.write("DEVICE=%s\n" % b)
-        brcfd.write("ONBOOT=yes\n")
-        brcfd.write("TYPE=Bridge\n")
-        brcfd.write("DELAY=0\n")
-        brcfd.write("STP=off\n")
-        
-        if i == admin_iface:
-            if admin_config['use-dhcp']:
-                brcfd.write("BOOTPROTO=dhcp\n")
-            else:
-                brcfd.write("BOOTPROTO=none\n") 
-                brcfd.write("NETMASK=%s\n" % admin_config['subnet-mask'])
-                brcfd.write("IPADDR=%s\n" % admin_config['ip'])
-                brcfd.write("GATEWAY=%s\n" % admin_config['gateway'])
-                brcfd.write("PEERDNS=yes\n")
-
-        brcfd.close()
-
     # write the configuration file for the loopback interface
-    out = open(os.path.join(network_scripts_dir, 'ifcfg-lo'), 'w')
-    out.write("DEVICE=lo\n")
-    out.write("IPADDR=127.0.0.1\n")
-    out.write("NETMASK=255.0.0.0\n")
-    out.write("NETWORK=127.0.0.0\n")
-    out.write("BROADCAST=127.255.255.255\n")
-    out.write("ONBOOT=yes\n")
-    out.write("NAME=loopback\n")
-    out.close()
+    lo = open(os.path.join(network_scripts_dir, 'ifcfg-lo'), 'w')
+    lo.write("DEVICE=lo\n")
+    lo.write("IPADDR=127.0.0.1\n")
+    lo.write("NETMASK=255.0.0.0\n")
+    lo.write("NETWORK=127.0.0.0\n")
+    lo.write("BROADCAST=127.255.255.255\n")
+    lo.write("ONBOOT=yes\n")
+    lo.write("NAME=loopback\n")
+    lo.close()
+
+    network_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'network.conf')
+    admin_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[admin_iface].hwaddr)
+    # write the master network configuration file; the firstboot script has the
+    # ability to configure multiple interfaces but we only configure one.
+    nc = open(network_conf_file, 'w')
+    print >>nc, "ADMIN_INTERFACE='%s'" % nethw[admin_iface].hwaddr
+    print >>nc, "INTERFACES='%s'" % nethw[admin_iface].hwaddr
+    nc.close()
+
+    # write out the network config file for our interface:
+    ac = open(admin_conf_file, 'w')
+    print >>ac, "LABEL='%s'" % admin_iface
+    if admin_config['use-dhcp']:
+        print >>ac, "MODE=dhcp"
+    else:
+        print >>ac, "MODE=static"
+        print >>ac, "IP=%s" % admin_config['ip']
+        print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
+        print >>ac, "GATEWAY=%s" % admin_config['gateway']
+    ac.close()
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
@@ -810,7 +786,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("DOM0_MEM='%d'\n" % constants.DOM0_MEM)
     
     assert admin_iface.startswith("eth")
-    admin_bridge = "xenbr%s" % admin_iface[3:]
+    admin_bridge = "breth%s" % admin_iface[3:]
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     inv.close()
 
