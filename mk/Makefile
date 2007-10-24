@@ -27,7 +27,7 @@ PROC_ADDED_STAMP = $(MY_OBJ_DIR)/.proc-added.stamp
 
 USB_DISCOVER_DIR = $(MY_OBJ_DIR)/usb-discover
 DISCOVER_DATA_DIR ?= $(MY_OBJ_DIR)/discover1-data-1.2006.01.14
-BUILDROOT_DIR = $(MY_OBJ_DIR)/dist-buildroot.hg
+BUILDROOT_DIR = $(MY_OBJ_DIR)/repos/dist-buildroot.hg
 INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 
 # commands:

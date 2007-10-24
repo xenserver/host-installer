@@ -6,7 +6,7 @@ BUILDROOT_ENVIRONMENT = $(PROJECT_OUTPUTDIR)/install-image-base/buildroot-env.ta
 # config
 KBD_VERSION = 1.12
 KBD_DIR = $(MY_OBJ_DIR)/kbd-$(KBD_VERSION)
-BUILDROOT_DIR = $(MY_OBJ_DIR)/dist-buildroot.hg
+BUILDROOT_DIR = $(MY_OBJ_DIR)/repos/dist-buildroot.hg
 
 UCLIBC_VARS :=
 UCLIBC_VARS += PATH=$(BUILDROOT_DIR)/build_i686/staging_dir/bin:$${PATH}
