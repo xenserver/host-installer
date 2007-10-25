@@ -730,25 +730,32 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
     lo.close()
 
     network_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'network.conf')
-    admin_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[admin_iface].hwaddr)
     # write the master network configuration file; the firstboot script has the
     # ability to configure multiple interfaces but we only configure one.
     nc = open(network_conf_file, 'w')
     print >>nc, "ADMIN_INTERFACE='%s'" % nethw[admin_iface].hwaddr
-    print >>nc, "INTERFACES='%s'" % nethw[admin_iface].hwaddr
+    print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
     nc.close()
 
-    # write out the network config file for our interface:
-    ac = open(admin_conf_file, 'w')
-    print >>ac, "LABEL='%s'" % admin_iface
-    if admin_config['use-dhcp']:
-        print >>ac, "MODE=dhcp"
-    else:
-        print >>ac, "MODE=static"
-        print >>ac, "IP=%s" % admin_config['ip']
-        print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
-        print >>ac, "GATEWAY=%s" % admin_config['gateway']
-    ac.close()
+    # write a config file for each interface, speical casing the admin
+    # interface to have a dom0 configuration.
+    for intf in nethw.keys():
+        conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[intf].hwaddr)
+
+        # write out the network config file for our interface:
+        ac = open(conf_file, 'w')
+        print >>ac, "LABEL='%s'" % intf
+        if intf == admin_iface:
+            if admin_config['use-dhcp']:
+                print >>ac, "MODE=dhcp"
+            else:
+                print >>ac, "MODE=static"
+                print >>ac, "IP=%s" % admin_config['ip']
+                print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
+                print >>ac, "GATEWAY=%s" % admin_config['gateway']
+        else:
+            print >>ac, "MODE=none"
+        ac.close()
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
