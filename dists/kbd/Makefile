@@ -9,8 +9,8 @@ KBD_DIR = $(MY_OBJ_DIR)/kbd-$(KBD_VERSION)
 BUILDROOT_DIR = $(MY_OBJ_DIR)/repos/dist-buildroot.hg
 
 UCLIBC_VARS :=
-UCLIBC_VARS += PATH=$(BUILDROOT_DIR)/build_i686/staging_dir/bin:$${PATH}
-UCLIBC_VARS += CC=i686-linux-gcc
+UCLIBC_VARS += PATH=$(BUILDROOT_DIR)/build_$(DOMAIN0_ARCH_OPTIMIZED)/staging_dir/bin:$${PATH}
+UCLIBC_VARS += CC=$(DOMAIN0_ARCH_OPTIMIZED)-linux-gcc
 
 REMOVE = consolefonts consoletrans man
 
