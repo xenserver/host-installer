@@ -29,6 +29,11 @@ module_map = {
     'ide-scsi'     : ['ide-generic'],
     'piix'         : ['ata-piix', 'piix', 'ide-generic'],
 
+    # blacklist firewire as we don't support it and it confuses our networking
+    # code:
+    "ohci1394"     : [],
+    "eth1394"      : [],
+
     # blacklist framebuffer drivers (we don't need them):
     "arcfb"        : [],
     "aty128fb"     : [],
