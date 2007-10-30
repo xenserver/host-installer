@@ -24,3 +24,31 @@
      {
  #ifdef _LIBC
        p = __rawmemchr (p, '\0');
+--- lib/modem.c.orig	2007-09-27 12:10:33.000000000 -0400
++++ lib/modem.c	2007-09-27 12:12:44.000000000 -0400
+@@ -147,6 +147,17 @@
+   long speed = -1;
+   
+   attr = init_serial_port(fd);
++#ifdef __UCLIBC__
++  PORTSPEED(B115200)
++  if(find_legacy_modem(fd) == 3){
++    speed = 115200;
++  }else{
++    PORTSPEED(B57600)
++    if(find_legacy_modem(fd) == 3){
++      speed = 57600;
++    }/*endif*/
++  }/*endif*/
++#else
+   PORTSPEED(B230400)
+   if(find_legacy_modem(fd) == 3){
+     speed = 230400;
+@@ -188,6 +199,7 @@
+       }/*endif*/
+     }/*endif*/
+   }/*endif*/
++#endif
+   free(attr);
+   return speed;
+ }/*endfunc modem_speed*/

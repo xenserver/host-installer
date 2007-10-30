@@ -2,7 +2,7 @@ USE_BRANDING := yes
 include $(B_BASE)/common.mk
 
 # inputs
-BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.i686.ext2
+BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.$(DOMAIN0_ARCH_OPTIMIZED).ext2
 BUILDROOT_ENVIRONMENT = $(PROJECT_OUTPUTDIR)/install-image-base/buildroot-env.tar.gz
 DEBIAN_DISCOVER_TARBALL ?= discover1_1.7.18.tar.gz
 DEBIAN_DISCOVER_DATA_TARBALL ?= discover1-data_1.2006.01.14.tar.gz
@@ -27,7 +27,7 @@ PROC_ADDED_STAMP = $(MY_OBJ_DIR)/.proc-added.stamp
 
 USB_DISCOVER_DIR = $(MY_OBJ_DIR)/usb-discover
 DISCOVER_DATA_DIR ?= $(MY_OBJ_DIR)/discover1-data-1.2006.01.14
-BUILDROOT_DIR = $(MY_OBJ_DIR)/dist-buildroot.hg
+BUILDROOT_DIR = $(MY_OBJ_DIR)/repos/dist-buildroot.hg
 INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 
 # commands:
@@ -67,10 +67,10 @@ $(DISCOVER_BUILT_STAMP): $(BUILDROOT_ENV_STAMP)
 	tar -C $(MY_OBJ_DIR) -xzf $(MY_DISTFILES)/$(DEBIAN_DISCOVER_TARBALL)
 	patch -p0 -d $(MY_OBJ_DIR)/discover1 <$(CURDIR)/discover-uclibc.patch
 # build:
-	export PATH=$(BUILDROOT_DIR)/build_i686/staging_dir/bin:$${PATH} && \
-	export CC=i686-linux-gcc && \
+	export PATH=$(BUILDROOT_DIR)/build_$(DOMAIN0_ARCH_OPTIMIZED)/staging_dir/bin:$${PATH} && \
+	export CC=$(DOMAIN0_ARCH_OPTIMIZED)-linux-gcc && \
 	cd $(MY_OBJ_DIR)/discover1 && \
-	./configure --host=i686-linux-gnu --disable-nls --prefix=/usr \
+	./configure --host=$(DOMAIN0_ARCH_OPTIMIZED)-linux-gnu --disable-nls --prefix=/usr \
 		--sbindir=/sbin \
                 --sysconfdir=/etc \
                 --libdir=/lib \
@@ -86,8 +86,8 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP) $(BUILDROOT_ENV_STAM
 # install hn and other uClibc stuff:
 	$(MAKE) -C $(call hg_loc,host-installer)/uClibc clean
 	$(MAKE) -C $(call hg_loc,host-installer)/uClibc all \
-		CC=i686-linux-gcc \
-		PATH=$(BUILDROOT_DIR)/build_i686/staging_dir/bin:$${PATH}
+		CC=$(DOMAIN0_ARCH_OPTIMIZED)-linux-gcc \
+		PATH=$(BUILDROOT_DIR)/build_$(DOMAIN0_ARCH_OPTIMIZED)/staging_dir/bin:$${PATH}
 	$(MAKE) -C $(call hg_loc,host-installer)/uClibc install DESTDIR=$(INSTALLER_FILESYSTEM)
 # make /sbin/dhclient symlink so ifup does the right thing:
 	#ln -sf /usr/sbin/dhclient ${INSTALLER_FILESYSTEM}/sbin/dhclient
