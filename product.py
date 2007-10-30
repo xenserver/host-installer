@@ -136,6 +136,7 @@ class Version(object):
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 XENSERVER_3_2_0 = Version(3,2,0)
+XENSERVER_4_0_1 = Version(4,0,1)
 
 class ExistingInstallation(object):
     def __init__(self, name, brand, version, primary_disk, inventory):
