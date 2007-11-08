@@ -90,17 +90,28 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
             util.runCmd2(['cp', '-a', os.path.join(backup_mnt, obj),
                           os.path.join(dest_mnt)])
 
-        xelogging.log("Data restoration complete.  About to re-install Grub.")
+        xelogging.log("Data restoration complete.  About to re-install bootloader.")
 
-        # preserve menu.lst:
-        util.runCmd2(['cp', os.path.join(backup_mnt, "boot", "grub", "menu.lst"), '/tmp'])
+        if os.path.exists(os.path.join(backup_mnt, "boot", "grub", "menu.lst")):
+            bootloader = "grub"
+            bootloader_config = os.path.join("boot", "grub", "menu.lst")
+        elif os.path.exists(os.path.join(backup_mnt, "boot", "extlinux.conf")):
+            bootloader = "extlinux"
+            bootloader_config = os.path.join("boot", "extlinux.conf")
+        else:
+            raise RuntimeError, "Unable to determine boot loader"
+
+        xe.logging.log("Bootloader is %s" % bootloader)
+
+        # preserve bootloader configuration
+        util.runCmd2(['cp', os.path.join(backup_mnt, bootloader_config), '/tmp/bootloader.tmp'])
         mounts = {'root': dest_mnt, 'boot': os.path.join(dest_mnt, 'boot')}
-        backend.installGrubWrapper(mounts, disk)
-        util.runCmd2(['cp', '/tmp/menu.lst',
-                      os.path.join(dest_mnt, 'boot', 'grub', 'menu.lst')])
+        backend.installBootLoader(mounts, disk, bootloader)
+        util.runCmd2(['cp', '/tmp/bootloader.tmp',
+                      os.path.join(dest_mnt, bootloader_config)])
 
         # find out the label
-        v, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/menu.lst'], with_output = True)
+        v, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/bootloader.tmp'], with_output = True)
         p = re.compile('root=LABEL=root-\w+')
         labels = p.findall(out)
 
