@@ -538,15 +538,29 @@ def installGrubWrapper(mounts, disk):
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
 
+    # This is a nasty hack but unavoidable (I think):
+    #
+    # The bootloader tries to work out what the root device is but
+    # this is confused within the chroot.  Therefore, we fake out
+    # /proc/mounts with the correct data. If /etc/mtab is not a
+    # symlink (to /proc/mounts) then we fake that out too.
+    f = open("%s/proc/mounts" % mounts['root'], 'w')
+    f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
+    f.close()
+    if not os.path.islink("%s/etc/mtab" % mounts['root']):
+        f = open("%s/etc/mtab" % mounts['root'], 'w')
+        f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
+        f.close()
+
     try:
         installGrub(mounts, disk)
     finally:
-        # done installing - undo our extra mounts:
-        util.umount("%s/dev" % mounts['root'])
-        # try to unlink /proc/mounts in case /etc/mtab is a symlink
+        # unlink /proc/mounts
         if os.path.exists("%s/proc/mounts" % mounts['root']):
             os.unlink("%s/proc/mounts" % mounts['root'])
+        # done installing - undo our extra mounts:
         util.umount("%s/sys" % mounts['root'])
+        util.umount("%s/dev" % mounts['root'])
 
 def writeGrubMenuItem(f, item):
     f.write("title %s\n" % item['title'])
@@ -555,17 +569,6 @@ def writeGrubMenuItem(f, item):
     f.write("   module %s\n\n" % item['initrd'])
 
 def installGrub(mounts, disk):
-    # this is a nasty hack but unavoidable (I think): grub-install
-    # uses df to work out what the root device is, but df's output is
-    # incorrect within the chroot.  Therefore, we fake out /etc/mtab
-    # with the correct data, so GRUB will install correctly:
-    mtab = "%s/proc/mounts" % mounts['root']
-    if not os.path.islink("%s/etc/mtab" % mounts['root']):
-        mtab = "%s/etc/mtab" % mounts['root']
-    f = open(mtab, 'w')
-    f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
-    f.close()
-
     grubroot = getGrUBDevice(disk, mounts)
 
     # move the splash screen to a safe location so we don't delete it
