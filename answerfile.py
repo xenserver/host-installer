@@ -88,6 +88,7 @@ def parseFreshInstall(n):
     results.update(parseTimeConfig(n))
     results.update(parseKeymap(n))
     results.update(parseScripts(n))
+    results.update(parseBootloader(n))
 
     return results
 
@@ -106,6 +107,7 @@ def parseReinstall(n):
     results.update(parseTimeConfig(n))
     results.update(parseKeymap(n))
     results.update(parseScripts(n))
+    results.update(parseBootloader(n))
 
     return results
 
@@ -120,6 +122,7 @@ def parseUpgrade(n):
     results.update(parseSource(n))
     results.update(parseInterfaces(n))
     results.update(parseScripts(n))
+    results.update(parseBootloader(n))
 
     return results
 
@@ -140,6 +143,22 @@ def parseKeymap(n):
     else:
         xelogging.log("No keymap specified in answer file: defaulting to 'us'")
         results['keymap'] = "us"
+    return results
+
+def parseBootloader(n):
+    DEFAULT = "grub"
+    results = {}
+    keymap_nodes = n.getElementsByTagName('bootloader')
+    if len(keymap_nodes) == 1:
+        results['bootloader'] = getText(keymap_nodes[0].childNodes)
+    else:
+        xelogging.log("No bootloader specified in answer file: defaulting to '%s'" % DEFAULT)
+        results['bootloader'] = DEFAULT
+
+    if results['bootloader'] not in ["grub"]:
+        xelogging.log("Unknown bootloader specified in answer file: defaulting to '%s'" % DEFAULT)
+        results['bootloader'] = DEFAULT
+
     return results
 
 def parseTimeConfig(n):

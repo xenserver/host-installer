@@ -140,7 +140,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installGrubWrapper, A(ans, 'mounts', 'primary-disk'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -533,8 +533,8 @@ def writeMenuItems(f, fn):
     for entry in entries:
          fn(f, entry)
 
-def installGrubWrapper(mounts, disk):
-    # prepare extra mounts for installing GRUB:
+def installBootLoader(mounts, disk, bootloader):
+    # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
 
@@ -553,7 +553,10 @@ def installGrubWrapper(mounts, disk):
         f.close()
 
     try:
-        installGrub(mounts, disk)
+        if bootloader == "grub":
+            installGrub(mounts, disk)
+        else:
+            raise RuntimeError, "Unknown bootloader \"%s\"." % bootloader
     finally:
         # unlink /proc/mounts
         if os.path.exists("%s/proc/mounts" % mounts['root']):
