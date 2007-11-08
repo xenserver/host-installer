@@ -474,6 +474,58 @@ def mkinitrd(mounts):
     initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
     util.runCmd2(["ln", "-sf", initrd_name, "%s/boot/initrd-2.6-xen.img" % mounts['root']])
 
+def writeMenuItems(f, fn):
+    entries = [
+        {
+            'label':      "xe",
+            'title':      PRODUCT_BRAND,
+            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M" \
+                          % constants.DOM0_MEM,
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0" % (constants.rootfs_label),
+            'initrd':     "/boot/initrd-2.6-xen.img",
+        }, {
+            'label':      "xe-serial",
+            'title':      "%s (Serial)" % PRODUCT_BRAND,
+            'hypervisor': "/boot/xen.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM " \
+                          % constants.DOM0_MEM \
+                          + "lowmem_emergency_pool=16M crashkernel=64M@32M",
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=ttyS0,115200n8" \
+                          % (constants.rootfs_label),
+            'initrd':     "/boot/initrd-2.6-xen.img",
+        }, {
+            'label':      "safe",
+            'title':      "%s in Safe Mode" % PRODUCT_BRAND,
+            'hypervisor': "/boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic " \
+                          + "dom0_mem=%dM com1=115200,8n1 console=com1,tty" % constants.DOM0_MEM,
+            'kernel':     "/boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 " \
+                          % constants.rootfs_label \
+                          + "console=ttyS0,115200n8",
+            'initrd':     "/boot/initrd-2.6-xen.img",
+        }, {
+            'label':      "fallback",
+            'title':      "%s (Xen %s / Linux %s)" \
+                          % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
+            'hypervisor': "/boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M" \
+                          % (version.XEN_VERSION, constants.DOM0_MEM),
+            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0" \
+                          % (version.KERNEL_VERSION, constants.rootfs_label),
+            'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
+        }, {
+            'label':      "fallback-serial",
+            'title':      "%s (Serial, Xen %s / Linux %s)" \
+                          % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
+            'hypervisor': "/boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM " \
+                          % (version.XEN_VERSION, constants.DOM0_MEM) \
+                          + "lowmem_emergency_pool=16M crashkernel=64M@32M",
+            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=ttyS0,115200n8" \
+                          % (version.KERNEL_VERSION, constants.rootfs_label),
+            'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
+        }
+    ]
+
+    for entry in entries:
+         fn(f, entry)
+
 def installGrubWrapper(mounts, disk):
     # prepare extra mounts for installing GRUB:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
@@ -488,6 +540,12 @@ def installGrubWrapper(mounts, disk):
         if os.path.exists("%s/proc/mounts" % mounts['root']):
             os.unlink("%s/proc/mounts" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
+
+def writeGrubMenuItem(f, item):
+    f.write("title %s\n" % item['title'])
+    f.write("   kernel %s\n" % item['hypervisor'])
+    f.write("   module %s\n" % item['kernel'])
+    f.write("   module %s\n\n" % item['initrd'])
 
 def installGrub(mounts, disk):
     # this is a nasty hack but unavoidable (I think): grub-install
@@ -542,37 +600,12 @@ def installGrub(mounts, disk):
         grubconf += "background = cccccc\n"
         grubconf += "splashimage = /xs-splash.xpm.gz\n\n"
 
-    # Generic boot entries first
-    grubconf += "title %s\n" % PRODUCT_BRAND
-    grubconf += "   kernel /boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
-    grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0\n" % (constants.rootfs_label)
-    grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
-
-    grubconf += "title %s (Serial)\n" % PRODUCT_BRAND
-    grubconf += "   kernel /boot/xen.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % constants.DOM0_MEM
-    grubconf += "   module /boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (constants.rootfs_label)
-    grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
-    
-    grubconf += "title %s in Safe Mode\n" % PRODUCT_BRAND
-    grubconf += "   kernel /boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic dom0_mem=%dM com1=115200,8n1 console=com1,tty\n" % constants.DOM0_MEM
-    grubconf += "   module /boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (constants.rootfs_label)
-    grubconf += "   module /boot/initrd-2.6-xen.img\n\n"
-
-    # Entries with specific versions
-    grubconf += "title %s (Xen %s / Linux %s)\n" % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION)
-    grubconf += "   kernel /boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % (version.XEN_VERSION, constants.DOM0_MEM)
-    grubconf += "   module /boot/vmlinuz-%s root=LABEL=%s ro console=tty0\n" % (version.KERNEL_VERSION, constants.rootfs_label)
-    grubconf += "   module /boot/initrd-%s.img\n\n" % version.KERNEL_VERSION
-
-    grubconf += "title %s (Serial, Xen %s / Linux %s)\n" % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION)
-    grubconf += "   kernel /boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M\n" % (version.XEN_VERSION, constants.DOM0_MEM)
-    grubconf += "   module /boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=ttyS0,115200n8\n" % (version.KERNEL_VERSION, constants.rootfs_label)
-    grubconf += "   module /boot/initrd-%s.img\n" % version.KERNEL_VERSION
 
     # write the GRUB configuration:
     util.assertDir("%s/grub" % mounts['boot'])
     menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
     menulst_file.write(grubconf)
+    writeMenuItems(menulst_file, writeGrubMenuItem)
     menulst_file.close()
 
     # now perform our own installation, onto the MBR of the selected disk:
