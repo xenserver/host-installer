@@ -155,7 +155,7 @@ def parseBootloader(n):
         xelogging.log("No bootloader specified in answer file: defaulting to '%s'" % DEFAULT)
         results['bootloader'] = DEFAULT
 
-    if results['bootloader'] not in ["grub"]:
+    if results['bootloader'] not in ["grub", "extlinux"]:
         xelogging.log("Unknown bootloader specified in answer file: defaulting to '%s'" % DEFAULT)
         results['bootloader'] = DEFAULT
 

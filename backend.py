@@ -555,6 +555,8 @@ def installBootLoader(mounts, disk, bootloader):
     try:
         if bootloader == "grub":
             installGrub(mounts, disk)
+        elif bootloader == "extlinux":
+            installExtLinux(mounts, disk)
         else:
             raise RuntimeError, "Unknown bootloader \"%s\"." % bootloader
     finally:
@@ -564,6 +566,39 @@ def installBootLoader(mounts, disk, bootloader):
         # done installing - undo our extra mounts:
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
+
+def writeExtLinuxMenuItem(f, item):
+    f.write("label %s # %s\n" % (item['label'], item['title']))
+    f.write("  kernel mboot.c32\n")
+    f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
+    f.write("\n")
+    pass
+
+def installExtLinux(mounts, disk):
+    f = open("%s/extlinux.conf" % mounts['boot'], "w")
+
+    if using_serial_console():
+        f.write("SERIAL 0 115200\n")
+        f.write("DEFAULT xe-serial\n")
+    else:
+        f.write("DEFAULT xe\n")
+    
+    f.write("PROMPT 1\n")
+    f.write("TIMEOUT 50\n")
+    f.write("\n")
+    
+    writeMenuItems(f, writeExtLinuxMenuItem)
+    
+    f.close()
+
+    assert util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "/boot"]) == 0
+
+    for m in ["mboot", "menu", "chain"]:
+        assert util.runCmd2(["ln", "-f",
+                             "%s/usr/lib/syslinux/%s.c32" % (mounts['root'], m),
+                             "%s/%s.c32" % (mounts['boot'], m)]) == 0
+    assert util.runCmd2(["dd", "if=%s/usr/lib/syslinux/mbr.bin" % mounts['root'], \
+                         "of=%s" % disk, "bs=512", "count=1"]) == 0
 
 def writeGrubMenuItem(f, item):
     f.write("title %s\n" % item['title'])
