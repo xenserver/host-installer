@@ -93,10 +93,10 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
         xelogging.log("Data restoration complete.  About to re-install bootloader.")
 
         if os.path.exists(os.path.join(backup_mnt, "boot", "grub", "menu.lst")):
-            bootloader = "grub"
+            bootloader = constants.BOOTLOADER_TYPE_GRUB
             bootloader_config = os.path.join("boot", "grub", "menu.lst")
         elif os.path.exists(os.path.join(backup_mnt, "boot", "extlinux.conf")):
-            bootloader = "extlinux"
+            bootloader = constants.BOOTLOADER_TYPE_EXTLINUX
             bootloader_config = os.path.join("boot", "extlinux.conf")
         else:
             raise RuntimeError, "Unable to determine boot loader"

@@ -270,6 +270,9 @@ def performInstallation(answers, ui_package):
         if not answers.has_key('sr-type'):
             answers['sr-type'] = constants.SR_TYPE_LVM
 
+    if not answers.has_key('bootloader'):
+        answers['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
+
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
@@ -553,12 +556,12 @@ def installBootLoader(mounts, disk, bootloader):
         f.close()
 
     try:
-        if bootloader == "grub":
+        if bootloader == constants.BOOTLOADER_TYPE_GRUB:
             installGrub(mounts, disk)
-        elif bootloader == "extlinux":
+        elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
             installExtLinux(mounts, disk)
         else:
-            raise RuntimeError, "Unknown bootloader \"%s\"." % bootloader
+            raise RuntimeError, "Unknown bootloader."
     finally:
         # unlink /proc/mounts
         if os.path.exists("%s/proc/mounts" % mounts['root']):

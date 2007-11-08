@@ -146,18 +146,18 @@ def parseKeymap(n):
     return results
 
 def parseBootloader(n):
-    DEFAULT = "grub"
     results = {}
     keymap_nodes = n.getElementsByTagName('bootloader')
     if len(keymap_nodes) == 1:
-        results['bootloader'] = getText(keymap_nodes[0].childNodes)
+        bootloader = getText(keymap_nodes[0].childNodes)
+        if bootloader == "grub":
+            results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
+        elif bootloader == "extlinux":
+            results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
+        else:
+            xelogging.log("Unknown bootloader %s specified in answer file" % bootloader)
     else:
-        xelogging.log("No bootloader specified in answer file: defaulting to '%s'" % DEFAULT)
-        results['bootloader'] = DEFAULT
-
-    if results['bootloader'] not in ["grub", "extlinux"]:
-        xelogging.log("Unknown bootloader specified in answer file: defaulting to '%s'" % DEFAULT)
-        results['bootloader'] = DEFAULT
+        xelogging.log("No bootloader specified in answer file.")
 
     return results
 

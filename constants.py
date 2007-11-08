@@ -27,6 +27,10 @@ INSTALL_TYPE_REINSTALL = 2
 SR_TYPE_LVM = 1
 SR_TYPE_EXT = 2
 
+# bootloader types:
+BOOTLOADER_TYPE_GRUB = 1
+BOOTLOADER_TYPE_EXTLINUX = 2
+
 # error strings:
 def error_string(error, logname, with_hd):
     (
