@@ -474,6 +474,13 @@ def mkinitrd(mounts):
     initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
     util.runCmd2(["ln", "-sf", initrd_name, "%s/boot/initrd-2.6-xen.img" % mounts['root']])
 
+def using_serial_console():
+    rc, tty = util.runCmd("tty", with_output = True)
+    if rc == 0 and tty.startswith("/dev/ttyS"):
+        return True
+    else: # not tty.startswith("/dev/ttyS") or rc != 0
+        return False
+
 def writeMenuItems(f, fn):
     entries = [
         {
@@ -578,14 +585,11 @@ def installGrub(mounts, disk):
     # the menu.lst file later in this function.
     grubconf = ""
 
-    # select an appropriate default (normal or serial) based on
-    # how we are being installed:
-    rc, tty = util.runCmd("tty", with_output = True)
-    if tty.startswith("/dev/ttyS") and rc == 0:
+    if using_serial_console():
         grubconf += "serial --unit=0 --speed=115200\n"
         grubconf += "terminal --timeout=10 console serial\n"
         grubconf += "default 1\n"
-    else: # not tty.startswith("/dev/ttyS") or rc != 0
+    else:
         grubconf += "terminal console\n"
         grubconf += "default 0\n"
         
