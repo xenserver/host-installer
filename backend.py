@@ -764,14 +764,24 @@ def setTimeZone(mounts, tz):
            (tz, mounts['root']))
 
 def setRootPassword(mounts, root_password, pwdtype):
-    # avoid using shell here to get around potential security issues.
-    cmd = ["/usr/sbin/chroot", "%s" % mounts["root"], "chpasswd"]
+    # avoid using shell here to get around potential security issues.  Also
+    # note that chpasswd needs -m to allow longer passwords to work correctly
+    # but due to a bug in the RHEL5 version of this tool it segfaults when this
+    # option is specified, so we have to use passwd instead if we need to 
+    # encrypt the password.  Ugh.
     if pwdtype == 'pwdhash':
-        cmd.append('-e')
-    pipe = subprocess.Popen(cmd,
-                            stdin = subprocess.PIPE, stdout = subprocess.PIPE, stderr = subprocess.PIPE)
-    pipe.communicate('root:%s\n' % root_password)
-    assert pipe.wait() == 0
+        cmd = ["/usr/sbin/chroot", mounts["root"], "chpasswd", "-e"]
+        pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
+                                     stdout = subprocess.PIPE)
+        pipe.communicate('root:%s\n' % root_password)
+        assert pipe.wait() == 0
+    else: 
+        cmd = ["/usr/sbin/chroot", mounts['root'], "passwd", "--stdin", "root"]
+        pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
+                                     stdout = subprocess.PIPE,
+                                     stderr = subprocess.PIPE)
+        pipe.communicate(root_password + "\n")
+        assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
 def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
