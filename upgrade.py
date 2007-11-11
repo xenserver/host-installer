@@ -241,7 +241,7 @@ class SecondGenUpgrader(Upgrader):
 
             # restore files:
             restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 'etc/xensource/xapi.conf',
-                       'etc/xensource/license', 'var/xapi/state.db']
+                       'etc/xensource/license', 'etc/xensource/db.conf', 'var/xapi/state.db']
             for f in restore:
                 src = os.path.join(tds, f)
                 dst = os.path.join(mounts['root'], f)
