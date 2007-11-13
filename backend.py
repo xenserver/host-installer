@@ -859,6 +859,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
             print >>sysconf_bridge_fd, "TYPE=Bridge"
             print >>sysconf_bridge_fd, "DELAY=0"
             print >>sysconf_bridge_fd, "STP=off"
+            print >>sysconf_bridge_fd, "PIFDEV=%s" % intf
             if admin_config['use-dhcp']:
                 print >>sysconf_bridge_fd, "BOOTPROTO=dhcp"
             else:
