@@ -166,7 +166,7 @@ def force_backup_screen(answers):
         "Back-up Existing Installation",
         """The installer needs to create a backup of your existing installation.
 
-This will erase data currently on the backup partition (which includes previous backups performed by the installer, and backups installed onto the host use the CLI's 'host-restore' function.
+This will erase data currently on the backup partition (which includes previous backups performed by the installer, and backups installed onto the host using the CLI's 'host-restore' function).
 
 Continue with installation?""",
         ['Continue', 'Back']
