@@ -101,7 +101,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
         else:
             raise RuntimeError, "Unable to determine boot loader"
 
-        xe.logging.log("Bootloader is %s" % bootloader)
+        xelogging.log("Bootloader is %s" % bootloader)
 
         # preserve bootloader configuration
         util.runCmd2(['cp', os.path.join(backup_mnt, bootloader_config), '/tmp/bootloader.tmp'])
