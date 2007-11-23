@@ -278,4 +278,4 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ FirstGenUpgrader, SecondGenUpgrader ])
+__upgraders__ = UpgraderList([ SecondGenUpgrader ])
