@@ -132,6 +132,16 @@ def select_sr(answers):
 
     # get a list of SRs
     rc = server.SR.get_all_records(session)
+    if rc['Status'] == 'Failure' and rc['ErrorDescription'][0] == 'HOST_IS_SLAVE':
+        # CA-9297: redirect to master
+        server.session.logout(session)
+        answers['target-host-name'] = answers['target-host-name'][:answers['target-host-name'].find('//')+2] + rc['ErrorDescription'][1]
+        server = xmlrpclib.Server(answers['target-host-name'])
+        rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
+        assert rc['Status'] == 'Success', "Failure logging in to pool master."
+        session = rc['Value']
+        rc = server.SR.get_all_records(session)
+
     assert rc['Status'] == 'Success', "Failure calling server.SR.get_all_records(%s)" % session
 
     srs = rc['Value']
