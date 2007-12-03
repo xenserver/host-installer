@@ -29,6 +29,7 @@ import tui.progress
 from p2v import closeClogs
 import uicontroller
 import xmlrpclib
+import socket
 
 from p2v_error import P2VMountError, P2VCliError
 
@@ -71,32 +72,54 @@ def get_target(answers):
     if bb.buttonPressed(result) == 'back':
         return -1
     else:
-        # check we can connect to the server:
+        # CA-6614: validate input and clearer error reporting
         host = e_host.value()
-        if not host.startswith('https://') or not host.startswith('http://'):
-            host = "https://" + host
         user = e_user.value()
         pw = e_pw.value()
-        ok = True
-        try:
-            server = xmlrpclib.Server(host)
-            rc = server.session.login_with_password(user, pw)
-            success, session = (rc['Status'] == "Success"), rc['Value']
-            if not success:
-                ok = False
-            else:
-                server.session.logout(session)
-        except Exception, e:
+        msg = ''
+        
+        if len(host) == 0:
+            msg = 'Host'
+        elif len(user) == 0:
+            msg = 'User'
+        elif len(pw) == 0:
+            msg = 'Password'
+        if len(msg) > 0:
             ButtonChoiceWindow(
-                tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'" % str(e),
+                tui.screen, "Error", "%s field is blank.\n\nPlease enter a value for the field and try again." % msg,
                 ['Back']
                 )
             return 0
-        else:
-            answers['target-host-name'] = host
-            answers['target-host-user'] = user
-            answers['target-host-password'] = pw
-            return 1
+
+        # check we can connect to the server:
+        if not host.startswith('https://') or not host.startswith('http://'):
+            host = "https://" + host
+        try:
+            server = xmlrpclib.Server(host)
+            rc = server.session.login_with_password(user, pw)
+            if rc['Status'] == 'Success':
+                answers['target-host-name'] = host
+                answers['target-host-user'] = user
+                answers['target-host-password'] = pw
+                return 1
+            else:
+                # session login error
+                msg = rc['ErrorDescription'][2]
+        except socket.error, (e, str):
+            # error connecting to server
+            msg = str
+        except IOError, e:
+            msg = e
+        except xmlrpclib.ProtocolError, e:
+            msg = e.errmsg
+        except Exception, e:
+            msg = e
+
+        ButtonChoiceWindow(
+            tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'." % msg,
+            ['Back']
+            )
+        return 0
 
 # select storage repository:
 # TODO better error checking.
