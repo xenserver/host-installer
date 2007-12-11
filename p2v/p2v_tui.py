@@ -145,16 +145,23 @@ def select_sr(answers):
     assert rc['Status'] == 'Success', "Failure calling server.SR.get_all_records(%s)" % session
 
     srs = rc['Value']
+
+    rc = server.SM.get_all_records(session)
+    assert rc['Status'] == 'Success', "Failure calling server.SM.get_all_records(%s)" % session
+
+    sms = rc['Value']
+
     list_srs = []
     for sr in srs.values():
-        if sr['content_type'] == "iso":
-            continue
-        if sr['name_label'] != "":
-            name = sr['name_label']
-        else:
-            name = sr['uuid']
-        item = (name, sr['uuid'])
-        list_srs.append(item)
+        for sm in sms.values():
+            if sr['type'] == sm['type'] and 'VDI_CREATE' in sm['capabilities']:
+                if sr['name_label'] != "":
+                    name = sr['name_label']
+                else:
+                    name = sr['uuid']
+                item = (name, sr['uuid'])
+                list_srs.append(item)
+                break
 
     server.session.logout(session)
     rc, entry = ListboxChoiceWindow(
