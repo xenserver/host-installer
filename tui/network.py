@@ -29,7 +29,7 @@ MAC Address: %s
 PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
                            ['Ok'], width=60)
     def dhcp_change():
-        for x in [ ip_field, gateway_field, subnet_field ]:
+        for x in [ ip_field, bcast_field, subnet_field, gateway_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
 
     gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
@@ -49,22 +49,27 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
 
     ip_field = Entry(16)
     ip_field.setFlags(FLAG_DISABLED, False)
+    bcast_field = Entry(16)
+    bcast_field.setFlags(FLAG_DISABLED, False)
     subnet_field = Entry(16)
     subnet_field.setFlags(FLAG_DISABLED, False)
     gateway_field = Entry(16)
     gateway_field.setFlags(FLAG_DISABLED, False)
 
     ip_text = Textbox(15, 1, "IP Address:")
+    bcast_text = Textbox(15, 1, "Broadcast:")
     subnet_text = Textbox(15, 1, "Subnet mask:")
     gateway_text = Textbox(15, 1, "Gateway:")
 
-    entry_grid = Grid(2, 3)
+    entry_grid = Grid(2, 4)
     entry_grid.setField(ip_text, 0, 0)
     entry_grid.setField(ip_field, 1, 0)
-    entry_grid.setField(subnet_text, 0, 1)
-    entry_grid.setField(subnet_field, 1, 1)
-    entry_grid.setField(gateway_text, 0, 2)
-    entry_grid.setField(gateway_field, 1, 2)
+    entry_grid.setField(bcast_text, 0, 1)
+    entry_grid.setField(bcast_field, 1, 1)
+    entry_grid.setField(subnet_text, 0, 2)
+    entry_grid.setField(subnet_field, 1, 2)
+    entry_grid.setField(gateway_text, 0, 3)
+    entry_grid.setField(gateway_field, 1, 3)
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
     gf.add(dhcp_rb, 0, 2, anchorLeft = True)
@@ -86,6 +91,7 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
         answers = {'use-dhcp': bool(dhcp_rb.selected()),
                    'enabled': True,
                    'ip': ip_field.value(),
+                   'broadcast': bcast_field.value(),
                    'subnet-mask': subnet_field.value(),
                    'gateway': gateway_field.value() }
         return 1, answers
@@ -128,7 +134,7 @@ def requireNetworking(answers):
 
     def specify_configuration(answers, txt):
         """ Show the dialog for setting nic config.  Sets answers['config']
-        to the configuration used.  Assumes ansewrs['interface'] is a string
+        to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
         direction, conf = get_iface_configuration(nethw[answers['interface']], txt)
         if direction == 1:

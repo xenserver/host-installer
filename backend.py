@@ -833,6 +833,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
             else:
                 print >>ac, "MODE=static"
                 print >>ac, "IP=%s" % admin_config['ip']
+                print >>ac, "BROADCAST=%s" % admin_config['broadcast']
                 print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
                 print >>ac, "GATEWAY=%s" % admin_config['gateway']
 
@@ -865,6 +866,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
             else:
                 print >>sysconf_bridge_fd, "BOOTPROTO=none"
                 print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config['subnet-mask']
+                print >>sysconf_bridge_fd, "BROADCAST=%s" % admin_config['broadcast']
                 print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config['ip']
                 print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config['gateway']
                 print >>sysconf_bridge_fd, "PEERDNS=yes"

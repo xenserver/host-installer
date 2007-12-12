@@ -115,7 +115,7 @@ def main():
         nethw = netutil.scanConfiguration()        
 
         # make sure we have discovered at least one disk and
-        # at lesat one network interface:
+        # at least one network interface:
         if len(disks) == 0:
             raise RuntimeError, "No disks found on this host."
 
