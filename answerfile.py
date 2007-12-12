@@ -216,13 +216,11 @@ def parseInterfaces(n):
     proto = netifnode.getAttribute('proto')
     if proto == 'static':
         ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
-        bcast = getText(netifnode.getElementsByTagName('broadcast')[0].childNodes)
         subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
         gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
         results['net-admin-configuration'] = { 'use-dhcp' : False ,
                     'enabled' : True,
                     'ip' : ip,
-                    'broadcast' : bcast,
                     'subnet-mask' : subnetmask,
                     'gateway' : gateway }
     elif proto == 'dhcp':
@@ -232,7 +230,7 @@ def parseInterfaces(n):
 def parseSource(n):
     results = {}
     if len(n.getElementsByTagName('source')) == 0:
-        raise AnswerfileError, "No source media specified."
+        raise AnswerfileError, "No source media sepcified."
     source = n.getElementsByTagName('source')[0]
     if source.getAttribute('type') == 'local':
         results['source-media'] = 'local'
