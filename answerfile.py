@@ -230,7 +230,7 @@ def parseInterfaces(n):
 def parseSource(n):
     results = {}
     if len(n.getElementsByTagName('source')) == 0:
-        raise AnswerfileError, "No source media sepcified."
+        raise AnswerfileError, "No source media specified."
     source = n.getElementsByTagName('source')[0]
     if source.getAttribute('type') == 'local':
         results['source-media'] = 'local'
