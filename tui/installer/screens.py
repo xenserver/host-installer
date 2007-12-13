@@ -12,6 +12,7 @@
 
 import string
 import datetime
+import re
 
 import generalui
 import uicontroller
@@ -780,8 +781,10 @@ def get_name_service_configuration(answers):
             done = True
 
             def valid_hostname(x, emptyValid = False):
-                return (x != "" or emptyValid) and \
-                       " " not in x
+                if emptyValid and x == '':
+                    return True
+                return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?$', x) != None
+
             if hn_manual_rb.selected():
                 if not valid_hostname(hostname.value()):
                     done = False
