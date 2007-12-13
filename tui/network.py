@@ -100,14 +100,15 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
             if buttons.buttonPressed(result) in ['ok', None]:
                 # validate input
                 msg = ''
-                if not valid_ip_addr(ip_field.value()):
-                    msg = 'IP Address'
-                elif not valid_ip_addr(subnet_field.value()):
-                    msg = 'Subnet mask'
-                elif len(gateway_field.value()) > 0 and not valid_ip_addr(gateway_field.value()):
-                    msg = 'Gateway'
-                elif len(dns_field.value()) > 0 and not valid_ip_addr(dns_field.value()):
-                    msg = 'Nameserver'
+                if static_rb.selected():
+                    if not valid_ip_addr(ip_field.value()):
+                        msg = 'IP Address'
+                    elif not valid_ip_addr(subnet_field.value()):
+                        msg = 'Subnet mask'
+                    elif len(gateway_field.value()) > 0 and not valid_ip_addr(gateway_field.value()):
+                        msg = 'Gateway'
+                    elif len(dns_field.value()) > 0 and not valid_ip_addr(dns_field.value()):
+                        msg = 'Nameserver'
                 if msg != '':
                     tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)
                 else:
