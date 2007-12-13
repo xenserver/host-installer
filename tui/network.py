@@ -15,6 +15,7 @@ import tui
 import tui.progress
 import netutil
 import version
+import re
 
 from snack import *
 
@@ -31,6 +32,17 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
+
+    def valid_ip_addr(addr):
+        if not re.match('^\d+\.\d+\.\d+\.\d+$', addr):
+            return False
+        els = addr.split('.')
+        if len(els) != 4:
+            return False
+        for el in els:
+            if int(el) > 255:
+                return False
+        return True
 
     gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
     if txt == None:
@@ -77,15 +89,33 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     gf.add(entry_grid, 0, 4, padding = (0,0,0,1))
     gf.add(buttons, 0, 5)
 
-    while True:
+    loop = True
+    while loop:
         result = gf.run()
         # do we display a popup then continue, or leave the loop?
         if buttons.buttonPressed(result) == 'identify':
             identify_interface(nic)
         else:
             # leave the loop - 'ok', F12, or 'back' was pressed:
+            if buttons.buttonPressed(result) in ['ok', None]:
+                # validate input
+                msg = ''
+                if not valid_ip_addr(ip_field.value()):
+                    msg = 'IP Address'
+                elif not valid_ip_addr(subnet_field.value()):
+                    msg = 'Subnet mask'
+                elif len(gateway_field.value()) > 0 and not valid_ip_addr(gateway_field.value()):
+                    msg = 'Gateway'
+                elif len(dns_field.value()) > 0 and not valid_ip_addr(dns_field.value()):
+                    msg = 'Nameserver'
+                if msg != '':
+                    tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)
+                else:
+                    loop = False
+            else:
+                loop = False
+        if not loop:
             tui.screen.popWindow()
-            break
 
     if buttons.buttonPressed(result) in ['ok', None]:
         answers = {'use-dhcp': bool(dhcp_rb.selected()),
