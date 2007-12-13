@@ -50,8 +50,16 @@ def writeDebStyleInterfaceFile(configuration, filename):
             if settings['use-dhcp']:
                 outfile.write("iface %s inet dhcp\n" % iface)
             else:
+                # CA-11825: broadcast needs to be determined for non-standard networks
+                bcast = None
+                rc, output = util.runCmd('/bin/ipcalc -b %s %s' % (settings['ip'], settings['subnet-mask']),
+                                         with_output=True)
+                if rc == 0:
+                    bcast=output[10:]
                 outfile.write("iface %s inet static\n" % iface)
                 outfile.write("   address %s\n" % settings['ip'])
+                if bcast != None:
+                    outfile.write("   broadcast %s\n" % bcast)
                 outfile.write("   netmask %s\n" % settings['subnet-mask'])
                 if settings.has_key("gateway") and settings['gateway'] != "":
                     outfile.write("   gateway %s\n" % settings['gateway'])
