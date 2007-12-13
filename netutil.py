@@ -66,6 +66,19 @@ def writeDebStyleInterfaceFile(configuration, filename):
 
     outfile.close()
 
+# writes DNS server entries to a resolver file given a network configuration dictionary
+# in the 'results' style format
+def writeResolverFile(configuration, filename):
+    outfile = open(filename, 'a')
+
+    for iface in configuration:
+        settings = configuration[iface]
+        if settings['enabled'] and not settings['use-dhcp'] and settings.has_key('dns'):
+            for dns in settings['dns']:
+                outfile.write("nameserver %s\n" % dns)
+
+    outfile.close()
+
 # simple wrapper for calling the local ifup script:
 def ifup(interface):
     assert interface in getNetifList()

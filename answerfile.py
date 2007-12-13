@@ -218,11 +218,13 @@ def parseInterfaces(n):
         ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
         subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
         gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
+        dns = getText(netifnode.getElementsByTagName('nameserver')[0].childNodes)
         results['net-admin-configuration'] = { 'use-dhcp' : False ,
                     'enabled' : True,
                     'ip' : ip,
                     'subnet-mask' : subnetmask,
-                    'gateway' : gateway }
+                    'gateway' : gateway,
+                    'dns' : [dns] }
     elif proto == 'dhcp':
         results['net-admin-configuration'] = { 'use-dhcp' : True, 'enabled' : True }
     return results
