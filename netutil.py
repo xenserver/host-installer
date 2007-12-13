@@ -88,10 +88,12 @@ def ifdown(interface):
     return util.runCmd2(['ifdown', interface])
 
 # work out if an interface is up:
-IFF_UP = 1
 def interfaceUp(interface):
-    flags = int(__readOneLineFile__('/sys/class/net/%s/flags' % interface), 16)
-    return flags & IFF_UP == IFF_UP
+    rc, out = util.runCmd("ip addr show %s" % interface, with_output = True)
+    if rc != 0:
+        return False
+    inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
+    return len(inets) == 1
 
 # make a string to help users identify a network interface:
 def getPCIInfo(interface):

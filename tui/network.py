@@ -134,7 +134,7 @@ def requireNetworking(answers):
 
     def specify_configuration(answers, txt):
         """ Show the dialog for setting nic config.  Sets answers['config']
-        to the configuration used.  Assumes ansewrs['interface'] is a string
+        to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
         direction, conf = get_iface_configuration(nethw[answers['interface']], txt)
         if direction == 1:
@@ -165,10 +165,9 @@ def requireNetworking(answers):
             "Configuring network interface, please wait...",
             )
         netutil.ifdown(conf_dict['interface'])
-        netutil.ifup(conf_dict['interface'])
 
         # check that we have *some* network:
-        if not netutil.interfaceUp(conf_dict['interface']):
+        if netutil.ifup(conf_dict['interface']) != 0 or not netutil.interfaceUp(conf_dict['interface']):
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
             direction = 0
         else:
