@@ -18,6 +18,7 @@ import netutil
 import repository
 import constants
 import upgrade
+import snackutil
 
 from snack import *
 
@@ -150,7 +151,7 @@ def more_media_sequence(installed_repo_ids):
 
         done = False
         while not done:
-            ans = ButtonChoiceWindow(tui.screen, "New Media", text, ['Use media', 'Verify media', 'Back'], width=50)
+            ans = snackutil.ButtonChoiceWindowEx(tui.screen, "New Media", text, ['Use media', 'Verify media', 'Back'], width=50, default=1)
             
             if ans == 'verify media':
                 tui.installer.screens.interactive_source_verification('local', '')
