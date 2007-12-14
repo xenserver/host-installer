@@ -294,11 +294,12 @@ def performInstallation(answers, ui_package):
             answers['source-media'], answers['source-address']
             )
 
-        # only install repositorie s we've not already installed:
+        # only install repositories we've not already installed:
         repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
                               all_repositories)
-        new_ans = handleRepos(repositories, new_ans)
-        installed_repo_ids.extend([ r.identifier() for r in repositories] )
+        if len(repositories) > 0:
+            new_ans = handleRepos(repositories, new_ans)
+            installed_repo_ids.extend([ r.identifier() for r in repositories] )
 
         # get more media?
         done = not (answers.has_key('more-media') and answers['more-media'] and answers['source-media'] == 'local')

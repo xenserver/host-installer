@@ -141,17 +141,21 @@ def more_media_sequence(installed_repo_ids):
         repos = repository.repositoriesFromDefinition('local', '')
         assert len(repos) > 0
 
+        default_button = 1
         media_contents = []
         for r in repos:
             if r.identifier() in installed_repo_ids:
                 media_contents.append(" * %s (already installed)" % r.name())
+                default_button = 2
             else:
                 media_contents.append(" * %s" % r.name())
         text = "The media you have inserted contains:\n\n" + "\n".join(media_contents)
 
         done = False
         while not done:
-            ans = snackutil.ButtonChoiceWindowEx(tui.screen, "New Media", text, ['Use media', 'Verify media', 'Back'], width=50, default=1)
+            ans = snackutil.ButtonChoiceWindowEx(tui.screen, "New Media", text, 
+                                                 ['Use media', 'Verify media', 'Back'], 
+                                                 width=50, default=default_button)
             
             if ans == 'verify media':
                 tui.installer.screens.interactive_source_verification('local', '')
