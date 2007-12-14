@@ -44,9 +44,11 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
                 return False
         return True
 
+    include_dns = False
     gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
     if txt == None:
         txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
+        include_dns = True
     text = TextboxReflowed(45, txt)
     if show_identify:
         b = [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")]
@@ -73,15 +75,16 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     gateway_text = Textbox(15, 1, "Gateway:")
     dns_text = Textbox(15, 1, "Nameserver:")
 
-    entry_grid = Grid(2, 4)
+    entry_grid = Grid(2, include_dns and 4 or 3)
     entry_grid.setField(ip_text, 0, 0)
     entry_grid.setField(ip_field, 1, 0)
     entry_grid.setField(subnet_text, 0, 1)
     entry_grid.setField(subnet_field, 1, 1)
     entry_grid.setField(gateway_text, 0, 2)
     entry_grid.setField(gateway_field, 1, 2)
-    entry_grid.setField(dns_text, 0, 3)
-    entry_grid.setField(dns_field, 1, 3)
+    if include_dns:
+        entry_grid.setField(dns_text, 0, 3)
+        entry_grid.setField(dns_field, 1, 3)
 
     gf.add(text, 0, 0, padding = (0,0,0,1))
     gf.add(dhcp_rb, 0, 2, anchorLeft = True)
