@@ -12,7 +12,6 @@
 
 import string
 import datetime
-import re
 
 import generalui
 import uicontroller
@@ -730,7 +729,7 @@ def get_name_service_configuration(answers):
         ns2_grid.setField(ns2_entry, 1, 0)
 
         ns3_text = Textbox(15, 1, "DNS Server 3:")
-        ns3_entry = Entry(30, nsvalue(answers, 1))
+        ns3_entry = Entry(30, nsvalue(answers, 2))
         ns3_grid = Grid(2, 1)
         ns3_grid.setField(ns3_text, 0, 0)
         ns3_grid.setField(ns3_entry, 1, 0)
@@ -780,22 +779,17 @@ def get_name_service_configuration(answers):
             # validate before allowing the user to continue:
             done = True
 
-            def valid_hostname(x, emptyValid = False):
-                if emptyValid and x == '':
-                    return True
-                return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?$', x) != None
-
             if hn_manual_rb.selected():
-                if not valid_hostname(hostname.value()):
+                if not netutil.valid_hostname(hostname.value()):
                     done = False
                     ButtonChoiceWindow(tui.screen,
                                        "Name Service Configuration",
                                        "The hostname you entered was not valid.",
                                        ["Back"])
             if ns_manual_rb.selected():
-                if not valid_hostname(ns1_entry.value(), False) or \
-                   not valid_hostname(ns2_entry.value(), True) or \
-                   not valid_hostname(ns3_entry.value(), True):
+                if not netutil.valid_ip_addr(ns1_entry.value()) or \
+                   (ns2_entry.value() != '' and not netutil.valid_ip_addr(ns2_entry.value())) or \
+                   (ns3_entry.value() != '' and not netutil.valid_ip_addr(ns3_entry.value())):
                     done = False
                     ButtonChoiceWindow(tui.screen,
                                        "Name Service Configuration",

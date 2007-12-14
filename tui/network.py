@@ -15,7 +15,6 @@ import tui
 import tui.progress
 import netutil
 import version
-import re
 
 from snack import *
 
@@ -32,17 +31,6 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
-
-    def valid_ip_addr(addr):
-        if not re.match('^\d+\.\d+\.\d+\.\d+$', addr):
-            return False
-        els = addr.split('.')
-        if len(els) != 4:
-            return False
-        for el in els:
-            if int(el) > 255:
-                return False
-        return True
 
     include_dns = False
     gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
@@ -104,13 +92,13 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
                 # validate input
                 msg = ''
                 if static_rb.selected():
-                    if not valid_ip_addr(ip_field.value()):
+                    if not netutil.valid_ip_addr(ip_field.value()):
                         msg = 'IP Address'
-                    elif not valid_ip_addr(subnet_field.value()):
+                    elif not netutil.valid_ip_addr(subnet_field.value()):
                         msg = 'Subnet mask'
-                    elif len(gateway_field.value()) > 0 and not valid_ip_addr(gateway_field.value()):
+                    elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
                         msg = 'Gateway'
-                    elif len(dns_field.value()) > 0 and not valid_ip_addr(dns_field.value()):
+                    elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
                         msg = 'Nameserver'
                 if msg != '':
                     tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)

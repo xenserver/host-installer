@@ -12,6 +12,7 @@
 
 import os
 import util
+import re
 
 class NIC:
     def __init__(self, name, hwaddr, pci_string):
@@ -115,3 +116,20 @@ def __readOneLineFile__(filename):
 
 def getHWAddr(iface):
     return __readOneLineFile__('/sys/class/net/%s/address' % iface)
+
+def valid_hostname(x, emptyValid = False):
+    if emptyValid and x == '':
+        return True
+    return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?$', x) != None
+
+
+def valid_ip_addr(addr):
+    if not re.match('^\d+\.\d+\.\d+\.\d+$', addr):
+        return False
+    els = addr.split('.')
+    if len(els) != 4:
+        return False
+    for el in els:
+        if int(el) > 255:
+            return False
+    return True
