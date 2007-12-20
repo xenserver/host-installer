@@ -63,15 +63,20 @@ if grep -q 'rt_answerfile=' /proc/cmdline ; then
     ANSWERFILE="--verbose-answerfile ${ANSWERFILE}"
 fi
 
+if grep -q 'bootloader=' /proc/cmdline ; then
+    BOOTLOADER=`cat /proc/cmdline | sed -n 's/.*bootloader=\([^ ]*\) *.*/\1/p'`
+    BOOTLOADER="--bootloader=${BOOTLOADER}"
+fi
+
 # load USB modules before the shell or the installer:
 usb-discover
 
 if grep -q 'bash-shell' /proc/cmdline ; then
     echo "Exiting this shell will run the installer:"
-    echo "/opt/xensource/installer/init ${TYPEARG} ${ANSWERFILE} ${MODULES} ${BLACKLIST} ${OUTPUT}"
+    echo "/opt/xensource/installer/init ${TYPEARG} ${ANSWERFILE} ${MODULES} ${BLACKLIST} ${BOOTLOADER} ${OUTPUT}"
     echo "---"
     /bin/bash
 fi
 
-/opt/xensource/installer/init ${TYPEARG} ${ANSWERFILE} ${MODULES} ${BLACKLIST} ${OUTPUT}
+/opt/xensource/installer/init ${TYPEARG} ${ANSWERFILE} ${MODULES} ${BLACKLIST} ${BOOTLOADER} ${OUTPUT}
 

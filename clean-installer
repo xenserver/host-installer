@@ -54,7 +54,8 @@ def main():
                             "verbose-answerfile=",
                             "keymap=",
                             "clog=",
-                            "extrarepo="])
+                            "extrarepo=",
+                            "bootloader="])
     except GetoptError:
         print "This program takes no arguments."
         sys.exit(1)
@@ -91,6 +92,12 @@ def main():
                 raise RuntimeError, "Repository %s did not exist." % val
             else:
                 extra_repo_defs.append(('filesystem', val))
+        elif opt == "--bootloader":
+            xelogging.log("Bootloader specified on command-line: %s" % val)
+            if val == "grub":
+                results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
+            elif val == "extlinux":
+                results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
 
     try:
         # loading an answerfile?
@@ -115,7 +122,7 @@ def main():
         nethw = netutil.scanConfiguration()        
 
         # make sure we have discovered at least one disk and
-        # at lesat one network interface:
+        # at least one network interface:
         if len(disks) == 0:
             raise RuntimeError, "No disks found on this host."
 

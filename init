@@ -278,7 +278,8 @@ def main():
                             "verbose-answerfile=",
                             "modules=",
                             "blacklist=",
-                            "output="])
+                            "output=",
+                            "bootloader="])
     except GetoptError:
         print "Incorrect arguments."
         sys.exit(1)
@@ -292,6 +293,7 @@ def main():
     interactive_modules = False
     interactive = True
     driver_repos = []
+    extra_args = ''
 
     for (opt, val) in opts:
         if opt == "--install":
@@ -314,6 +316,8 @@ def main():
             user_blacklist = val.split(",")
         if opt == "--output":
             active_output = val
+        elif opt == "--bootloader":
+            extra_args = ' '.join([extra_args, '--bootloader=%s' % val])
 
     xelogging.log("Active output is %s" % active_output)
 
@@ -402,7 +406,7 @@ def main():
                 elif verbose_answerfile:
                     s = os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
                 else:
-                    s = os.system("/opt/xensource/installer/clean-installer --clog /dev/tty3 %s" % keymap_string)
+                    s = os.system("/opt/xensource/installer/clean-installer %s --clog /dev/tty3 %s" % (extra_args, keymap_string))
                 rc = exit_status_of_rc(s)
 
             # load a driver:
