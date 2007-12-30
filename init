@@ -259,6 +259,10 @@ def main():
     except:
         xelogging.log("Error opening tty3 as a log output.")
 
+    # check that proc is mounted:
+    if not os.path.exists("/proc/cmdling"):
+        raise RuntimeError, "/proc was not mounted."
+
     # disable all kernel printing
     pk = open('/proc/sys/kernel/printk', 'w')
     pk.write('1')

@@ -11,14 +11,6 @@
 #
 # by Andrew Peace
 
-# make sure /proc is mounted:
-if [ ! -e /proc/cmdline ] ; then
-    mount -a
-    if [ ! -e /proc/cmdline ] ; then
-        mount -t proc none /proc
-    fi
-fi
-
 # work out any commandline args:
 # install type -
 if grep -q ' install' /proc/cmdline ; then
