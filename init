@@ -192,7 +192,7 @@ def configureHardware(extra_modules, blacklist, ui, interactive):
         else:
             load_m = True
             if interactive and ui != None:
-                load_m = ui.ask_load_module(m)
+                load_m = ui.init.ask_load_module(m)
             if load_m:
                 hardware.modprobe(m)
                 current = current + 1
@@ -243,6 +243,18 @@ def isPrimaryProcess():
     my_tty = os.path.basename(my_tty.strip('\n'))
     return my_tty == active_output
 
+def splitKernelStyleArgs(cmdline):
+    """ split "a b=c" in /proc/cmdline into [("a", None), ("b","c")]. """
+    cmdline = cmdline.split()
+    rv = []
+    for opt in cmdline:
+        if "=" in opt:
+            _opt, val = opt.split("=", 1)
+            rv.append( (_opt, val) )
+        else:
+            rv.append( (opt, None) )
+    return rv
+
 def main():
     global active_output
 
@@ -260,7 +272,7 @@ def main():
         xelogging.log("Error opening tty3 as a log output.")
 
     # check that proc is mounted:
-    if not os.path.exists("/proc/cmdling"):
+    if not os.path.exists("/proc/cmdline"):
         raise RuntimeError, "/proc was not mounted."
 
     # disable all kernel printing
@@ -271,24 +283,23 @@ def main():
     # start portmap so NFS mounting works:
     util.runCmd('portmap')
 
-    # parse options:
+    # parse options from /proc/cmdline:
     try:
-        (opts, _) = getopt(sys.argv[1:],
-                           "",
-                           ["install",
-                            "p2v",
-                            "interactive-modules",
-                            "answerfile=",
-                            "verbose-answerfile=",
-                            "modules=",
-                            "blacklist=",
-                            "output=",
-                            "bootloader="])
+        (opts, _) = getopt(sys.argv[1:], "c:", [])
     except GetoptError:
-        print "Incorrect arguments."
+        print "Incorrect arguments.  This program may be run with -c to override the value eof"
+        print "/proc/cmdline during startup."
         sys.exit(1)
 
-    operation = None    
+    cmdline_fd = open("/proc/cmdline", "r")
+    cmdline = cmdline_fd.read().strip()
+    cmdline_fd.close()
+
+    for opt, val in opts:
+        if opt == "-c":
+            cmdline = val
+
+    operation = None
     ui = tui
     extra_modules = []
     user_blacklist = []
@@ -299,28 +310,30 @@ def main():
     driver_repos = []
     extra_args = ''
 
+    opts = splitKernelStyleArgs(cmdline)
+
     for (opt, val) in opts:
-        if opt == "--install":
+        if opt == "install":
             operation = init_constants.OPERATION_INSTALL
-        if opt == "--p2v":
+        if opt == "p2v":
             operation = init_constants.OPERATION_P2V
-        if opt == '--interactive-modules':
+        if opt == 'interactive-modules':
             interactive_modules = True
-        if opt == "--answerfile":
+        if opt == "answerfile":
             answerfile = val
             interactive = False
-        if opt == "--verbose-answerfile":
+        if opt == "rt_answerfile":
             interactive = False
             ui = None
             xelogging.continuous_logs.append(sys.stdout)
             verbose_answerfile = val
-        if opt == "--modules":
+        if opt == "extramodules":
             extra_modules = val.split(",")
-        if opt == "--blacklist":
+        if opt == "blacklist":
             user_blacklist = val.split(",")
-        if opt == "--output":
+        if opt == "output":
             active_output = val
-        elif opt == "--bootloader":
+        elif opt == "bootloader":
             extra_args = ' '.join([extra_args, '--bootloader=%s' % val])
 
     xelogging.log("Active output is %s" % active_output)
