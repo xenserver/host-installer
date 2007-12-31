@@ -380,13 +380,53 @@ def use_extra_media(answers, vt_warning):
 def setup_runtime_networking(answers):
     return tui.network.requireNetworking(answers)
 
-def get_source_location(answers):
-    if answers['source-media'] == 'url':
-        text = "Please enter the URL for your HTTP or FTP repository"
-        label = "URL:"
-    elif answers['source-media'] == 'nfs':
-        text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
-        label = "NFS Path:"
+def get_url_location(answers):
+    text = "Please enter the URL for your HTTP or FTP repository and, optionally, a username and password"
+    url_field = Entry(50)
+    user_field = Entry(16)
+    passwd_field = Entry(16, password = 1)
+    url_text = Textbox(11, 1, "URL:")
+    user_text = Textbox(11, 1, "Username:")
+    passwd_text = Textbox(11, 1, "Password:")
+
+    done = False
+    while not done:
+        gf = GridFormHelp(tui.screen, "Specify Repository", None, 1, 3)
+        bb = ButtonBar(tui.screen, [ 'Ok', 'Back' ])
+        t = TextboxReflowed(50, text)
+
+        entry_grid = Grid(2, 3)
+        entry_grid.setField(url_text, 0, 0)
+        entry_grid.setField(url_field, 1, 0)
+        entry_grid.setField(user_text, 0, 1)
+        entry_grid.setField(user_field, 1, 1, anchorLeft = 1)
+        entry_grid.setField(passwd_text, 0, 2)
+        entry_grid.setField(passwd_field, 1, 2, anchorLeft = 1)
+
+        gf.add(t, 0, 0, padding = (0,0,0,1))
+        gf.add(entry_grid, 0, 1, padding = (0,0,0,1))
+        gf.add(bb, 0, 2)
+
+        button = bb.buttonPressed(gf.runOnce())
+
+        if button in ['ok', None]:
+            if user_field.value() != '':
+                if passwd_field.value() != '':
+                    answers['source-address'] = url_field.value().replace('//', '//%s:%s@' % (user_field.value(), passwd_field.value()), 1)
+                else:
+                    answers['source-address'] = url_field.value().replace('//', '//%s@' % user_field.value(), 1)
+            else:
+                answers['source-address'] = url_field.value()
+            done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
+        elif button == "back":
+            done = True
+            
+    if button in [None, 'ok']: return 1
+    if button == 'back': return -1
+
+def get_nfs_location(answers):
+    text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
+    label = "NFS Path:"
         
     done = False
     while not done:
@@ -410,6 +450,12 @@ def get_source_location(answers):
             
     if button in [None, 'ok']: return 1
     if button == 'back': return -1
+
+def get_source_location(answers):
+    if answers['source-media'] == 'url':
+        return get_url_location(answers)
+    else:
+        return get_nfs_location(answers)
 
 # verify the installation source?
 def verify_source(answers):

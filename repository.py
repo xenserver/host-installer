@@ -13,9 +13,11 @@
 import os
 import md5
 import tempfile
+import urlparse
 import urllib2
 import ftplib
 import popen2
+import re
 
 import xelogging
 import diskutil
@@ -178,7 +180,7 @@ class Package:
         return self.write(os.path.join(destination, self.repository_filename))
        
     def write(self, destination):
-        """ Write package to 'destionation'. """
+        """ Write package to 'destination'. """
         xelogging.log("Writing %s to %s" % (str(self), destination))
         pkgpath = self.repository.path(self.repository_filename)
         package = self.repository.accessor().openAddress(pkgpath)
@@ -478,14 +480,63 @@ class URLAccessor(Accessor):
             xelogging.log("Base address: did not end with '/' but should be a directory so adding it.")
             baseAddress += '/'
 
-        xelogging.log("Initialising URLRepositoryAccessor with base address %s" % baseAddress)
-        self.baseAddress = baseAddress
+        if baseAddress.startswith('http://'):
+            (scheme, netloc, path, params, query) = urlparse.urlsplit(baseAddress)
+            (hostname, username, password) = self._split_netloc(netloc)
+            if username != None:
+                xelogging.log("Using basic HTTP authentication: %s %s" % (username, password))
+                self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+                self.passman.add_password(None, hostname, username, password)
+                self.authhandler = urllib2.HTTPBasicAuthHandler(self.passman)
+                self.opener = urllib2.build_opener(self.authhandler)
+                urllib2.install_opener(self.opener)
+                if password == None:
+                    self.baseAddress = baseAddress.replace('%s@' % username, '', 1)
+                else:
+                    self.baseAddress = baseAddress.replace('%s:%s@' % (username, password), '', 1)
+            else:
+                self.baseAddress = baseAddress
+        else:
+            self.baseAddress = baseAddress
+
+        xelogging.log("Initialising URLRepositoryAccessor with base address %s" % self.baseAddress)
 
     def _url_concat(url1, end):
         assert url1.endswith('/')
         end = end.lstrip('/')
         return url1 + end
     _url_concat = staticmethod(_url_concat)
+
+    def _split_netloc(netloc):
+        hostname = netloc
+        username = None
+        password = None
+        
+        if "@" in netloc:
+            userinfo = netloc.split("@", 1)[0]
+            hostname = netloc.split("@", 1)[1]
+            if ":" in userinfo:
+                (username, password) = userinfo.split(":")
+            else:
+                username = userinfo
+        if ":" in hostname:
+            hostname = hostname.split(":", 1)[0]
+
+        return (hostname, username, password)
+    _split_netloc = staticmethod(_split_netloc)
+
+    def _url_decode(url):
+        start = 0
+        i = 0
+        while i != -1:
+            i = url.find('%', start)
+            if (i != -1):
+                hex = url[i+1:i+3]
+                if re.match('[0-9A-F]{2}', hex, re.I):
+                    url = url.replace(url[i:i+3], chr(int(hex, 16)), 1)
+                start = i+1
+        return url
+    _url_decode = staticmethod(_url_decode)
 
     def start(self):
         pass
@@ -497,20 +548,19 @@ class URLAccessor(Accessor):
         if not self._url_concat(self.baseAddress, path).startswith('ftp://'):
             return Accessor.access(self, path)
 
-        path = self._url_concat(self.baseAddress, path)
+        url = self._url_concat(self.baseAddress, path)
 
         # if FTP, override by actually checking the file exists because urllib2 seems
         # to be not so good at this.
         try:
-            name = path[6:]
-            server = name[:name.index('/')]
-            location = name[name.index('/') + 1:]
-            fname = os.path.basename(location)
-            directory = os.path.dirname(location)
+            (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
+            (hostname, username, password) = self._split_netloc(netloc)
+            fname = os.path.basename(path)
+            directory = self._url_decode(os.path.dirname(path[1:]))
 
             # now open a connection to the server and verify that fname is in 
-            ftp = ftplib.FTP(server)
-            ftp.login('', '')
+            ftp = ftplib.FTP(hostname)
+            ftp.login(username, password)
             ftp.cwd(directory)
             lst = ftp.nlst()
             return fname in lst
