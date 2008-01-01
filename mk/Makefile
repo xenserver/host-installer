@@ -83,12 +83,6 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP) $(BUILDROOT_ENV_STAM
 	$(MAKE) -C $(call hg_loc,host-installer) install DESTDIR=$(INSTALLER_FILESYSTEM)
 	$(MAKE) -C $(call hg_loc,host-installer)/p2v install DESTDIR=$(INSTALLER_FILESYSTEM)
 	$(MAKE) -C $(call hg_loc,host-installer)/startup install DESTDIR=$(INSTALLER_FILESYSTEM)
-# install hn and other uClibc stuff:
-	$(MAKE) -C $(call hg_loc,host-installer)/uClibc clean
-	$(MAKE) -C $(call hg_loc,host-installer)/uClibc all \
-		CC=$(DOMAIN0_ARCH_OPTIMIZED)-linux-gcc \
-		PATH=$(BUILDROOT_DIR)/build_$(DOMAIN0_ARCH_OPTIMIZED)/staging_dir/bin:$${PATH}
-	$(MAKE) -C $(call hg_loc,host-installer)/uClibc install DESTDIR=$(INSTALLER_FILESYSTEM)
 # make /sbin/dhclient symlink so ifup does the right thing:
 	#ln -sf /usr/sbin/dhclient ${INSTALLER_FILESYSTEM}/sbin/dhclient
 # make version.py: (XXX should be a separate target):
