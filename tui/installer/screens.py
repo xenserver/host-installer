@@ -826,7 +826,7 @@ def get_name_service_configuration(answers):
             done = True
 
             if hn_manual_rb.selected():
-                if not netutil.valid_hostname(hostname.value()):
+                if not netutil.valid_hostname(hostname.value(), fqdn = True):
                     done = False
                     ButtonChoiceWindow(tui.screen,
                                        "Name Service Configuration",

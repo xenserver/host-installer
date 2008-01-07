@@ -117,10 +117,13 @@ def __readOneLineFile__(filename):
 def getHWAddr(iface):
     return __readOneLineFile__('/sys/class/net/%s/address' % iface)
 
-def valid_hostname(x, emptyValid = False):
+def valid_hostname(x, emptyValid = False, fqdn = False):
     if emptyValid and x == '':
         return True
-    return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?$', x) != None
+    if fqdn:
+        return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?)*$', x) != None
+    else:
+        return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?$', x) != None
 
 
 def valid_ip_addr(addr):
