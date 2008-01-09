@@ -18,7 +18,7 @@ import version
 
 from snack import *
 
-def get_iface_configuration(nic, txt = None, show_identify = True):
+def get_iface_configuration(nic, txt = None, show_identify = True, defaults = None):
     def identify_interface(nic):
         ButtonChoiceWindow(tui.screen,
                            "Identify Interface",
@@ -44,19 +44,30 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
         b = [("Ok", "ok"), ("Back", "back")]
     buttons = ButtonBar(tui.screen, b)
 
-    dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
-    dhcp_rb.setCallback(dhcp_change, ())
-    static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 0)
-    static_rb.setCallback(dhcp_change, ())
-
     ip_field = Entry(16)
-    ip_field.setFlags(FLAG_DISABLED, False)
     subnet_field = Entry(16)
-    subnet_field.setFlags(FLAG_DISABLED, False)
     gateway_field = Entry(16)
-    gateway_field.setFlags(FLAG_DISABLED, False)
     dns_field = Entry(16)
-    dns_field.setFlags(FLAG_DISABLED, False)
+
+    if defaults and not defaults['use-dhcp']:
+        # static configuration defined previously
+        dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 0)
+        dhcp_rb.setCallback(dhcp_change, ())
+        static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 1)
+        static_rb.setCallback(dhcp_change, ())
+        ip_field.set(defaults['ip'])
+        subnet_field.set(defaults['subnet-mask'])
+        gateway_field.set(defaults['gateway'])
+        # DNS not present
+    else:
+        dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
+        dhcp_rb.setCallback(dhcp_change, ())
+        static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 0)
+        static_rb.setCallback(dhcp_change, ())
+        ip_field.setFlags(FLAG_DISABLED, False)
+        subnet_field.setFlags(FLAG_DISABLED, False)
+        gateway_field.setFlags(FLAG_DISABLED, False)
+        dns_field.setFlags(FLAG_DISABLED, False)
 
     ip_text = Textbox(15, 1, "IP Address:")
     subnet_text = Textbox(15, 1, "Subnet mask:")

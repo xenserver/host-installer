@@ -93,7 +93,8 @@ def get_admin_interface_configuration(answers):
     assert answers.has_key('net-admin-interface')
     nic = answers['network-hardware'][answers['net-admin-interface']]
     rc, conf = tui.network.get_iface_configuration(
-        nic, txt = "Please specify how networking should be configured for the management interface on this host."
+        nic, txt = "Please specify how networking should be configured for the management interface on this host.",
+        defaults = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
         )
     if rc == 1:
         answers['net-admin-configuration'] = conf
@@ -742,26 +743,31 @@ def get_name_service_configuration(answers):
         hostname_grid.setField(hostname, 1, 0)
 
         # NAMESERVERS:
-        ns_title = Textbox(len("DNS Configuration"), 1, "DNS Configuration")
-
-        # Name server radio group
-        ns_rbgroup = RadioGroup()
-        ns_dhcp_rb = ns_rbgroup.add("Automatically set via DHCP", "ns_dhcp",
-                                    not (answers.has_key('manual-nameservers') and answers['manual-nameservers'][0]))
-        ns_dhcp_rb.setCallback(ns_callback, (False,))
-        ns_manual_rb = ns_rbgroup.add("Manually specify:", "ns_dhcp",
-                                    answers.has_key('manual-nameservers') and answers['manual-nameservers'][0])
-        ns_manual_rb.setCallback(ns_callback, (True,))
-
-        # Name server text boxes
         def nsvalue(answers, id):
             if not answers.has_key('manual-nameservers'):
-                return ""
+                ai = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
+                if ai.has_key('dns') and id < len(ai['dns']):
+                    return ai['dns'][id]
+                else:
+                    return ""
             (mns, nss) = answers['manual-nameservers']
             if not mns:
                 return ""
             else:
                 return nss[id]
+
+        ns_title = Textbox(len("DNS Configuration"), 1, "DNS Configuration")
+
+        # Name server radio group
+        ns_rbgroup = RadioGroup()
+        ns_dhcp_rb = ns_rbgroup.add("Automatically set via DHCP", "ns_dhcp",
+                                    nsvalue(answers, 0) == "")
+        ns_dhcp_rb.setCallback(ns_callback, (False,))
+        ns_manual_rb = ns_rbgroup.add("Manually specify:", "ns_dhcp",
+                                    nsvalue(answers, 0) != "")
+        ns_manual_rb.setCallback(ns_callback, (True,))
+
+        # Name server text boxes
         ns1_text = Textbox(15, 1, "DNS Server 1:")
         ns1_entry = Entry(30, nsvalue(answers, 0))
         ns1_grid = Grid(2, 1)
@@ -780,10 +786,9 @@ def get_name_service_configuration(answers):
         ns3_grid.setField(ns3_text, 0, 0)
         ns3_grid.setField(ns3_entry, 1, 0)
 
-        if not (answers.has_key('manual-nameservers') and \
-                answers['manual-nameservers'][0]):
+        if nsvalue(answers, 0) == "":
             for entry in [ns1_entry, ns2_entry, ns3_entry]:
-                entry.setFlags(FLAG_DISABLED, 0)
+                entry.setFlags(FLAG_DISABLED, False)
 
         buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
 
