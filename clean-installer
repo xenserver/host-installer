@@ -55,9 +55,10 @@ def main():
                             "keymap=",
                             "clog=",
                             "extrarepo=",
-                            "bootloader="])
+                            "bootloader=",
+                            "install-xen64"])
     except GetoptError:
-        print "This program takes no arguments."
+        print "Invalid arguments."
         sys.exit(1)
 
     # prepare LVM - we need this very early now.
@@ -98,7 +99,9 @@ def main():
                 results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
             elif val == "extlinux":
                 results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
-
+        elif opt == "--install-xen64":
+            xelogging.log("Installing xen64 package")
+            results['install-xen64'] = True
     try:
         # loading an answerfile?
         assert ui != None or answerfile_address != None

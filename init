@@ -134,7 +134,7 @@ def doInteractiveLoadDriver(ui):
 # This has turned into a bit of a hack.  The 'hwdetect' script
 # uses information directly from the kernel build to find hardware
 # (i.e. modules.pcimap), but I don't entirely understand where
-# these come from or oif they're complete.
+# these come from or if they're complete.
 def discoverHardware():
     _, out1 = commands.getstatusoutput("discover --enable-all --module ide")
     _, out2 = commands.getstatusoutput("discover --enable-all --module scsi")
@@ -164,7 +164,7 @@ def discoverHardware():
             xelogging.log("Discover found %s" % mod)
             rv.append(mod)
     
-    xelogging.log("Hardware disocvery complete.")
+    xelogging.log("Hardware discovery complete.")
     return rv
 
 def configureHardware(extra_modules, blacklist, ui, interactive):
@@ -287,7 +287,7 @@ def main():
     try:
         (opts, _) = getopt(sys.argv[1:], "c:", [])
     except GetoptError:
-        print "Incorrect arguments.  This program may be run with -c to override the value eof"
+        print "Incorrect arguments.  This program may be run with -c to override the value of"
         print "/proc/cmdline during startup."
         sys.exit(1)
 
@@ -335,6 +335,8 @@ def main():
             active_output = val
         elif opt == "bootloader":
             extra_args = ' '.join([extra_args, '--bootloader=%s' % val])
+        elif opt == "install-xen64":
+            extra_args = ' '.join([extra_args, '--install-xen64'])
 
     xelogging.log("Active output is %s" % active_output)
 
@@ -349,7 +351,7 @@ def main():
         xelogging.log("Starting 'init' user interface")
         ui.init_ui()
 
-    # first, configure the hardware, make /etc/network and /lib/firmate, etc.:
+    # first, configure the hardware, make /etc/network and /lib/firmware, etc.:
     if isPrimaryProcess():
         util.assertDir('/lib/firmware')
         util.assertDir('/var/lib')
@@ -412,7 +414,10 @@ def main():
                 break
 
             def exit_status_of_rc(rc):
-                return rc >> 8
+                if os.WIFEXITED(rc):
+                    return os.WEXITSTATUS(rc)
+                else:
+                    return -1
 
             # clean install:
             if operation == init_constants.OPERATION_INSTALL:
