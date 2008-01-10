@@ -165,8 +165,10 @@ class ExistingInstallation(object):
             return True
     
     def readSettings(self):
-        """ Read settings from the installation, retusn a results dictionary. """
-        if not self.version == XENSERVER_3_2_0:
+        """ Read settings from the installation, returns a results dictionary. """
+        versions_with_settings = [XENSERVER_3_2_0, XENSERVER_4_0_1]
+
+        if not self.version in versions_with_settings:
             raise SettingsNotAvailable
         
         mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
