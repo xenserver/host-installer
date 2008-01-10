@@ -92,9 +92,15 @@ def get_admin_interface(answers):
 def get_admin_interface_configuration(answers):
     assert answers.has_key('net-admin-interface')
     nic = answers['network-hardware'][answers['net-admin-interface']]
+
+    if answers.has_key('runtime-iface-configuration'):
+        defaults = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
+    else:
+        defaults = None
+
     rc, conf = tui.network.get_iface_configuration(
         nic, txt = "Please specify how networking should be configured for the management interface on this host.",
-        defaults = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
+        defaults = defaults
         )
     if rc == 1:
         answers['net-admin-configuration'] = conf
