@@ -337,6 +337,8 @@ def main():
             extra_args = ' '.join([extra_args, '--bootloader=%s' % val])
         elif opt == "install-xen64":
             extra_args = ' '.join([extra_args, '--install-xen64'])
+        elif opt == "onecd":
+            extra_args = ' '.join([extra_args, '--onecd'])
 
     xelogging.log("Active output is %s" % active_output)
 

@@ -22,7 +22,7 @@ import snackutil
 
 from snack import *
 
-def runMainSequence(results, ram_warning, vt_warning, installed_products):
+def runMainSequence(results, ram_warning, vt_warning, installed_products, suppress_extra_cd_dialog):
     """ Runs the main installer sequence and updtes results with a
     set of values ready for the backend. """
     uis = tui.installer.screens
@@ -53,7 +53,7 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products):
 
     def local_media_predicate(answers):
         return answers.has_key('source-media') and \
-               answers['source-media'] == 'local'
+               answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
     if len(installed_products) == 0:
         results['install-type'] = constants.INSTALL_TYPE_FRESH

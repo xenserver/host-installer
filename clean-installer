@@ -54,6 +54,7 @@ def main():
                             "verbose-answerfile=",
                             "keymap=",
                             "clog=",
+                            "onecd",
                             "extrarepo=",
                             "bootloader=",
                             "install-xen64"])
@@ -70,6 +71,7 @@ def main():
     extra_repo_defs = []
     results = {}
     answerfile_address = None
+    suppress_extra_cd_dialog = False
 
     for (opt, val) in opts:
         if opt == "--keymap":
@@ -102,6 +104,8 @@ def main():
         elif opt == "--install-xen64":
             xelogging.log("Installing xen64 package")
             results['install-xen64'] = True
+        elif opt == "--onecd":
+            suppress_extra_cd_dialog = True
     try:
         # loading an answerfile?
         assert ui != None or answerfile_address != None
@@ -178,7 +182,7 @@ def main():
         aborted = False
         if ui and not answerfile_address:
             uiexit = ui.installer.runMainSequence(
-	            results, ram_warning, vt_warning, installed_products
+	            results, ram_warning, vt_warning, installed_products, suppress_extra_cd_dialog
                 )
             if uiexit == uicontroller.EXIT:
                 aborted = True
