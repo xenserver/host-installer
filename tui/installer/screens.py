@@ -751,6 +751,8 @@ def get_name_service_configuration(answers):
         # NAMESERVERS:
         def nsvalue(answers, id):
             if not answers.has_key('manual-nameservers'):
+                if not answers.has_key('runtime-iface-configuration'):
+                    return ""
                 ai = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
                 if ai.has_key('dns') and id < len(ai['dns']):
                     return ai['dns'][id]
