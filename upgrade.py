@@ -240,7 +240,7 @@ class SecondGenUpgrader(Upgrader):
             util.assertDir(os.path.join(mounts['root'], "etc/xensource"))
 
             # restore files:
-            restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 'etc/xensource/xapi.conf',
+            restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 
                        'etc/xensource/license', 'etc/xensource/db.conf', 'var/xapi/state.db']
             for f in restore:
                 src = os.path.join(tds, f)
