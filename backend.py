@@ -1007,16 +1007,6 @@ def writei18n(mounts):
     fd.close()
 
 def installXen64(mounts):
-    def find_devs():
-        devs = []
-        f = open('/proc/partitions')
-        f.readline()
-        f.readline()
-        for line in f.readlines():
-            col = line.split()
-            devs.append('/dev/'+col[3])
-        return devs
-
     rpmdir = os.path.join('opt', 'xensource', 'RPMS')
     if not os.path.exists(os.path.join(mounts['root'], rpmdir)):
         return
@@ -1027,16 +1017,12 @@ def installXen64(mounts):
         util.bindMount("/proc", "%s/proc" % mounts['root'])
         util.bindMount("/sys", "%s/sys" % mounts['root'])
         # grubby needs to access disk device files
-        dev_list = find_devs()
-        util.runCmd2(['tar', 'cf', '/tmp/dev.tar'] + dev_list)
-        util.runCmd2(['tar', 'xf', '/tmp/dev.tar', '-C', mounts['root']])
+        util.bindMount("/dev", "%s/dev" % mounts['root'])
         util.runCmd2(['chroot', mounts['root'], 'new-kernel-pkg', '--package', 'kernel-xen', '--install', '--multiboot=/boot/xen.gz', version.KERNEL_VERSION])
         util.runCmd2(['chroot', mounts['root'], '/bin/rpm', '-ihv'] + rpmlist)
-        # cleanup /dev
-        for d in dev_list:
-            os.unlink(mounts['root'] + d)
         util.umount("%s/proc" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
+        util.umount("%s/dev" % mounts['root'])
 
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
