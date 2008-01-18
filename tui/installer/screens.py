@@ -94,7 +94,25 @@ def get_admin_interface_configuration(answers):
     nic = answers['network-hardware'][answers['net-admin-interface']]
 
     if answers.has_key('runtime-iface-configuration'):
-        defaults = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
+        # we have a runtime interface configuration; check to see if there is
+        # configuration for the interface we're currently trying to configure.
+        # If so, use it to get default values; we're being super careful to
+        # check bounds, etc. here.  answers['runtime-iface-configuration'] is 
+        # a pair, (all_dhcp, manual_config), where manual_config is a map
+        # of interface name (string) -> network config.
+        ric = answers['runtime-iface-configuration']
+        if len(ric) != 2: # this should never really happen but best to be safe
+            defaults = None
+        else:
+            ric_all_dhcp, ric_manual_config = ric
+            if ric_manual_config == None or ric_all_dhcp:
+                defaults = None
+            else:
+                # have we already configured this interface?
+                if ric_manual_config.has_key(answers['net-admin-interface']):
+                    defaults = ric_manual_config[answers['net-admin-interface']]
+                else:
+                    defaults = None
     else:
         defaults = None
 
@@ -753,11 +771,28 @@ def get_name_service_configuration(answers):
             if not answers.has_key('manual-nameservers'):
                 if not answers.has_key('runtime-iface-configuration'):
                     return ""
-                ai = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
-                if ai.has_key('dns') and id < len(ai['dns']):
-                    return ai['dns'][id]
-                else:
+                # we have a runtime interface configuration; check to see if there is
+                # configuration for the interface we're currently trying to configure.
+                # If so, use it to get default values; we're being super careful to
+                # check bounds, etc. here.  answers['runtime-iface-configuration'] is 
+                # a pair, (all_dhcp, manual_config), where manual_config is a map
+                # of interface name (string) -> network config.
+                ric = answers['runtime-iface-configuration']
+                if len(ric) != 2: # this should never really happen but best to be safe
                     return ""
+                else:
+                    ric_all_dhcp, ric_manual_config = ric
+                    if ric_manual_config == None or ric_all_dhcp:
+                        return ""
+                    else:
+                        if ric_manual_config.has_key(answers['net-admin-interface']):
+                            ai = ric_manual_config[answers['net-admin-interface']]
+                            if ai.has_key('dns') and id < len(ai['dns']):
+                                return ai['dns'][id]
+                            else:
+                                return ""
+                        else:
+                            return ""
             (mns, nss) = answers['manual-nameservers']
             if not mns:
                 return ""
