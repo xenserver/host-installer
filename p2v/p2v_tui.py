@@ -191,8 +191,8 @@ def os_install_screen(answers):
     
     if len(os_install_strings) > 0:
         (button, entry) = ListboxChoiceWindow(tui.screen,
-                "OS Installs",
-                "Which OS install do you want to P2V?",
+                "Select OS",
+                "Which OS installation do you want to P2V?",
                 os_install_strings,
                 ['Ok', 'Back'])
             
@@ -241,7 +241,7 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
 
 def confirm_screen(answers):
     button = ButtonChoiceWindow(tui.screen, "Confirm Operation",
-        "All required information has now been collection.  The data transfer may take a long time and cause significant network traffic.",
+        "All required information has now been collected.  The data transfer may take a long time and cause significant network traffic.",
         ['Start Transfer', 'Back'], width = 40)
 
     if button in ['start transfer', None]:
