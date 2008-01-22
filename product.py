@@ -252,8 +252,32 @@ class ExistingInstallation(object):
 
             # don't care about this too much.
             results['time-config-method'] = 'ntp'
+
+            if self.version == XENSERVER_4_0_1:
+                for file in filter(lambda x: x.startswith('ifcfg-eth'), os.listdir(os.path.join(mntpoint, 'etc/sysconfig/network-scripts'))):
+                    devcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False, assert_quotes = False)
+                    if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
+                        try:
+                            brcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False, assert_quotes = False)
+                            results['net-admin-interface'] = devcfg['DEVICE']
+                            results['net-admin-configuration'] = {'enabled': True}
+                            if brcfg.has_key('IPADDR'):
+                                results['net-admin-configuration']['ip'] = brcfg['IPADDR']
+                                results['net-admin-configuration']['use-dhcp'] = False
+                                if results['manual-nameservers'][0]:
+                                    results['net-admin-configuration']['dns'] = results['manual-nameservers'][1]
+                            else:
+                                results['net-admin-configuration']['use-dhcp'] = True
+                            if brcfg.has_key('NETMASK'):
+                                results['net-admin-configuration']['subnet-mask'] = brcfg['NETMASK']
+                            if brcfg.has_key('GATEWAY'):
+                                results['net-admin-configuration']['gateway'] = brcfg['GATEWAY']
+                        except:
+                            pass
+                        break
         finally:
             util.umount(mntpoint)
+            os.rmdir(mntpoint)
 
         return results
 

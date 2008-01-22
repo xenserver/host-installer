@@ -84,7 +84,7 @@ def hardware_warnings(answers, ram_warning, vt_warning):
         return 1
 
 def get_admin_interface(answers):
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'])
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'], answers.has_key('net-admin-interface') and answers['net-admin-interface'] or None)
     if direction == 1:
         answers['net-admin-interface'] = iface
     return direction
@@ -403,7 +403,10 @@ def use_extra_media(answers, vt_warning):
         return -1
 
 def setup_runtime_networking(answers):
-    return tui.network.requireNetworking(answers)
+    defaults = None
+    if answers.has_key('installation-to-overwrite'):
+        defaults = answers['installation-to-overwrite'].readSettings()
+    return tui.network.requireNetworking(answers, defaults)
 
 def get_url_location(answers):
     text = "Please enter the URL for your HTTP or FTP repository and, optionally, a username and password"
