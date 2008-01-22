@@ -275,6 +275,17 @@ class ExistingInstallation(object):
                         except:
                             pass
                         break
+
+            keys = []
+            for file in filter(lambda x: x.startswith('ssh_host_'), os.listdir(os.path.join(mntpoint, 'etc/ssh'))):
+                try:
+                    h = open(os.path.join(mntpoint, 'etc/ssh', file), 'r')
+                    key = h.read()
+                    h.close()
+                    keys.append({'name': file, 'key': key})
+                except:
+                    pass
+            results['ssh-keys'] = keys
         finally:
             util.umount(mntpoint)
             os.rmdir(mntpoint)
