@@ -569,7 +569,7 @@ def interactive_source_verification(media, address):
                 ButtonChoiceWindow(
                     tui.screen,
                     "Verification Successful",
-                    "Veification of your installation pack(s) %s completed successfully: no problems were found." % repo_names,
+                    "Verification of your installation pack(s) %s completed successfully: no problems were found." % repo_names,
                     ['Ok']
                     )
                 return True
