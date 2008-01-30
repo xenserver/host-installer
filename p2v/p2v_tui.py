@@ -68,10 +68,13 @@ def get_target(answers):
     gf.add(entries, 0, 1, padding = (0, 0, 0, 1))
     gf.add(bb, 0, 2)
 
-    result = gf.runOnce()
-    if bb.buttonPressed(result) == 'back':
-        return -1
-    else:
+    loop = True
+    while loop:
+        result = gf.run()
+
+        if bb.buttonPressed(result) == 'back':
+            return -1
+
         # CA-6614: validate input and clearer error reporting
         host = e_host.value()
         user = e_user.value()
@@ -84,16 +87,17 @@ def get_target(answers):
             msg = 'User'
         elif len(pw) == 0:
             msg = 'Password'
-        if len(msg) > 0:
+        if msg != '':
             ButtonChoiceWindow(
                 tui.screen, "Error", "%s field is blank.\n\nPlease enter a value for the field and try again." % msg,
                 ['Back']
                 )
-            return 0
+            continue
 
         # check we can connect to the server:
         if not host.startswith('https://') or not host.startswith('http://'):
             host = "https://" + host
+        msg = ''
         try:
             server = xmlrpclib.Server(host)
             rc = server.session.login_with_password(user, pw)
@@ -101,7 +105,6 @@ def get_target(answers):
                 answers['target-host-name'] = host
                 answers['target-host-user'] = user
                 answers['target-host-password'] = pw
-                return 1
             else:
                 # session login error
                 msg = rc['ErrorDescription'][2]
@@ -114,12 +117,28 @@ def get_target(answers):
             msg = e.errmsg
         except Exception, e:
             msg = e
+            
+        if msg != '':
+            ButtonChoiceWindow(
+                tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'." % msg,
+                ['Back']
+                )
+            continue
 
-        ButtonChoiceWindow(
-            tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'." % msg,
-            ['Back']
-            )
-        return 0
+        # CA-10893: Check for P2V template now
+        session = rc['Value']
+        rc = server.VM.get_by_name_label(session, "XenSource P2V Server")
+        if rc['Status'] == 'Success' and rc['Value'] != []:
+            loop = False
+        else:
+            xelogging.log('cannot find P2V template')
+            ButtonChoiceWindow(
+                tui.screen, "Error", "The selected server does not support P2V.",
+                ['Back']
+                )
+
+    tui.screen.popWindow()
+    return 1
 
 # select storage repository:
 # TODO better error checking.
