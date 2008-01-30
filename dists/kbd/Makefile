@@ -44,11 +44,12 @@ $(BUILD_COOKIE): $(PATCH_COOKIE) $(BUILDROOT_ENV_COOKIE)
 	$(MAKE) -C $(KBD_DIR) $(UCLIBC_VARS) all
 	touch $@
 
-$(INSTALL_COOKIE): $(BUILD_COOKIE)
-	mkdir -p $(MY_INSTALLER_FILES)
+$(INSTALL_COOKIE): $(BUILD_COOKIE) $(MY_INSTALLER_FILES)/.dirstamp $(MY_RECOVERY_FILES)/.dirstamp
 	$(MAKE) -C $(KBD_DIR) $(UCLIBC_VARS) DESTDIR=$(MY_INSTALLER_FILES) install
 # remove some cruft now
 	rm -rf $(addprefix $(MY_INSTALLER_FILES)/usr/share/kbd/,$(REMOVE))
 	rm -rf $(MY_INSTALLER_FILES)/usr/share/man
 	rm -rf $(MY_INSTALLER_FILES)/usr/bin
+# recovery ISO initrd needs this stuff too
+	cp -lr $(MY_INSTALLER_FILES)/* $(MY_RECOVERY_FILES)
 	touch $@
