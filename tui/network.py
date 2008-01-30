@@ -55,10 +55,14 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
         dhcp_rb.setCallback(dhcp_change, ())
         static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 1)
         static_rb.setCallback(dhcp_change, ())
-        ip_field.set(defaults['ip'])
-        subnet_field.set(defaults['subnet-mask'])
-        gateway_field.set(defaults['gateway'])
-        # DNS not present
+        if defaults.has_key('ip'):
+            ip_field.set(defaults['ip'])
+        if defaults.has_key('subnet-mask'):
+            subnet_field.set(defaults['subnet-mask'])
+        if defaults.has_key('gateway'):
+            gateway_field.set(defaults['gateway'])
+        if defaults.has_key('dns') and len(defaults['dns']) > 0:
+            dns_field.set(defaults['dns'][0])
     else:
         dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
         dhcp_rb.setCallback(dhcp_change, ())
@@ -131,22 +135,25 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     elif buttons.buttonPressed(result) == 'back':
         return -1, None
 
-def select_netif(text, conf):
+def select_netif(text, conf, default=None):
     """ Display a screen that displays a choice of network interfaces to the
     user, with 'text' as the informative text as the data, and conf being the
     netutil.scanConfiguration() output to be used. """
 
     netifs = conf.keys()
     netifs.sort()
+    def_iface = None
+    if default != None:
+        def_iface = ("%s (%s)" % ((default, conf[default].hwaddr)), default)
     netif_list = [("%s (%s)" % ((x, conf[x].hwaddr)), x) for x in netifs]
     rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,
-                                    ['Ok', 'Back'], width=45)
+                                    ['Ok', 'Back'], width=45, default=def_iface)
     if rc in ['ok', None]:
         return 1, entry
     elif rc == "back":
         return -1, None
 
-def requireNetworking(answers):
+def requireNetworking(answers, defaults=None):
     """ Display the correct sequence of screens to get networking
     configuration.  Bring up the network according to this configuration.
     If answers is a dictionary, set it's 'runtime-iface-configuration' key
@@ -156,32 +163,39 @@ def requireNetworking(answers):
 
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:
-    def select_interface(answers):
+    def select_interface(answers, default):
         """ Show the dialog for selecting an interface.  Sets
         answers['interface'] to the name of the interface selected (a
         string). """
-        direction, iface = select_netif("%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND), nethw)
+        direction, iface = select_netif("%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND), nethw, default)
         if direction == 1:
             answers['interface'] = iface
         return direction
 
-    def specify_configuration(answers, txt):
+    def specify_configuration(answers, txt, defaults):
         """ Show the dialog for setting nic config.  Sets answers['config']
         to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
-        direction, conf = get_iface_configuration(nethw[answers['interface']], txt)
+        direction, conf = get_iface_configuration(nethw[answers['interface']], txt, defaults=defaults)
         if direction == 1:
             answers['config'] = conf
         return direction
 
     conf_dict = {}
+    def_iface = None
+    def_conf = None
+    if type(defaults) == dict:
+        if defaults.has_key('net-admin-interface'):
+            def_iface = defaults['net-admin-interface']
+        if defaults.has_key('net-admin-configuration'):
+            def_conf = defaults['net-admin-configuration']
     if len(nethw.keys()) > 1:
-        seq = [ uicontroller.Step(select_interface), 
-                uicontroller.Step(specify_configuration, args=[None]) ]
+        seq = [ uicontroller.Step(select_interface, args=[def_iface]), 
+                uicontroller.Step(specify_configuration, args=[None, def_conf]) ]
     else:
         text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % version.PRODUCT_BRAND
         conf_dict['interface'] = nethw.keys()[0]
-        seq = [ uicontroller.Step(specify_configuration, args=[text]) ]
+        seq = [ uicontroller.Step(specify_configuration, args=[text, def_conf]) ]
     direction = uicontroller.runSequence(seq, conf_dict)
 
     if direction == 1:
@@ -205,6 +219,7 @@ def requireNetworking(answers):
             direction = 0
         else:
             if answers and type(answers) == dict:
+                answers['net-admin-interface'] = conf_dict['interface']
                 answers['runtime-iface-configuration'] = (False, {conf_dict['interface']: conf_dict['config']})
         tui.progress.clearModelessDialog()
         
