@@ -405,7 +405,10 @@ def use_extra_media(answers, vt_warning):
 def setup_runtime_networking(answers):
     defaults = None
     if answers.has_key('installation-to-overwrite'):
-        defaults = answers['installation-to-overwrite'].readSettings()
+        try:
+            defaults = answers['installation-to-overwrite'].readSettings()
+        except:
+            pass
     return tui.network.requireNetworking(answers, defaults)
 
 def get_url_location(answers):

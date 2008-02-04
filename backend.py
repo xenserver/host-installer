@@ -817,7 +817,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
     # remove any files that may be present in the filesystem already, 
     # particularly those created by kudzu:
     network_scripts = os.listdir(network_scripts_dir)
-    for s in filter(lambda x: x.startswith('ifcfg-eth'), network_scripts):
+    for s in filter(lambda x: x.startswith('ifcfg-'), network_scripts):
         os.unlink(os.path.join(network_scripts_dir, s))
 
     # write the configuration file for the loopback interface
