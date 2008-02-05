@@ -106,7 +106,9 @@ def rio_p2v(answers, use_tui = True):
     [ template_ref ] = template_refs
 
     if not answers.has_key('vm-name'):
-        vm_name = "New P2Vd guest"
+        vm_name = "%s (%s %s)" % (answers['osinstall']['hostname'], 
+                                  answers['osinstall']['osname'], 
+                                  answers['osinstall']['osversion'])
     else:
         vm_name = answers['vm-name']
 
