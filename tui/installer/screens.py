@@ -125,12 +125,14 @@ def get_admin_interface_configuration(answers):
     return rc
 
 def get_installation_type(answers, insts):
-    entries = [ ("Perform clean installation", None) ]
+    entries = []
     for x in insts:
         if x.version < product.THIS_PRODUCT_VERSION:
             entries.append(("Upgrade %s" % str(x), (x, x.settingsAvailable())))
         else:
             entries.append(("Freshen %s" % str(x), (x, x.settingsAvailable())))
+
+    entries.append( ("Perform clean installation", None) )
 
     # default value?
     if answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
