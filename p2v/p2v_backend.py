@@ -118,6 +118,11 @@ def rio_p2v(answers, use_tui = True):
         raise RuntimeError, "Unable to clone template %s" % template_ref
     guest_ref = rc['Value']
 
+    # CA-13694: hide VM while P2V is in progress
+    rc = xapi.VM.add_to_other_config(session, guest_ref, 'HideFromXenCenter', 'true')
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to hide VM."
+
     rc = xapi.VM.provision(session, guest_ref)
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to provision VM."
@@ -239,6 +244,11 @@ def rio_p2v(answers, use_tui = True):
     for vif in vifs:
         xapi.VIF.unplug(session, vif)
         xapi.VIF.destroy(session, vif)
+
+    # CA-13694: make VM visible now
+    rc = xapi.VM.remove_from_other_config(session, guest_ref, 'HideFromXenCenter')
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to unhide VM."
 
     xapi.session.logout(session)
 
