@@ -118,6 +118,12 @@ def rio_p2v(answers, use_tui = True):
         raise RuntimeError, "Unable to clone template %s" % template_ref
     guest_ref = rc['Value']
 
+    # CA-13695: update description
+    rc = xapi.VM.set_name_description(session, guest_ref, 
+                                      'VM imported from physical machine on %s' % time.strftime("%x"))
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to set VM description."
+
     # CA-13694: hide VM while P2V is in progress
     rc = xapi.VM.add_to_other_config(session, guest_ref, 'HideFromXenCenter', 'true')
     if rc['Status'] != 'Success':
