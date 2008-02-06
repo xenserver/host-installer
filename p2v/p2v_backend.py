@@ -128,6 +128,12 @@ def rio_p2v(answers, use_tui = True):
     rc = xapi.VM.add_to_other_config(session, guest_ref, 'HideFromXenCenter', 'true')
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to hide VM."
+    rc = xapi.VM.add_to_other_config(session, guest_ref, 'p2v_source_machine', answers['osinstall']['hostname'])
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to set p2v_source_machine"
+    rc = xapi.VM.add_to_other_config(session, guest_ref, 'p2v_import_date', time.strftime('%Y%m%dT%H:%M:%SZ', time.gmtime()))
+    if rc['Status'] != 'Success':
+        raise RuntimeError, "Unable to set p2v_import_date"
 
     rc = xapi.VM.provision(session, guest_ref)
     if rc['Status'] != 'Success':
