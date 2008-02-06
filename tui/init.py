@@ -35,7 +35,7 @@ def get_keymap():
 
 def choose_operation(display_restore):
     entries = [ 
-        (' * Install %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
+        (' * Install or upgrade %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
         (' * Load a driver', init_constants.OPERATION_LOAD_DRIVER),
         (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
