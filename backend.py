@@ -145,7 +145,7 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'network-hardware'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
@@ -807,7 +807,7 @@ def setRootPassword(mounts, root_password, pwdtype):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
+def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, nethw):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -816,6 +816,9 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
     util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
+
+    (manual_hostname, hostname) = hn_conf
+    (manual_nameservers, nameservers) = ns_conf
 
     # remove any files that may be present in the filesystem already, 
     # particularly those created by kudzu:
@@ -842,7 +845,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
     print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
     nc.close()
 
-    # write a config file for each interface, speical casing the admin
+    # write a config file for each interface, special-casing the admin
     # interface to have a dom0 configuration.
     for intf in nethw.keys():
         conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[intf].hwaddr)
@@ -858,6 +861,9 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
                 print >>ac, "IP=%s" % admin_config['ip']
                 print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
                 print >>ac, "GATEWAY=%s" % admin_config['gateway']
+                if manual_nameservers:
+                    for i in range(len(nameservers)):
+                        print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
 
             # admin interface - write out sysconfig files so that bringup on
             # slaves works and they can talk to the master:
@@ -890,7 +896,14 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, nethw):
                 print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config['subnet-mask']
                 print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config['ip']
                 print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config['gateway']
-                print >>sysconf_bridge_fd, "PEERDNS=yes"
+                if manual_nameservers:
+                    print >>sysconf_bridge_fd, "PEERDNS=yes"
+                    for i in range(len(nameservers)):
+                        print >>sysconf_bridge_fd, "DNS%d=%s" % (i+1, nameservers[i])
+                if manual_hostname:
+                    dot = hostname.find('.')
+                    if dot != -1:
+                        print >>sysconf_bridge_fd, "DOMAIN=%s" % hostname[dot+1:]
             sysconf_bridge_fd.close()
         else:
             print >>ac, "MODE=none"

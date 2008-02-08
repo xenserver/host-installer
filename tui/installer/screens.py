@@ -872,9 +872,11 @@ def get_name_service_configuration(answers):
 
             # manual nameservers?
             if ns_manual_rb.selected():
-                answers['manual-nameservers'] = (True, [ns1_entry.value(),
-                                                        ns2_entry.value(),
-                                                        ns3_entry.value()])
+                answers['manual-nameservers'] = (True, [ns1_entry.value()])
+                if ns2_entry.value() != '':
+                    answers['manual-nameservers'][1].append(ns2_entry.value())
+                if ns3_entry.value() != '':
+                    answers['manual-nameservers'][1].append(ns3_entry.value())
             else:
                 answers['manual-nameservers'] = (False, None)
             
