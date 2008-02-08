@@ -263,7 +263,10 @@ def performInstallation(answers, ui_package):
     # update the settings:
     if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         if answers['preserve-settings'] == True:
+            xelogging.log("Updating answers dictionary based on existing installation")
             answers.update(answers['installation-to-overwrite'].readSettings())
+            xelogging.log("UPDATED ANSWERS DICTIONARY:")
+            prettyLogAnswers(answers)
         else:
             # still need to have same keys present in the reinstall (non upgrade)
             # case, but we'll set them to None:

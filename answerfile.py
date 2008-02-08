@@ -120,7 +120,6 @@ def parseUpgrade(n):
     results['backup-existing-installation'] = True
 
     results.update(parseSource(n))
-    results.update(parseInterfaces(n))
     results.update(parseScripts(n))
     results.update(parseBootloader(n))
 
