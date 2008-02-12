@@ -156,9 +156,6 @@ def getFinalisationSequence(ans):
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
 
-    if ans.has_key('ssh-keys'):
-        seq.append(Task(restoreSshHostKeys, A(ans, 'mounts', 'ssh-keys'), []))
-
     if ans.has_key('install-xen64') and ans['install-xen64']:
         seq.append(Task(installXen64, A(ans, 'mounts'), []))
 
@@ -952,17 +949,6 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
 def touchSshAuthorizedKeys(mounts):
     assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
     assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
-
-def restoreSshHostKeys(mounts, ssh_keys):
-    for key in ssh_keys:
-        try:
-            h = open(os.path.join(mounts['root'], 'etc/ssh', key['name']), 'w')
-            h.write(key['key'])
-            h.close()
-            if not key['name'].endswith('.pub'):
-                os.chmod(os.path.join(mounts['root'], 'etc/ssh', key['name']), 0600)
-        except:
-            pass
 
 def backupExisting(existing):
     primary_partition = getRootPartName(existing.primary_disk)

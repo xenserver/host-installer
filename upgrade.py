@@ -241,13 +241,16 @@ class SecondGenUpgrader(Upgrader):
 
             # restore files:
             restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 
-                       'etc/xensource/license', 'etc/xensource/db.conf', 'var/xapi/state.db']
+                       'etc/xensource/license', 'etc/xensource/db.conf', 'var/xapi/state.db',
+                       'etc/ssh/ssh_host_dsa_key', 'etc/ssh/ssh_host_dsa_key.pub',
+                       'etc/ssh/ssh_host_key', 'etc/ssh/ssh_host_key.pub',
+                       'etc/ssh/ssh_host_rsa_key', 'etc/ssh/ssh_host_rsa_key.pub']
             for f in restore:
                 src = os.path.join(tds, f)
                 dst = os.path.join(mounts['root'], f)
                 if os.path.exists(src):
                     xelogging.log("Restoring /%s" % f)
-                    util.runCmd2(['cp', src, dst])
+                    util.runCmd2(['cp', '-p', src, dst])
                 else:
                     xelogging.log("WARNING: /%s did not exist in the backup image." % f)
             
