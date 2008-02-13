@@ -168,19 +168,32 @@ def select_sr(answers):
     rc = server.SM.get_all_records(session)
     assert rc['Status'] == 'Success', "Failure calling server.SM.get_all_records(%s)" % session
 
-    sms = rc['Value']
+    sms = {}
+    for sm in rc['Value'].values():
+        sms[sm['type']] = sm
 
     list_srs = []
     for sr in srs.values():
-        for sm in sms.values():
-            if sr['type'] == sm['type'] and 'VDI_CREATE' in sm['capabilities']:
-                if sr['name_label'] != "":
-                    name = sr['name_label']
-                else:
-                    name = sr['uuid']
-                item = (name, sr['uuid'])
-                list_srs.append(item)
-                break
+        if 'VDI_CREATE' in sms[sr['type']]['capabilities']:
+            hostname=None
+            if sr.has_key('other_config') and sr['other_config'].has_key('i18n-key') and sr['other_config']['i18n-key'] == 'local-storage' and sr.has_key('PBDs'):
+                for pbd in sr['PBDs']:
+                    rc = server.PBD.get_record(session, pbd)
+                    assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (sesson, pbd)
+                    h = rc['Value']['host']
+                    rc = server.host.get_name_label(session, h)
+                    assert rc['Status'] == 'Success', "Failure calling server.host.get_name_label(%s, %s)" % (sesson, h)
+                    hostname = rc['Value']
+                    break
+
+            if sr['name_label'] != "":
+                name = sr['name_label']
+            else:
+                name = sr['uuid']
+            if hostname:
+                name += " on %s" % hostname
+            item = (name, sr['uuid'])
+            list_srs.append(item)
 
     server.session.logout(session)
     rc, entry = ListboxChoiceWindow(
