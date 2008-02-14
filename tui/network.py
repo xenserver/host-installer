@@ -18,7 +18,7 @@ import version
 
 from snack import *
 
-def get_iface_configuration(nic, txt = None, show_identify = True, defaults = None):
+def get_iface_configuration(nic, txt = None, show_identify = True, defaults = None, include_dns = False):
     def identify_interface(nic):
         ButtonChoiceWindow(tui.screen,
                            "Identify Interface",
@@ -32,11 +32,9 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
 
-    include_dns = False
     gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
     if txt == None:
         txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
-        include_dns = True
     text = TextboxReflowed(45, txt)
     if show_identify:
         b = [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")]
@@ -175,7 +173,7 @@ def requireNetworking(answers, defaults=None):
         """ Show the dialog for setting nic config.  Sets answers['config']
         to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
-        direction, conf = get_iface_configuration(nethw[answers['interface']], txt, defaults=defaults)
+        direction, conf = get_iface_configuration(nethw[answers['interface']], txt, defaults=defaults, include_dns=True)
         if direction == 1:
             answers['config'] = conf
         return direction
