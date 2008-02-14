@@ -119,7 +119,7 @@ class Version(object):
         else:
             return s1 < s2
 
-    cmp_suffx = classmethod(cmp_suffix)
+    cmp_suffix = classmethod(cmp_suffix)
 
     def cmp_version_number(cls, v1, v2):
         if v1 == cls.ANY or v2 == cls.ANY:
