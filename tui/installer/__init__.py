@@ -23,15 +23,15 @@ import snackutil
 from snack import *
 
 def runMainSequence(results, ram_warning, vt_warning, installed_products, suppress_extra_cd_dialog):
-    """ Runs the main installer sequence and updtes results with a
+    """ Runs the main installer sequence and updates results with a
     set of values ready for the backend. """
     uis = tui.installer.screens
     Step = uicontroller.Step
 
-    def ask_preserve_settings_predicate(answers):
+    def upgrade_but_no_settings_predicate(answers):
         return answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
-               answers.has_key('installation-to-overwrite') and \
-               answers['installation-to-overwrite'].settingsAvailable()
+            (not answers.has_key('installation-to-overwrite') or \
+                 not answers['installation-to-overwrite'].settingsAvailable())
 
     netifs = netutil.getNetifList()
     has_multiple_nics = lambda _: len(netifs) > 1
@@ -67,8 +67,8 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products, suppre
              predicates=[lambda _:(ram_warning or vt_warning)]),
         Step(uis.get_installation_type, args=[installed_products],
              predicates=[lambda _:len(installed_products) > 0]),
-        Step(uis.ask_preserve_settings,
-             predicates=[ask_preserve_settings_predicate]),
+        Step(uis.upgrade_settings_warning,
+             predicates=[upgrade_but_no_settings_predicate]),
         Step(uis.backup_existing_installation,
              predicates=[is_reinstall_fn, not_requires_backup]),
         Step(uis.force_backup_screen,

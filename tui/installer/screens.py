@@ -167,25 +167,21 @@ def get_installation_type(answers, insts):
     else:
         return -1
 
-def ask_preserve_settings(answers):
-    default = 0
-    if answers.has_key('preserve-settings'):
-        default = {True: 0, False: 1}[answers['preserve-settings']]
-
-    rv = snackutil.ButtonChoiceWindowEx(
+def upgrade_settings_warning(answers):
+    button = ButtonChoiceWindow(
         tui.screen,
         "Preserve Settings",
-        """Would you like to install %s with the same configuration as %s?
+        """The configuration of %s cannot be automatically retained. You must re-enter the configuration manually.
 
-WARNING: Only settings initially configured using the installer will be preserved.""" % (PRODUCT_BRAND, str(answers['installation-to-overwrite'])),
-        ['Yes', 'No', 'Back'], default=default
+WARNING: You must use the current values. Failure to do so may result in an incorrect installation of the product.""" % str(answers['installation-to-overwrite']),
+        ['Ok', 'Back'],
+        width = 60
         )
 
-    if rv in ['yes', 'no', None]:
-        answers['preserve-settings'] = rv != 'no'
-        return 1
-    else:
+    if button == 'back':
         return -1
+    else:
+        return 1
 
 def force_backup_screen(answers):
     button = ButtonChoiceWindow(
