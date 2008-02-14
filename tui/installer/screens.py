@@ -173,7 +173,7 @@ def upgrade_settings_warning(answers):
         "Preserve Settings",
         """The configuration of %s cannot be automatically retained. You must re-enter the configuration manually.
 
-WARNING: You must use the current values. Failure to do so may result in an incorrect installation of the product.""" % str(answers['installation-to-overwrite']),
+Warning: You must use the current values. Failure to do so may result in an incorrect installation of the product.""" % str(answers['installation-to-overwrite']),
         ['Ok', 'Back'],
         width = 60
         )
