@@ -14,6 +14,7 @@ import os
 
 import diskutil
 import util
+import netutil
 import constants
 import version
 import re
@@ -166,9 +167,7 @@ class ExistingInstallation(object):
     
     def readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
-        versions_with_settings = [XENSERVER_3_2_0, XENSERVER_4_0_1]
-
-        if not self.version in versions_with_settings:
+        if self.version < XENSERVER_4_0_1:
             raise SettingsNotAvailable
         
         mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
@@ -262,14 +261,20 @@ class ExistingInstallation(object):
                 devcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False, assert_quotes = False)
                 if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
                     brcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False, assert_quotes = False)
-                    results['net-admin-interface'] = devcfg['DEVICE']
+                    try:
+                        results['net-admin-interface'] = devcfg['DEVICE']
+                    except:
+                        raise SettingsNotAvailable
 
                     # get hardware address if it was recorded, otherwise look it up:
                     if devcfg.has_key('HWADDR'):
                         hwaddr = devcfg['HWADDR']
                     else:
                         # XXX what if it's been renamed out of existence?
-                        hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
+                        try:
+                            hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
+                        except:
+                            raise SettingsNotAvailable
 
                     default = lambda d, k, v: d.has_key(k) and d[k] or v
 

@@ -145,7 +145,7 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
@@ -804,7 +804,7 @@ def setRootPassword(mounts, root_password, pwdtype):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, nethw):
+def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -836,32 +836,48 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
 
     network_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'network.conf')
     # write the master network configuration file; the firstboot script has the
-    # ability to configure multiple interfaces but we only configure one.
+    # ability to configure multiple interfaces but we only configure one.  When
+    # upgrading the script should only modify the admin interface:
     nc = open(network_conf_file, 'w')
     print >>nc, "ADMIN_INTERFACE='%s'" % nethw[admin_iface].hwaddr
-    print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
+    if not preserve_settings:
+        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
+    else:
+        print >>nc, "INTERFACES='%s'" % nethw[admin_iface].hwaddr
     nc.close()
 
     # write a config file for each interface, special-casing the admin
     # interface to have a dom0 configuration.
     for intf in nethw.keys():
-        conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[intf].hwaddr)
-
-        # write out the firstboot network config file for our interface:
-        ac = open(conf_file, 'w')
-        print >>ac, "LABEL='%s'" % intf
-        if intf == admin_iface:
-            if admin_config['use-dhcp']:
-                print >>ac, "MODE=dhcp"
+        # write out the firstboot network config file for our interface (if we're
+        # upgrading we only need to do this for the management interface, the rest
+        # should already be there):
+        if not preserve_settings or intf == admin_iface:
+            # in non-upgrade cases these will be the same, but otherwise the admin_iface
+            # dictionary has the correct value as read from the existing installation.
+            if intf == admin_iface:
+                hwaddr = admin_config['hwaddr']
             else:
-                print >>ac, "MODE=static"
-                print >>ac, "IP=%s" % admin_config['ip']
-                print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
-                print >>ac, "GATEWAY=%s" % admin_config['gateway']
-                if manual_nameservers:
-                    for i in range(len(nameservers)):
-                        print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
+                nethw[intf].hwaddr
+            conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[intf].hwaddr)
+            ac = open(conf_file, 'w')
+            print >>ac, "LABEL='%s'" % intf
+            if intf == admin_iface:
+                if admin_config['use-dhcp']:
+                    print >>ac, "MODE=dhcp"
+                else:
+                    print >>ac, "MODE=static"
+                    print >>ac, "IP=%s" % admin_config['ip']
+                    print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
+                    print >>ac, "GATEWAY=%s" % admin_config['gateway']
+                    if manual_nameservers:
+                        for i in range(len(nameservers)):
+                            print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
+            else:
+                print >>ac, "MODE=none"
+            ac.close()
 
+        if intf == admin_iface:
             # admin interface - write out sysconfig files so that bringup on
             # slaves works and they can talk to the master:
             bridge = "xenbr%s" % intf[3:]
@@ -902,9 +918,6 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
                     if dot != -1:
                         print >>sysconf_bridge_fd, "DOMAIN=%s" % hostname[dot+1:]
             sysconf_bridge_fd.close()
-        else:
-            print >>ac, "MODE=none"
-        ac.close()
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
