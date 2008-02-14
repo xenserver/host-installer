@@ -499,7 +499,7 @@ class URLAccessor(Accessor):
         else:
             self.baseAddress = baseAddress
 
-        xelogging.log("Initialising URLRepositoryAccessor with base address %s" % self.baseAddress)
+        xelogging.log("Initializing URLRepositoryAccessor with base address %s" % self.baseAddress)
 
     def _url_concat(url1, end):
         assert url1.endswith('/')

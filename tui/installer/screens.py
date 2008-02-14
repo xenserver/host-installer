@@ -286,7 +286,7 @@ def confirm_erase_volume_groups(answers):
 ) = range(5)
 
 def check_repo_def(definition, require_base_repo):
-    """ Check that the repository source defintiion gives access to suitable
+    """ Check that the repository source definition gives access to suitable
     repositories. """
     try:
         repos = repository.repositoriesFromDefinition(*definition)
@@ -547,7 +547,7 @@ def interactive_source_verification(media, address):
         else:
             errors = []
             pd = tui.progress.initProgressDialog(
-                "Verifying Installation Source", "Initialising...",
+                "Verifying Installation Source", "Initializing...",
                 len(repos) * 100
                 )
             tui.progress.displayProgressDialog(0, pd)
@@ -1093,7 +1093,7 @@ def set_time(answers, now, show_back_button = False):
         if buttons.buttonPressed(result) == "back":
             return -1
 
-        # first, check they entered something valied:
+        # first, check they entered something valid:
         try:
             datetime.datetime(int(year.value()),
                               int(month.value()),
@@ -1125,7 +1125,7 @@ def installation_complete():
                        "Installation Complete",
                        """The %s installation has completed.
 
-Please remove any local media from the drive, and press enter to reboot.""" % PRODUCT_BRAND,
+Please remove any local media from the drive, and press Enter to reboot.""" % PRODUCT_BRAND,
                        ['Ok'])
 
     return 1

@@ -57,7 +57,7 @@ def exn_error_dialog(logname, with_hd):
         if result == "F2":
             traceback_dialog()
     else:
-        xelogging.log("A text UI error dialog was requested, but the UI has not been initialised yet.")
+        xelogging.log("A text UI error dialog was requested, but the UI has not been initialized yet.")
 
 def traceback_dialog():
     exn_type, exn, tb = sys.exc_info()

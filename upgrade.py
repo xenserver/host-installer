@@ -87,7 +87,7 @@ class SecondGenUpgrader(Upgrader):
 
             pd = self.source.primary_disk
         except KeyError:
-            raise RuntimeError, "Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-invenotry file.  Aborting installation; please replace these keys and try again."
+            raise RuntimeError, "Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-inventory file.  Aborting installation; please replace these keys and try again."
 
         return installID, controlID, pd
 
