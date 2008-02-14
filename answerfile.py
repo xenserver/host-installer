@@ -14,6 +14,7 @@ import util
 import constants
 import product
 import xelogging
+import netutil
 
 import xml.dom.minidom
 
@@ -209,9 +210,37 @@ def parseExistingInstallation(n):
     return results
 
 def parseInterfaces(n):
+    """ Parse the admin-interface element.  This has either name="eth0" or
+    hwaddr="x:y:z.." to identify the interface to use, then an IP configuration
+    which is either proto="dhcp" or proto="static" ip="..." subnet-mask="..."
+    gateway="..."."""
+
     results = {}
     netifnode = n.getElementsByTagName('admin-interface')[0]
-    results['net-admin-interface'] = netifnode.getAttribute('name')
+
+    # allow interfaces to be specified by either hardware address or name - find
+    # out the value to both variables:
+    nethw = netutil.scanConfiguration()
+    requested_hwaddr = None
+    requested_name = None
+    if netifnode.getAttribute('name'):
+        requested_name = netifnode.getAttribute('name')
+        if nethw.has_key(requested_name):
+            requested_hwaddr = nethw[requested_name].hwaddr
+        else:
+            raise RuntimeError, "Interface %s not found" % requested_name
+    elif netifnode.getAttribute('hwaddr'):
+        requested_hwaddr = netifnode.getAttribute('hwaddr')
+        # work out which device corresponds to the hwaddr we were given:
+        matching_list = filter(lambda x: x.hwaddr == requested_hwaddr, nethw.values())
+        if len(matching_list) == 1:
+            requested_name = matching_list[0].name
+        else:
+            raise RuntimeError, "%d interfaces matching the MAC specified for the management interface." % (len(matching_list))
+
+    assert requested_name and requested_hwaddr
+    results['net-admin-interface'] = requested_name
+
     proto = netifnode.getAttribute('proto')
     if proto == 'static':
         ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
@@ -223,9 +252,10 @@ def parseInterfaces(n):
                     'ip' : ip,
                     'subnet-mask' : subnetmask,
                     'gateway' : gateway,
-                    'dns' : [dns] }
+                    'dns' : [dns],
+                    'hwaadr': requested_hwaddr }
     elif proto == 'dhcp':
-        results['net-admin-configuration'] = { 'use-dhcp' : True, 'enabled' : True }
+        results['net-admin-configuration'] = { 'use-dhcp': True, 'enabled': True, 'hwaddr': requested_hwaddr}
     return results
 
 def parseSource(n):
