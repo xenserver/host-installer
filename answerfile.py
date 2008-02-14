@@ -246,16 +246,9 @@ def parseInterfaces(n):
         ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
         subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
         gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
-        dns = getText(netifnode.getElementsByTagName('nameserver')[0].childNodes)
-        results['net-admin-configuration'] = { 'use-dhcp' : False ,
-                    'enabled' : True,
-                    'ip' : ip,
-                    'subnet-mask' : subnetmask,
-                    'gateway' : gateway,
-                    'dns' : [dns],
-                    'hwaadr': requested_hwaddr }
+        results['net-admin-configuration'] = netutil.mk_iface_config_static(requested_hwaddr, True, ip, subnetmask, gateway, [])
     elif proto == 'dhcp':
-        results['net-admin-configuration'] = { 'use-dhcp': True, 'enabled': True, 'hwaddr': requested_hwaddr}
+        results['net-admin-configuration'] = netutil.mk_iface_config_dhcp(requested_hwaddr, True)
     return results
 
 def parseSource(n):

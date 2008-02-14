@@ -261,23 +261,27 @@ class ExistingInstallation(object):
             for file in filter(lambda x: x.startswith('ifcfg-eth'), os.listdir(os.path.join(mntpoint, 'etc/sysconfig/network-scripts'))):
                 devcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False, assert_quotes = False)
                 if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
-                    try:
-                        brcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False, assert_quotes = False)
-                        results['net-admin-interface'] = devcfg['DEVICE']
-                        results['net-admin-configuration'] = {'enabled': True}
-                        if brcfg.has_key('IPADDR'):
-                            results['net-admin-configuration']['ip'] = brcfg['IPADDR']
-                            results['net-admin-configuration']['use-dhcp'] = False
-                            if results['manual-nameservers'][0]:
-                                results['net-admin-configuration']['dns'] = results['manual-nameservers'][1]
-                        else:
-                            results['net-admin-configuration']['use-dhcp'] = True
-                        if brcfg.has_key('NETMASK'):
-                            results['net-admin-configuration']['subnet-mask'] = brcfg['NETMASK']
-                        if brcfg.has_key('GATEWAY'):
-                            results['net-admin-configuration']['gateway'] = brcfg['GATEWAY']
-                    except:
-                        pass
+                    brcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False, assert_quotes = False)
+                    results['net-admin-interface'] = devcfg['DEVICE']
+
+                    # get hardware address if it was recorded, otherwise look it up:
+                    if devcfg.has_key('HWADDR'):
+                        hwaddr = devcfg['HWADDR']
+                    else:
+                        # XXX what if it's been renamed out of existence?
+                        hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
+
+                    default = lambda d, k, v: d.has_key(k) and d[k] or v
+
+                    results['net-admin-configuration'] = {'enabled': True}
+                    if brcfg.has_key('BOOTPROTO') and brcfg['BOOTPROTO'] == 'static':
+                        ip = default(brcfg, 'IPADDR', '')
+                        netmask = default(brcfg, 'NETMASK', '')
+                        gateway = default(brcfg, 'GATEWAY', '')
+                        
+                        results['net-admin-configuration'] = netutil.mk_iface_config_static(hwaddr, True, ip, netmask, gateway, [])
+                    else:
+                        results['net-admin-configuration'] = netutil.mk_iface_config_dhcp(hwaddr, True)
                     break
         finally:
             util.umount(mntpoint)

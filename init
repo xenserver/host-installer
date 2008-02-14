@@ -223,14 +223,14 @@ def configureNetworking(ui):
             "Attempting to configure networking..."
             )
 
-    interfaces = netutil.getNetifList()
+    nethw = netutil.scanConfiguration()
     netcfg = {}
-    for i in interfaces:
-        netcfg[i] = { 'use-dhcp': True , 'enabled': True }
+    for i in nethw.keys():
+        netcfg[i] = netutil.mk_iface_config_dhcp(nethw[i].hwaddr, True)
 
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
 
-    for i in interfaces:
+    for i in nethw.keys():
         netutil.ifup(i)
 
     if ui:

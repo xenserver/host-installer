@@ -37,6 +37,22 @@ def getNetifList():
     relevant.sort()
     return relevant
 
+def mk_iface_config_dhcp(hwaddr, enabled):
+    """ Make an interface configuration dictionary for DHCP. """
+    return {'use-dhcp': True, 'hwaddr': hwaddr, 'enabled': enabled}
+
+def mk_iface_config_static(hwaddr, enabled, ip, subnet_mask, gateway, dns):
+    """ Make an interface configuration dictionary for a static IP config."""
+    return {
+        'use-dhcp': False,
+        'hwaddr': hwaddr,
+        'enabled': enabled,
+        'ip': ip,
+        'dns': dns,
+        'subnet-mask': subnet_mask,
+        'gateway': gateway
+        }
+
 # writes an 'interfaces' style file given a network configuration dictionary
 # in the 'results' style format
 def writeDebStyleInterfaceFile(configuration, filename):

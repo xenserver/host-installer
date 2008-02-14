@@ -125,12 +125,11 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
             tui.screen.popWindow()
 
     if buttons.buttonPressed(result) in ['ok', None]:
-        answers = {'use-dhcp': bool(dhcp_rb.selected()),
-                   'enabled': True,
-                   'ip': ip_field.value(),
-                   'subnet-mask': subnet_field.value(),
-                   'gateway': gateway_field.value(),
-                   'dns': [dns_field.value()] }
+        if bool(dhcp_rb.selected()):
+            answers = netutil.mk_iface_config_dhcp(nic.hwaddr, True)
+        else:
+            answers = netutil.mk_iface_config_static(nic.hwaddr, True, ip_field.value(),
+                subnet_field.value(), gateway_field.value(), [dns_field.value()])
         return 1, answers
     elif buttons.buttonPressed(result) == 'back':
         return -1, None
