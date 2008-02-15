@@ -157,8 +157,7 @@ def get_installation_type(answers, insts):
         else:
             answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
             answers['installation-to-overwrite'], preservable = entry
-            if not preservable:
-                answers['preserve-settings'] = False
+            answers['preserve-settings'] = preservable
 
             for k in ['guest-disks', 'primary-disk', 'default-sr-uuid']:
                 if answers.has_key(k):
