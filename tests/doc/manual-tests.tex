@@ -32,10 +32,8 @@ it is not displayed.
 \end{testcase}
 
 \begin{testcase}
-If you saw the networking configuration dialog as a result of choosing
-HTTP or NFS as an installation source, then the values you entered should
-be presented as the defaults on the network settings screen
-(i.e.\ when configuring networking for the host).
+If the system has multiple network interfaces a dialog requiring you
+to select an interface is displayed -- otherwise, it is not displayed.
 \end{testcase}
 
 \begin{testcase}
@@ -229,7 +227,7 @@ dialog appears warning you but not preventing you from continuing.
 
 \begin{testcase}
 On a multi-disk host, the wording for the ``Confirm Installation''
-scren is appropriate.
+screen is appropriate.
 \end{testcase}
 
 The above can be tested without running through the entire installer.
@@ -374,8 +372,8 @@ answer-file
 \item NFS
 \end{enumerate}
 \end{testcase}
-Note that you can specify these by using 'url', and 'nfs' as
-the 'source-media' value in your answer-file.
+Note that you can specify these by using `url', and `nfs' as
+the `source-media' value in your answer-file.
 
 \begin{testcase}
 Sources are correctly identified when using a remote installation
@@ -422,6 +420,21 @@ option:
 \item The package is listed without Python class names or syntax
 (i.e.\ in a sentential form).
 \end{enumerate}
+\end{testcase}
+
+\section{Static network configuration}
+
+\begin{testcase}
+During a network install (HTTP or NFS) select the ``Static
+configuration'' option and enter values for the fields below. Enter a
+hostname in the URL field on the ``Specify Repository'' screen and
+ensure the repository is located successfully.
+\end{testcase}
+
+\begin{testcase}
+On the ``Networking'' screen confirm that the ``Static configuration'' is
+selected by default and the previously entered values are present in
+the fields.
 \end{testcase}
 
 \section{Re-install over existing product}
