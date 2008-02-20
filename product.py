@@ -279,7 +279,7 @@ class ExistingInstallation(object):
                     default = lambda d, k, v: d.has_key(k) and d[k] or v
 
                     results['net-admin-configuration'] = {'enabled': True}
-                    if brcfg.has_key('BOOTPROTO') and brcfg['BOOTPROTO'] == 'static':
+                    if (not brcfg.has_key('BOOTPROTO')) or brcfg['BOOTPROTO'] != 'dhcp':
                         ip = default(brcfg, 'IPADDR', '')
                         netmask = default(brcfg, 'NETMASK', '')
                         gateway = default(brcfg, 'GATEWAY', '')
