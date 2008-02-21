@@ -174,24 +174,25 @@ def select_sr(answers):
 
     list_srs = []
     for sr in srs.values():
-        if 'VDI_CREATE' in sms[sr['type']]['capabilities']:
-            hostname=None
-            if sr.has_key('other_config') and sr['other_config'].has_key('i18n-key') and sr['other_config']['i18n-key'] == 'local-storage' and sr.has_key('PBDs'):
-                for pbd in sr['PBDs']:
-                    rc = server.PBD.get_record(session, pbd)
-                    assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (sesson, pbd)
-                    h = rc['Value']['host']
-                    rc = server.host.get_name_label(session, h)
-                    assert rc['Status'] == 'Success', "Failure calling server.host.get_name_label(%s, %s)" % (sesson, h)
-                    hostname = rc['Value']
-                    break
-
+        if 'VDI_CREATE' in sms[sr['type']]['capabilities'] and sr.has_key('PBDs') and len(sr['PBDs']) != 0:
             if sr['name_label'] != "":
                 name = sr['name_label']
             else:
                 name = sr['uuid']
-            if hostname:
-                name += " on %s" % hostname
+
+            if sr.has_key('name_description') and sr['name_description'] != '':
+                name += " (%s)" % sr['name_description']
+            elif name == 'Local storage':
+                for pbd in sr['PBDs']:
+                    rc = server.PBD.get_record(session, pbd)
+                    assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (sesson, pbd)
+                    xelogging.log(rc['Value'])
+                    h = rc['Value']['host']
+                    rc = server.host.get_name_label(session, h)
+                    assert rc['Status'] == 'Success', "Failure calling server.host.get_name_label(%s, %s)" % (sesson, h)
+                    name += " on %s" % rc['Value']
+                    break
+
             item = (name, sr['uuid'])
             list_srs.append(item)
 
