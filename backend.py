@@ -44,7 +44,7 @@ class Task:
     Represents an install step.
     'fn'   is the function to execute
     'args' is a list of value labels identifying arguments to the function,
-    'retursn' is a list of the labels of the return values, or a function
+    'returns' is a list of the labels of the return values, or a function
            that, when given the 'args' labels list, returns the list of the
            labels of the return values.
     """
@@ -91,7 +91,7 @@ class Task:
 # convenience functions
 # A: For each label in params, gives an arg function that evaluates
 #    the labels when the function is called (late-binding)
-# As: As above but evaulated immediately (early-binding)
+# As: As above but evaluated immediately (early-binding)
 # Use A when you require state values as well as the initial input values
 A = lambda ans, *params: ( lambda a: [a[param] for param in params] )
 As = lambda ans, *params: ( lambda _: [ans[param] for param in params] )
