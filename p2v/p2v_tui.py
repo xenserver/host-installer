@@ -53,14 +53,21 @@ def get_target(answers):
     t = TextboxReflowed(40, "Which %s host would you like to save your %s to?" % (PRODUCT_BRAND, BRAND_GUEST))
     e_host = Entry(25)
     e_user = Entry(25)
-    e_pw = Entry (25, password=1)
+    e_pw = Entry(25, password=1)
+
+    if answers.has_key('target-host-name'):
+        e_host.set(answers['target-host-name'])
+    if answers.has_key('target-host-user'):
+        e_user.set(answers['target-host-user'])
+    if answers.has_key('target-host-password'):
+        e_pw.set(answers['target-host-password'])
 
     entries = Grid(2, 3)
-    entries.setField(Textbox(10, 1, "Host"), 0, 0)
+    entries.setField(Textbox(11, 1, "Host:"), 0, 0)
     entries.setField(e_host, 1, 0)
-    entries.setField(Textbox(10, 1, "User"), 0, 1)
+    entries.setField(Textbox(11, 1, "User:"), 0, 1)
     entries.setField(e_user, 1, 1)
-    entries.setField(Textbox(10, 1, "Password"), 0, 2)
+    entries.setField(Textbox(11, 1, "Password:"), 0, 2)
     entries.setField(e_pw, 1, 2)
 
     gf = GridFormHelp(tui.screen, 'Target Host', None, 1, 3)
@@ -174,24 +181,24 @@ def select_sr(answers):
 
     list_srs = []
     for sr in srs.values():
-        if 'VDI_CREATE' in sms[sr['type']]['capabilities']:
-            hostname=None
-            if sr.has_key('other_config') and sr['other_config'].has_key('i18n-key') and sr['other_config']['i18n-key'] == 'local-storage' and sr.has_key('PBDs'):
+        if 'VDI_CREATE' in sms[sr['type']]['capabilities'] and sr.has_key('PBDs') and len(sr['PBDs']) != 0:
+            if sr['name_label'] != "":
+                name = sr['name_label']
+            else:
+                name = sr['uuid']
+
+            if sr.has_key('name_description') and sr['name_description'] != '':
+                name += " (%s)" % sr['name_description']
+            elif name == 'Local storage':
                 for pbd in sr['PBDs']:
                     rc = server.PBD.get_record(session, pbd)
                     assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (sesson, pbd)
                     h = rc['Value']['host']
                     rc = server.host.get_name_label(session, h)
                     assert rc['Status'] == 'Success', "Failure calling server.host.get_name_label(%s, %s)" % (sesson, h)
-                    hostname = rc['Value']
+                    name += " on %s" % rc['Value']
                     break
 
-            if sr['name_label'] != "":
-                name = sr['name_label']
-            else:
-                name = sr['uuid']
-            if hostname:
-                name += " on %s" % hostname
             item = (name, sr['uuid'])
             list_srs.append(item)
 

@@ -261,7 +261,7 @@ def confirm_erase_volume_groups(answers):
         affected = "The volume groups affected are %s.  Are you sure you wish to continue?" % generalui.makeHumanList(problems)
 
     button = ButtonChoiceWindow(tui.screen,
-                                "Conflicting LVM Volume Gruops",
+                                "Conflicting LVM Volume Groups",
                                 """Some or all of the disks you selected to install %s onto contain parts of LVM volume groups.  Proceeding with the installation will cause these volume groups to be deleted.
 
 %s""" % (PRODUCT_BRAND, affected),
@@ -298,7 +298,7 @@ def check_repo_def(definition, require_base_repo):
     return REPOCHK_NO_ERRORS
 
 def interactive_check_repo_def(defintiion, require_base_repo):
-    """ Check repo defintiion and display an appropriate dialog based
+    """ Check repo definition and display an appropriate dialog based
     on outcome.  Returns boolean indicating whether to continue with
     the definition given or not. """
 

@@ -139,10 +139,38 @@ def rio_p2v(answers, use_tui = True):
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to provision VM."
 
-    xelogging.log("Starting P2V server")
-    rc = xapi.VM.start(session, guest_ref, False, False)
-    if rc['Status'] != 'Success':
-        raise RuntimeError, "Unable to start the guest."
+    # CA-11262: select an appropriate host to start the VM on
+    server = xmlrpclib.Server(answers['target-host-name'])
+    rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
+    assert rc['Status'] == 'Success', "Failure logging in to server that previously worked."
+    session = rc['Value']
+
+    rc = server.SR.get_by_uuid(session, answers['target-sr'])
+    assert rc['Status'] == 'Success', "Failure calling server.SR.get_by_uuid(%s, %s)" % (session, answers['target-sr'])
+    srid = rc['Value']
+    rc = server.SR.get_record(session, srid)
+    assert rc['Status'] == 'Success', "Failure calling server.SR.get_record(%s, %s)" % (session, srid)
+    sr = rc['Value']
+
+    if sr.has_key('PBDs'):
+        for pbd in sr['PBDs']:
+            rc = server.PBD.get_record(session, pbd)
+            assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (session, pbd)
+            pr = rc['Value']
+            if pr['currently_attached']:
+                host = pr['host']
+                rc = server.VM.assert_can_boot_here(session, guest_ref, host)
+                if rc['Status'] == 'Success':
+                    xelogging.log("Starting P2V server on %s" % host)
+                    rc = xapi.VM.start_on(session, guest_ref, host, False, False)
+                    if rc['Status'] == 'Success':
+                        break
+                else:
+                    xelogging.log("Cannot start P2V server on %s" % host)
+        else:
+            raise RuntimeError, "Unable to find suitable host to start the guest."
+    else:
+        raise RuntimeError, "Unable to find suitable host to start the guest."
 
     rc = xapi.VM.get_uuid(session, guest_ref)
     if rc['Status'] != 'Success':
