@@ -839,11 +839,11 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
     # ability to configure multiple interfaces but we only configure one.  When
     # upgrading the script should only modify the admin interface:
     nc = open(network_conf_file, 'w')
-    print >>nc, "ADMIN_INTERFACE='%s'" % nethw[admin_iface].hwaddr
+    print >>nc, "ADMIN_INTERFACE='%s'" % admin_config['hwaddr']
     if not preserve_settings:
         print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
     else:
-        print >>nc, "INTERFACES='%s'" % nethw[admin_iface].hwaddr
+        print >>nc, "INTERFACES='%s'" % admin_config['hwaddr']
     nc.close()
 
     # write a config file for each interface, special-casing the admin
@@ -853,13 +853,13 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
         # upgrading we only need to do this for the management interface, the rest
         # should already be there):
         if not preserve_settings or intf == admin_iface:
-            # in non-upgrade cases these will be the same, but otherwise the admin_iface
+            # XXX in non-upgrade cases these will be the same, but otherwise the admin_iface
             # dictionary has the correct value as read from the existing installation.
             if intf == admin_iface:
                 hwaddr = admin_config['hwaddr']
             else:
-                nethw[intf].hwaddr
-            conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % nethw[intf].hwaddr)
+                hwaddr = nethw[intf].hwaddr
+            conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
             ac = open(conf_file, 'w')
             print >>ac, "LABEL='%s'" % intf
             if intf == admin_iface:
@@ -888,7 +888,7 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
             print >>sysconf_intf_fd, "DEVICE=%s" % admin_iface
             print >>sysconf_intf_fd, "ONBOOT=no"
             print >>sysconf_intf_fd, "TYPE=Ethernet"
-            print >>sysconf_intf_fd, "HWADDR=%s" % nethw[intf].hwaddr
+            print >>sysconf_intf_fd, "HWADDR=%s" % hwaddr
             print >>sysconf_intf_fd, "BRIDGE=%s" % bridge
             sysconf_intf_fd.close()
 
