@@ -738,123 +738,123 @@ def get_name_service_configuration(answers):
         for entry in [ns1_entry, ns2_entry, ns3_entry]:
             entry.setFlags(FLAG_DISABLED, enabled)
 
-    done = False
-    while not done:
-        # HOSTNAME:
-        hn_title = Textbox(len("Hostname Configuration"), 1, "Hostname Configuration")
-
-        # the hostname radio group:
-        if not answers.has_key('manual-hostname'):
-            # no current value set - if we currently have a useful hostname,
-            # use that, else make up a random one:
-            current_hn = socket.gethostname()
-            if current_hn in [None, '', '(none)', 'localhost', 'localhost.localdomain']:
-                answers['manual-hostname'] = True, util.mkRandomHostname()
-            else:
-                answers['manual-hostname'] = True, current_hn
-        use_manual_hostname, manual_hostname = answers['manual-hostname']
-        if manual_hostname == None:
-            manual_hostname = ""
+    # HOSTNAME:
+    hn_title = Textbox(len("Hostname Configuration"), 1, "Hostname Configuration")
+    
+    # the hostname radio group:
+    if not answers.has_key('manual-hostname'):
+        # no current value set - if we currently have a useful hostname,
+        # use that, else make up a random one:
+        current_hn = socket.gethostname()
+        if current_hn in [None, '', '(none)', 'localhost', 'localhost.localdomain']:
+            answers['manual-hostname'] = True, util.mkRandomHostname()
+        else:
+            answers['manual-hostname'] = True, current_hn
+    use_manual_hostname, manual_hostname = answers['manual-hostname']
+    if manual_hostname == None:
+        manual_hostname = ""
         
-        hn_rbgroup = RadioGroup()
-        hn_dhcp_rb = hn_rbgroup.add("Automatically set via DHCP", "hn_dhcp", not use_manual_hostname)
-        hn_dhcp_rb.setCallback(hn_callback, data = (False,))
-        hn_manual_rb = hn_rbgroup.add("Manually specify:", "hn_manual", use_manual_hostname)
-        hn_manual_rb.setCallback(hn_callback, data = (True,))
+    hn_rbgroup = RadioGroup()
+    hn_dhcp_rb = hn_rbgroup.add("Automatically set via DHCP", "hn_dhcp", not use_manual_hostname)
+    hn_dhcp_rb.setCallback(hn_callback, data = (False,))
+    hn_manual_rb = hn_rbgroup.add("Manually specify:", "hn_manual", use_manual_hostname)
+    hn_manual_rb.setCallback(hn_callback, data = (True,))
 
-        # the hostname text box:
-        hostname = Entry(42, text = manual_hostname)
-        hostname.setFlags(FLAG_DISABLED, use_manual_hostname)
-        hostname_grid = Grid(2, 1)
-        hostname_grid.setField(Textbox(4, 1, ""), 0, 0) # spacer
-        hostname_grid.setField(hostname, 1, 0)
+    # the hostname text box:
+    hostname = Entry(42, text = manual_hostname)
+    hostname.setFlags(FLAG_DISABLED, use_manual_hostname)
+    hostname_grid = Grid(2, 1)
+    hostname_grid.setField(Textbox(4, 1, ""), 0, 0) # spacer
+    hostname_grid.setField(hostname, 1, 0)
 
-        # NAMESERVERS:
-        def nsvalue(answers, id):
-            if not answers.has_key('manual-nameservers'):
-                if not answers.has_key('runtime-iface-configuration'):
-                    return ""
-                # we have a runtime interface configuration; check to see if there is
-                # configuration for the interface we're currently trying to configure.
-                # If so, use it to get default values; we're being super careful to
-                # check bounds, etc. here.  answers['runtime-iface-configuration'] is 
-                # a pair, (all_dhcp, manual_config), where manual_config is a map
-                # of interface name (string) -> network config.
-                ric = answers['runtime-iface-configuration']
-                if len(ric) != 2: # this should never really happen but best to be safe
-                    return ""
-                else:
-                    ric_all_dhcp, ric_manual_config = ric
-                    if ric_manual_config == None or ric_all_dhcp:
-                        return ""
-                    else:
-                        if ric_manual_config.has_key(answers['net-admin-interface']):
-                            ai = ric_manual_config[answers['net-admin-interface']]
-                            if ai.has_key('dns') and id < len(ai['dns']):
-                                return ai['dns'][id]
-                            else:
-                                return ""
-                        else:
-                            return ""
-            (mns, nss) = answers['manual-nameservers']
-            if not mns:
+    # NAMESERVERS:
+    def nsvalue(answers, id):
+        if not answers.has_key('manual-nameservers'):
+            if not answers.has_key('runtime-iface-configuration'):
+                return ""
+            # we have a runtime interface configuration; check to see if there is
+            # configuration for the interface we're currently trying to configure.
+            # If so, use it to get default values; we're being super careful to
+            # check bounds, etc. here.  answers['runtime-iface-configuration'] is 
+            # a pair, (all_dhcp, manual_config), where manual_config is a map
+            # of interface name (string) -> network config.
+            ric = answers['runtime-iface-configuration']
+            if len(ric) != 2: # this should never really happen but best to be safe
                 return ""
             else:
-                return nss[id]
+                ric_all_dhcp, ric_manual_config = ric
+                if ric_manual_config == None or ric_all_dhcp:
+                    return ""
+                else:
+                    if ric_manual_config.has_key(answers['net-admin-interface']):
+                        ai = ric_manual_config[answers['net-admin-interface']]
+                        if ai.has_key('dns') and id < len(ai['dns']):
+                            return ai['dns'][id]
+                        else:
+                            return ""
+                    else:
+                        return ""
+        (mns, nss) = answers['manual-nameservers']
+        if not mns or id >= len(nss):
+            return ""
+        else:
+            return nss[id]
 
-        ns_title = Textbox(len("DNS Configuration"), 1, "DNS Configuration")
+    ns_title = Textbox(len("DNS Configuration"), 1, "DNS Configuration")
 
-        # Name server radio group
-        ns_rbgroup = RadioGroup()
-        ns_dhcp_rb = ns_rbgroup.add("Automatically set via DHCP", "ns_dhcp",
-                                    nsvalue(answers, 0) == "")
-        ns_dhcp_rb.setCallback(ns_callback, (False,))
-        ns_manual_rb = ns_rbgroup.add("Manually specify:", "ns_dhcp",
-                                    nsvalue(answers, 0) != "")
-        ns_manual_rb.setCallback(ns_callback, (True,))
+    # Name server radio group
+    ns_rbgroup = RadioGroup()
+    ns_dhcp_rb = ns_rbgroup.add("Automatically set via DHCP", "ns_dhcp",
+                                nsvalue(answers, 0) == "")
+    ns_dhcp_rb.setCallback(ns_callback, (False,))
+    ns_manual_rb = ns_rbgroup.add("Manually specify:", "ns_dhcp",
+                                  nsvalue(answers, 0) != "")
+    ns_manual_rb.setCallback(ns_callback, (True,))
 
-        # Name server text boxes
-        ns1_text = Textbox(15, 1, "DNS Server 1:")
-        ns1_entry = Entry(30, nsvalue(answers, 0))
-        ns1_grid = Grid(2, 1)
-        ns1_grid.setField(ns1_text, 0, 0)
-        ns1_grid.setField(ns1_entry, 1, 0)
+    # Name server text boxes
+    ns1_text = Textbox(15, 1, "DNS Server 1:")
+    ns1_entry = Entry(30, nsvalue(answers, 0))
+    ns1_grid = Grid(2, 1)
+    ns1_grid.setField(ns1_text, 0, 0)
+    ns1_grid.setField(ns1_entry, 1, 0)
     
-        ns2_text = Textbox(15, 1, "DNS Server 2:")
-        ns2_entry = Entry(30, nsvalue(answers, 1))
-        ns2_grid = Grid(2, 1)
-        ns2_grid.setField(ns2_text, 0, 0)
-        ns2_grid.setField(ns2_entry, 1, 0)
+    ns2_text = Textbox(15, 1, "DNS Server 2:")
+    ns2_entry = Entry(30, nsvalue(answers, 1))
+    ns2_grid = Grid(2, 1)
+    ns2_grid.setField(ns2_text, 0, 0)
+    ns2_grid.setField(ns2_entry, 1, 0)
 
-        ns3_text = Textbox(15, 1, "DNS Server 3:")
-        ns3_entry = Entry(30, nsvalue(answers, 2))
-        ns3_grid = Grid(2, 1)
-        ns3_grid.setField(ns3_text, 0, 0)
-        ns3_grid.setField(ns3_entry, 1, 0)
+    ns3_text = Textbox(15, 1, "DNS Server 3:")
+    ns3_entry = Entry(30, nsvalue(answers, 2))
+    ns3_grid = Grid(2, 1)
+    ns3_grid.setField(ns3_text, 0, 0)
+    ns3_grid.setField(ns3_entry, 1, 0)
 
-        if nsvalue(answers, 0) == "":
-            for entry in [ns1_entry, ns2_entry, ns3_entry]:
-                entry.setFlags(FLAG_DISABLED, False)
+    if nsvalue(answers, 0) == "":
+        for entry in [ns1_entry, ns2_entry, ns3_entry]:
+            entry.setFlags(FLAG_DISABLED, False)
 
-        buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
+    buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
 
-        # The form itself:
-        gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', None, 1, 11)
-        gf.add(hn_title, 0, 0, padding = (0,0,0,0))
-        gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
-        gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
-        gf.add(hostname_grid, 0, 3, padding = (0,0,0,1), anchorLeft = True)
-        
-        gf.add(ns_title, 0, 4, padding = (0,0,0,0))
-        gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
-        gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
-        gf.add(ns1_grid, 0, 7)
-        gf.add(ns2_grid, 0, 8)
-        gf.add(ns3_grid, 0, 9, padding = (0,0,0,1))
+    # The form itself:
+    gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', None, 1, 11)
+    gf.add(hn_title, 0, 0, padding = (0,0,0,0))
+    gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
+    gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
+    gf.add(hostname_grid, 0, 3, padding = (0,0,0,1), anchorLeft = True)
     
-        gf.add(buttons, 0, 10)
+    gf.add(ns_title, 0, 4, padding = (0,0,0,0))
+    gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
+    gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
+    gf.add(ns1_grid, 0, 7)
+    gf.add(ns2_grid, 0, 8)
+    gf.add(ns3_grid, 0, 9, padding = (0,0,0,1))
+    
+    gf.add(buttons, 0, 10)
 
-        result = gf.runOnce()
+    done = False
+    while not done:
+        result = gf.run()
 
         if buttons.buttonPressed(result) == 'back':
             done = True
@@ -870,8 +870,8 @@ def get_name_service_configuration(answers):
                 answers['manual-nameservers'] = (True, [ns1_entry.value()])
                 if ns2_entry.value() != '':
                     answers['manual-nameservers'][1].append(ns2_entry.value())
-                if ns3_entry.value() != '':
-                    answers['manual-nameservers'][1].append(ns3_entry.value())
+                    if ns3_entry.value() != '':
+                        answers['manual-nameservers'][1].append(ns3_entry.value())
             else:
                 answers['manual-nameservers'] = (False, None)
             
@@ -885,6 +885,7 @@ def get_name_service_configuration(answers):
                                        "Name Service Configuration",
                                        "The hostname you entered was not valid.",
                                        ["Back"])
+                    continue
             if ns_manual_rb.selected():
                 if not netutil.valid_ip_addr(ns1_entry.value()) or \
                    (ns2_entry.value() != '' and not netutil.valid_ip_addr(ns2_entry.value())) or \
@@ -895,6 +896,7 @@ def get_name_service_configuration(answers):
                                        "Please check that you have entered at least one nameserver, and that the nameservers you specified are valid.",
                                        ["Back"])
 
+    tui.screen.popWindow()
     if buttons.buttonPressed(result) in [None, "ok"]:
         return 1
     else:
