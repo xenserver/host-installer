@@ -17,6 +17,7 @@ import os
 import os.path
 from getopt import getopt, GetoptError
 import shutil
+import termios
 import time
 
 # user interface:
@@ -476,6 +477,12 @@ def main():
     return True
 
 if __name__ == "__main__":
+    # CA-15165: disconnect Ctrl-C from SIGINT
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    old[6][termios.VINTR] = 0
+    termios.tcsetattr(fd, termios.TCSANOW, old)
+
     reboot = main()
     if reboot == True:
         os.system("reboot")
