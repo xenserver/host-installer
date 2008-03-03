@@ -104,7 +104,7 @@ def get_driver_source(answers):
     if entry == 'local':
         answers['source-address'] = ''
 
-    if result in ['Ok', None]: return 1
+    if result in ['ok', None]: return 1
     if result == 'back': return -1
 
 def get_driver_source_location(answers):
