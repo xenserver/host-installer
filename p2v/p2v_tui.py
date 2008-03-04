@@ -102,7 +102,7 @@ def get_target(answers):
             continue
 
         # check we can connect to the server:
-        if not host.startswith('https://') or not host.startswith('http://'):
+        if not host.startswith('https://') and not host.startswith('http://'):
             host = "https://" + host
         msg = ''
         try:
