@@ -76,11 +76,13 @@ def get_target(answers):
     gf.add(bb, 0, 2)
 
     loop = True
+    ret = 1
     while loop:
         result = gf.run()
 
         if bb.buttonPressed(result) == 'back':
-            return -1
+            ret = -1
+            break
 
         # CA-6614: validate input and clearer error reporting
         host = e_host.value()
@@ -145,7 +147,7 @@ def get_target(answers):
                 )
 
     tui.screen.popWindow()
-    return 1
+    return ret
 
 # select storage repository:
 # TODO better error checking.
