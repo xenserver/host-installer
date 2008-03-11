@@ -21,6 +21,7 @@ import diskutil
 import util
 import constants
 import xelogging
+import backend
 
 class UpgraderNotAvailable(Exception):
     pass
@@ -94,7 +95,7 @@ class SecondGenUpgrader(Upgrader):
     completeUpgradeArgs = ['mounts']
     def completeUpgrade(self, mounts):
         xelogging.log("Restoring preserved files")
-        backup_volume = self.source.getInventoryValue("BACKUP_PARTITION")
+        backup_volume = backend.getBackupPartName(self.source.primary_disk)
         tds = None
         try:
             tds = tempfile.mkdtemp(dir = "/tmp", prefix = "upgrade-src-")
