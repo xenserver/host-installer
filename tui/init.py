@@ -136,8 +136,16 @@ def get_driver_source_location(answers):
 
 def confirm_load_drivers(answers):
     # find drivers:
-    repos = repository.repositoriesFromDefinition(
-        answers['source-media'], answers['source-address'])
+    try:
+        repos = repository.repositoriesFromDefinition(
+            answers['source-media'], answers['source-address'])
+    except:
+        ButtonChoiceWindow(
+            tui.screen, "Error",
+            """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
+            ['Back'])
+        return -1
+        
     drivers = []
 
     for r in repos:
