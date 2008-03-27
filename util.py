@@ -216,3 +216,20 @@ def mkRandomHostname():
     """ Generate a random hostname of the form xenserver-AAAAAAAA """
     s = "".join([random.choice(string.ascii_lowercase) for x in range(8)])
     return "xenserver-%s" % s
+
+def splitNetloc(netloc):
+    hostname = netloc
+    username = None
+    password = None
+        
+    if "@" in netloc:
+        userinfo = netloc.split("@", 1)[0]
+        hostname = netloc.split("@", 1)[1]
+        if ":" in userinfo:
+            (username, password) = userinfo.split(":")
+        else:
+            username = userinfo
+    if ":" in hostname:
+        hostname = hostname.split(":", 1)[0]
+        
+    return (hostname, username, password)

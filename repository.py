@@ -482,7 +482,7 @@ class URLAccessor(Accessor):
 
         if baseAddress.startswith('http://'):
             (scheme, netloc, path, params, query) = urlparse.urlsplit(baseAddress)
-            (hostname, username, password) = self._split_netloc(netloc)
+            (hostname, username, password) = util.splitNetloc(netloc)
             if username != None:
                 xelogging.log("Using basic HTTP authentication: %s %s" % (username, password))
                 self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
@@ -506,24 +506,6 @@ class URLAccessor(Accessor):
         end = end.lstrip('/')
         return url1 + end
     _url_concat = staticmethod(_url_concat)
-
-    def _split_netloc(netloc):
-        hostname = netloc
-        username = None
-        password = None
-        
-        if "@" in netloc:
-            userinfo = netloc.split("@", 1)[0]
-            hostname = netloc.split("@", 1)[1]
-            if ":" in userinfo:
-                (username, password) = userinfo.split(":")
-            else:
-                username = userinfo
-        if ":" in hostname:
-            hostname = hostname.split(":", 1)[0]
-
-        return (hostname, username, password)
-    _split_netloc = staticmethod(_split_netloc)
 
     def _url_decode(url):
         start = 0
@@ -554,7 +536,7 @@ class URLAccessor(Accessor):
         # to be not so good at this.
         try:
             (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
-            (hostname, username, password) = self._split_netloc(netloc)
+            (hostname, username, password) = util.splitNetloc(netloc)
             fname = os.path.basename(path)
             directory = self._url_decode(os.path.dirname(path[1:]))
 
