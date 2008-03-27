@@ -28,6 +28,7 @@ import version
 import product
 import upgrade
 import netutil
+import urlparse
 
 from snack import *
 
@@ -416,6 +417,20 @@ def get_url_location(answers):
     url_text = Textbox(11, 1, "URL:")
     user_text = Textbox(11, 1, "Username:")
     passwd_text = Textbox(11, 1, "Password:")
+
+    if answers.has_key('source-address'):
+        url = answers['source-address']
+        (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
+        (hostname, username, password) = util.splitNetloc(netloc)
+        if username != None:
+            user_field.set(username)
+            if password == None:
+                url_field.set(url.replace('%s@' % username, '', 1))
+            else:
+                passwd_field.set(password)
+                url_field.set(url.replace('%s:%s@' % (username, password), '', 1))
+        else:
+            url_field.set(url)
 
     done = False
     while not done:
