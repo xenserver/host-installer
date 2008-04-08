@@ -125,7 +125,7 @@ def modprobe_file(module, params = "", name = None):
             if not module_present(dep):
                 modprobe(dep)
     
-    xelogging.log("Insertung module %s %s (%s)" %(module, params, name))
+    xelogging.log("Inserting module %s %s (%s)" %(module, params, name))
     rc = util.runCmd2([INSMOD, module, params])
 
     if rc != 0:
