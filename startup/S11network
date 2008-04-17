@@ -1,0 +1,40 @@
+#!/bin/sh
+
+start()
+{
+  local ret
+
+  ifconfig lo 127.0.0.1 up
+  ret=$?
+  if [ $ret -eq 0 ]
+  then
+    route add -net 127.0.0.0 netmask 255.0.0.0 lo
+    ret=$?
+  fi
+
+  return $ret
+}
+
+stop()
+{
+  ifconfig lo down
+}
+
+
+debug=0
+tr ' ' '\n' </proc/cmdline | grep '^debug$' && debug=1
+
+RET=0
+case "$1" in
+  start)
+    start
+    RET=$?;;
+  stop)
+    stop
+    RET=$?;;
+  *)
+    echo "Usage: $0 start|stop"
+    RET=1
+esac
+
+exit $RET

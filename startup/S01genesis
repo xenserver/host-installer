@@ -1,0 +1,37 @@
+#!/bin/sh
+
+debug=0
+
+start()
+{
+  mount -o remount,rw /
+  mount -t proc proc /proc
+  tr ' ' '\n' </proc/cmdline | grep -q '^debug$' && debug=1
+  [ $debug -eq 0 ] && echo 1 >/proc/sys/kernel/printk
+  hwclock --utc --hctosys
+  # FIXME this should be added to the fs image
+  mkdir -p /var/log
+  mkdir -p /tmp/lvm
+  return 0
+}
+
+stop()
+{
+  umount /proc
+}
+
+
+RET=0
+case "$1" in
+  start)
+    start
+    RET=$?;;
+  stop)
+    stop
+    RET=$?;;
+  *)
+    echo "Usage: $0 start|stop"
+    RET=1
+esac
+
+exit $RET
