@@ -26,7 +26,6 @@ import xelogging
 import tui
 import tui.network
 import tui.progress
-from p2v import closeClogs
 import uicontroller
 import xmlrpclib
 import socket
