@@ -19,5 +19,3 @@ OPERATION_REBOOT = -1
     OPERATION_RESTORE,
     OPERATION_P2V,
 ) = range(6)
-
-HW_CONFIG_COMPLETED_STAMP = "/tmp/.hw-config-completed.stamp"
