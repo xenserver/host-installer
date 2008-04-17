@@ -140,7 +140,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -497,14 +497,7 @@ def mkinitrd(mounts):
     initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
     util.runCmd2(["ln", "-sf", initrd_name, "%s/boot/initrd-2.6-xen.img" % mounts['root']])
 
-def using_serial_console():
-    rc, tty = util.runCmd("tty", with_output = True)
-    if rc == 0 and tty.startswith("/dev/ttyS"):
-        return True
-    else: # not tty.startswith("/dev/ttyS") or rc != 0
-        return False
-
-def writeMenuItems(f, fn):
+def writeMenuItems(f, fn, s):
     entries = [
         {
             'label':      "xe",
@@ -513,25 +506,30 @@ def writeMenuItems(f, fn):
                           % constants.DOM0_MEM,
             'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0" % (constants.rootfs_label),
             'initrd':     "/boot/initrd-2.6-xen.img",
-        }, {
+        }
+    ]
+    if s:
+        entries += [{
             'label':      "xe-serial",
             'title':      "%s (Serial)" % PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM " \
-                          % constants.DOM0_MEM \
+            'hypervisor': "/boot/xen.gz %s=%s,%s%s%s console=%s,tty dom0_mem=%dM " \
+                          % (s['port'][1], s['baud'], s['data'], s['parity'], s['stop'], s['port'][1], constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=ttyS0,115200n8" \
-                          % (constants.rootfs_label),
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=%s,%s%s%s" \
+                          % (constants.rootfs_label, s['port'][0], s['baud'], s['parity'], s['data']),
             'initrd':     "/boot/initrd-2.6-xen.img",
         }, {
             'label':      "safe",
             'title':      "%s in Safe Mode" % PRODUCT_BRAND,
             'hypervisor': "/boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic " \
-                          + "dom0_mem=%dM com1=115200,8n1 console=com1,tty" % constants.DOM0_MEM,
+                          + "dom0_mem=%dM %s=%s,%s%s%s console=%s,tty" \
+                          % (constants.DOM0_MEM, s['port'][1], s['baud'], s['data'], s['parity'], s['stop'], s['port'][1]),
             'kernel':     "/boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 " \
                           % constants.rootfs_label \
-                          + "console=ttyS0,115200n8",
+                          + "console=%s,%s%s%s" % (s['port'][0], s['baud'], s['parity'], s['data']),
             'initrd':     "/boot/initrd-2.6-xen.img",
-        }, {
+        }]
+    entries += [{
             'label':      "fallback",
             'title':      "%s (Xen %s / Linux %s)" \
                           % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
@@ -540,23 +538,24 @@ def writeMenuItems(f, fn):
             'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0" \
                           % (version.KERNEL_VERSION, constants.rootfs_label),
             'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
-        }, {
+        }]
+    if s:
+        entries += [{
             'label':      "fallback-serial",
             'title':      "%s (Serial, Xen %s / Linux %s)" \
                           % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
-            'hypervisor': "/boot/xen-%s.gz com1=115200,8n1 console=com1,tty dom0_mem=%dM " \
-                          % (version.XEN_VERSION, constants.DOM0_MEM) \
+            'hypervisor': "/boot/xen-%s.gz %s=%s,%s%s%s console=%s,tty dom0_mem=%dM " \
+                          % (version.XEN_VERSION, s['port'][1], s['baud'], s['data'], s['parity'], s['stop'], s['port'][1], constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=ttyS0,115200n8" \
-                          % (version.KERNEL_VERSION, constants.rootfs_label),
+            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=%s,%s%s%s" \
+                          % (version.KERNEL_VERSION, constants.rootfs_label, s['port'][0], s['baud'], s['parity'], s['data']),
             'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
-        }
-    ]
+        }]
 
     for entry in entries:
          fn(f, entry)
 
-def installBootLoader(mounts, disk, bootloader):
+def installBootLoader(mounts, disk, bootloader, serial):
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
@@ -577,11 +576,36 @@ def installBootLoader(mounts, disk, bootloader):
 
     try:
         if bootloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk)
+            installGrub(mounts, disk, serial)
         elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
-            installExtLinux(mounts, disk)
+            installExtLinux(mounts, disk, serial)
         else:
             raise RuntimeError, "Unknown bootloader."
+
+        if serial:
+            # ensure a getty will run on the serial console
+            init = open("%s/etc/inittab" % mounts['root'], 'r')
+            lines = init.readlines()
+            init.close()
+            for line in lines:
+                if line.find("getty %s " % serial['port'][0]) != -1:
+                    break
+            else:
+                init = open("%s/etc/inittab" % mounts['root'], 'a')
+                label = serial['port'][0][3:].lower()
+                init.write("%s:2345:respawn:/sbin/agetty %s %s %s\n" % (label, serial['port'][0], serial['baud'], serial['term']))
+                init.close()
+
+            sec = open("%s/etc/securetty" % mounts['root'], 'r')
+            lines = sec.readlines()
+            sec.close()
+            for line in lines:
+                if line.strip('\n') == serial['port'][0]:
+                    break
+            else:
+                sec = open("%s/etc/securetty" % mounts['root'], 'a')
+                sec.write("%s\n" % serial['port'][0])
+                sec.close()
     finally:
         # unlink /proc/mounts
         if os.path.exists("%s/proc/mounts" % mounts['root']):
@@ -597,11 +621,11 @@ def writeExtLinuxMenuItem(f, item):
     f.write("\n")
     pass
 
-def installExtLinux(mounts, disk):
+def installExtLinux(mounts, disk, serial):
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
 
-    if using_serial_console():
-        f.write("SERIAL 0 115200\n")
+    if serial:
+        f.write("SERIAL %s %s\n" % (serial['port'][0][4:], serial['baud']))
         f.write("DEFAULT xe-serial\n")
     else:
         f.write("DEFAULT xe\n")
@@ -609,8 +633,8 @@ def installExtLinux(mounts, disk):
     f.write("PROMPT 1\n")
     f.write("TIMEOUT 50\n")
     f.write("\n")
-    
-    writeMenuItems(f, writeExtLinuxMenuItem)
+
+    writeMenuItems(f, writeExtLinuxMenuItem, serial)
     
     f.close()
 
@@ -629,7 +653,7 @@ def writeGrubMenuItem(f, item):
     f.write("   module %s\n" % item['kernel'])
     f.write("   module %s\n\n" % item['initrd'])
 
-def installGrub(mounts, disk):
+def installGrub(mounts, disk, serial):
     grubroot = getGrUBDevice(disk, mounts)
 
     # move the splash screen to a safe location so we don't delete it
@@ -649,8 +673,8 @@ def installGrub(mounts, disk):
     # the menu.lst file later in this function.
     grubconf = ""
 
-    if using_serial_console():
-        grubconf += "serial --unit=0 --speed=115200\n"
+    if serial:
+        grubconf += "serial --unit=%s --speed=%s\n" % (serial['port'][0][4:], serial['baud'])
         grubconf += "terminal --timeout=10 console serial\n"
         grubconf += "default 1\n"
     else:
@@ -673,7 +697,7 @@ def installGrub(mounts, disk):
     util.assertDir("%s/grub" % mounts['boot'])
     menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
     menulst_file.write(grubconf)
-    writeMenuItems(menulst_file, writeGrubMenuItem)
+    writeMenuItems(menulst_file, writeGrubMenuItem, serial)
     menulst_file.close()
 
     # now perform our own installation, onto the MBR of the selected disk:
