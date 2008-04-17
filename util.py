@@ -233,3 +233,20 @@ def splitNetloc(netloc):
         hostname = hostname.split(":", 1)[0]
         
     return (hostname, username, password)
+
+def splitArgs(argsIn):
+    """ Split argument array into dictionary
+
+    [ '--alpha', '--beta=42' ]
+
+    becomes
+
+    { '--alpha': None, '--beta': '42' }"""
+    argsOut = {}
+    for arg in argsIn:
+        eq = arg.find('=')
+        if eq == -1:
+            argsOut[arg] = None
+        else:
+            argsOut[arg[:eq]] = arg[eq+1:]
+    return argsOut    
