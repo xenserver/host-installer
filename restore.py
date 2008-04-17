@@ -23,6 +23,13 @@ import tui.progress
 import constants
 import re
 
+def go(ui):
+    rc = interactiveRestore(ui)
+    if rc == constants.EXIT_ERROR:
+        xelogging.writeLog("/tmp/startup-log")
+        ui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
+    return rc
+
 def interactiveRestore(ui):
     backups = product.findXenSourceBackups()
 

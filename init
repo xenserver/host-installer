@@ -15,10 +15,6 @@ import commands
 import sys
 import os
 import os.path
-from getopt import getopt, GetoptError
-import shutil
-import termios
-import time
 
 # user interface:
 import tui
@@ -26,17 +22,17 @@ import tui.init
 import tui.progress
 import generalui
 
+import install
 import product
-import diskutil
 import init_constants
 import xelogging
 import netutil
 import util
 import hardware
-import repository
-import tempfile
 import restore
 from hardware import module_map
+import driver
+import p2v
 
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
@@ -44,90 +40,6 @@ from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 base_modules = ['sd-mod', 'sr-mod', 'dm-mod', 'ide-cd', 'ide-disk',
                 'ide-generic', 'loop', 'ata_piix', 'rtc', 'reiserfs',
                 'ext3', 'usb-storage']
-
-active_output = 'tty1'
-
-# Exception that is thrown if we detect that the user has
-# tried to use two consoles to perform an installation
-class AlreadyActivated(Exception):
-    pass
-
-# Specify the current console as the one that is to be used
-# for installation - after this is called the user will be
-# given an error message if they try to run the installer on
-# a different console.
-def activateScreen():
-    lock_filename = "/tmp/.install-activated"
-    if os.path.exists(lock_filename):
-        rc, tty = commands.getstatusoutput("/usr/bin/tty")
-        assert rc == 0
-        activefile = open(lock_filename, 'r')
-        active_tty = activefile.readline().strip()
-        activefile.close()
-        if active_tty != tty:
-            raise AlreadyActivated()
-    else:
-        rc, tty = commands.getstatusoutput("/usr/bin/tty")
-        assert rc == 0
-        activefile = open(lock_filename, 'w')
-        activefile.write(tty)
-        activefile.close()
-
-def doInteractiveLoadDriver(ui):
-    rc = ui.init.driver_disk_sequence()
-    if rc:
-        media, address = rc
-        repos = repository.repositoriesFromDefinition(media, address)
-        drivers = []
-
-        # put firmware in place:
-        for r in repos:
-            for p in r:
-                if p.type == 'firmware':
-                    p.provision()
-
-        # now load the drivers:
-        drivers = []
-        driver_repos = []
-        for r in repos:
-            r.accessor().start()
-            repo_has_drivers = False
-            for p in r:
-                if p.type == 'driver':
-                    repo_has_drivers = True
-                    _, driver_file = tempfile.mkstemp(prefix="driver-", dir="/tmp")
-                    p.write(driver_file)
-                    drivers.append( (p.name, driver_file) )
-                elif p.type == 'firmware':
-                    repo_has_drivers = True
-            r.accessor().finish()
-
-            if repo_has_drivers:
-                driver_repos.append(r)
-
-        total_rc = 0
-        _, uname_r = util.runCmd("uname -r", with_output = True)
-        uname_r = uname_r.strip()
-        for name, driver in drivers:
-            if hardware.module_file_uname(driver) == uname_r:
-                rc = hardware.modprobe_file(driver, name = name)
-                total_rc += rc
-            else:
-                xelogging.log("Skipping load of module %s due to non-matching kernel version" % name)
-        if total_rc != 0:
-            ui.OKDialog("Error", "One or more of your drivers failed to load.")
-
-        # stash the repositories we used for pickup later:
-        dr_copies = []
-        for dr in driver_repos:
-            loc = tempfile.mkdtemp(prefix="stashed-repo-", dir="/tmp")
-            dr.accessor().start()
-            dr.copyTo(loc)
-            dr.accessor().finish()
-            dr_copies.append(loc)
-        return dr_copies
-    else:
-        return []
 
 # Use the 'discover' tool to detect hardware and load needed
 # modules;
@@ -203,15 +115,13 @@ def configureHardware(extra_modules, blacklist, ui, interactive):
     
     # if we're in an older (pre udev-091) filesystem, we need
     # to call udevstart as udevd wasn't working correctly:
-    if os.path.exists("/sbin/udevstart"):
-        os.system("udevstart")
+    #if os.path.exists("/sbin/udevstart"):
+    #    os.system("udevstart")
 
     # we should wait for all udev events to complete if we have
     # that capability:
     if os.path.exists("/sbin/udevsettle"):
         os.system("udevsettle --timeout=10")
-
-    assert os.system("touch %s" % init_constants.HW_CONFIG_COMPLETED_STAMP) == 0
 
     if ui:
         ui.progress.clearModelessDialog()
@@ -237,111 +147,39 @@ def configureNetworking(ui):
     if ui:
         ui.progress.clearModelessDialog()
 
-def isPrimaryProcess():
-    """ Returns True if we can expect the user to provide input on the
-    tty that we're currently running on. """
-    rc, my_tty = commands.getstatusoutput("tty")
-    my_tty = os.path.basename(my_tty.strip('\n'))
-    return my_tty == active_output
-
-def splitKernelStyleArgs(cmdline):
-    """ split "a b=c" in /proc/cmdline into [("a", None), ("b","c")]. """
-    cmdline = cmdline.split()
-    rv = []
-    for opt in cmdline:
-        if "=" in opt:
-            _opt, val = opt.split("=", 1)
-            rv.append( (_opt, val) )
-        else:
-            rv.append( (opt, None) )
-    return rv
-
-def main():
-    global active_output
-
+def main(args):
     # switch to ISO 8859-1 mode so line drawing characters work as expected on 
     # vt100 terminals.
     print "\033%@"
 
-    # clog fds: add tty3
-    clog_fds = []
-    try:
-        ttylog = open('/dev/tty3', 'w')
-        clog_fds.append(ttylog)
-        xelogging.continuous_logs.append(ttylog)
-    except:
-        xelogging.log("Error opening tty3 as a log output.")
-
-    # check that proc is mounted:
-    if not os.path.exists("/proc/cmdline"):
-        raise RuntimeError, "/proc was not mounted."
-
-    # disable all kernel printing
-    pk = open('/proc/sys/kernel/printk', 'w')
-    pk.write('1')
-    pk.close()
-
-    # start portmap so NFS mounting works:
-    util.runCmd('portmap')
-
-    # parse options from /proc/cmdline:
-    try:
-        (opts, _) = getopt(sys.argv[1:], "c:", [])
-    except GetoptError:
-        print "Incorrect arguments.  This program may be run with -c to override the value of"
-        print "/proc/cmdline during startup."
-        sys.exit(1)
-
-    cmdline_fd = open("/proc/cmdline", "r")
-    cmdline = cmdline_fd.read().strip()
-    cmdline_fd.close()
-
-    for opt, val in opts:
-        if opt == "-c":
-            cmdline = val
+    # log to tty3
+    xelogging.openLog('/dev/tty3')
 
     operation = None
     ui = tui
     extra_modules = []
     user_blacklist = []
-    answerfile = None
-    verbose_answerfile = None
     interactive_modules = False
     interactive = True
     driver_repos = []
-    extra_args = ''
 
-    opts = splitKernelStyleArgs(cmdline)
-
-    for (opt, val) in opts:
-        if opt == "install":
+    for (opt, val) in args.items():
+        if opt == "--install":
             operation = init_constants.OPERATION_INSTALL
-        if opt == "p2v":
+        elif opt == "--p2v":
             operation = init_constants.OPERATION_P2V
-        if opt == 'interactive-modules':
+        elif opt == '--interactive-modules':
             interactive_modules = True
-        if opt == "answerfile":
-            answerfile = val
+        elif opt == "--answerfile":
             interactive = False
-        if opt == "rt_answerfile":
+        elif opt == "--rt_answerfile":
             interactive = False
             ui = None
-            xelogging.continuous_logs.append(sys.stdout)
-            verbose_answerfile = val
-        if opt == "extramodules":
+            xelogging.openLog(sys.stdout)
+        elif opt == "--extramodules":
             extra_modules = val.split(",")
-        if opt == "blacklist":
+        elif opt == "--blacklist":
             user_blacklist = val.split(",")
-        if opt == "output":
-            active_output = val
-        elif opt == "bootloader":
-            extra_args = ' '.join([extra_args, '--bootloader=%s' % val])
-        elif opt == "install-xen64":
-            extra_args = ' '.join([extra_args, '--install-xen64'])
-        elif opt == "onecd":
-            extra_args = ' '.join([extra_args, '--onecd'])
-
-    xelogging.log("Active output is %s" % active_output)
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -355,38 +193,24 @@ def main():
         ui.init_ui()
 
     # first, configure the hardware, make /etc/network and /lib/firmware, etc.:
-    if isPrimaryProcess():
-        util.assertDir('/lib/firmware')
-        util.assertDir('/var/lib')
-        util.assertDir('/var/run')
-        util.assertDir('/var/lock')
-        configureHardware(extra_modules, user_blacklist,
-                          ui, interactive_modules)
-    else:
-        if ui:
-            ui.progress.showMessageDialog(
-                "Preparing for installation",
-                "Waiting for hardware detection to complete..."
-                )
-        while not os.path.exists(init_constants.HW_CONFIG_COMPLETED_STAMP):
-            time.sleep(1)
-        if ui:
-            ui.progress.clearModelessDialog()
+    util.assertDir('/lib/firmware')
+    util.assertDir('/var/lib')
+    util.assertDir('/var/run')
+    util.assertDir('/var/lock')
+    configureHardware(extra_modules, user_blacklist,
+                      ui, interactive_modules)
 
     # let the user choose what they would like to do:
-    keymap_string = ""
     if interactive:
         # choose keymap
         kmap = ui.init.get_keymap()
-        keymap_string = "--keymap %s" % kmap
+        args['--keymap'] = kmap
         xelogging.log("Loading keymap %s" % kmap)
         util.runCmd2(["/bin/loadkeys", kmap])
 
-        if isPrimaryProcess():
-            xelogging.writeLog("/tmp/startup-log")
+        xelogging.writeLog("/tmp/startup-log")
     else:
-        if isPrimaryProcess():
-            configureNetworking(ui)
+        configureNetworking(ui)
 
     backups = product.findXenSourceBackups()
     try:
@@ -395,67 +219,30 @@ def main():
             if interactive and not operation:
                 operation = ui.init.choose_operation(len(backups) > 0)
 
-            # activate installation on this screen:
-            # this primary process stuff is kinda lame but we'll have to stick
-            # with it for now...:
-            try:
-                if not interactive:
-                    if not isPrimaryProcess():
-                        raise AlreadyActivated
-                else:
-                    activateScreen()
-                    if not isPrimaryProcess():
-                        xelogging.log("WARNING: Operation started on a console different that the one specified as being default on the kernel command-line")
-            except AlreadyActivated:
-                if ui:
-                    ui.init.already_activated()
-                else:
-                    print "Installation started on alternative console %s" % active_output
-                return False
-
             if operation == init_constants.OPERATION_REBOOT:
                 break
 
-            def exit_status_of_rc(rc):
-                if os.WIFEXITED(rc):
-                    return os.WEXITSTATUS(rc)
-                else:
-                    return -1
+            # install/upgrade:
+            elif operation == init_constants.OPERATION_INSTALL:
+                xelogging.log("Starting installation/upgrade")
 
-            # clean install:
-            if operation == init_constants.OPERATION_INSTALL:
-                xelogging.log("Starting clean installation")
-                driver_repo_string = " ".join(["--extrarepo %s" % d for d in driver_repos])
-                if answerfile:
-                    s = os.system("/opt/xensource/installer/clean-installer --answerfile %s --clog /dev/tty3" % answerfile)
-                elif verbose_answerfile:
-                    s = os.system("/opt/xensource/installer/clean-installer --verbose-answerfile %s" % verbose_answerfile)
-                else:
-                    s = os.system("/opt/xensource/installer/clean-installer %s --clog /dev/tty3 %s" % (extra_args, keymap_string))
-                rc = exit_status_of_rc(s)
+                args['--extrarepo'] = driver_repos
+                rc = install.go(ui, args)
 
             # load a driver:
             elif operation == init_constants.OPERATION_LOAD_DRIVER:
-                driver_repos.extend(doInteractiveLoadDriver(ui))
+                driver_repos.extend(driver.doInteractiveLoadDriver(ui))
                 rc = None
 
-            # restore
+            # restore:
             elif operation == init_constants.OPERATION_RESTORE:
-                rc = restore.interactiveRestore(ui)
-                if rc == EXIT_ERROR:
-                    xelogging.writeLog("/tmp/startup-log")
-                    tui.progress.OKDialog("Error restoring from backup", "An error occurred when attempting to restore your backup.  Please consult the logs (available in /tmp) for more details.")
+                xelogging.log("Starting restore")
+                rc = restore.go(ui)
 
             # P2V:
             elif operation == init_constants.OPERATION_P2V:
                 xelogging.log("Starting P2V")
-                if answerfile:
-                    s = os.system("/opt/xensource/installer/p2v.py --answerfile %s --clog /dev/tty3" % answerfile)
-                elif verbose_answerfile:
-                    s = os.system("/opt/xensource/installer/p2v.py --verbose-answerfile %s" % verbose_answerfile)
-                else:
-                    s = os.system("/opt/xensource/installer/p2v.py --clog /dev/tty3")
-                rc = exit_status_of_rc(s)
+                rc = p2v.go(args, ui)
 
             operation = None
             # if we're non-interactive, or weren't canceled, force us to exit:
@@ -467,22 +254,18 @@ def main():
             ui.end_ui()
 
         # stop logging to tty3:
-        for logfd in clog_fds:
-            try:
-                xelogging.continuous_logs.remove(logfd)
-            except:
-                pass
-            logfd.close()
+        xelogging.closeLogs()
 
+    try:
+        if os.readlink('/proc/self/fd/0') != '/dev/console':
+            print "Not on the console, not rebooting"
+            return False
+    except:
+        pass
     return True
 
-if __name__ == "__main__":
-    # CA-15165: disconnect Ctrl-C from SIGINT
-    fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    old[6][termios.VINTR] = 0
-    termios.tcsetattr(fd, termios.TCSANOW, old)
 
-    reboot = main()
-    if reboot == True:
+if __name__ == "__main__":
+    reboot = main(util.splitArgs(sys.argv[1:]))
+    if reboot:
         os.system("reboot")
