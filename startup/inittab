@@ -14,27 +14,19 @@
 # process   == program to run
 
 # Startup the system
-null::sysinit:/bin/mount -o remount,rw /
-null::sysinit:/bin/mount -t proc proc /proc
-null::sysinit:/bin/mount -t devpts none /dev/pts
-null::sysinit:/sbin/ifconfig lo 127.0.0.1 up
-null::sysinit:/sbin/route add -net 127.0.0.0 netmask 255.0.0.0 lo
-# now run any rc scripts
+# run any rc scripts
 ::sysinit:/etc/init.d/rcS
 
-# Set up a couple of getty's
-tty1::once:/sbin/getty -n -l /opt/xensource/installer/preinit 38400 tty1
+# Set up a getty for debugging
 tty2::respawn:/sbin/getty -n -l /bin/sh 38400 tty2
 
-# Put a getty on the serial port
-ttyS0::once:/sbin/getty -n -l /opt/xensource/installer/preinit -L ttyS0 115200 vt100
+# Start the installer on the console
+::once:/opt/xensource/installer/preinit
 
-# Logging junk
-null::sysinit:/bin/mkdir -p /var/log
-null::sysinit:/bin/touch /var/log/messages
+# Logging processes
 null::respawn:/sbin/syslogd -n -m 0
 null::respawn:/sbin/klogd -n
-tty4::respawn:/usr/bin/tail -f /var/log/messages
+tty4::respawn:/usr/bin/tail -F /var/log/messages
 
 # Stuff to do for the 3-finger salute
 ::ctrlaltdel:/sbin/reboot
