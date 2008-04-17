@@ -10,7 +10,6 @@ clean:
 install:
 	mkdir -p $(INSTALLER_DIR) $(SUPPORT_DIR)
 # Executables
-	install -m755 clean-installer $(INSTALLER_DIR)
 	install -m755 init $(INSTALLER_DIR)
 	install -m755 hwdetect $(INSTALLER_DIR)
 	install -m755 support.sh $(SUPPORT_DIR)
