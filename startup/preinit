@@ -14,17 +14,35 @@
 # load USB modules before the shell or the installer:
 usb-discover
 
-if grep -q 'bash-shell' /proc/cmdline ; then
+args=`sed -e 's/\([^ ][^ ]*\)/--\1/g' /proc/cmdline`
+export LVM_SYSTEM_DIR=/tmp/lvm
+
+# force TERM if on a serial console (Xen defeats init's attempt to do this)
+term=vt102
+bash_shell=0
+for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+  case "$arg" in
+    boot-console=*)
+      serial_console=${arg#boot-console=};;
+    console=*)
+      console=${arg#console=};;
+    term=*)
+      term=${arg#term=};;
+    bash-shell)
+      bash_shell=1;;
+  esac
+done
+
+[ -z "$serial_console" ] && serial_console="$console"
+if expr "$serial_console" : 'ttyS' >/dev/null; then
+  export TERM=$term
+fi
+
+if [ $bash_shell -eq 1 ]; then
     echo "Exiting this shell will run the installer:"
-    echo " /opt/xensource/installer/init"
-    echo
-    echo "Use -c to this command to override the kernel command-line during startup"
-    echo 
-    echo "The kernel command-line was:"
-    cat /proc/cmdline
+    echo " /opt/xensource/installer/init $args"
     echo "---"
     /bin/bash
 fi
 
-/opt/xensource/installer/init
-
+/opt/xensource/installer/init $args
