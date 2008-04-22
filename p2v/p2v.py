@@ -41,11 +41,8 @@ def go(args, use_ui):
 
     answerfile = None
     for (opt, val) in args.items():
-        if opt == "--answerfile":
+        if opt in ["--answerfile", "--rt_answerfile"]:
             answerfile = val
-        elif opt == "--verbose-answerfile":
-            answerfile = val
-            ui = None
  
     try:
         if answerfile:
