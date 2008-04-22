@@ -33,6 +33,7 @@ import restore
 from hardware import module_map
 import driver
 import p2v
+from netinterface import *
 
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
@@ -113,11 +114,6 @@ def configureHardware(extra_modules, blacklist, ui, interactive):
                 if ui:
                     ui.progress.displayProgressDialog(current_scaled, pd)
     
-    # if we're in an older (pre udev-091) filesystem, we need
-    # to call udevstart as udevd wasn't working correctly:
-    #if os.path.exists("/sbin/udevstart"):
-    #    os.system("udevstart")
-
     # we should wait for all udev events to complete if we have
     # that capability:
     if os.path.exists("/sbin/udevsettle"):
@@ -137,7 +133,7 @@ def configureNetworking(ui):
     nethw = netutil.scanConfiguration()
     netcfg = {}
     for i in nethw.keys():
-        netcfg[i] = netutil.mk_iface_config_dhcp(nethw[i].hwaddr, True)
+        netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr)
 
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
 

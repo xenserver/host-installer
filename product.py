@@ -15,6 +15,7 @@ import os
 import diskutil
 import util
 import netutil
+from netinterface import *
 import constants
 import version
 import re
@@ -136,7 +137,6 @@ class Version(object):
     cmp_version_number = classmethod(cmp_version_number)
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
-XENSERVER_3_2_0 = Version(3,2,0)
 XENSERVER_4_0_1 = Version(4,0,1)
 
 class ExistingInstallation(object):
@@ -160,7 +160,11 @@ class ExistingInstallation(object):
     def settingsAvailable(self):
         try:
             self.readSettings()
+        except SettingsNotAvailable, text:
+            xelogging.log("Settings unavailable: %s" % text)
+            return False
         except:
+            xelogging.log("Settings unavailable: unhandled exception")
             return False
         else:
             return True
@@ -168,7 +172,7 @@ class ExistingInstallation(object):
     def readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
         if self.version < XENSERVER_4_0_1:
-            raise SettingsNotAvailable
+            raise SettingsNotAvailable, "version too old"
         
         mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
         root = self.getRootPartition()
@@ -188,7 +192,7 @@ class ExistingInstallation(object):
                 if line.startswith("ZONE="):
                     tz = line[5:].strip()
             if not tz:
-                raise SettingsNotAvailable
+                raise SettingsNotAvailable, "timezone missing"
             results['timezone'] = tz
 
             # hostname.  We will assume one was set anyway and thus write
@@ -235,7 +239,7 @@ class ExistingInstallation(object):
                 if line.startswith('KEYTABLE='):
                     results['keymap'] = line[9:].strip()
             if not results.has_key('keymap'):
-                raise SettingsNotAvailable, "Error reading keymap data."
+                raise SettingsNotAvailable, "error reading keymap data"
 
             # root password:
             rc, out = util.runCmd(
@@ -244,7 +248,7 @@ class ExistingInstallation(object):
                 )
 
             if rc != 0:
-                raise SettingsNotAvailable
+                raise SettingsNotAvailable, "error retrieving root password"
             else:
                 results['root-password-type'] = 'pwdhash'
                 results['root-password'] = out.strip()
@@ -264,7 +268,7 @@ class ExistingInstallation(object):
                     try:
                         results['net-admin-interface'] = devcfg['DEVICE']
                     except:
-                        raise SettingsNotAvailable
+                        raise SettingsNotAvailable, "unable to determine management interface"
 
                     # get hardware address if it was recorded, otherwise look it up:
                     if devcfg.has_key('HWADDR'):
@@ -274,19 +278,35 @@ class ExistingInstallation(object):
                         try:
                             hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
                         except:
-                            raise SettingsNotAvailable
+                            raise SettingsNotAvailable, "unable to determine hwaddr for %s" % devcfg['DEVICE']
 
                     default = lambda d, k, v: d.has_key(k) and d[k] or v
 
-                    results['net-admin-configuration'] = {'enabled': True}
+                    #results['net-admin-configuration'] = {'enabled': True}
                     if (not brcfg.has_key('BOOTPROTO')) or brcfg['BOOTPROTO'] != 'dhcp':
-                        ip = default(brcfg, 'IPADDR', '')
-                        netmask = default(brcfg, 'NETMASK', '')
-                        gateway = default(brcfg, 'GATEWAY', '')
+                        ip = default(brcfg, 'IPADDR', None)
+                        netmask = default(brcfg, 'NETMASK', None)
+                        gateway = default(brcfg, 'GATEWAY', None)
+
+                        if not ip or not netmask:
+                            raise SettingsNotAvailable, "IP address or netmask missing"
                         
-                        results['net-admin-configuration'] = netutil.mk_iface_config_static(hwaddr, True, ip, netmask, gateway, [])
+                        # read resolv.conf for DNS
+                        dns = None
+                        try:
+                            f = open(os.path.join(mntpoint, 'etc/resolv.conf'), 'r')
+                            lines = f.readlines()
+                            f.close()
+                            for line in lines:
+                                if line.startswith('nameserver '):
+                                    dns = line[11:]
+                                    break
+                        except:
+                            pass
+
+                        results['net-admin-configuration'] = NetInterface(NetInterface.Static, hwaddr, ip, netmask, gateway, dns)
                     else:
-                        results['net-admin-configuration'] = netutil.mk_iface_config_dhcp(hwaddr, True)
+                        results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, hwaddr)
                     break
         finally:
             util.umount(mntpoint)

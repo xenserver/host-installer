@@ -863,11 +863,11 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
     # ability to configure multiple interfaces but we only configure one.  When
     # upgrading the script should only modify the admin interface:
     nc = open(network_conf_file, 'w')
-    print >>nc, "ADMIN_INTERFACE='%s'" % admin_config['hwaddr']
+    print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
     if not preserve_settings:
         print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
     else:
-        print >>nc, "INTERFACES='%s'" % admin_config['hwaddr']
+        print >>nc, "INTERFACES='%s'" % admin_config.hwaddr
     nc.close()
 
     # write a config file for each interface, special-casing the admin
@@ -880,20 +880,20 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
             # XXX in non-upgrade cases these will be the same, but otherwise the admin_iface
             # dictionary has the correct value as read from the existing installation.
             if intf == admin_iface:
-                hwaddr = admin_config['hwaddr']
+                hwaddr = admin_config.hwaddr
             else:
                 hwaddr = nethw[intf].hwaddr
             conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
             ac = open(conf_file, 'w')
             print >>ac, "LABEL='%s'" % intf
             if intf == admin_iface:
-                if admin_config['use-dhcp']:
+                if not admin_config.isStatic():
                     print >>ac, "MODE=dhcp"
                 else:
                     print >>ac, "MODE=static"
-                    print >>ac, "IP=%s" % admin_config['ip']
-                    print >>ac, "NETMASK=%s" % admin_config['subnet-mask']
-                    print >>ac, "GATEWAY=%s" % admin_config['gateway']
+                    print >>ac, "IP=%s" % admin_config.ipaddr
+                    print >>ac, "NETMASK=%s" % admin_config.netmask
+                    print >>ac, "GATEWAY=%s" % admin_config.gateway
                     if manual_nameservers:
                         for i in range(len(nameservers)):
                             print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
@@ -926,13 +926,13 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
             print >>sysconf_bridge_fd, "DELAY=0"
             print >>sysconf_bridge_fd, "STP=off"
             print >>sysconf_bridge_fd, "PIFDEV=%s" % intf
-            if admin_config['use-dhcp']:
+            if not admin_config.isStatic():
                 print >>sysconf_bridge_fd, "BOOTPROTO=dhcp"
             else:
                 print >>sysconf_bridge_fd, "BOOTPROTO=none"
-                print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config['subnet-mask']
-                print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config['ip']
-                print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config['gateway']
+                print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config.netmask
+                print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config.ipaddr
+                print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
                 if manual_nameservers:
                     print >>sysconf_bridge_fd, "PEERDNS=yes"
                     for i in range(len(nameservers)):
@@ -946,8 +946,8 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
     nfd.write("NETWORKING=yes\n")
-    if hn_conf[0]:
-        nfd.write("HOSTNAME=%s\n" % hn_conf[1])
+    if manual_hostname:
+        nfd.write("HOSTNAME=%s\n" % hostname)
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.write("PMAP_ARGS=-l\n")

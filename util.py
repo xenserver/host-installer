@@ -250,3 +250,26 @@ def splitArgs(argsIn):
         else:
             argsOut[arg[:eq]] = arg[eq+1:]
     return argsOut    
+
+def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):
+    """ Reads a KEY=Value style file (e.g. xensource-inventory). Returns a 
+    dictionary of key/values in the file.  Not designed for use with large files
+    as the file is read entirely into memory."""
+
+    f = open(filename, "r")
+    lines = [x.strip("\n") for x in f.readlines()]
+    f.close()
+
+    # remove lines that do not contain allowed keys
+    if allowed_keys:
+        lines = filter(lambda x: True in [x.startswith(y) for y in allowed_keys],
+                       lines)
+    
+    defs = [ (l[:l.find("=")], l[(l.find("=") + 1):]) for l in lines ]
+
+    if strip_quotes:
+        def quotestrip(x):
+            return x.strip("'")
+        defs = [ (a, quotestrip(b)) for (a,b) in defs ]
+
+    return dict(defs)

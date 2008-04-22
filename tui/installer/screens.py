@@ -797,14 +797,15 @@ def get_name_service_configuration(answers):
             if len(ric) != 2: # this should never really happen but best to be safe
                 return ""
             else:
+                xelogging.log(ric)
                 ric_all_dhcp, ric_manual_config = ric
                 if ric_manual_config == None or ric_all_dhcp:
                     return ""
                 else:
                     if ric_manual_config.has_key(answers['net-admin-interface']):
                         ai = ric_manual_config[answers['net-admin-interface']]
-                        if ai.has_key('dns') and id < len(ai['dns']):
-                            return ai['dns'][id]
+                        if id == 0 and ai.dns:
+                            return ai.dns
                         else:
                             return ""
                     else:

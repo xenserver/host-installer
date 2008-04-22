@@ -37,7 +37,6 @@ import upgrade
 
 # general
 import xelogging
-from getopt import getopt, GetoptError
 
 def main(args):
     ui = tui

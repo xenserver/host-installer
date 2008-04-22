@@ -37,24 +37,7 @@ def getNetifList():
     relevant.sort()
     return relevant
 
-def mk_iface_config_dhcp(hwaddr, enabled):
-    """ Make an interface configuration dictionary for DHCP. """
-    return {'use-dhcp': True, 'hwaddr': hwaddr, 'enabled': enabled}
-
-def mk_iface_config_static(hwaddr, enabled, ip, subnet_mask, gateway, dns):
-    """ Make an interface configuration dictionary for a static IP config."""
-    return {
-        'use-dhcp': False,
-        'hwaddr': hwaddr,
-        'enabled': enabled,
-        'ip': ip,
-        'dns': dns,
-        'subnet-mask': subnet_mask,
-        'gateway': gateway
-        }
-
-# writes an 'interfaces' style file given a network configuration dictionary
-# in the 'results' style format
+# writes an 'interfaces' style file given a network configuration object list
 def writeDebStyleInterfaceFile(configuration, filename):
     outfile = open(filename, 'w')
 
@@ -62,37 +45,19 @@ def writeDebStyleInterfaceFile(configuration, filename):
     outfile.write("iface lo inet loopback\n")
 
     for iface in configuration:
-        settings = configuration[iface]
-        if settings['enabled']:
-            if settings['use-dhcp']:
-                outfile.write("iface %s inet dhcp\n" % iface)
-            else:
-                # CA-11825: broadcast needs to be determined for non-standard networks
-                bcast = None
-                rc, output = util.runCmd('/bin/ipcalc -b %s %s' % (settings['ip'], settings['subnet-mask']),
-                                         with_output=True)
-                if rc == 0:
-                    bcast=output[10:]
-                outfile.write("iface %s inet static\n" % iface)
-                outfile.write("   address %s\n" % settings['ip'])
-                if bcast != None:
-                    outfile.write("   broadcast %s\n" % bcast)
-                outfile.write("   netmask %s\n" % settings['subnet-mask'])
-                if settings.has_key("gateway") and settings['gateway'] != "":
-                    outfile.write("   gateway %s\n" % settings['gateway'])
+        configuration[iface].writeDebStyleInterface(iface, outfile)
 
     outfile.close()
 
-# writes DNS server entries to a resolver file given a network configuration dictionary
-# in the 'results' style format
+# writes DNS server entries to a resolver file given a network configuration object
+# list
 def writeResolverFile(configuration, filename):
     outfile = open(filename, 'a')
 
     for iface in configuration:
         settings = configuration[iface]
-        if settings['enabled'] and not settings['use-dhcp'] and settings.has_key('dns'):
-            for dns in settings['dns']:
-                outfile.write("nameserver %s\n" % dns)
+        if settings.isStatic() and settings.dns:
+            outfile.write("nameserver %s\n" % settings.dns)
 
     outfile.close()
 

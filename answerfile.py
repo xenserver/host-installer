@@ -15,6 +15,7 @@ import constants
 import product
 import xelogging
 import netutil
+from netinterface import *
 
 import xml.dom.minidom
 
@@ -213,7 +214,7 @@ def parseInterfaces(n):
     """ Parse the admin-interface element.  This has either name="eth0" or
     hwaddr="x:y:z.." to identify the interface to use, then an IP configuration
     which is either proto="dhcp" or proto="static" ip="..." subnet-mask="..."
-    gateway="..."."""
+    gateway="..." dns="..."."""
 
     results = {}
     netifnode = n.getElementsByTagName('admin-interface')[0]
@@ -246,9 +247,10 @@ def parseInterfaces(n):
         ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
         subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
         gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
-        results['net-admin-configuration'] = netutil.mk_iface_config_static(requested_hwaddr, True, ip, subnetmask, gateway, [])
+        dns = getText(netifnode.getElementsByTagName('dns')[0].childNodes)
+        results['net-admin-configuration'] = NetInterface(NetInterface.Static, requested_hwaddr, ip, subnetmask, gateway, dns)
     elif proto == 'dhcp':
-        results['net-admin-configuration'] = netutil.mk_iface_config_dhcp(requested_hwaddr, True)
+        results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, requested_hwaddr)
     return results
 
 def parseSource(n):

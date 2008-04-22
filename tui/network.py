@@ -14,6 +14,7 @@ import uicontroller
 import tui
 import tui.progress
 import netutil
+from netinterface import *
 import version
 
 from snack import *
@@ -47,20 +48,20 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     gateway_field = Entry(16)
     dns_field = Entry(16)
 
-    if defaults and not defaults['use-dhcp']:
+    if defaults and defaults.isStatic():
         # static configuration defined previously
         dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 0)
         dhcp_rb.setCallback(dhcp_change, ())
         static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 1)
         static_rb.setCallback(dhcp_change, ())
-        if defaults.has_key('ip'):
-            ip_field.set(defaults['ip'])
-        if defaults.has_key('subnet-mask'):
-            subnet_field.set(defaults['subnet-mask'])
-        if defaults.has_key('gateway'):
-            gateway_field.set(defaults['gateway'])
-        if defaults.has_key('dns') and len(defaults['dns']) > 0:
-            dns_field.set(defaults['dns'][0])
+        if defaults.ipaddr:
+            ip_field.set(defaults.ipaddr)
+        if defaults.netmask:
+            subnet_field.set(defaults.netmask)
+        if defaults.gateway:
+            gateway_field.set(defaults.gateway)
+        if defaults.dns:
+            dns_field.set(defaults.dns)
     else:
         dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
         dhcp_rb.setCallback(dhcp_change, ())
@@ -124,10 +125,10 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
 
     if buttons.buttonPressed(result) in ['ok', None]:
         if bool(dhcp_rb.selected()):
-            answers = netutil.mk_iface_config_dhcp(nic.hwaddr, True)
+            answers = NetInterface(NetInterface.DHCP, nic.hwaddr)
         else:
-            answers = netutil.mk_iface_config_static(nic.hwaddr, True, ip_field.value(),
-                subnet_field.value(), gateway_field.value(), [dns_field.value()])
+            answers = NetInterface(NetInterface.Static, nic.hwaddr, ip_field.value(),
+                subnet_field.value(), gateway_field.value(), dns_field.value())
         return 1, answers
     elif buttons.buttonPressed(result) == 'back':
         return -1, None
