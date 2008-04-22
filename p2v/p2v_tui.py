@@ -188,7 +188,9 @@ def select_sr(answers):
             else:
                 name = sr['uuid']
 
-            if name == 'Local storage':
+            if sr.has_key('name_description') and sr['name_description'] != '':
+                name += " (%s)" % sr['name_description']
+            elif name == 'Local storage':
                 for pbd in sr['PBDs']:
                     rc = server.PBD.get_record(session, pbd)
                     assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (sesson, pbd)
