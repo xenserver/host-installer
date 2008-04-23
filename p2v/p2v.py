@@ -25,7 +25,6 @@ import constants
 import traceback
 
 from snack import *
-from getopt import getopt, GetoptError
 from version import *
 from uicontroller import Step
 
@@ -41,11 +40,8 @@ def go(args, use_ui):
 
     answerfile = None
     for (opt, val) in args.items():
-        if opt == "--answerfile":
+        if opt in ["--answerfile", "--rt_answerfile"]:
             answerfile = val
-        elif opt == "--verbose-answerfile":
-            answerfile = val
-            ui = None
  
     try:
         if answerfile:
