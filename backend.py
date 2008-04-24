@@ -278,7 +278,7 @@ def performInstallation(answers, ui_package):
             answers['sr-type'] = constants.SR_TYPE_LVM
 
     if not answers.has_key('bootloader'):
-        answers['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
+        answers['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
 
     # perform installation:
     prep_seq = getPrepSequence(answers)
