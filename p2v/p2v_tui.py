@@ -151,6 +151,7 @@ def get_target(answers):
 # select storage repository:
 # TODO better error checking.
 def select_sr(answers):
+    ret = 1
     # login
     server = xmlrpclib.Server(answers['target-host-name'])
     rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
@@ -191,27 +192,31 @@ def select_sr(answers):
             if name == 'Local storage':
                 for pbd in sr['PBDs']:
                     rc = server.PBD.get_record(session, pbd)
-                    assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (sesson, pbd)
+                    assert rc['Status'] == 'Success', "Failure calling server.PBD.get_record(%s, %s)" % (session, pbd)
                     h = rc['Value']['host']
                     rc = server.host.get_name_label(session, h)
-                    assert rc['Status'] == 'Success', "Failure calling server.host.get_name_label(%s, %s)" % (sesson, h)
+                    assert rc['Status'] == 'Success', "Failure calling server.host.get_name_label(%s, %s)" % (session, h)
                     name += " on %s" % rc['Value']
                     break
 
             item = (name, sr['uuid'])
             list_srs.append(item)
 
-    server.session.logout(session)
     rc, entry = ListboxChoiceWindow(
         tui.screen, "Storage repository", "Which storage repository would you like to create disk images in?",
         list_srs, ['Ok', 'Back'], width=70
         )
 
     if rc in [None, 'ok']:
+        rc = server.SR.get_by_uuid(session, entry)
+        assert rc['Status'] == 'Success', "Failure calling server.SR.get_by_uuid(%s, %s)" % (session, entry)
         answers['target-sr'] = entry
-        return 1
+        answers['target-sr-remaining'] = long(srs[rc['Value']]['physical_size']) - long(srs[rc['Value']]['virtual_allocation'])
     else:
-        return -1
+        ret = -1
+
+    server.session.logout(session)
+    return ret
 
 #let the user chose the OS install
 def os_install_screen(answers):
@@ -262,11 +267,15 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
                 [('Size in MB:', total_size)],
                 buttons = ['Ok', 'Back'])
 
+        error = None
         if long(size[0]) < long(used_size):
-            ButtonChoiceWindow(tui.screen,
-                "Size too small",
-                "Minimum size = %s MB." % used_size,
-                buttons = ['Ok'])
+            error = ("Size too small", "Minimum size = %s MB." % used_size)
+        elif long(size[0]) * 1024**2 > long(answers['target-sr-remaining']):
+            error = ("Size too large", "Storage repository has %s MB free." % 
+                     str(long(answers['target-sr-remaining']) / 1024**2))
+
+        if error:
+            ButtonChoiceWindow(tui.screen, error[0], error[1], buttons = ['Ok'])
         else:
             new_size = long(size[0])
             success = True
