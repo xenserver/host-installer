@@ -615,9 +615,9 @@ def installBootLoader(mounts, disk, bootloader, serial):
         util.umount("%s/dev" % mounts['root'])
 
 def writeExtLinuxMenuItem(f, item):
-    f.write("label %s # %s\n" % (item['label'], item['title']))
-    f.write("  kernel mboot.c32\n")
-    f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
+    f.write("LABEL %s # %s\n" % (item['label'], item['title']))
+    f.write("  KERNEL mboot.c32\n")
+    f.write("  APPEND %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
     f.write("\n")
     pass
 
