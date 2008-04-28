@@ -615,9 +615,9 @@ def installBootLoader(mounts, disk, bootloader, serial):
         util.umount("%s/dev" % mounts['root'])
 
 def writeExtLinuxMenuItem(f, item):
-    f.write("LABEL %s # %s\n" % (item['label'], item['title']))
-    f.write("  KERNEL mboot.c32\n")
-    f.write("  APPEND %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
+    f.write("label %s\n  # %s\n" % (item['label'], item['title']))
+    f.write("  kernel mboot.c32\n")
+    f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
     f.write("\n")
     pass
 
@@ -625,13 +625,13 @@ def installExtLinux(mounts, disk, serial):
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
 
     if serial:
-        f.write("SERIAL %s %s\n" % (serial['port'][0][4:], serial['baud']))
-        f.write("DEFAULT xe-serial\n")
+        f.write("serial %s %s\n" % (serial['port'][0][4:], serial['baud']))
+        f.write("default xe-serial\n")
     else:
-        f.write("DEFAULT xe\n")
+        f.write("default xe\n")
     
-    f.write("PROMPT 1\n")
-    f.write("TIMEOUT 50\n")
+    f.write("prompt 1\n")
+    f.write("timeout 50\n")
     f.write("\n")
 
     writeMenuItems(f, writeExtLinuxMenuItem, serial)
