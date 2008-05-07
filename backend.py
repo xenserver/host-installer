@@ -767,6 +767,7 @@ def enableAgent(mounts):
                   'chkconfig', '--add', 'xapi' ])
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', '--add', 'xapi-domains' ])
+    util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
