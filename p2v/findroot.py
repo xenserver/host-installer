@@ -18,6 +18,7 @@ import xelogging
 import tempfile
 import util
 from p2v_error import P2VError
+import re
 
 class MalformedRoot(Exception):
     pass
@@ -27,14 +28,12 @@ def parse_blkid(line):
 a dictionary created from the key/value pairs and the /dev entry as 'path'"""
 
     dev_attrs = {}
-    i =  line.find(":")
-    dev_attrs[p2v_constants.DEV_ATTRS_PATH] = line[0:i]
-    attribs = line[i+1:].split(" ")
+    attr_re = re.compile('(\w+)="([^"]*)"')
+    i = line.find(":")
+    dev_attrs[p2v_constants.DEV_ATTRS_PATH] = line[:i]
+    attribs = attr_re.findall(line[i+1:])
     for attr in attribs:
-        if len(attr) == 0:
-            continue
-        name, val = attr.split("=")
-        dev_attrs[name.lower()] = val.strip('"')
+        dev_attrs[attr[0].lower()] = attr[1]
     return dev_attrs
     
 def scan():
@@ -43,7 +42,7 @@ def scan():
     #activate LVM
     util.runCmd2(['vgscan'])
     util.runCmd2(['vgchange', '-a', 'y'])
-    rc, out = util.runCmd("/sbin/blkid -c /dev/null", with_output = True)
+    rc, out = util.runCmd2(['/sbin/blkid', '-c', '/dev/null'], with_output = True)
     if rc == 0 and out:
         for line in out.split("\n"):
             attrs = parse_blkid(line)
