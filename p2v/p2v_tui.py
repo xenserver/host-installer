@@ -202,6 +202,13 @@ def select_sr(answers):
             item = (name, sr['uuid'])
             list_srs.append(item)
 
+    if len(list_srs) == 0:
+        ButtonChoiceWindow(tui.screen, "Error", 
+                           "No suitable storage repositories were found.", 
+                           buttons = ['Ok'])
+        server.session.logout(session)
+        return -1
+
     rc, entry = ListboxChoiceWindow(
         tui.screen, "Storage repository", "Which storage repository would you like to create disk images in?",
         list_srs, ['Ok', 'Back'], width=70
