@@ -262,9 +262,9 @@ class ExistingInstallation(object):
             # database which is available in time for everything except the
             # management interface.
             for file in filter(lambda x: x.startswith('ifcfg-eth'), os.listdir(os.path.join(mntpoint, 'etc/sysconfig/network-scripts'))):
-                devcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False, assert_quotes = False)
+                devcfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False)
                 if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
-                    brcfg = readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False, assert_quotes = False)
+                    brcfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
                     try:
                         results['net-admin-interface'] = devcfg['DEVICE']
                     except:
@@ -385,7 +385,7 @@ def findXenSourceProducts():
     return installs
 
 def readInventoryFile(filename):
-    return readKeyValueFile(filename, strip_quotes = True, assert_quotes = True)
+    return util.readKeyValueFile(filename, strip_quotes = True)
 
 def readNetworkScriptFile(filename):
     netkeys = [
@@ -393,31 +393,4 @@ def readNetworkScriptFile(filename):
         'DELAY', 'STP', 'NETMASK', 'IPADDR', 'NETMASK', 'GATEWAY', 'PEERDNS',
         'NETWORK', 'BROADCAST', 'NAME'
         ]
-    return readKeyValueFile(filename, allowed_keys = netkeys, strip_quotes = True,
-                            assert_quotes = False)
-
-def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True, assert_quotes = True):
-    """ Reads a KEY=Value style file (e.g. xensource-inventory). Returns a 
-    dictionary of key/values in the file.  Not designed for use with large files
-    as the file is read entirely into memory."""
-
-    f = open(filename, "r")
-    lines = [x.strip("\n") for x in f.readlines()]
-    f.close()
-
-    # remove lines contain
-    if allowed_keys:
-        lines = filter(lambda x: True in [x.startswith(y) for y in allowed_keys],
-                       lines)
-    
-    defs = [ (l[:l.find("=")], l[(l.find("=") + 1):]) for l in lines ]
-
-    if strip_quotes:
-        def quotestrip(x):
-            if assert_quotes:
-                assert x.startswith("'") and x.endswith("'")
-            return x.strip("'")
-        defs = [ (a, quotestrip(b)) for (a,b) in defs ]
-
-    return dict(defs)
-
+    return util.readKeyValueFile(filename, allowed_keys = netkeys, strip_quotes = True)
