@@ -841,6 +841,11 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
 
     (manual_hostname, hostname) = hn_conf
     (manual_nameservers, nameservers) = ns_conf
+    domain=None
+    if manual_hostname:
+        dot = hostname.find('.')
+        if dot != -1:
+            domain=hostname[dot+1:]
 
     # remove any files that may be present in the filesystem already, 
     # particularly those created by kudzu:
@@ -898,6 +903,8 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
                     if manual_nameservers:
                         for i in range(len(nameservers)):
                             print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
+                    if domain:
+                        print >>ac, "DOMAIN=%s" % domain
             else:
                 print >>ac, "MODE=none"
             ac.close()
@@ -938,10 +945,8 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
                     print >>sysconf_bridge_fd, "PEERDNS=yes"
                     for i in range(len(nameservers)):
                         print >>sysconf_bridge_fd, "DNS%d=%s" % (i+1, nameservers[i])
-                if manual_hostname:
-                    dot = hostname.find('.')
-                    if dot != -1:
-                        print >>sysconf_bridge_fd, "DOMAIN=%s" % hostname[dot+1:]
+                if domain:
+                    print >>sysconf_bridge_fd, "DOMAIN=%s" % domain
             sysconf_bridge_fd.close()
 
     # now we need to write /etc/sysconfig/network
