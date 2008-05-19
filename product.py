@@ -137,7 +137,7 @@ class Version(object):
     cmp_version_number = classmethod(cmp_version_number)
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
-XENSERVER_4_0_1 = Version(4,0,1)
+XENSERVER_4_1_0 = Version(4,1,0)
 
 class ExistingInstallation(object):
     def __init__(self, name, brand, version, primary_disk, inventory):
@@ -171,7 +171,7 @@ class ExistingInstallation(object):
     
     def readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
-        if self.version < XENSERVER_4_0_1:
+        if self.version < XENSERVER_4_1_0:
             raise SettingsNotAvailable, "version too old"
         
         mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
