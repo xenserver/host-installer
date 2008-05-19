@@ -624,7 +624,7 @@ def select_primary_disk(answers):
 
 You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
         entries,
-        ['Ok', 'Back'], width = 55, default = default)
+        ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default)
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
@@ -652,9 +652,9 @@ def select_guest_disks(answers):
         entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
         entries.append((entry, de))
         
-    text = TextboxReflowed(50, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
+    text = TextboxReflowed(54, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
-    cbt = CheckboxTree(4, 1)
+    cbt = CheckboxTree(4, scroll = 1)
     for (c_text, c_item) in entries:
         cbt.append(c_text, c_item, c_item in currently_selected)
     

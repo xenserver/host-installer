@@ -211,7 +211,7 @@ def select_sr(answers):
 
     rc, entry = ListboxChoiceWindow(
         tui.screen, "Storage repository", "Which storage repository would you like to create disk images in?",
-        list_srs, ['Ok', 'Back'], width=70
+        list_srs, ['Ok', 'Back'], height = 8, scroll = 1
         )
 
     if rc in [None, 'ok']:
