@@ -502,9 +502,8 @@ def writeMenuItems(f, fn, s):
         {
             'label':      "xe",
             'title':      PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M" \
-                          % constants.DOM0_MEM,
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0" % (constants.rootfs_label),
+            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M console=/dev/null vga=mode-0x0311" % constants.DOM0_MEM,
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro quiet vga=785 splash" % (constants.rootfs_label),
             'initrd':     "/boot/initrd-2.6-xen.img",
         }
     ]
