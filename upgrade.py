@@ -118,14 +118,6 @@ class SecondGenUpgrader(Upgrader):
                     util.runCmd2(['cp', '-p', src, dst])
                 else:
                     xelogging.log("WARNING: /%s did not exist in the backup image." % f)
-            
-            # if we're coming from Rio, we need to move the database config for
-            # Rio over the main config file:
-            if self.source.version <= product.XENSERVER_4_0_1:
-                rio_db_conf = os.path.join(mounts['root'], 'etc', 'xensource', 'db.conf.rio')
-                db_conf = os.path.join(mounts['root'], 'etc', 'xensource', 'db.conf')
-                os.unlink(db_conf)
-                util.runCmd2(['mv', rio_db_conf, db_conf])
         finally:
             if tds:
                 if os.path.ismount(tds):
