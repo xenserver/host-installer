@@ -448,7 +448,7 @@ def get_url_location(answers):
 
         gf.add(t, 0, 0, padding = (0,0,0,1))
         gf.add(entry_grid, 0, 1, padding = (0,0,0,1))
-        gf.add(bb, 0, 2)
+        gf.add(bb, 0, 2, growx = 1)
 
         button = bb.buttonPressed(gf.runOnce())
 
@@ -661,7 +661,7 @@ def select_guest_disks(answers):
     gf = GridFormHelp(tui.screen, 'Guest Storage', None, 1, 3)
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(buttons, 0, 2)
+    gf.add(buttons, 0, 2, growx = 1)
     
     result = gf.runOnce()
     
@@ -865,7 +865,7 @@ def get_name_service_configuration(answers):
     gf.add(ns2_grid, 0, 8)
     gf.add(ns3_grid, 0, 9, padding = (0,0,0,1))
     
-    gf.add(buttons, 0, 10)
+    gf.add(buttons, 0, 10, growx = 1)
 
     done = False
     while not done:
@@ -1031,7 +1031,7 @@ def get_ntp_servers(answers):
     gf.add(text, 0, 0, padding = (0,0,0,1))
     gf.add(dhcp_cb, 0, 1)
     gf.add(entry_grid, 0, 2, padding = (0,0,0,1))
-    gf.add(buttons, 0, 3)
+    gf.add(buttons, 0, 3, growx = 1)
 
     result = gf.runOnce()
 
@@ -1098,7 +1098,7 @@ def set_time(answers, now, show_back_button = False):
             buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])
         else:
             buttons = ButtonBar(tui.screen, [("Ok", "ok")])
-        gf.add(buttons, 0, 2)
+        gf.add(buttons, 0, 2, growx = 1)
         
         result = gf.runOnce()
 

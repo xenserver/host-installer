@@ -92,7 +92,7 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
     gf.add(dhcp_rb, 0, 2, anchorLeft = True)
     gf.add(static_rb, 0, 3, anchorLeft = True)
     gf.add(entry_grid, 0, 4, padding = (0,0,0,1))
-    gf.add(buttons, 0, 5)
+    gf.add(buttons, 0, 5, growx = 1)
 
     loop = True
     while loop:
