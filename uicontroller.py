@@ -27,6 +27,7 @@ class Step:
         assert False not in [callable(x) for x in self.predicates]
         assert callable(self.fn)
         if False not in [x(answers) for x in self.predicates]:
+            xelogging.log("Displaying screen %s" % self.fn)
             return self.fn(answers, *self.args)
         else:
             xelogging.log("Not displaying screen %s due to predicate return false." % self.fn)
