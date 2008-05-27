@@ -532,6 +532,7 @@ def verify_source(answers):
         return 1
 
 def interactive_source_verification(media, address):
+    xelogging.log("Checking media %s: %s" % (media, address))
     try:
         repos = repository.repositoriesFromDefinition(
             media, address
