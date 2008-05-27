@@ -72,7 +72,7 @@ def get_target(answers):
     gf = GridFormHelp(tui.screen, 'Target Host', None, 1, 3)
     gf.add(t, 0, 0, padding = (0, 0, 0, 1))
     gf.add(entries, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(bb, 0, 2)
+    gf.add(bb, 0, 2, growx = 1)
 
     loop = True
     ret = 1
@@ -210,7 +210,7 @@ def select_sr(answers):
         return -1
 
     rc, entry = ListboxChoiceWindow(
-        tui.screen, "Storage repository", "Which storage repository would you like to create disk images in?",
+        tui.screen, "Storage Repository", "Which storage repository would you like to create disk images in?",
         list_srs, ['Ok', 'Back'], height = 8, scroll = 1
         )
 
