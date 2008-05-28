@@ -275,7 +275,7 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
                 buttons = ['Ok', 'Back'])
 
         error = None
-        if not size.isdigit():
+        if not size[0].isdigit():
             error = ("Invalid value", "Size must be numeric")
         elif long(size[0]) < long(used_size):
             error = ("Size too small", "Minimum size = %s MB." % used_size)
