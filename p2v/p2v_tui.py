@@ -275,7 +275,9 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
                 buttons = ['Ok', 'Back'])
 
         error = None
-        if long(size[0]) < long(used_size):
+        if not size.isdigit():
+            error = ("Invalid value", "Size must be numeric")
+        elif long(size[0]) < long(used_size):
             error = ("Size too small", "Minimum size = %s MB." % used_size)
         elif long(size[0]) * 1024**2 > long(answers['target-sr-remaining']):
             error = ("Size too large", "Storage repository has %s MB free." % 
