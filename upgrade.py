@@ -14,6 +14,7 @@
 # from the rest of the installer.
 
 import os
+import subprocess
 import tempfile
 
 import product
@@ -106,10 +107,26 @@ class SecondGenUpgrader(Upgrader):
 
             # restore files:
             restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 
-                       'etc/xensource/license', 'etc/xensource/db.conf', 'var/xapi/state.db',
+                       'etc/xensource/license', 
                        'etc/ssh/ssh_host_dsa_key', 'etc/ssh/ssh_host_dsa_key.pub',
                        'etc/ssh/ssh_host_key', 'etc/ssh/ssh_host_key.pub',
                        'etc/ssh/ssh_host_rsa_key', 'etc/ssh/ssh_host_rsa_key.pub']
+
+            # CA-16795: upgrade xapi database if necessary
+            upgrade_db = False
+            db_conf = os.path.join(tds, 'etc/xensource/db.conf')
+            if os.path.exists(db_conf):
+                c = open(db_conf, 'r')
+                try:
+                    for line in c:
+                        if  line.strip('\n') == 'format:sqlite':
+                            upgrade_db = True
+                            break
+                finally:
+                    c.close()
+            if not upgrade_db:
+                restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
+
             for f in restore:
                 src = os.path.join(tds, f)
                 dst = os.path.join(mounts['root'], f)
@@ -118,6 +135,29 @@ class SecondGenUpgrader(Upgrader):
                     util.runCmd2(['cp', '-p', src, dst])
                 else:
                     xelogging.log("WARNING: /%s did not exist in the backup image." % f)
+
+            if upgrade_db:
+                # chroot into the backup partition and dump db to stdout
+                new_db = open(os.path.join(mounts['root'], 'var/xapi/state.db'), 'w')
+                cmd = ["/usr/sbin/chroot", tds, "/opt/xensource/bin/xapi-db-process", "-xmltostdout"]
+                pipe = subprocess.Popen(cmd, stdout = subprocess.PIPE)
+                for line in pipe.stdout:
+                    new_db.write(line)
+                assert pipe.wait() == 0
+                new_db.close()
+
+                # upgrade the db config
+                old_config = open(db_conf, 'r')
+                new_config = open(os.path.join(mounts['root'], 'etc/xensource/db.conf'), 'w')
+                try:
+                    for line in old_config:
+                        if line.startswith('format:'):
+                            new_config.write('format:xml\n')
+                        else:
+                            new_config.write(line)
+                finally:
+                    new_config.close()
+                    old_config.close()
         finally:
             if tds:
                 if os.path.ismount(tds):
