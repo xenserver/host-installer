@@ -313,7 +313,12 @@ class BzippedPackage(Package):
         pipe.fromchild.close()
         rc = pipe.wait()
         if rc != 0:
-            raise ErrorInstallingPackage, "The decompressor returned with a non-zero exit code (rc %d) whilst processing package %s" % (rc, self.name)
+            desc = 'returned [%d]' % rc
+            if os.WIFEXITED(rc):
+                desc = 'exited with %d' % os.WEXITSTATUS(rc)
+            elif os.WIFSIGNALED(rc):
+                desc = 'died with signal %d' % os.WTERMSIG(rc)
+            raise ErrorInstallingPackage, "The decompressor %s whilst processing package %s" % (desc, self.name)
     
         package.close()
 
