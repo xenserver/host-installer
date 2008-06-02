@@ -70,7 +70,7 @@ class Upgrader(object):
 class SecondGenUpgrader(Upgrader):
     """ Upgrader class for series 4 products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.Version(4, 0, 0, suffix = 'b2'), product.THIS_PRODUCT_VERSION) ]
+    upgrades_versions = [ (product.Version(4, 1, 0), product.THIS_PRODUCT_VERSION) ]
     requires_backup = True
 
     def __init__(self, source):
