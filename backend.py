@@ -768,6 +768,8 @@ def enableAgent(mounts):
                   'chkconfig', '--add', 'xapi-domains' ])
     util.runCmd2(['chroot', mounts['root'],
                   'chkconfig', '--add', 'perfmon' ])
+    util.runCmd2(['chroot', mounts['root'],
+                  'chkconfig', '--add', 'snapwatchd' ])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
