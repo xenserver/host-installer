@@ -22,7 +22,8 @@ import snackutil
 
 from snack import *
 
-def runMainSequence(results, ram_warning, vt_warning, installed_products, suppress_extra_cd_dialog):
+def runMainSequence(results, ram_warning, vt_warning, installed_products, 
+                    upgradeable_products, suppress_extra_cd_dialog):
     """ Runs the main installer sequence and updates results with a
     set of values ready for the backend. """
     uis = tui.installer.screens
@@ -55,7 +56,7 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products, suppre
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
-    if len(installed_products) == 0:
+    if len(upgradeable_products) == 0:
         results['install-type'] = constants.INSTALL_TYPE_FRESH
         results['preserve-settings'] = False
 
@@ -65,8 +66,10 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products, suppre
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],
              predicates=[lambda _:(ram_warning or vt_warning)]),
-        Step(uis.get_installation_type, args=[installed_products],
-             predicates=[lambda _:len(installed_products) > 0]),
+        Step(uis.overwrite_warning,
+             predicates=[lambda _:len(installed_products) > 0 and len(upgradeable_products) == 0]),
+        Step(uis.get_installation_type, args=[upgradeable_products],
+             predicates=[lambda _:len(upgradeable_products) > 0]),
         Step(uis.upgrade_settings_warning,
              predicates=[upgrade_but_no_settings_predicate]),
         Step(uis.backup_existing_installation,

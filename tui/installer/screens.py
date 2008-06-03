@@ -84,6 +84,23 @@ def hardware_warnings(answers, ram_warning, vt_warning):
     else:
         return 1
 
+def overwrite_warning(answers):
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "Warning",
+        """Product installations that cannot be upgraded have been detected.
+
+Continuing will result in a clean installation, all existing configuration
+will be lost.""",
+        ['Ok', 'Back'],
+        width = 60
+        )
+
+    if button == 'back':
+        return -1
+    else:
+        return 1
+
 def get_admin_interface(answers):
     direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'], answers.has_key('net-admin-interface') and answers['net-admin-interface'] or None)
     if direction == 1:
