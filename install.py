@@ -154,16 +154,16 @@ def go(ui, args):
         if ui:
             ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
         try:
-            installed_products = product.findXenSourceProducts()
+            all_installed_products = product.findXenSourceProducts()
         except Exception, e:
             xelogging.log("A problem occurred whilst scanning for existing installations:")
             ex = sys.exc_info()
             err = str.join("", traceback.format_exception(*ex))
             xelogging.log(err)
             xelogging.log("This is not fatal.  Continuing anyway.")
-            installed_products = []
-        upgradeable_products = filter(lambda p: upgrade.upgradeAvailable(p),
-                                      installed_products)
+            all_installed_products = []
+        installed_products = filter(lambda p: upgrade.upgradeAvailable(p),
+                                    all_installed_products)
         if ui:
             ui.progress.clearModelessDialog()
         
@@ -176,9 +176,8 @@ def go(ui, args):
         aborted = False
         if ui and not answerfile_address:
             uiexit = ui.installer.runMainSequence(
-	            results, ram_warning, vt_warning, installed_products, 
-                    upgradeable_products, suppress_extra_cd_dialog
-                    )
+	            results, ram_warning, vt_warning, installed_products, suppress_extra_cd_dialog
+                )
             if uiexit == uicontroller.EXIT:
                 aborted = True
 
