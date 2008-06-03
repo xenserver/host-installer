@@ -1,0 +1,54 @@
+#!/bin/sh
+
+debug=0
+
+start()
+{
+  for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+    case "$arg" in
+      blacklist=*)
+        # build user blacklist
+        for mod in `echo ${arg#blacklist=} | tr ',' ' '`; do
+	  echo "blacklist $mod" >>/etc/modprobe.d/user-blacklist
+	done;;
+      extramodules=*)
+        extramodules=`echo ${arg#extramodules=} | tr ',' ' '`;;
+    esac
+  done
+
+  mount -t ramfs udev /dev
+  echo "Detecting hardware"
+  udevd --daemon
+  udevtrigger
+  udevsettle --timeout=10
+
+  # load extra modules from command line
+  for mod in $extramodules; do
+    echo "Loading module: $mod"
+    modprobe $mod
+  done
+  return 0
+}
+
+stop()
+{
+  killall udevd
+  umount /dev
+  return 0
+}
+
+
+RET=0
+case "$1" in
+  start)
+    start
+    RET=$?;;
+  stop)
+    stop
+    RET=$?;;
+  *)
+    echo "Usage: $0 start|stop"
+    RET=1
+esac
+
+exit $RET
