@@ -1,0 +1,42 @@
+# blacklist ethernet over Firewire, it causes real ethernet interfaces to be out of order
+blacklist eth1394
+
+# blacklist framebuffer drivers (we don't need them):
+blacklist arcfb
+blacklist aty128fb
+blacklist atyfb
+blacklist radeonfb
+blacklist cirrusfb
+blacklist cyber2000fb
+blacklist cyblafb
+blacklist gx1fb
+blacklist hgafb
+blacklist i810fb
+blacklist intelfb
+blacklist kyrofb
+blacklist i2c-matroxfb
+blacklist neofb
+blacklist nvidiafb
+blacklist pm2fb
+blacklist rivafb
+blacklist s1d13xxxfb
+blacklist savagefb
+blacklist sisfb
+blacklist sstfb
+blacklist tdfxfb
+blacklist tridentfb
+blacklist vfb
+blacklist vga16fb
+
+# blacklist agp modules (we don't need them and they can cause compatibility issues):
+blacklist agpgart
+blacklist ali-agp
+blacklist amd64-agp
+blacklist via-agp
+blacklist intel-agp
+blacklist sworks-agp
+blacklist sis-agp
+blacklist nvidia-agp
+blacklist ati-agp
+blacklist amd-k7-agp
+blacklist efficeon-agp
