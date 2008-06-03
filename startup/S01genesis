@@ -6,17 +6,16 @@ start()
 {
   mount -o remount,rw /
   mount -t proc proc /proc
+  mount -t sysfs sysfs /sys
   tr ' ' '\n' </proc/cmdline | grep -q '^debug$' && debug=1
   [ $debug -eq 0 ] && echo 1 >/proc/sys/kernel/printk
   hwclock --utc --hctosys
-  # FIXME this should be added to the fs image
-  mkdir -p /var/log
-  mkdir -p /tmp/lvm
   return 0
 }
 
 stop()
 {
+  umount /sys
   umount /proc
 }
 

@@ -28,99 +28,13 @@ import init_constants
 import xelogging
 import netutil
 import util
-import hardware
 import restore
-from hardware import module_map
 import driver
 import p2v
 from netinterface import *
 
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
-
-base_modules = ['sd-mod', 'sr-mod', 'dm-mod', 'ide-cd', 'ide-disk',
-                'ide-generic', 'loop', 'ata_piix', 'rtc', 'reiserfs',
-                'ext3', 'usb-storage']
-
-# Use the 'discover' tool to detect hardware and load needed
-# modules;
-#
-# This has turned into a bit of a hack.  The 'hwdetect' script
-# uses information directly from the kernel build to find hardware
-# (i.e. modules.pcimap), but I don't entirely understand where
-# these come from or if they're complete.
-def discoverHardware():
-    _, out1 = commands.getstatusoutput("discover --enable-all --module ide")
-    _, out2 = commands.getstatusoutput("discover --enable-all --module scsi")
-    _, out3 = commands.getstatusoutput("discover --enable-all --module all")
-    _, out4 = commands.getstatusoutput("/opt/xensource/installer/hwdetect")
-    out = out1 + "\n" + out2 + "\n" + out3 + "\n" + out4
-    out = out.split("\n")
-    
-    modules = []
-    for m in out:
-        if m not in modules and m != "":
-            modules.append(m)
-    modules = [x.replace('_', '-') for x in modules]
-
-    # make a list of modules to load:
-    rv = []
-    for mod in modules:
-        if module_map.has_key(mod):
-            if module_map[mod] == []:
-                xelogging.log("Ignoring module %s" % mod)
-            else:
-                xelogging.log("Discover found %s - we think we need %s" % (mod, module_map[mod]))
-                for mymod in module_map[mod]:
-                    if not mymod in rv:
-                        rv.append(mymod)
-        else:
-            xelogging.log("Discover found %s" % mod)
-            rv.append(mod)
-    
-    xelogging.log("Hardware discovery complete.")
-    return rv
-
-def configureHardware(extra_modules, blacklist, ui, interactive):
-    """Detect and configure hardware"""
-
-    assert not interactive or (interactive and ui)
-
-    if ui:
-        pd = ui.progress.initProgressDialog(
-            "Preparing for Installation",
-            "Your system hardware is being detected and configured...",
-            100
-            )
-        ui.progress.displayProgressDialog(0, pd)
-    
-    modules = discoverHardware()
-    modules.extend(base_modules)
-    modules.extend(extra_modules)
-
-    # load the modules:
-    current = 0
-    for m in modules:
-        if m in blacklist:
-            xelogging.log("Module %s was in the user-specified blacklist - not loading." % m)
-        else:
-            load_m = True
-            if interactive and ui != None:
-                load_m = ui.init.ask_load_module(m)
-            if load_m:
-                hardware.modprobe(m)
-                current = current + 1
-                current_scaled = int( float(current) / float(len(modules)) * 100.0 )
-                if ui:
-                    ui.progress.displayProgressDialog(current_scaled, pd)
-    
-    # we should wait for all udev events to complete if we have
-    # that capability:
-    if os.path.exists("/sbin/udevsettle"):
-        os.system("udevsettle --timeout=10")
-
-    if ui:
-        ui.progress.clearModelessDialog()
 
 # Attempt to configure the network:
 def configureNetworking(ui):
@@ -153,9 +67,6 @@ def main(args):
 
     operation = None
     ui = tui
-    extra_modules = []
-    user_blacklist = []
-    interactive_modules = False
     interactive = True
     driver_repos = []
 
@@ -164,18 +75,12 @@ def main(args):
             operation = init_constants.OPERATION_INSTALL
         elif opt == "--p2v":
             operation = init_constants.OPERATION_P2V
-        elif opt == '--interactive-modules':
-            interactive_modules = True
         elif opt == "--answerfile":
             interactive = False
         elif opt == "--rt_answerfile":
             interactive = False
             ui = None
             xelogging.openLog(sys.stdout)
-        elif opt == "--extramodules":
-            extra_modules = val.split(",")
-        elif opt == "--blacklist":
-            user_blacklist = val.split(",")
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -187,14 +92,6 @@ def main(args):
     if ui:
         xelogging.log("Starting 'init' user interface")
         ui.init_ui()
-
-    # first, configure the hardware, make /etc/network and /lib/firmware, etc.:
-    util.assertDir('/lib/firmware')
-    util.assertDir('/var/lib')
-    util.assertDir('/var/run')
-    util.assertDir('/var/lock')
-    configureHardware(extra_modules, user_blacklist,
-                      ui, interactive_modules)
 
     # let the user choose what they would like to do:
     if interactive:

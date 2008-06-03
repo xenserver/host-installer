@@ -11,9 +11,6 @@
 #
 # by Andrew Peace
 
-# load USB modules before the shell or the installer:
-usb-discover
-
 args=`sed -e 's/\([^ ][^ ]*\)/--\1/g' /proc/cmdline`
 export LVM_SYSTEM_DIR=/tmp/lvm
 
