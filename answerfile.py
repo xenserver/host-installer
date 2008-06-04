@@ -231,7 +231,7 @@ def parseInterfaces(n):
         else:
             raise RuntimeError, "Interface %s not found" % requested_name
     elif netifnode.getAttribute('hwaddr'):
-        requested_hwaddr = netifnode.getAttribute('hwaddr')
+        requested_hwaddr = netifnode.getAttribute('hwaddr').lower()
         # work out which device corresponds to the hwaddr we were given:
         matching_list = filter(lambda x: x.hwaddr == requested_hwaddr, nethw.values())
         if len(matching_list) == 1:
