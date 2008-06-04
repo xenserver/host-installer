@@ -176,7 +176,7 @@ def go(ui, args):
         aborted = False
         if ui and not answerfile_address:
             uiexit = ui.installer.runMainSequence(
-	            results, ram_warning, vt_warning, installed_products, suppress_extra_cd_dialog
+	            results, ram_warning, vt_warning, installed_products, all_installed_products, suppress_extra_cd_dialog
                 )
             if uiexit == uicontroller.EXIT:
                 aborted = True
