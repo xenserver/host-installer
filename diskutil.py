@@ -132,6 +132,11 @@ def diskFromPartition(partition):
     # is it a cciss?
     if True in [partition.startswith(x) for x in ['/dev/cciss', '/dev/ida', '/dev/rd']]:
         numlen += 1 # need to get rid of trailing 'p'
+
+    # is it /dev/disk/by-id/XYZ-part<k>?
+    if partition.startswith("/dev/disk/by-id"):
+        return partition[:partition.rfind("-part")]
+
     return partition[:len(partition) - numlen]
         
 
@@ -325,6 +330,8 @@ def determinePartitionName(guestdisk, partitionNumber):
         guestdisk.find("iseries") != -1 or \
         guestdisk.find("emd") != -1 or \
         guestdisk.find("carmel") != -1:
-        return guestdisk+"p%d" % partitionNumber
+        return guestdisk + "p%d" % partitionNumber
+    elif "disk/by-id" in guestdisk:
+        return guestdisk + "-part%d" % partitionNumber
     else:
         return guestdisk + "%d" % partitionNumber
