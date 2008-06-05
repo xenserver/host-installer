@@ -17,6 +17,8 @@ start()
   done
 
   mount -t ramfs udev /dev
+  mkdir -p /dev/pts
+  mount -t devpts none /dev/pts                     
   echo "Detecting hardware"
   udevd --daemon
   udevtrigger
