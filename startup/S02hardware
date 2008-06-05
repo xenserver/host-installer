@@ -29,6 +29,10 @@ start()
     echo "Loading module: $mod"
     modprobe $mod
   done
+
+  # need dm-mod for P2V:
+  modprobe dm-mod
+
   return 0
 }
 
