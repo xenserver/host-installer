@@ -113,7 +113,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
         # preserve bootloader configuration
         util.runCmd2(['cp', os.path.join(backup_mnt, bootloader_config), '/tmp/bootloader.tmp'])
         mounts = {'root': dest_mnt, 'boot': os.path.join(dest_mnt, 'boot')}
-        backend.installBootLoader(mounts, disk, bootloader)
+        backend.installBootLoader(mounts, disk, bootloader, None)
         util.runCmd2(['cp', '/tmp/bootloader.tmp',
                       os.path.join(dest_mnt, bootloader_config)])
 
