@@ -453,18 +453,7 @@ def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, 
     # write a config file for the prepare-storage firstboot script:
     util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
     fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
-    links = []
-    for part in partitions:
-        found = False
-        v, out = util.runCmd2(['udevinfo', '-q', 'symlink', '-n', part], with_output = True)
-        if v == 0:
-            for link in out.split():
-                if link.startswith('disk/by-id'):
-                    links.append('/dev/'+link)
-                    found = True
-                    break
-        if not found:
-            links.append(part)
+    links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
     print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
     print >>fd, "TYPE='%s'" % sr_type_string
 
@@ -984,8 +973,8 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
-    inv.write("PRIMARY_DISK='%s'\n" % primary_disk)
-    inv.write("BACKUP_PARTITION='%s'\n" % getBackupPartName(primary_disk))
+    inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
+    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(getBackupPartName(primary_disk)) or getBackupPartName(primary_disk)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))

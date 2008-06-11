@@ -138,7 +138,17 @@ def diskFromPartition(partition):
         return partition[:partition.rfind("-part")]
 
     return partition[:len(partition) - numlen]
-        
+
+# Given a partition (e.g. /dev/sda1), get the id symlink:
+def idFromPartition(partition):
+    symlink = None
+    v, out = util.runCmd2(['/usr/bin/udevinfo', '-q', 'symlink', '-n', partition], with_output = True)
+    if v == 0:
+        for link in out.split():
+            if link.startswith('disk/by-id'):
+                symlink = '/dev/'+link
+                break
+    return symlink
 
 def __readOneLineFile__(filename):
     try:
