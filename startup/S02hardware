@@ -28,7 +28,7 @@ start()
   echo "Detecting hardware"
   udevd --daemon
   udevtrigger
-  udevsettle --timeout=10
+  udevsettle --timeout=20
 
   # load extra modules from command line
   for mod in $extramodules; do
