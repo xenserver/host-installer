@@ -28,7 +28,7 @@ start()
   echo "Detecting hardware"
   udevd --daemon
   udevtrigger
-  udevsettle --timeout=20
+  udevsettle --timeout=180
 
   # load extra modules from command line
   for mod in $extramodules; do
@@ -38,6 +38,7 @@ start()
 
   # need dm-mod for P2V:
   modprobe dm-mod
+  udevsettle --timeout=180
 
   return 0
 }
