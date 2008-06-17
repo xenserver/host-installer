@@ -16,6 +16,11 @@ start()
     esac
   done
 
+  # create temp blacklist to prevent fibre channel disks etc appearing first
+  for mod in lpfc megaraid mptbase mptctl mptfc mptlan mptsas mptscsih mptspi qla2xxx qla4xxx; do
+    echo "blacklist $mod" >>/etc/modprobe.d/temp-blacklist
+  done
+
   mount -t ramfs udev /dev
   mkdir -p /dev/pts
   mount -t devpts none /dev/pts                     
@@ -25,9 +30,16 @@ start()
   mknod -m 666 /dev/zero c 1 5
   mknod -m 600 /dev/console c 5 1
 
-  echo "Detecting hardware"
+  echo "Detecting hardware..."
+  export UDEVD_MAX_CHILDS=1
+  export UDEVD_MAX_CHILDS_RUNNING=64
   udevd --daemon
   udevtrigger
+  udevsettle --timeout=180
+
+  # repeat after deleting temp blacklist
+  rm -f /etc/modprobe.d/temp-blacklist
+  udevtrigger --retry-failed
   udevsettle --timeout=180
 
   # load extra modules from command line
