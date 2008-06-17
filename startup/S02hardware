@@ -52,6 +52,17 @@ start()
   modprobe dm-mod
   udevsettle --timeout=180
 
+  # now re-order interfaces to BIOS order:
+  for i in /sys/class/net/eth* ; do
+    eth_basename=$(basename $i)
+    ip link set ${eth_basename} name ${eth_basename}_pending
+  done
+
+  for i in /sys/class/net/*_pending ; do
+    eth_basename=$(basename $i)
+    ip link set ${eth_basename} name $(/sbin/biosdevname -i ${eth_basename})
+  done
+
   return 0
 }
 
