@@ -17,7 +17,7 @@ start()
   done
 
   # create temp blacklist to prevent fibre channel disks etc appearing first
-  for mod in lpfc megaraid mptbase mptctl mptfc mptlan mptsas mptscsih mptspi qla2xxx qla4xxx; do
+  for mod in lpfc qla2xxx qla4xxx; do
     echo "blacklist $mod" >>/etc/modprobe.d/temp-blacklist
   done
 
