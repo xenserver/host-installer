@@ -15,6 +15,7 @@ import commands
 import sys
 import os
 import os.path
+import signal
 
 # user interface:
 import tui
@@ -57,6 +58,11 @@ def configureNetworking(ui):
     if ui:
         ui.progress.clearModelessDialog()
 
+def sig_term(x, y):
+    xelogging.log("Killed by another instance, terminating")
+    os.system('/usr/bin/clear')
+    sys.exit(0)
+
 def main(args):
     # switch to ISO 8859-1 mode so line drawing characters work as expected on 
     # vt100 terminals.
@@ -65,10 +71,21 @@ def main(args):
     # log to tty3
     xelogging.openLog('/dev/tty3')
 
+    tty = None
+    signal.signal(signal.SIGTERM, sig_term)
+    try:
+        tty = os.path.basename(os.readlink('/proc/self/fd/0'))
+        pidfile = open('/var/run/installer-%s.pid' % tty, 'w')
+        print >>pidfile, os.getpid()
+        pidfile.close()
+    except:
+        pass
+
     operation = None
     ui = tui
     interactive = True
     driver_repos = []
+    reboot = False
 
     for (opt, val) in args.items():
         if opt == "--install":
@@ -81,6 +98,8 @@ def main(args):
             interactive = False
             ui = None
             xelogging.openLog(sys.stdout)
+        elif opt == "--reboot":
+            reboot = True
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -90,13 +109,26 @@ def main(args):
 
     # start the user interface:
     if ui:
-        xelogging.log("Starting 'init' user interface")
+        xelogging.log("Starting 'init' user interface on %s" % tty)
         ui.init_ui()
 
     # let the user choose what they would like to do:
     if interactive:
         # choose keymap
         kmap = ui.init.get_keymap()
+
+        if tty:
+            try:
+                # terminate any additional instances of the installer
+                for p in os.listdir('/var/run'):
+                    if p != 'installer-%s.pid' % tty:
+                        f = open('/var/run/'+p)
+                        pid = int(f.readline())
+                        f.close()
+                        os.kill(pid, signal.SIGTERM)
+            except:
+                pass
+                    
         args['--keymap'] = kmap
         xelogging.log("Loading keymap %s" % kmap)
         util.runCmd2(["/bin/loadkeys", kmap])
@@ -149,13 +181,7 @@ def main(args):
         # stop logging to tty3:
         xelogging.closeLogs()
 
-    try:
-        if os.readlink('/proc/self/fd/0') != '/dev/console':
-            print "Not on the console, not rebooting"
-            return False
-    except:
-        pass
-    return True
+    return reboot
 
 
 if __name__ == "__main__":
