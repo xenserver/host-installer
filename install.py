@@ -98,10 +98,7 @@ def go(ui, args):
                         serial[k] = v
             n = int(dev[4:])+1
             serial['port'] = (dev, "com%d" % n)
-            if args.has_key('term'):
-                serial['term'] = args['term']
-            else:
-                serial['term'] = 'vt102'
+            serial['term'] = os.getenv('TERM', 'vt102')
             results['serial-console'] = serial
             xelogging.log("Serial console specified on command-line: %s" % serial_console)
         except:
@@ -118,7 +115,7 @@ def go(ui, args):
 
         # log the modules that we loaded:
         xelogging.log("All needed modules should now be loaded. We have loaded:")
-        util.runCmd2(["/bin/lsmod"])
+        util.runCmd("lsmod")
 
         status = constants.EXIT_OK
 

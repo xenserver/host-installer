@@ -11,57 +11,35 @@
 #
 # by Andrew Peace
 
+args=`sed -e 's/\([^ ][^ ]*\)/--\1/g' /proc/cmdline`
 export LVM_SYSTEM_DIR=/tmp/lvm
 
-console=tty0
+# force TERM if on a serial console (Xen defeats init's attempt to do this)
 term=vt102
 bash_shell=0
 for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
-  copy=1
   case "$arg" in
+    boot-console=*)
+      serial_console=${arg#boot-console=};;
     console=*)
       console=${arg#console=};;
     term=*)
       term=${arg#term=};;
     bash-shell)
-      bash_shell=1
-      copy=0;;
-    blacklist=* | extramodules=*)
-      copy=0;;
+      bash_shell=1;;
   esac
-  [ $copy -eq 1 ] && install_args="$install_args --$arg"
 done
 
-if [ "$1" != '--' ]; then
-  # started by init on the console
-  if [ $bash_shell -eq 1 ]; then
-    echo "Exiting this shell will run the installer:"
-    echo " /opt/xensource/installer/init$install_args"
-    echo "---"
-    /bin/bash
-  else
-    # start clone on all other consoles
-    for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
-      case "$arg" in
-        console=*)
-          c=${arg#console=}
-	  if [ $c != $console ]; then
-	    b=9600
-	    t=linux
-	    case "$c" in
-	      ttyS*)
-		co=`expr "$c" : '\(ttyS.*\),'`
-		br=`expr "$c" : 'ttyS.*,\([0-9]*\)'`
-		[ -n "$co" ] && c=$co
-		[ -n "$br" ] && b=$br
-		t=$term;;
-	    esac
-	    /sbin/getty -n -l $0 $c $b $t &
-	  fi
-      esac
-    done
-    case "$console" in ttyS*) export TERM=$term;; esac
-  fi
+[ -z "$serial_console" ] && serial_console="$console"
+if expr "$serial_console" : 'ttyS' >/dev/null; then
+  export TERM=$term
 fi
 
-/opt/xensource/installer/init$install_args --reboot
+if [ $bash_shell -eq 1 ]; then
+    echo "Exiting this shell will run the installer:"
+    echo " /opt/xensource/installer/init $args"
+    echo "---"
+    /bin/bash
+fi
+
+/opt/xensource/installer/init $args
