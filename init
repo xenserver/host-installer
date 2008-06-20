@@ -37,7 +37,7 @@ from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 
 # Attempt to configure the network:
-def configureNetworking(ui):
+def configureNetworking(ui, device):
     if ui:
         ui.progress.showMessageDialog(
             "Preparing for installation",
@@ -51,8 +51,14 @@ def configureNetworking(ui):
 
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
 
-    for i in nethw.keys():
-        netutil.ifup(i)
+    if device.startswith('eth'):
+        if nethw.has_key(device):
+            netutil.ifup(device)
+    else:
+        # MAC address
+        matching_list = filter(lambda x: x.hwaddr == device, nethw.values())
+        if len(matching_list) == 1:
+            netutil.ifup(matching_list[0].name)
 
     if ui:
         ui.progress.clearModelessDialog()
@@ -68,6 +74,7 @@ def main(args):
     operation = None
     ui = tui
     interactive = True
+    answer_device = 'eth0'
     driver_repos = []
 
     for (opt, val) in args.items():
@@ -81,6 +88,8 @@ def main(args):
             interactive = False
             ui = None
             xelogging.openLog(sys.stdout)
+        elif opt == '--answerfile_device':
+            answer_device = val.lower()
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -103,7 +112,7 @@ def main(args):
 
         xelogging.writeLog("/tmp/startup-log")
     else:
-        configureNetworking(ui)
+        configureNetworking(ui, answer_device)
 
     backups = product.findXenSourceBackups()
     try:
