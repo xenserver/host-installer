@@ -77,7 +77,7 @@ def main(args):
     operation = None
     ui = tui
     interactive = True
-    answer_device = 'eth0'
+    answer_device = 'all'
     driver_repos = []
 
     for (opt, val) in args.items():
