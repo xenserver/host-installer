@@ -51,7 +51,10 @@ def configureNetworking(ui, device):
 
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
 
-    if device.startswith('eth'):
+    if device == 'all':
+        for i in nethw.keys():
+            netutil.ifup(i)
+    elif device.startswith('eth'):
         if nethw.has_key(device):
             netutil.ifup(device)
     else:
