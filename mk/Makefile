@@ -60,7 +60,7 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP) $(BUILDROOT_ENV_STAM
 	$(MAKE) -C $(call hg_loc,host-installer)/startup install DESTDIR=$(INSTALLER_FILESYSTEM)
 # make version.py: (XXX should be a separate target):
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
-	rm -f $(INSTALLER_FILESYSTEM)/etc/init.d/{discover.init,S50sshd,S40network}
+	rm -f $(INSTALLER_FILESYSTEM)/etc/init.d/{discover.init,S10udev,S50sshd,S40network}
 	touch $@
 
 $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
