@@ -22,7 +22,7 @@ BUILDROOT_DIR = $(MY_OBJ_DIR)/repos/dist-buildroot.hg
 INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 
 # commands:
-INSTALLER_CHROOT = $(CHROOT) $(INSTALLER_FILESYSTEM)
+INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
 build: $(INSTALL_IMG) $(MY_OUTPUT_DIR)/.dirstamp
