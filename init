@@ -95,6 +95,7 @@ def main(args):
     interactive = True
     answer_device = 'all'
     driver_repos = []
+    init_network = False
     reboot = False
 
     for (opt, val) in args.items():
@@ -104,8 +105,10 @@ def main(args):
             operation = init_constants.OPERATION_P2V
         elif opt == "--answerfile":
             interactive = False
+            init_network = True
         elif opt == "--rt_answerfile":
             interactive = False
+            init_network = True
             ui = None
             xelogging.openLog(sys.stdout)
         elif opt == '--answerfile_device':
@@ -147,7 +150,8 @@ def main(args):
         util.runCmd2(["/bin/loadkeys", kmap])
 
         xelogging.writeLog("/tmp/startup-log")
-    else:
+
+    if init_network:
         configureNetworking(ui, answer_device)
 
     backups = product.findXenSourceBackups()
