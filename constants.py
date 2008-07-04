@@ -57,7 +57,7 @@ def error_string(error, logname, with_hd):
 # memory checks should be done against MIN_SYSTEM_RAM_MB since libxc
 # reports the total system ram after the Xen heap.  The UI should
 # display the value given by MIN_SYSTEM_RAM_MB_RAW.
-min_primary_disk_size = 16 #GB
+min_primary_disk_size = 14 #GB
 max_primary_disk_size = 2047 #GB
 MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
 MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
