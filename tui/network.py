@@ -141,7 +141,7 @@ def select_netif(text, conf, default=None):
     netifs = conf.keys()
     netifs.sort()
     def_iface = None
-    if default != None:
+    if default != None and default in netifs:
         def_iface = ("%s (%s)" % ((default, conf[default].hwaddr)), default)
     netif_list = [("%s (%s)" % ((x, conf[x].hwaddr)), x) for x in netifs]
     rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,

@@ -145,12 +145,12 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-interface'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -280,6 +280,13 @@ def performInstallation(answers, ui_package):
     if not answers.has_key('bootloader'):
         answers['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
 
+    # Slight hack: we need to write the bridge name to xensource-inventory 
+    # further down; compute it here based on the admin interface name if we
+    # haven't already recorded it as part of reading settings from an upgrade:
+    if not answers.has_key('net-admin-bridge'):
+        assert answers['net-admin-interface'].startswith("eth")
+        answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
+ 
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
@@ -821,7 +828,7 @@ def setRootPassword(mounts, root_password, pwdtype):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
+def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -868,19 +875,17 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
         print >>nc, "INTERFACES='%s'" % admin_config.hwaddr
     nc.close()
 
-    # write a config file for each interface, special-casing the admin
-    # interface to have a dom0 configuration.
-    for intf in nethw.keys():
-        # write out the firstboot network config file for our interface (if we're
-        # upgrading we only need to do this for the management interface, the rest
-        # should already be there):
-        if not preserve_settings or intf == admin_iface:
-            # XXX in non-upgrade cases these will be the same, but otherwise the admin_iface
-            # dictionary has the correct value as read from the existing installation.
-            if intf == admin_iface:
-                hwaddr = admin_config.hwaddr
-            else:
-                hwaddr = nethw[intf].hwaddr
+    # Write out the networking configuration.  Note that when doing a fresh
+    # install the interface configuration will be made to look like the current
+    # runtime configuration.  When donig an upgrade, the interface
+    # configuration previously used needs to be preserved but we also don't
+    # need to re-seed the configuration via firstboot, so we only write out a 
+    # sysconfig file for the management interface to get networking going.
+    ###
+    if not preserve_settings:
+        # Write a firstboot config file for every interface we know about
+        for intf in nethw.keys():
+            hwaddr = nethw[intf].hwaddr
             conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
             ac = open(conf_file, 'w')
             print >>ac, "LABEL='%s'" % intf
@@ -901,45 +906,47 @@ def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, net
                 print >>ac, "MODE=none"
             ac.close()
 
-        if intf == admin_iface:
-            # admin interface - write out sysconfig files so that bringup on
-            # slaves works and they can talk to the master:
-            bridge = "xenbr%s" % intf[3:]
-            sysconf_intf_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % intf)
-            sysconf_intf_fd = open(sysconf_intf_file, 'w')
-            print >>sysconf_intf_fd, "# DO NOT EDIT: This file generated by the installer"
-            print >>sysconf_intf_fd, "XEMANAGED=yes"
-            print >>sysconf_intf_fd, "DEVICE=%s" % admin_iface
-            print >>sysconf_intf_fd, "ONBOOT=no"
-            print >>sysconf_intf_fd, "TYPE=Ethernet"
-            print >>sysconf_intf_fd, "HWADDR=%s" % hwaddr
-            print >>sysconf_intf_fd, "BRIDGE=%s" % bridge
-            sysconf_intf_fd.close()
+        nc = open(network_conf_file, 'w')
+        print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
+        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
+        nc.close()
 
-            sysconf_bridge_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % bridge)
-            sysconf_bridge_fd = open(sysconf_bridge_file, "w")
-            print >>sysconf_bridge_fd, "# DO NOT EDIT: This file generated by the installer"
-            print >>sysconf_bridge_fd, "XEMANAGED=yes"
-            print >>sysconf_bridge_fd, "DEVICE=%s" % bridge
-            print >>sysconf_bridge_fd, "ONBOOT=no"
-            print >>sysconf_bridge_fd, "TYPE=Bridge"
-            print >>sysconf_bridge_fd, "DELAY=0"
-            print >>sysconf_bridge_fd, "STP=off"
-            print >>sysconf_bridge_fd, "PIFDEV=%s" % intf
-            if not admin_config.isStatic():
-                print >>sysconf_bridge_fd, "BOOTPROTO=dhcp"
-            else:
-                print >>sysconf_bridge_fd, "BOOTPROTO=none"
-                print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config.netmask
-                print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config.ipaddr
-                print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
-                if manual_nameservers:
-                    print >>sysconf_bridge_fd, "PEERDNS=yes"
-                    for i in range(len(nameservers)):
-                        print >>sysconf_bridge_fd, "DNS%d=%s" % (i+1, nameservers[i])
-                if domain:
-                    print >>sysconf_bridge_fd, "DOMAIN=%s" % domain
-            sysconf_bridge_fd.close()
+    # Write out initial network configuration file for management interface:
+    sysconf_admin_iface_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_iface)
+    sysconf_admin_iface_fd = open(sysconf_admin_iface_file, 'w')
+    print >>sysconf_admin_iface_fd, "# DO NOT EDIT: This file generated by the installer"
+    print >>sysconf_admin_iface_fd, "XEMANAGED=yes"
+    print >>sysconf_admin_iface_fd, "DEVICE=%s" % admin_iface
+    print >>sysconf_admin_iface_fd, "ONBOOT=no"
+    print >>sysconf_admin_iface_fd, "TYPE=Ethernet"
+    print >>sysconf_admin_iface_fd, "HWADDR=%s" % admin_config.hwaddr
+    print >>sysconf_admin_iface_fd, "BRIDGE=%s" % admin_bridge
+    sysconf_admin_iface_fd.close()
+
+    sysconf_bridge_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_bridge)
+    sysconf_bridge_fd = open(sysconf_bridge_file, "w")
+    print >>sysconf_bridge_fd, "# DO NOT EDIT: This file generated by the installer"
+    print >>sysconf_bridge_fd, "XEMANAGED=yes"
+    print >>sysconf_bridge_fd, "DEVICE=%s" % admin_bridge
+    print >>sysconf_bridge_fd, "ONBOOT=no"
+    print >>sysconf_bridge_fd, "TYPE=Bridge"
+    print >>sysconf_bridge_fd, "DELAY=0"
+    print >>sysconf_bridge_fd, "STP=off"
+    print >>sysconf_bridge_fd, "PIFDEV=%s" % admin_iface
+    if not admin_config.isStatic():
+        print >>sysconf_bridge_fd, "BOOTPROTO=dhcp"
+    else:
+        print >>sysconf_bridge_fd, "BOOTPROTO=none"
+        print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config.netmask
+        print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config.ipaddr
+        print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
+        if manual_nameservers:
+            print >>sysconf_bridge_fd, "PEERDNS=yes"
+            for i in range(len(nameservers)):
+                print >>sysconf_bridge_fd, "DNS%d=%s" % (i+1, nameservers[i])
+        if domain:
+            print >>sysconf_bridge_fd, "DOMAIN=%s" % domain
+    sysconf_bridge_fd.close()
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
@@ -963,7 +970,7 @@ def writeModprobeConf(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_iface):
+def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_bridge):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
@@ -979,9 +986,6 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.write("DOM0_MEM='%d'\n" % constants.DOM0_MEM)
-    
-    assert admin_iface.startswith("eth")
-    admin_bridge = "xenbr%s" % admin_iface[3:]
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     inv.close()
 

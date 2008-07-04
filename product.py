@@ -261,18 +261,20 @@ class ExistingInstallation(object):
             # The dev -> MAC mapping for other devices will be preserved in the
             # database which is available in time for everything except the
             # management interface.
-            for file in filter(lambda x: x.startswith('ifcfg-eth'), os.listdir(os.path.join(mntpoint, 'etc/sysconfig/network-scripts'))):
+            for file in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
+                                   os.listdir(os.path.join(mntpoint, 'etc/sysconfig/network-scripts'))):
                 devcfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False)
                 if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
                     brcfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
-                    try:
-                        results['net-admin-interface'] = devcfg['DEVICE']
-                    except:
-                        raise SettingsNotAvailable, "unable to determine management interface"
+                    results['net-admin-interface'] = devcfg['DEVICE']
+                    results['net-admin-bridge'] = devcfg['BRIDGE']
 
                     # get hardware address if it was recorded, otherwise look it up:
                     if devcfg.has_key('HWADDR'):
                         hwaddr = devcfg['HWADDR']
+                    elif devcfg.has_key('MACADDR'):
+                        # our bonds have a key called MACADDR instead
+                        hwaddr = devcfg['MACADDR']
                     else:
                         # XXX what if it's been renamed out of existence?
                         try:
