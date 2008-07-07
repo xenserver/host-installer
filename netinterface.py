@@ -8,10 +8,11 @@
 #
 # written by Simon Rowe
 
-import os
 import util
 
 class NetInterface:
+    """ Represents the configuration of a network interface. """
+
     Static = 1
     DHCP = 2
 
@@ -39,16 +40,20 @@ class NetInterface:
 
     def __str__(self):
         if self.mode == self.DHCP:
-            return "{'mode': 'DHCP', 'hwaddr': '%s'}" % self.hwaddr
+            return "<NetInterface: DHCP, hwaddr = '%s'>" % self.hwaddr
         else:
-            return "{'mode': 'Static', 'hwaddr': '%s', " % self.hwaddr  + \
-                "'ipaddr': '%s', 'netmask': '%s', 'gateway': '%s', 'dns': '%s'}" % \
+            return "<NetInterface: Static, hwaddr = '%s', " % self.hwaddr  + \
+                "ipaddr = '%s', netmask = '%s', gateway = '%s', dns = '%s'>" % \
                 (self.ipaddr, self.netmask, self.gateway, self.dns)
 
     def isStatic(self):
+        """ Returns true if a static interface configuration is represented. """
         return self.mode == self.Static
 
     def writeDebStyleInterface(self, iface, f):
+        """ Write a Debian-style configuration entry for this interface to 
+        file object f using interface name iface. """
+
         if self.mode == self.DHCP:
             f.write("iface %s inet dhcp\n" % iface)
         else:
@@ -57,7 +62,7 @@ class NetInterface:
             rc, output = util.runCmd2(['/bin/ipcalc', '-b', self.ipaddr, self.netmask],
                                       with_output=True)
             if rc == 0:
-                bcast=output[10:]
+                bcast = output[10:]
             f.write("iface %s inet static\n" % iface)
             f.write("   address %s\n" % self.ipaddr)
             if bcast != None:
