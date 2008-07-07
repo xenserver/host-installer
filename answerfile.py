@@ -247,10 +247,11 @@ def parseInterfaces(n):
         ip = getText(netifnode.getElementsByTagName('ip')[0].childNodes)
         subnetmask = getText(netifnode.getElementsByTagName('subnet-mask')[0].childNodes)
         gateway = getText(netifnode.getElementsByTagName('gateway')[0].childNodes)
-        dns = getText(netifnode.getElementsByTagName('dns')[0].childNodes)
-        results['net-admin-configuration'] = NetInterface(NetInterface.Static, requested_hwaddr, ip, subnetmask, gateway, dns)
+        results['net-admin-configuration'] = NetInterface(NetInterface.Static, requested_hwaddr, ip, subnetmask, gateway, dns=None)
     elif proto == 'dhcp':
         results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, requested_hwaddr)
+    else:
+        raise AnswerfileError, "<admin-interface> tag must have attribute proto='static' or proto='dhcp'"
     return results
 
 def parseSource(n):
