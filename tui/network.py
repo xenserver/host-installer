@@ -158,6 +158,9 @@ def requireNetworking(answers, defaults=None):
     to the configuration in the style (all-dhcp, manual-config). """
 
     nethw = netutil.scanConfiguration()
+    if len(nethw.keys()) == 0:
+        tui.progress.OKDialog("Networking", "No ethernet device found")
+        return 0
 
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:
@@ -213,13 +216,14 @@ def requireNetworking(answers, defaults=None):
 
         # check that we have *some* network:
         if netutil.ifup(conf_dict['interface']) != 0 or not netutil.interfaceUp(conf_dict['interface']):
+            tui.progress.clearModelessDialog()
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
             direction = 0
         else:
             if answers and type(answers) == dict:
                 answers['net-admin-interface'] = conf_dict['interface']
                 answers['runtime-iface-configuration'] = (False, {conf_dict['interface']: conf_dict['config']})
-        tui.progress.clearModelessDialog()
+            tui.progress.clearModelessDialog()
         
     return direction
 

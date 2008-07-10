@@ -201,13 +201,12 @@ def blockSizeToGBSize(blocks):
 def getHumanDiskSize(blocks):
     return "%d GB" % blockSizeToGBSize(blocks)
 
-def getExtendedDiskInfo(disk):
+def getExtendedDiskInfo(disk, inMb = 0):
     devname = disk.replace("/dev/", "")
 
     return (getDiskDeviceVendor(devname),
             getDiskDeviceModel(devname),
-            getDiskDeviceSize(devname))
-
+            inMb and (getDiskDeviceSize(devname)/2048) or getDiskDeviceSize(devname))
 
 ################################################################################
 # TOOLS FOR PARTITIONING DISKS

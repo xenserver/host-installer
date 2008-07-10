@@ -15,6 +15,8 @@ import xelogging
 SKIP_SCREEN = -100
 EXIT = -101
 LEFT_BACKWARDS = -1
+RIGHT_FORWARDS =  1
+REPEAT_STEP =  0
 
 class Step:
     def __init__(self, fn, args = [], predicates = []):

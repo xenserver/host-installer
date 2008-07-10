@@ -12,8 +12,10 @@
 # written by Andrew Peace
 
 import os
+import sys
 import util
 import datetime
+import traceback
 
 continuous_logs = []
 __log__ = ""
@@ -31,6 +33,19 @@ def log(txt):
     for fd in continuous_logs:
         fd.write(txt)
         fd.flush()
+
+def log_exception(e):
+    """ Formats exception and logs it """
+    ex = sys.exc_info()
+    err = traceback.format_exception(*ex)
+    errmsg = "\n".join([ str(x) for x in e.args ])
+
+    # print the exception args nicely
+    log(errmsg)
+
+    # now print the traceback
+    for exline in err:
+        log(exline)
 
 def writeLog(destination):
     """ Write the log as it stands to 'destination'. """

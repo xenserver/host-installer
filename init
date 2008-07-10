@@ -24,6 +24,7 @@ import tui.progress
 import generalui
 
 import install
+import oem
 import product
 import init_constants
 import xelogging
@@ -97,10 +98,23 @@ def main(args):
     driver_repos = []
     init_network = False
     reboot = False
+    oem_edition = False
+    oem_manufacturer = "OEM Manufacturer not found"
+    oem_verify = False
 
     for (opt, val) in args.items():
         if opt == "--install":
             operation = init_constants.OPERATION_INSTALL
+        elif opt == "--oem_edition":
+            oem_edition = True
+        elif opt == "--OEM_VERIFY":
+            oem_verify = (val == "on")
+        elif opt == "--OEM_MANUFACTURER":
+            oem_manufacturer = val
+        elif opt == "--install_oem_to_flash":
+            operation = init_constants.OPERATION_INSTALL_OEM_TO_FLASH
+        elif opt == "--install_oem_to_disk":
+            operation = init_constants.OPERATION_INSTALL_OEM_TO_DISK
         elif opt == "--p2v":
             operation = init_constants.OPERATION_P2V
         elif opt == "--answerfile":
@@ -126,6 +140,13 @@ def main(args):
     if ui:
         xelogging.log("Starting 'init' user interface on %s" % tty)
         ui.init_ui()
+
+    # if oem_manufacturer=$md5sum appears on cmdline then this
+    # CD is only to be run on machines built by a that manufacturer
+    if oem_verify:
+        is_oem_machine = oem.OemManufacturerTest(ui, oem_manufacturer)
+        if not is_oem_machine:
+            return reboot
 
     # let the user choose what they would like to do:
     if interactive:
@@ -154,12 +175,18 @@ def main(args):
     if init_network:
         configureNetworking(ui, answer_device)
 
-    backups = product.findXenSourceBackups()
+    if not oem_edition:
+        backups = product.findXenSourceBackups()
+
     try:
         while True:
             # if interactive, set the operation:
             if interactive and not operation:
-                operation = ui.init.choose_operation(len(backups) > 0)
+                if oem_edition:
+                    operation = ui.init_oem.choose_operation()
+                else:
+                    operation = ui.init.choose_operation(len(backups) > 0)
+                    
 
             if operation == init_constants.OPERATION_REBOOT:
                 break
@@ -170,6 +197,16 @@ def main(args):
 
                 args['--extrarepo'] = driver_repos
                 rc = install.go(ui, args)
+
+            elif operation == init_constants.OPERATION_INSTALL_OEM_TO_FLASH:
+                xelogging.log("Starting installation of OEM to flash")
+
+                rc = oem.go_flash(ui, args)
+
+            elif operation == init_constants.OPERATION_INSTALL_OEM_TO_DISK:
+                xelogging.log("Starting installation of OEM to disk")
+
+                rc = oem.go_disk(ui, args)
 
             # load a driver:
             elif operation == init_constants.OPERATION_LOAD_DRIVER:

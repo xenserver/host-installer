@@ -11,8 +11,15 @@ install:
 	mkdir -p $(INSTALLER_DIR) $(SUPPORT_DIR)
 # Executables
 	install -m755 init $(INSTALLER_DIR)
-	install -m755 hwdetect $(INSTALLER_DIR)
 	install -m755 support.sh $(SUPPORT_DIR)
+
+# scripts used by OEM installer
+	mkdir -p $(INSTALLER_DIR)/oem
+	install -m755 oem/create-partitions $(INSTALLER_DIR)/oem
+	install -m755 oem/populate-partition $(INSTALLER_DIR)/oem
+	install -m755 oem/update-initrd $(INSTALLER_DIR)/oem
+	install -m755 oem/update-partitions $(INSTALLER_DIR)/oem
+
 # Others
 	install -m644 answerfile.py $(INSTALLER_DIR)
 	install -m644 backend.py $(INSTALLER_DIR)
@@ -22,6 +29,7 @@ install:
 	install -m644 generalui.py $(INSTALLER_DIR)
 	install -m644 hardware.py $(INSTALLER_DIR)
 	install -m644 install.py $(INSTALLER_DIR)
+	install -m644 oem.py $(INSTALLER_DIR)
 	install -m644 init_constants.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
 	install -m644 netinterface.py $(INSTALLER_DIR)
@@ -33,6 +41,7 @@ install:
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
 	install -m644 tui/network.py $(INSTALLER_DIR)/tui
 	install -m644 tui/init.py $(INSTALLER_DIR)/tui
+	install -m644 tui/init_oem.py $(INSTALLER_DIR)/tui
 	install -m644 tui/progress.py $(INSTALLER_DIR)/tui
 	mkdir -p $(INSTALLER_DIR)/tui/installer
 	install -m644 tui/installer/__init__.py $(INSTALLER_DIR)/tui/installer/

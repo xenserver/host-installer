@@ -453,7 +453,7 @@ class MountingAccessor(FilesystemAccessor):
             self.finish()
 
 class DeviceAccessor(MountingAccessor):
-    def __init__(self, device, fs = ['iso9660', 'vfat']):
+    def __init__(self, device, fs = ['iso9660', 'vfat', 'ext3']):
         """ Return a MountingAccessor for a device 'device', which should
         be a fully qualified path to a device node. """
         MountingAccessor.__init__(self, fs, device)

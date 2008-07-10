@@ -1,0 +1,115 @@
+#!/bin/bash -ex
+# 
+# If we install the oem image on a hard disk instead of a flash disk
+# we need to update the initrd on, say, /dev/sda1, so that it installs the
+# kernel modules necessary to access the disk
+
+# This ensures we exit with non-zero error value should *anything* fail
+trap 'rc=$? ; [ $rc -eq 0 ] && exit $rc' EXIT 
+
+# partition, e.g. /dev/sda1
+PARTITION=$1
+
+# Temporary mount point for partition
+MNTPOINT="$(mktemp -d /tmp/mnt-XXXXXX)"
+
+# Mount the partition
+mount ${PARTITION} ${MNTPOINT}
+
+# extracts cpio archive on stdin to current directory
+cpio2dir () {
+    # cpio is only available in squashfs root filesystem
+    ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
+    mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    mount -t tmpfs none ${ROOTFS_MNTPOINT}/mnt 
+    chroot ${ROOTFS_MNTPOINT} sh -c "cd /mnt && cpio -idu "
+    tar -C ${ROOTFS_MNTPOINT}/mnt -c . | tar -x 
+    umount ${ROOTFS_MNTPOINT}/mnt
+    umount ${ROOTFS_MNTPOINT}
+    rmdir ${ROOTFS_MNTPOINT}
+}
+
+# turns current directory into cpio archive on stdout
+dir2cpio () {
+    # cpio is only available in squashfs root filesystem
+    ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
+    mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    mount -t tmpfs none ${ROOTFS_MNTPOINT}/mnt 
+    tar -c . | tar -C  ${ROOTFS_MNTPOINT}/mnt -x 
+    chroot ${ROOTFS_MNTPOINT} sh -c "cd /mnt && find | cpio -o -H newc"
+    umount ${ROOTFS_MNTPOINT}/mnt
+    umount ${ROOTFS_MNTPOINT}
+    rmdir ${ROOTFS_MNTPOINT}
+}
+
+# build a redhat style initrd: usage rhmkinitrd <filename>
+rhmkinitrd() {
+    # mkinitrd is only available in squashfs root filesystem
+    OUTPUT="$1"
+    ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
+    mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    mount -t tmpfs none ${ROOTFS_MNTPOINT}/mnt 
+    mount -t tmpfs none ${ROOTFS_MNTPOINT}/var/tmp
+    mount -t sysfs none ${ROOTFS_MNTPOINT}/sys
+    KVER=$(basename `/bin/ls -1td ${ROOTFS_MNTPOINT}/lib/modules/2.6*xen`)
+    mount -t tmpfs none ${ROOTFS_MNTPOINT}/dev
+    tar -C /dev -c . | tar -C ${ROOTFS_MNTPOINT}/dev -x
+    FSLABEL=$(dumpe2fs ${PARTITION} | sed -ne 's/Filesystem volume name:[[:space:]]*//p')
+    echo "LABEL=${FSLABEL}  /  ext3  defaults,ro  0  0" >${ROOTFS_MNTPOINT}/mnt/fstab
+    chroot ${ROOTFS_MNTPOINT} /sbin/mkinitrd --fstab=/mnt/fstab --nocompress --without-usb --with=zlib_inflate --with=squashfs /mnt/initrd ${KVER}
+    mv ${ROOTFS_MNTPOINT}/mnt/initrd "${OUTPUT}"
+    umount ${ROOTFS_MNTPOINT}/dev
+    umount ${ROOTFS_MNTPOINT}/sys
+    umount ${ROOTFS_MNTPOINT}/var/tmp
+    umount ${ROOTFS_MNTPOINT}/mnt
+    umount ${ROOTFS_MNTPOINT}
+    rmdir ${ROOTFS_MNTPOINT}
+}
+
+# Builds the redhat initrd to see what extra modules are needed to support
+# ${PARTITION}.  Then add these modules into our original initrd
+rebuildinitrd() {
+    # build a redhat initrd
+    rhmkinitrd /tmp/rh-initrd
+    
+    # extract new redhat initrd
+    mkdir /tmp/rh-initrd-dir
+    ( cd /tmp/rh-initrd-dir && cpio2dir < /tmp/rh-initrd )
+
+    # extract the original initrd
+    mkdir /tmp/xe-initrd-dir
+    ( cd /tmp/xe-initrd-dir && gunzip -c ${MNTPOINT}/boot/initrd | cpio2dir )
+
+    # create a list of modules in redhat initrd but not original initrd
+    IN_XE=$(sed -ne 's#^insmod /lib##p' /tmp/xe-initrd-dir/init)
+    FILTER=$(echo "$IN_XE" | sed -e 's/^/(/' -e 's/$/)/' -e 's/ /\|/g')
+
+    # create a list of modules only in redhat (ignore all the dm- ones)
+    egrep '^insmod ' /tmp/rh-initrd-dir/init | egrep -v '^insmod /lib/dm-' | egrep -v "${FILTER}" | \
+    sed 's#^insmod \(.*\)$#\1#' > /tmp/extra-modules-needed
+
+    # add these modules to xen initrd
+    cat /tmp/extra-modules-needed | while read file ;
+      do cp /tmp/rh-initrd-dir/$file  /tmp/xe-initrd-dir/$file  
+    done
+
+    # insmod these modules in init just prior to switchroot 
+    cat /tmp/extra-modules-needed | while read file ;
+      do sed -i -e "s#^switchroot#insmod $file\\nswitchroot#" /tmp/xe-initrd-dir/init
+    done
+    
+    # save directory as new initrd
+    ( cd /tmp/xe-initrd-dir && dir2cpio | gzip -c > ${MNTPOINT}/boot/initrd )
+
+    # clear up
+    rm -rf /tmp/xe-initrd-dir
+    rm -rf /tmp/rh-initrd-dir
+    rm -f  /tmp/rh-initrd
+}
+
+rebuildinitrd
+
+umount ${MNTPOINT}
+rmdir ${MNTPOINT}
+
+exit 0

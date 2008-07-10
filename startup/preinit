@@ -11,13 +11,26 @@
 #
 # by Andrew Peace
 
+# Test if started by init (or recursively by preinit)
+if [ "$1" == "--" ] ; then
+    started_by_init=0
+else
+    started_by_init=1
+fi
+
 export LVM_SYSTEM_DIR=/tmp/lvm
 
 console=tty0
 term=vt102
 interactive=1
 bash_shell=0
-for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+OLDIFS="$IFS"
+IFS="
+"
+# spaces seperate arguments except for spaces enclosed by a pair of double quotes
+args=$(sed -e s'/ *$//' -e 's/\(\("[^"]*"\)*\) \+/\1\n/g' /proc/cmdline)
+set --
+for arg in $args; do
   copy=1
   case "$arg" in
     answerfile=* | rt_answerfile=*)
@@ -32,10 +45,15 @@ for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
     blacklist=* | extramodules=*)
       copy=0;;
   esac
-  [ $copy -eq 1 ] && install_args="$install_args --$arg"
+  [ $copy -eq 1 ] && set -- "$@" "--$arg"
 done
 
-if [ "$1" != '--' ]; then
+# OEM edition contains file /.oem_edition
+# Note: the non-OEM edition behaves like the OEM edition if you 
+# pass in "oem_edition" on the kernel command line
+[ -e /.oem_edition ] && set -- "$@" "--oem_edition"
+
+if [ "$started_by_init" == "1" ]; then
   # started by init on the console
 
   # force TERM if on a serial console (Xen defeats init's attempt to do this)
@@ -43,12 +61,12 @@ if [ "$1" != '--' ]; then
 
   if [ $bash_shell -eq 1 ]; then
     echo "Exiting this shell will run the installer:"
-    echo " /opt/xensource/installer/init$install_args"
+    echo " /opt/xensource/installer/init" "$@"
     echo "---"
-    /bin/bash
+    IFS="$OLDIFS" /bin/bash
   elif [ $interactive -eq 1 ]; then
     # start clones on all other consoles
-    for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+    for arg in $args; do
       case "$arg" in
         console=*)
           c=${arg#console=}
@@ -70,4 +88,4 @@ if [ "$1" != '--' ]; then
   fi
 fi
 
-/opt/xensource/installer/init$install_args --reboot
+/opt/xensource/installer/init "$@" --reboot

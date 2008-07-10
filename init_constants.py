@@ -18,4 +18,10 @@ OPERATION_REBOOT = -1
     OPERATION_LOAD_DRIVER,
     OPERATION_RESTORE,
     OPERATION_P2V,
-) = range(6)
+    OPERATION_INSTALL_OEM_TO_FLASH,
+    OPERATION_INSTALL_OEM_TO_DISK,
+) = range(8)
+
+# THIS IS ONLY USED FOR OEM A.T.M. 
+# TODO rationalise with retail 
+HW_CONFIG_COMPLETED_STAMP = "/tmp/.hw-config-completed.stamp"
