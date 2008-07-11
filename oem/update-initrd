@@ -97,6 +97,10 @@ rebuildinitrd() {
     cat /tmp/extra-modules-needed | while read file ;
       do sed -i -e "s#^switchroot#insmod $file\\nswitchroot#" /tmp/xe-initrd-dir/init
     done
+
+    # expand the switchroot to its constituent subcommands and insert a bind mount
+    # to make /boot available (so initrd is available if modification is required).
+    sed -i -e "s#^switchroot#mountroot\\nmountsqroot\\nmount -o bind /sysboot/boot /sysroot/boot\\nenterroot#" /tmp/xe-initrd-dir/init
     
     # save directory as new initrd
     ( cd /tmp/xe-initrd-dir && dir2cpio | gzip -c > ${MNTPOINT}/boot/initrd )
