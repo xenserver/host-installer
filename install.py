@@ -47,10 +47,9 @@ def main(args):
     ui.end_ui()
     return status
 
-def go(ui, args):
+def go(ui, args, answerfile_address):
     extra_repo_defs = []
     results = {'keymap': None, 'serial-console': None}
-    answerfile_address = None
     suppress_extra_cd_dialog = False
     serial_console = None
 
@@ -65,8 +64,6 @@ def go(ui, args):
         elif opt == "--keymap":
             results["keymap"] = val
             xelogging.log("Keymap specified on command-line: %s" % val)
-        elif opt == "--answerfile" or opt == "--rt_answerfile":
-            answerfile_address = val
         elif opt == "--extrarepo":
             for v in val:
                 if not os.path.isdir(v):

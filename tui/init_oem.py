@@ -125,7 +125,7 @@ def get_blockdev_to_recover(answers, flashonly):
         if result in [None, 'rescan']: return REPEAT_STEP
         if result == 'back':           return LEFT_BACKWARDS
 
-    answers['blockdev'] = entry
+    answers['primary-disk'] = "/dev/" + entry
     if result in [None, 'ok']: return RIGHT_FORWARDS
     if result == 'back':       return LEFT_BACKWARDS
     if result == 'rescan':     return REPEAT_STEP
@@ -218,7 +218,7 @@ def get_remote_file(answers):
 def get_local_file(answers):
 
     # build dalist, a list of accessor objects to mounted CDs and USB partitions
-    dev2write = answers["blockdev"]
+    dev2write = answers["primary-disk"][5:] # strip the 5-char "/dev/" off
     removable_devs = diskutil.getRemovableDeviceList()
     if dev2write in removable_devs: removable_devs.remove(dev2write)
     dalist = []
@@ -282,7 +282,7 @@ def get_local_file(answers):
     return RIGHT_FORWARDS
 
 def confirm_recover_blockdev(answers):
-    dev = answers["blockdev"]
+    dev = answers["primary-disk"][5:] # strip the 5-char "/dev/" off
     vendor, model, _ = diskutil.getExtendedDiskInfo(dev)
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,

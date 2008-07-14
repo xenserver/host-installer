@@ -43,6 +43,8 @@ def processAnswerfile(location):
         results = parseReinstall(n)
     elif install_type == "upgrade":
         results = parseUpgrade(n)
+    elif install_type == "oemhdd":
+        results = parseOemHdd(n)
 
     return results
 
@@ -126,6 +128,46 @@ def parseUpgrade(n):
     results.update(parseBootloader(n))
 
     return results
+
+def parseOemHdd(n):
+    """ n is the top-level document node of the answerfile.  Parses the
+    answerfile if it is for a fresh install. """
+    results = {}
+
+    results['install-type'] = constants.INSTALL_TYPE_FRESH
+
+    # storage type (lvm or ext):
+    srtype_node = n.getAttribute("srtype")
+    if srtype_node in ['', 'lvm']:
+        srtype = constants.SR_TYPE_LVM
+    elif srtype_node in ['ext']:
+        srtype = constants.SR_TYPE_EXT
+    else:
+        raise RuntimeError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'"
+    results['sr-type'] = srtype
+
+    # primary-disk:
+    results['primary-disk'] = "/dev/%s" % getText(n.getElementsByTagName('primary-disk')[0].childNodes)
+    pd_has_guest_storage = True and n.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
+
+    # guest-disks:
+    results['guest-disks'] = []
+    if pd_has_guest_storage:
+        results['guest-disks'].append(results['primary-disk'])
+    for disk in n.getElementsByTagName('guest-disk'):
+        results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
+
+    results.update(parseSource(n))
+    try:
+        results.update(parseInterfaces(n))
+    except IndexError:
+        # Don't configure the admin interface if not specified in answerfile
+        pass
+    results.update(parseOemSource(n))
+    results.update(parseScripts(n))
+
+    return results
+
 
 ### -- code to parse individual parts of the answerfile past this point.
 
@@ -270,4 +312,29 @@ def parseSource(n):
         results['source-address'] = getText(source.childNodes)
     else:
         raise AnswerfileError, "No source media specified."
+    return results
+
+def parseOemSource(n):
+    results = {}
+    if len(n.getElementsByTagName('source')) == 0:
+        raise AnswerfileError, "No OEM image specified."
+    source = n.getElementsByTagName('source')[0]
+    if source.getAttribute('type') == 'local':
+        results['source-media'] = 'local'
+        results['source-address'] = getText(source.childNodes)
+    elif source.getAttribute('type') == 'url':
+        results['source-media'] = 'url'
+        results['source-address'] = getText(source.childNodes)
+    elif source.getAttribute('type') == 'nfs':
+        results['source-media'] = 'nfs'
+        results['source-address'] = getText(source.childNodes)
+    else:
+        raise AnswerfileError, "No media for OEM image specified."
+
+    if len(n.getElementsByTagName('xenrt')) != 0:
+        xenrt = n.getElementsByTagName('xenrt')[0]
+        if xenrt.getAttribute('scorch').lower() != 'false':
+            results['xenrt-scorch'] = True
+        results['xenrt'] = getText(xenrt.childNodes)
+
     return results
