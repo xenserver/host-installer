@@ -8,7 +8,6 @@ BUILDROOT_ENVIRONMENT = $(PROJECT_OUTPUTDIR)/install-image-base/buildroot-env.ta
 # outputs (install.img used by retail installer & recovery.img used by OEM installer)
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
 RECOVERY_IMG = $(MY_OUTPUT_DIR)/recovery.img
-SOURCES_MANIFEST = $(MY_SOURCES)/MANIFEST
 
 # intermediate:
 BUILDROOT_ENV_STAMP = $(MY_OBJ_DIR)/.buildroot-env.stamp
@@ -23,16 +22,11 @@ PROC_ADDED_STAMP = $(MY_OBJ_DIR)/.proc-added.stamp
 BUILDROOT_DIR = $(MY_OBJ_DIR)/repos/dist-buildroot.hg
 INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 
-# third party
-DMIDECODE_BUILT_STAMP = $(MY_OBJ_DIR)/.dmidecode-built.stamp
-DMIDECODE_TARBALL ?= $(MY_DISTFILES)/dmidecode-2.9.tar.gz
-DMIDECODE_PKGNAME = $(shell basename $(DMIDECODE_TARBALL) | sed s/.tar.gz//)
-
 # commands:
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(RECOVERY_IMG) $(SOURCES_MANIFEST) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(RECOVERY_IMG) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 # Note: recovery.img behaves the same as install.img booted with "oem_edition" on kernel command line
@@ -65,18 +59,6 @@ $(PROC_ADDED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 	touch $@
 
 ###
-# build third-party stuff:
-
-# a version of dmidecode built against uClibc
-$(DMIDECODE_BUILT_STAMP): $(BUILDROOT_ENV_STAMP) $(BASE_IMAGE_EXTRACTED_STAMP)
-	rm -rf $(MY_OBJ_DIR)/$(DMIDECODE_PKGNAME)
-	tar -C $(MY_OBJ_DIR) -xzf $(DMIDECODE_TARBALL)
-	export PATH=$(BUILDROOT_DIR)/build_$(DOMAIN0_ARCH_OPTIMIZED)/staging_dir/bin:$${PATH} && \
-	$(MAKE) -C $(MY_OBJ_DIR)/$(DMIDECODE_PKGNAME) CC=$(DOMAIN0_ARCH_OPTIMIZED)-linux-gcc
-	cp $(MY_OBJ_DIR)/$(DMIDECODE_PKGNAME)/dmidecode $(INSTALLER_FILESYSTEM)/sbin/
-	touch $@
-
-###
 # build installer stuff:
 
 $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP) $(BUILDROOT_ENV_STAMP)
@@ -100,7 +82,7 @@ $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
 	touch $@
 
 $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(ISSUE_CUSTOMISED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) \
-		 $(DMIDECODE_BUILT_STAMP) $(MY_OUTPUT_DIR)/.dirstamp
+		 $(MY_OUTPUT_DIR)/.dirstamp
 	rm -f $(INSTALL_IMG)
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG)
 	chmod 644 $@
@@ -109,15 +91,9 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(ISSUE_
 # Todo: ditch recovery.img (requires CD and all PXE configs to put "oem_edition" on kernel command line)
 $(RECOVERY_IMG): RECOVERY_FILESYSTEM=/obj/filesystem.oem
 $(RECOVERY_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(ISSUE_CUSTOMISED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) \
-		 $(DMIDECODE_BUILT_STAMP) $(MY_OUTPUT_DIR)/.dirstamp
+		 $(MY_OUTPUT_DIR)/.dirstamp
 	rm -f $(RECOVERY_IMG)
 	cp -a $(INSTALLER_FILESYSTEM) $(RECOVERY_FILESYSTEM)
 	touch $(RECOVERY_FILESYSTEM)/.oem_edition
 	umask 022 && cd $(RECOVERY_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(RECOVERY_IMG)
 	chmod 644 $@
-
-SOURCES_PREFIX := $(COMPONENT) dfsg
-$(SOURCES_MANIFEST):
-	mkdir -p $(@D)
-	( echo "$(SOURCES_PREFIX) file $(DMIDECODE_TARBALL)" ; \
-	  ) >$@
