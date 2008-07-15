@@ -39,7 +39,7 @@ start()
 
   # repeat after deleting temp blacklist
   rm -f /etc/modprobe.d/temp-blacklist
-  udevtrigger --retry-failed
+  udevtrigger
   udevsettle --timeout=180
 
   # load extra modules from command line
