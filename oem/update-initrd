@@ -10,6 +10,21 @@ trap 'rc=$? ; [ $rc -eq 0 ] && exit $rc' EXIT
 # partition, e.g. /dev/sda1
 PARTITION=$1
 
+# First determine whether we're running in the host installer
+# or on the host
+if [ -e /opt/xensource/etc/initial-inventory ] ; then
+    # on the host
+    # See if the target disk is a USB device -- if so, nothing to do
+    DISK=$(echo $PARTITION | sed 's/\(p\?[0-9][0-9]*\)$//')
+    SYSFS_NODE=$(echo ${DISK} | sed -e 's,^/dev/,,' -e 's,/,!,' -e 's,^,/sys/block/,')
+    if [ -d ${SYSFS_NODE} ] ; then
+        if /usr/bin/udevinfo -a -p ${SYSFS_NODE} | /bin/egrep -q '^ *BUS=="usb"$' ; then
+            # on USB -- nothing to do
+            exit 0
+        fi
+    fi
+fi
+
 # Temporary mount point for partition
 MNTPOINT="$(mktemp -d /tmp/mnt-XXXXXX)"
 
@@ -112,6 +127,10 @@ rebuildinitrd() {
 }
 
 rebuildinitrd
+LOOPS=$(losetup -a | sed -ne 's#\(^/dev/loop[0-9]*\):.*('${MNTPOINT}'.*$#\1#p')
+for LOOP in ${LOOPS} ; do
+    losetup -d ${LOOP}
+done
 
 umount ${MNTPOINT}
 rmdir ${MNTPOINT}
