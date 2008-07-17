@@ -35,6 +35,7 @@ def main(args):
     tui.end_ui()
 
 def go(args, use_ui):
+    ui = None
     if use_ui != None:
         ui = p2v_tui
 
