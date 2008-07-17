@@ -8,6 +8,7 @@ BUILDROOT_ENVIRONMENT = $(PROJECT_OUTPUTDIR)/install-image-base/buildroot-env.ta
 # outputs (install.img used by retail installer & recovery.img used by OEM installer)
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
 RECOVERY_IMG = $(MY_OUTPUT_DIR)/recovery.img
+UPDATE_INITRD = $(MY_OUTPUT_DIR)/update-initrd
 
 # intermediate:
 BUILDROOT_ENV_STAMP = $(MY_OBJ_DIR)/.buildroot-env.stamp
@@ -26,7 +27,7 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(RECOVERY_IMG) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(RECOVERY_IMG) $(UPDATE_INITRD) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 # Note: recovery.img behaves the same as install.img booted with "oem_edition" on kernel command line
@@ -97,3 +98,8 @@ $(RECOVERY_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(ISSUE
 	touch $(RECOVERY_FILESYSTEM)/.oem_edition
 	umask 022 && cd $(RECOVERY_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(RECOVERY_IMG)
 	chmod 644 $@
+
+# We copy out the update-initrd script so that it can be placed into the oem filesystem
+# where it is also required.
+$(UPDATE_INITRD):
+	cp ../oem/update-initrd $@
