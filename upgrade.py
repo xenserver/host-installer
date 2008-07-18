@@ -61,8 +61,8 @@ class Upgrader(object):
         tranformation on the answers dict. """
         return
 
-    completeUpgradeArgs = ['mounts']
-    def completeUpgrade(self, mounts):
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite']
+    def completeUpgrade(self, mounts, prev_install):
         """ Write any data back into the new filesystem as needed to follow
         through the upgrade. """
         pass
@@ -93,8 +93,8 @@ class SecondGenUpgrader(Upgrader):
 
         return installID, controlID, pd
 
-    completeUpgradeArgs = ['mounts']
-    def completeUpgrade(self, mounts):
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite']
+    def completeUpgrade(self, mounts, prev_install):
         xelogging.log("Restoring preserved files")
         backup_volume = backend.getBackupPartName(self.source.primary_disk)
         tds = None
@@ -158,6 +158,13 @@ class SecondGenUpgrader(Upgrader):
                 finally:
                     new_config.close()
                     old_config.close()
+
+                    v = product.Version(prev_install.version.major,
+                                        prev_install.version.minor,
+                                        prev_install.version.release)
+                    f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
+                    f.write("PRODUCT_VERSION='%s'\n" % v)
+                    f.close()
         finally:
             if tds:
                 if os.path.ismount(tds):
