@@ -772,6 +772,8 @@ def get_name_service_configuration(answers):
         for entry in [ns1_entry, ns2_entry, ns3_entry]:
             entry.setFlags(FLAG_DISABLED, enabled)
 
+    hide_rb = answers['net-admin-configuration'].isStatic()
+
     # HOSTNAME:
     hn_title = Textbox(len("Hostname Configuration"), 1, "Hostname Configuration")
     
@@ -795,10 +797,13 @@ def get_name_service_configuration(answers):
     hn_manual_rb.setCallback(hn_callback, data = (True,))
 
     # the hostname text box:
-    hostname = Entry(42, text = manual_hostname)
+    hostname = Entry(hide_rb and 30 or 42, text = manual_hostname)
     hostname.setFlags(FLAG_DISABLED, use_manual_hostname)
     hostname_grid = Grid(2, 1)
-    hostname_grid.setField(Textbox(4, 1, ""), 0, 0) # spacer
+    if hide_rb:
+        hostname_grid.setField(Textbox(15, 1, "Hostname:"), 0, 0)
+    else:
+        hostname_grid.setField(Textbox(4, 1, ""), 0, 0) # spacer
     hostname_grid.setField(hostname, 1, 0)
 
     # NAMESERVERS:
@@ -836,13 +841,17 @@ def get_name_service_configuration(answers):
 
     ns_title = Textbox(len("DNS Configuration"), 1, "DNS Configuration")
 
+    use_manual_dns = nsvalue(answers, 0) != ""
+    if hide_rb:
+        use_manual_dns = True
+
     # Name server radio group
     ns_rbgroup = RadioGroup()
     ns_dhcp_rb = ns_rbgroup.add("Automatically set via DHCP", "ns_dhcp",
-                                nsvalue(answers, 0) == "")
+                                not use_manual_dns)
     ns_dhcp_rb.setCallback(ns_callback, (False,))
     ns_manual_rb = ns_rbgroup.add("Manually specify:", "ns_dhcp",
-                                  nsvalue(answers, 0) != "")
+                                  use_manual_dns)
     ns_manual_rb.setCallback(ns_callback, (True,))
 
     # Name server text boxes
@@ -866,23 +875,28 @@ def get_name_service_configuration(answers):
 
     if nsvalue(answers, 0) == "":
         for entry in [ns1_entry, ns2_entry, ns3_entry]:
-            entry.setFlags(FLAG_DISABLED, False)
+            entry.setFlags(FLAG_DISABLED, use_manual_dns)
 
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
 
     # The form itself:
+    i = 1
     gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', None, 1, 11)
     gf.add(hn_title, 0, 0, padding = (0,0,0,0))
-    gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
-    gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
-    gf.add(hostname_grid, 0, 3, padding = (0,0,0,1), anchorLeft = True)
+    if not hide_rb:
+        gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
+        gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
+        i += 2
+    gf.add(hostname_grid, 0, i, padding = (0,0,0,1), anchorLeft = True)
     
-    gf.add(ns_title, 0, 4, padding = (0,0,0,0))
-    gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
-    gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
-    gf.add(ns1_grid, 0, 7)
-    gf.add(ns2_grid, 0, 8)
-    gf.add(ns3_grid, 0, 9, padding = (0,0,0,1))
+    gf.add(ns_title, 0, i+1, padding = (0,0,0,0))
+    if not hide_rb:
+        gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
+        gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
+        i += 2
+    gf.add(ns1_grid, 0, i+2)
+    gf.add(ns2_grid, 0, i+3)
+    gf.add(ns3_grid, 0, i+4, padding = (0,0,0,1))
     
     gf.add(buttons, 0, 10, growx = 1)
 
@@ -1011,6 +1025,8 @@ def get_ntp_servers(answers):
         for x in [ ntp1_field, ntp2_field, ntp3_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_cb.value())
 
+    hide_cb = answers['net-admin-configuration'].isStatic()
+
     gf = GridFormHelp(tui.screen, 'NTP Configuration', None, 1, 4)
     text = TextboxReflowed(60, "Please specify details of the NTP servers you wish to use (e.g. pool.ntp.org)?")
     buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])
@@ -1029,11 +1045,11 @@ def get_ntp_servers(answers):
                 return ""
 
     ntp1_field = Entry(40, ntpvalue(answers, 0))
-    ntp1_field.setFlags(FLAG_DISABLED, False)
+    ntp1_field.setFlags(FLAG_DISABLED, hide_cb)
     ntp2_field = Entry(40, ntpvalue(answers, 1))
-    ntp2_field.setFlags(FLAG_DISABLED, False)
+    ntp2_field.setFlags(FLAG_DISABLED, hide_cb)
     ntp3_field = Entry(40, ntpvalue(answers, 2))
-    ntp3_field.setFlags(FLAG_DISABLED, False)
+    ntp3_field.setFlags(FLAG_DISABLED, hide_cb)
 
     ntp1_text = Textbox(15, 1, "NTP Server 1:")
     ntp2_text = Textbox(15, 1, "NTP Server 2:")
@@ -1047,10 +1063,14 @@ def get_ntp_servers(answers):
     entry_grid.setField(ntp3_text, 0, 2)
     entry_grid.setField(ntp3_field, 1, 2)
 
+    i = 1
+
     gf.add(text, 0, 0, padding = (0,0,0,1))
-    gf.add(dhcp_cb, 0, 1)
-    gf.add(entry_grid, 0, 2, padding = (0,0,0,1))
-    gf.add(buttons, 0, 3, growx = 1)
+    if not hide_cb:
+        gf.add(dhcp_cb, 0, 1)
+        i += 1
+    gf.add(entry_grid, 0, i, padding = (0,0,0,1))
+    gf.add(buttons, 0, i+1, growx = 1)
 
     result = gf.runOnce()
 
