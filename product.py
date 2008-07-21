@@ -280,7 +280,7 @@ class ExistingInstallation(object):
                         try:
                             hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
                         except:
-                            raise SettingsNotAvailable, "unable to determine hwaddr for %s" % devcfg['DEVICE']
+                            hwaddr = None
 
                     default = lambda d, k, v: d.has_key(k) and d[k] or v
 
