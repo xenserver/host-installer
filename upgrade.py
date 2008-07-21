@@ -14,6 +14,7 @@
 # from the rest of the installer.
 
 import os
+import re
 import subprocess
 import tempfile
 
@@ -111,6 +112,11 @@ class SecondGenUpgrader(Upgrader):
                        'etc/ssh/ssh_host_dsa_key', 'etc/ssh/ssh_host_dsa_key.pub',
                        'etc/ssh/ssh_host_key', 'etc/ssh/ssh_host_key.pub',
                        'etc/ssh/ssh_host_rsa_key', 'etc/ssh/ssh_host_rsa_key.pub']
+
+            restore += [ 'etc/sysconfig/network' ]
+            restore += [ 'etc/sysconfig/network-scripts/' + f
+                         for f in os.listdir(os.path.join(tds, 'etc/sysconfig/network-scripts'))
+                         if re.match('ifcfg-[a-z0-9]+$', f) or re.match('route-[a-z0-9]+$', f) ]
 
             # CA-16795: upgrade xapi database if necessary
             upgrade_db = False

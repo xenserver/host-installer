@@ -834,6 +834,9 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     to /etc/sysconfig/network-scripts, and removes any other configuration
     files from that directory."""
 
+    if preserve_settings:
+        return
+
     util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
@@ -877,7 +880,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     # Write out the networking configuration.  Note that when doing a fresh
     # install the interface configuration will be made to look like the current
-    # runtime configuration.  When donig an upgrade, the interface
+    # runtime configuration.  When doing an upgrade, the interface
     # configuration previously used needs to be preserved but we also don't
     # need to re-seed the configuration via firstboot, so we only write out a 
     # sysconfig file for the management interface to get networking going.
