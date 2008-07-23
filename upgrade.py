@@ -116,7 +116,7 @@ class SecondGenUpgrader(Upgrader):
             restore += [ 'etc/sysconfig/network' ]
             restore += [ 'etc/sysconfig/network-scripts/' + f
                          for f in os.listdir(os.path.join(tds, 'etc/sysconfig/network-scripts'))
-                         if re.match('ifcfg-[a-z0-9]+$', f) or re.match('route-[a-z0-9]+$', f) ]
+                         if re.match('ifcfg-[a-z0-9.]+$', f) or re.match('route-[a-z0-9.]+$', f) ]
 
             # CA-16795: upgrade xapi database if necessary
             upgrade_db = False
