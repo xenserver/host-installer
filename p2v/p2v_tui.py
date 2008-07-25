@@ -102,48 +102,58 @@ def get_target(answers):
                 )
             continue
 
-        # check we can connect to the server:
-        if not host.startswith('https://') and not host.startswith('http://'):
-            host = "https://" + host
-        msg = ''
-        try:
-            server = xmlrpclib.Server(host)
-            rc = server.session.login_with_password(user, pw)
-            if rc['Status'] == 'Success':
-                answers['target-host-name'] = host
-                answers['target-host-user'] = user
-                answers['target-host-password'] = pw
-            else:
-                # session login error
-                msg = rc['ErrorDescription'][2]
-        except socket.error, (e, str):
-            # error connecting to server
-            msg = str
-        except IOError, e:
-            msg = e
-        except xmlrpclib.ProtocolError, e:
-            msg = e.errmsg
-        except Exception, e:
-            msg = e
+        session_loop = True
+        while session_loop:
+            session_loop = False
+            # check we can connect to the server:
+            if not host.startswith('https://') and not host.startswith('http://'):
+                host = "https://" + host
+            msg = ''
+            try:
+                server = xmlrpclib.Server(host)
+                rc = server.session.login_with_password(user, pw)
+                if rc['Status'] == 'Success':
+                    answers['target-host-name'] = host
+                    answers['target-host-user'] = user
+                    answers['target-host-password'] = pw
+                else:
+                    # session login error
+                    msg = rc['ErrorDescription'][2]
+            except socket.error, (e, str):
+                # error connecting to server
+                msg = str
+            except IOError, e:
+                msg = e
+            except xmlrpclib.ProtocolError, e:
+                msg = e.errmsg
+            except Exception, e:
+                msg = e
             
-        if msg != '':
-            ButtonChoiceWindow(
-                tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'." % msg,
-                ['Back']
-                )
-            continue
+            if msg != '':
+                ButtonChoiceWindow(
+                    tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'." % msg,
+                    ['Back']
+                    )
+                break
 
-        # CA-10893: Check for P2V template now
-        session = rc['Value']
-        rc = server.VM.get_by_name_label(session, "XenSource P2V Server")
-        if rc['Status'] == 'Success' and rc['Value'] != []:
-            loop = False
-        else:
-            xelogging.log('cannot find P2V template')
-            ButtonChoiceWindow(
-                tui.screen, "Error", "The selected server does not support P2V.",
-                ['Back']
-                )
+            # CA-10893: Check for P2V template now
+            session = rc['Value']
+            rc = server.VM.get_by_name_label(session, "XenSource P2V Server")
+            if rc['Status'] == 'Success' and rc['Value'] != []:
+                loop = False
+            elif rc['Status'] == 'Failure' and rc['ErrorDescription'][0] == 'HOST_IS_SLAVE':
+                # redirect to master
+                xelogging.log("%s is slave, redirecting to %s" % (host, rc['ErrorDescription'][1]))
+                server.session.logout(session)
+                host = rc['ErrorDescription'][1]
+                session_loop = True
+            else:
+                xelogging.log(rc)
+                xelogging.log('cannot find P2V template')
+                ButtonChoiceWindow(
+                    tui.screen, "Error", "The selected server does not support P2V.",
+                    ['Back']
+                    )
 
     tui.screen.popWindow()
     return ret
@@ -160,16 +170,6 @@ def select_sr(answers):
 
     # get a list of SRs
     rc = server.SR.get_all_records(session)
-    if rc['Status'] == 'Failure' and rc['ErrorDescription'][0] == 'HOST_IS_SLAVE':
-        # CA-9297: redirect to master
-        server.session.logout(session)
-        answers['target-host-name'] = answers['target-host-name'][:answers['target-host-name'].find('//')+2] + rc['ErrorDescription'][1]
-        server = xmlrpclib.Server(answers['target-host-name'])
-        rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
-        assert rc['Status'] == 'Success', "Failure logging in to pool master."
-        session = rc['Value']
-        rc = server.SR.get_all_records(session)
-
     assert rc['Status'] == 'Success', "Failure calling server.SR.get_all_records(%s)" % session
 
     srs = rc['Value']
