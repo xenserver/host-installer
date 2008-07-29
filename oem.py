@@ -441,3 +441,31 @@ def OemManufacturerTest(ui, oem_manufacturer):
         return False
 
     return True
+
+def reset_password(ui, args, answerfile_address):
+    xelogging.log("Starting reset password")
+    answers = ui.init_oem.reset_password_sequence()
+    if not answers:
+        return None # keeps outer loop going
+
+
+    xelogging.log("Resetting password on "+str(answers['partition']))
+
+    partition, subdir = answers['partition']
+    mountPoint = tempfile.mkdtemp('.oeminstaller')
+    os.system('/bin/mkdir -p "'+mountPoint+'"')
+
+    try:
+        util.mount('/dev/'+partition, mountPoint, fstype='ext3', options=['rw'])
+        try:
+            # sed command replaces the root password entry in /etc/passwd with !!
+            if os.system('/bin/sed -ie \'s/^root:[^:]*/root:!!/\' "'+mountPoint+'/'+subdir+'/etc/passwd"') != 0:
+                raise Exception('Password file manipulation failed')
+        finally:
+            util.umount('/dev/'+partition)
+    except Exception, e:
+        ui.OKDialog("Failed", str(e))
+        return EXIT_ERROR
+
+    ui.OKDialog("Success", "The password has been reset successfully.  The installation will ask for a new password when next booted.  Press <Enter> to reboot.")
+    return EXIT_OK

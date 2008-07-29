@@ -25,6 +25,8 @@ import os
 import stat
 import diskutil
 import util
+import glob
+import tempfile
 
 def get_keymap():
     entries = generalui.getKeymaps()
@@ -42,6 +44,7 @@ def choose_operation():
     entries = [ 
         (' * Install %s to flash disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_FLASH),
         (' * Install %s to hard disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_DISK),
+        (' * Reset the password for an existing installation', init_constants.OPERATION_RESET_PASSWORD)
         ]
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
@@ -84,6 +87,22 @@ def recover_disk_drive_sequence():
         uic.Step(get_remote_file, predicates = [lambda a: a['source-media'] != 'local']),
         uic.Step(get_local_file,  predicates = [lambda a: a['source-media'] == 'local']),
         uic.Step(confirm_recover_blockdev),
+        ]
+    rc = uicontroller.runSequence(seq, answers)
+
+    if rc == -1:
+        return None
+    else:
+        return answers
+
+# Set of questions to pose if "reset password" is chosen
+def reset_password_sequence():
+    answers = {}
+    uic = uicontroller
+    seq = [
+        uic.Step(get_disk_blockdev_to_recover),
+        uic.Step(get_state_partition),
+        uic.Step(confirm_reset_password)
         ]
     rc = uicontroller.runSequence(seq, answers)
 
@@ -296,3 +315,55 @@ def confirm_recover_blockdev(answers):
     # Close the file descriptor otherwise it will may not be possible to destroy the accessor
     answers['image-fd'].close()
     return LEFT_BACKWARDS * 3 # back to get image_media
+
+def get_state_partition(answers):
+    dev = answers["primary-disk"][5:] # strip the 5-char "/dev/" off
+    vendor, model, _ = diskutil.getExtendedDiskInfo(dev)
+    partitionList = sorted(diskutil.partitionsOnDisk(dev))
+    entries = []
+    mountPoint = tempfile.mkdtemp('.oeminstaller')
+    os.system('/bin/mkdir -p "'+mountPoint+'"')
+    for partition in partitionList:
+        try:
+            util.mount('/dev/'+partition, mountPoint, fstype='ext3', options=['ro'])
+            try:
+                inventoryFilenames = glob.glob(mountPoint+'/*/etc/xensource-inventory')
+                for filename in inventoryFilenames:
+                    values = util.readKeyValueFile(filename)
+                    # This is a XenServer state partition
+                    target = (partition, os.path.basename(os.path.dirname(os.path.dirname(filename))))
+                    name = values.get('PRODUCT_BRAND', '')+' '+values.get('PRODUCT_VERSION', '')+' ('+partition+', '+values.get('INSTALLATION_UUID', '')+')'
+                    entries.append((name, target))
+            finally:
+                util.umount('/dev/'+partition)
+            
+        except Exception, e:
+            pass # Failed to mount and read inventory - not a state partition
+        
+    if len(entries) == 0:
+        entries.append(('No installations found', None))
+        
+    result, entry = ListboxChoiceWindow(
+        tui.screen,
+        "Installations",
+        "Please select the installation for password reset on device \"%(vendor)s, %(model)s\":" % locals(),
+        entries, ['Ok', 'Back'])
+
+    answers['partition'] = entry
+    if entry is None: return LEFT_BACKWARDS
+    if result in ['ok', None]: return RIGHT_FORWARDS
+    if result == 'back': return LEFT_BACKWARDS
+    
+def confirm_reset_password(answers):
+    rc = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Confirm Reset Password",
+        "Are you sure you want to reset the password for this installation?",
+        ['Reset Password', 'Back'], default=0, width=50
+        )
+
+    if rc in ['reset password', None]: return RIGHT_FORWARDS
+
+    return LEFT_BACKWARDS * 2 # back to the top level
+
+    

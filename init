@@ -226,6 +226,11 @@ def main(args):
                 xelogging.log("Starting P2V")
                 rc = p2v.go(args, ui)
 
+            # reset password
+            elif operation == init_constants.OPERATION_RESET_PASSWORD:
+                xelogging.log("Resetting password")
+                rc = oem.reset_password(ui, args, answerfile_address)
+
             operation = None
             # if we're non-interactive, or weren't canceled, force us to exit:
             if rc == EXIT_OK or rc == EXIT_ERROR or not interactive:
