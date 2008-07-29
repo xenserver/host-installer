@@ -286,12 +286,12 @@ def confirm_recover_blockdev(answers):
     vendor, model, _ = diskutil.getExtendedDiskInfo(dev)
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,
-        "Confirm Recover",
-        "Are you sure you want to recover the installation on device \"%(vendor)s, %(model)s\"\n\nYour existing installation will be overwritten\n\nTHIS OPERATION CANNOT BE UNDONE." % locals(),
-        ['Recover', 'Back'], default=1, width=50
+        "Confirm Install/Recover",
+        "Are you sure you want to write to device \"%(vendor)s, %(model)s\"\n\nAny existing installation will be overwritten\n\nTHIS OPERATION CANNOT BE UNDONE." % locals(),
+        ['Confirm', 'Back'], default=1, width=50
         )
 
-    if rc in ['recover', None]: return RIGHT_FORWARDS
+    if rc in ['confirm', None]: return RIGHT_FORWARDS
 
     # Close the file descriptor otherwise it will may not be possible to destroy the accessor
     answers['image-fd'].close()
