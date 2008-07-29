@@ -45,6 +45,8 @@ def processAnswerfile(location):
         results = parseUpgrade(n)
     elif install_type == "oemhdd":
         results = parseOemHdd(n)
+    elif install_type == "oemflash":
+        results = parseOemFlash(n)
 
     return results
 
@@ -163,6 +165,17 @@ def parseOemHdd(n):
     except IndexError:
         # Don't configure the admin interface if not specified in answerfile
         pass
+    results.update(parseOemSource(n))
+    results.update(parseScripts(n))
+
+    return results
+
+def parseOemFlash(n):
+    """ n is the top-level document node of the answerfile.  """
+    results = {}
+
+    # primary-disk:
+    results['primary-disk'] = "/dev/%s" % getText(n.getElementsByTagName('primary-disk')[0].childNodes)
     results.update(parseOemSource(n))
     results.update(parseScripts(n))
 
