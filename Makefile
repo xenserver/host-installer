@@ -3,9 +3,13 @@ INSTALLER_DATA_DIR ?= $(DESTDIR)/opt/xensource/installer
 SUPPORT_DIR ?= $(DESTDIR)/usr/bin
 
 all:
+	@:
 
 clean:
 	rm -rf *.pyc
+
+precommit:
+	PYTHONPATH=. python tests/version_test.py
 
 install:
 	mkdir -p $(INSTALLER_DIR) $(SUPPORT_DIR)
