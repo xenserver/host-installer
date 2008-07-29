@@ -149,6 +149,7 @@ def main(args):
     if oem_verify:
         is_oem_machine = oem.OemManufacturerTest(ui, oem_manufacturer)
         if not is_oem_machine:
+            xelogging.log("OemManufacturerTest failed.  This installation is not licenced for this machine.")
             return reboot
 
     # let the user choose what they would like to do:

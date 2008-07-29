@@ -161,7 +161,7 @@ def getFinalisationSequence(ans):
 
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
-         seq += [
+        seq += [
             Task(prepareStorageRepositories, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
@@ -548,7 +548,7 @@ def writeMenuItems(f, fn, s):
         }]
 
     for entry in entries:
-         fn(f, entry)
+        fn(f, entry)
 
 def installBootLoader(mounts, disk, bootloader, serial):
     # prepare extra mounts for installing bootloader:
@@ -614,7 +614,6 @@ def writeExtLinuxMenuItem(f, item):
     f.write("  kernel mboot.c32\n")
     f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
     f.write("\n")
-    pass
 
 def installExtLinux(mounts, disk, serial):
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
@@ -1054,7 +1053,7 @@ def writeLog(primary_disk):
     try: 
         bootnode = getRootPartName(primary_disk)
         if not os.path.exists("/tmp/mnt"):
-           os.mkdir("/tmp/mnt")
+            os.mkdir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
         log_location = "/tmp/mnt/root"
         if os.path.islink(log_location):

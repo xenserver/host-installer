@@ -94,6 +94,20 @@ def writeImageWithProgress(ui, devnode, answers):
 
     return EXIT_OK
 
+def run_post_install_script(answers):
+    if answers.has_key('post-install-script'):
+        script = answers['post-install-script']
+        try:
+            xelogging.log("Running script: %s" % script)
+            util.fetchFile(script, "/tmp/script")
+            util.runCmd2(["chmod", "a+x" ,"/tmp/script"])
+            util.runCmd2(["/tmp/script"])
+            os.unlink("/tmp/script")
+        except Exception, e:
+            xelogging.log("Failed to run script: %s" % script)
+            xelogging.log(e)
+
+
 def post_process_answerfile_data(results):
     "Processing the answerfile entries to derive data"
 
@@ -381,6 +395,8 @@ def go_disk(ui, args, answerfile_address):
                          "Press any key to reboot" % output)
         return EXIT_ERROR
     
+    run_post_install_script(answers)
+
     # success!
     if ui:
         ui.progress.clearModelessDialog()
@@ -392,19 +408,32 @@ def go_disk(ui, args, answerfile_address):
 def go_flash(ui, args, answerfile_address):
     "Install oem edition to flash"
 
-    xelogging.log("Starting install to flash dialog")
-    answers = ui.init_oem.recover_pen_drive_sequence()
-    if not answers:
-        return None # keeps outer loop going
+    # loading an answerfile?
+    assert ui != None or answerfile_address != None
+
+    if answerfile_address:
+        answers = answerfile.processAnswerfile(answerfile_address)
+        post_process_answerfile_data(answers)
+
+    else:
+        xelogging.log("Starting install to flash dialog")
+        answers = ui.init_oem.recover_pen_drive_sequence()
+        if not answers:
+            return None # keeps outer loop going
 
     xelogging.log("Starting install to flash write")
     devnode = answers["primary-disk"]
 
     rv = writeImageWithProgress(ui, devnode, answers)
-    if rv == EXIT_OK:
+    if rv != EXIT_OK:
+        return rv
+
+    run_post_install_script(answers)
+    
+    if ui:
         ui.OKDialog("Success", "Install complete.  Click OK to reboot")
 
-    return rv
+    return EXIT_OK
 
 
 
