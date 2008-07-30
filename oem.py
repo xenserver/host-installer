@@ -400,6 +400,34 @@ def go_disk(ui, args, answerfile_address):
     
     run_post_install_script(answers)
 
+    ###########################################################################
+    # xenrt
+    if answers.has_key("xenrt"):
+        xelogging.log("Starting write of XenRT data files")
+        mountPoint = tempfile.mkdtemp('.oemxenrt')
+        os.system('/bin/mkdir -p "'+mountPoint+'"')
+
+        partnode = getPartitionNode(devnode, BOOT_PARTITION_NUMBER)
+        try:
+            util.mount(partnode, mountPoint, fstype='vfat', options=['rw'])
+            try:
+                f = open(mountPoint + '/xenrt', "w")
+                f.write(answers['xenrt'].strip())
+                f.close()
+                if answers.has_key('xenrt-scorch'):
+                    f = open(mountPoint + '/xenrt-revert-to-factory', 'w')
+                    f.write('yesimeanit')
+                    f.close()
+            finally:
+                util.umount(partnode)
+                os.system('/bin/rmdir "'+mountPoint+'"')
+        except Exception, e:
+            if ui:
+                ui.OKDialog("Failed", str(e))
+            xelogging.log("Failure: " + str(e))
+            return EXIT_ERROR
+        xelogging.log("Wrote XenRT data files")
+
     # success!
     if ui:
         ui.progress.clearModelessDialog()
