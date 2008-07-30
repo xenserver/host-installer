@@ -39,6 +39,7 @@ import md5crypt
 import random
 
 from version import *
+from answerfile import AnswerfileError
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
@@ -339,7 +340,7 @@ def go_disk(ui, args, answerfile_address):
 
     ###########################################################################
     if ui:
-        ui.progress.showMessageDialog("Imaging", "Initialising writable storage...")
+        ui.progress.showMessageDialog("Imaging", "Initializing writable storage...")
     
     partnode = getPartitionNode(devnode, STATE_PARTITION_NUMBER)
     rv, output = util.runCmd('%s/populate-partition %s %s mutable-state 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
@@ -347,13 +348,13 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.clearModelessDialog()
     if rv:
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred initialising writable storage:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred initializing writable storage:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
 
     ###########################################################################
     if ui:
-        ui.progress.showMessageDialog("Imaging", "Initialising boot partition...")
+        ui.progress.showMessageDialog("Imaging", "Initializing boot partition...")
     
     partnode = getPartitionNode(devnode, BOOT_PARTITION_NUMBER)
     rv, output = util.runCmd('%s/populate-partition %s %s boot 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
@@ -361,7 +362,7 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.clearModelessDialog()
     if rv:
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred initialising boot partition:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred initializing boot partition:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
 
@@ -377,14 +378,14 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.clearModelessDialog()
     if rv:
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during SR initialisation:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred during SR initialization:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
 
     ###########################################################################
     # update the initrds on the bootable partitions to support access to this disk
     if ui:
-        ui.progress.showMessageDialog("update-initrd", "Customising startup modules...")
+        ui.progress.showMessageDialog("update-initrd", "Customizing startup modules...")
     for part in (SYS_1_PARTITION_NUMBER, SYS_2_PARTITION_NUMBER):
         partnode = getPartitionNode(devnode,part)
         rv, output = util.runCmd('%s/update-initrd %s 2>&1' % (scriptdir,partnode), with_output=True)
@@ -393,7 +394,7 @@ def go_disk(ui, args, answerfile_address):
     if rv:
         if ui:
             ui.progress.clearModelessDialog()
-            ui.OKDialog ("Error", "Fatal error occurred during customisation of startup modules:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred during customization of startup modules:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
     
