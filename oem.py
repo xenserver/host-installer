@@ -352,7 +352,7 @@ def go_disk(ui, args, answerfile_address):
 
     ###########################################################################
     if ui:
-        ui.progress.showMessageDialog("Imaging", "Initialising boot partition...")
+        ui.progress.showMessageDialog("Imaging", "Initializing boot partition...")
     
     partnode = getPartitionNode(devnode, BOOT_PARTITION_NUMBER)
     rv, output = util.runCmd('%s/populate-partition %s %s boot 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
@@ -376,14 +376,14 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.clearModelessDialog()
     if rv:
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during SR initialisation:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred during SR initialization:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
 
     ###########################################################################
     # update the initrds on the bootable partitions to support access to this disk
     if ui:
-        ui.progress.showMessageDialog("update-initrd", "Customising startup modules...")
+        ui.progress.showMessageDialog("update-initrd", "Customizing startup modules...")
     for part in (SYS_1_PARTITION_NUMBER, SYS_2_PARTITION_NUMBER):
         partnode = getPartitionNode(devnode,part)
         rv, output = util.runCmd('%s/update-initrd %s 2>&1' % (scriptdir,partnode), with_output=True)
