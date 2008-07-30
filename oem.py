@@ -37,6 +37,7 @@ import bz2
 import re
 
 from version import *
+from answerfile import AnswerfileError
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
