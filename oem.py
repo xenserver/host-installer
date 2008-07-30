@@ -338,7 +338,7 @@ def go_disk(ui, args, answerfile_address):
 
     ###########################################################################
     if ui:
-        ui.progress.showMessageDialog("Imaging", "Initialising writable storage...")
+        ui.progress.showMessageDialog("Imaging", "Initializing writable storage...")
     
     partnode = getPartitionNode(devnode, STATE_PARTITION_NUMBER)
     rv, output = util.runCmd('%s/populate-partition %s %s mutable-state 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
@@ -346,7 +346,7 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.clearModelessDialog()
     if rv:
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred initialising writable storage:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred initializing writable storage:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
 
@@ -360,7 +360,7 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.clearModelessDialog()
     if rv:
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred initialising boot partition:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred initializing boot partition:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
 
@@ -392,7 +392,7 @@ def go_disk(ui, args, answerfile_address):
     if rv:
         if ui:
             ui.progress.clearModelessDialog()
-            ui.OKDialog ("Error", "Fatal error occurred during customisation of startup modules:\n\n%s\n\n" 
+            ui.OKDialog ("Error", "Fatal error occurred during customization of startup modules:\n\n%s\n\n" 
                          "Press any key to reboot" % output)
         return EXIT_ERROR
     
