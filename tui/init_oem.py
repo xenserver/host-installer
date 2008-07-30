@@ -26,6 +26,7 @@ import stat
 import diskutil
 import util
 import glob
+import re
 import tempfile
 
 def get_keymap():
@@ -100,8 +101,9 @@ def reset_password_sequence():
     answers = {}
     uic = uicontroller
     seq = [
-        uic.Step(get_disk_blockdev_to_recover),
+        uic.Step(get_installation_blockdev),
         uic.Step(get_state_partition),
+        uic.Step(get_new_password),
         uic.Step(confirm_reset_password)
         ]
     rc = uicontroller.runSequence(seq, answers)
@@ -112,7 +114,7 @@ def reset_password_sequence():
         return answers
 
 # Offer a list of block devices to the user
-def get_blockdev_to_recover(answers, flashonly):
+def get_blockdev_to_recover(answers, flashonly, alreadyinstalled = False):
 
     TYPE_ROM = 5
     def device_type(dev):
@@ -134,7 +136,7 @@ def get_blockdev_to_recover(answers, flashonly):
         result, entry = ListboxChoiceWindow(
             tui.screen,
             flashonly and "Select removable device" or "Select drive",
-            "Please select on which device you would like to install:",
+            alreadyinstalled and "Please select the device containing the installed software:" or "Please select on which device you would like to install:",
             entries, ['Ok', 'Back', 'Rescan'])
     else:
         result = ButtonChoiceWindow(
@@ -154,6 +156,9 @@ def get_flash_blockdev_to_recover(answers):
 
 def get_disk_blockdev_to_recover(answers):
     return get_blockdev_to_recover(answers, flashonly=False)
+
+def get_installation_blockdev(answers):
+    return get_blockdev_to_recover(answers, flashonly=False, alreadyinstalled=True)
 
 def get_image_media(answers):
     entries = [
@@ -353,7 +358,36 @@ def get_state_partition(answers):
     if entry is None: return LEFT_BACKWARDS
     if result in ['ok', None]: return RIGHT_FORWARDS
     if result == 'back': return LEFT_BACKWARDS
-    
+
+def get_new_password(answers):
+    button, result = snackutil.PasswordEntryWindow(
+        tui.screen,
+        "New Password",
+        "Please enter the new password:",
+        ["New Password", "Repeat Password"], entryWidth = 20,
+        buttons = ["Ok", "Back"])
+
+    if button == 'back': return LEFT_BACKWARDS
+
+    try:
+        if result[0] != result[1]:
+            raise Exception('Passwords do not match')
+        if len(result[0]) < 6 and result[0] != '!!':
+            raise Exception('Password is too short (minimum length is 6 characters)')
+        if re.match(r'\s*$', result[0]):
+            raise Exception('Passwords containing only spaces are not allowed')
+
+        answers['new-password'] = result[0]
+    except Exception, e:
+        ButtonChoiceWindow(
+            tui.screen, "Failed",
+            str(e),
+            ['Back'])
+        return REPEAT_STEP
+        
+    if button in ['ok', None]: return RIGHT_FORWARDS
+    return LEFT_BACKWARDS
+
 def confirm_reset_password(answers):
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,

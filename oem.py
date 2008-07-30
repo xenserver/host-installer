@@ -35,6 +35,8 @@ import repository
 import tempfile
 import bz2
 import re
+import md5crypt
+import random
 
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
@@ -480,6 +482,13 @@ def reset_password(ui, args, answerfile_address):
 
     xelogging.log("Resetting password on "+str(answers['partition']))
 
+    password = answers['new-password']
+     # Generate a salt value without sed special characters
+    salt = "".join(random.sample('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 8))
+    if password == '!!':
+        passwordHash = password # xsconsole will prompt for a new password when it detects this value
+    else:
+        passwordHash = md5crypt.md5crypt(password, '$1$'+salt+'$')
     partition, subdir = answers['partition']
     mountPoint = tempfile.mkdtemp('.oeminstaller')
     os.system('/bin/mkdir -p "'+mountPoint+'"')
@@ -488,7 +497,10 @@ def reset_password(ui, args, answerfile_address):
         util.mount('/dev/'+partition, mountPoint, fstype='ext3', options=['rw'])
         try:
             # sed command replaces the root password entry in /etc/passwd with !!
-            if os.system('/bin/sed -ie \'s/^root:[^:]*/root:!!/\' "'+mountPoint+'/'+subdir+'/etc/passwd"') != 0:
+            sedCommand = '/bin/sed -ie \'s#^root:[^:]*#root:' + passwordHash +'#\' "' + mountPoint+'/'+subdir+'/etc/passwd"'
+
+            xelogging.log("Executing "+sedCommand)
+            if os.system(sedCommand) != 0:
                 raise Exception('Password file manipulation failed')
         finally:
             util.umount('/dev/'+partition)
@@ -496,5 +508,5 @@ def reset_password(ui, args, answerfile_address):
         ui.OKDialog("Failed", str(e))
         return EXIT_ERROR
 
-    ui.OKDialog("Success", "The password has been reset successfully.  The installation will ask for a new password when next booted.  Press <Enter> to reboot.")
+    ui.OKDialog("Success", "The password has been reset successfully.  Press <Enter> to reboot.")
     return EXIT_OK
