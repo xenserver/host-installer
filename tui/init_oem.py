@@ -249,13 +249,14 @@ def get_local_file(answers):
 
     removable_devs_and_ptns = []
     for check in removable_devs:
-        removable_devs_and_ptns.append(check)
         # if check doesn't end in a numeral, it may have partitions
         # that need to be scanned
         if check[-1] < '0' or check[-1] > '9':
             files = os.listdir('/dev')
             for ptn in filter( lambda x : x[:len(check)] == check, files):
                 removable_devs_and_ptns.append(ptn)
+        else:
+            removable_devs_and_ptns.append(check)
 
     for check in removable_devs_and_ptns:
         device_path = "/dev/%s" % check
