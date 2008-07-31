@@ -40,6 +40,7 @@ install:
 	install -m644 repository.py $(INSTALLER_DIR)
 	install -m644 restore.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
+	install -m644 md5crypt.py $(INSTALLER_DIR)
 # TUI
 	mkdir -p $(INSTALLER_DIR)/tui
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
