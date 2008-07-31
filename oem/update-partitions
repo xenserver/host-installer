@@ -12,7 +12,7 @@ STATE_PARTITION=$3
 # e.g. "get_disk_by_id_link /dev/sda6"
 get_disk_by_id_link() {
     orig_dev="$1"
-    orig_inode=$(ls -i "$orig_dev"| cut -f1 -d' ')
+    orig_inode=$(ls -Li "$orig_dev"| cut -f1 -d' ')
     for dev in /dev/disk/by-id/* ; do
         inode=$(ls -Li "$dev"| cut -f1 -d' ')
         if [ "$inode" = "$orig_inode" ] ; then
