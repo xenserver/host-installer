@@ -48,6 +48,8 @@ def getPartitionNode(disknode, pnum):
     midfix = ""
     if re.search("/cciss/", disknode):
         midfix = "p"
+    elif re.search("/disk/by-id/", disknode):
+        midfix = "-part"
     return disknode + midfix + str(pnum)
 
 def writeImageWithProgress(ui, devnode, answers):
