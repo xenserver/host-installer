@@ -433,7 +433,12 @@ def go_disk(ui, args, answerfile_address):
     # success!
     if ui:
         ui.progress.clearModelessDialog()
-        ui.OKDialog("Success", "Install complete.  Click OK to reboot")
+        if answerfile_address:
+            ui.progress.showMessageDialog("Success", "Install complete - rebooting")
+            time.sleep(2)
+            ui.progress.clearModelessDialog()
+        else:
+            ui.OKDialog("Success", "Install complete.  Click OK to reboot")
 
     return EXIT_OK
 
@@ -464,7 +469,12 @@ def go_flash(ui, args, answerfile_address):
     run_post_install_script(answers)
     
     if ui:
-        ui.OKDialog("Success", "Install complete.  Click OK to reboot")
+        if answerfile_address:
+            ui.progress.showMessageDialog("Success", "Install complete - rebooting")
+            time.sleep(2)
+            ui.progress.clearModelessDialog()
+        else:
+            ui.OKDialog("Success", "Install complete.  Click OK to reboot")
 
     return EXIT_OK
 
