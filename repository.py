@@ -468,6 +468,7 @@ class DeviceAccessor(MountingAccessor):
 
     def eject(self):
         assert self.canEject()
+        self.finish()
         util.runCmd2(['/usr/bin/eject', self.device])
 
 class NFSAccessor(MountingAccessor):

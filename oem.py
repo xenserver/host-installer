@@ -90,10 +90,21 @@ def writeImageWithProgress(ui, devnode, answers):
         if ui:
             ui.OKDialog("Error", "Fatal error occurred during write.  Press any key to reboot")
         return EXIT_ERROR
+    else:
+        image_fd.close()
+        devfd.close()
 
     # image successfully written
     if ui:
         ui.progress.clearModelessDialog()
+
+    if ui: 
+        da = answers['accessor'] 
+        if da.canEject():
+            rv = ui.OKDialog ("Eject?", "Press OK to eject media", hasCancel = True)
+            if rv in [ 'ok', None ]:
+                da.eject()
+
     image_fd.close()
     devfd.close()
 
