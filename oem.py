@@ -219,6 +219,30 @@ def post_process_answerfile_data(results):
         else:
             results['image-size'] = 900000000 # FIXME: A GUESS!
 
+def write_xenrt(ui, answers, partnode):
+    xelogging.log("Starting write of XenRT data files")
+    mountPoint = tempfile.mkdtemp('.oemxenrt')
+    os.system('/bin/mkdir -p "'+mountPoint+'"')
+
+    try:
+        util.mount(partnode, mountPoint, fstype='vfat', options=['rw'])
+        try:
+            f = open(mountPoint + '/xenrt', "w")
+            f.write(answers['xenrt'].strip())
+            f.close()
+            if answers.has_key('xenrt-scorch'):
+                f = open(mountPoint + '/xenrt-revert-to-factory', 'w')
+                f.write('yesimeanit')
+                f.close()
+        finally:
+            util.umount(partnode)
+            os.system('/bin/rmdir "'+mountPoint+'"')
+    except Exception, e:
+        if ui:
+            ui.OKDialog("Failed", str(e))
+        xelogging.log("Failure: " + str(e))
+        return EXIT_ERROR
+    xelogging.log("Wrote XenRT data files")
 
 def go_disk(ui, args, answerfile_address):
     "Install oem edition to disk"
@@ -411,35 +435,12 @@ def go_disk(ui, args, answerfile_address):
                          "Press any key to reboot" % output)
         return EXIT_ERROR
     
-    run_post_install_script(answers)
-
     ###########################################################################
-    # xenrt
     if answers.has_key("xenrt"):
-        xelogging.log("Starting write of XenRT data files")
-        mountPoint = tempfile.mkdtemp('.oemxenrt')
-        os.system('/bin/mkdir -p "'+mountPoint+'"')
-
         partnode = getPartitionNode(devnode, BOOT_PARTITION_NUMBER)
-        try:
-            util.mount(partnode, mountPoint, fstype='vfat', options=['rw'])
-            try:
-                f = open(mountPoint + '/xenrt', "w")
-                f.write(answers['xenrt'].strip())
-                f.close()
-                if answers.has_key('xenrt-scorch'):
-                    f = open(mountPoint + '/xenrt-revert-to-factory', 'w')
-                    f.write('yesimeanit')
-                    f.close()
-            finally:
-                util.umount(partnode)
-                os.system('/bin/rmdir "'+mountPoint+'"')
-        except Exception, e:
-            if ui:
-                ui.OKDialog("Failed", str(e))
-            xelogging.log("Failure: " + str(e))
-            return EXIT_ERROR
-        xelogging.log("Wrote XenRT data files")
+        write_xenrt(ui, answers, partnode)
+
+    run_post_install_script(answers)
 
     # success!
     if ui:
@@ -453,7 +454,6 @@ def go_disk(ui, args, answerfile_address):
 
     return EXIT_OK
 
-# TODO answerfile support - see install.go
 def go_flash(ui, args, answerfile_address):
     "Install oem edition to flash"
 
@@ -476,6 +476,12 @@ def go_flash(ui, args, answerfile_address):
     rv = writeImageWithProgress(ui, devnode, answers)
     if rv != EXIT_OK:
         return rv
+
+    FLASH_BOOT_PARTITION_NUMBER = 4
+
+    if answers.has_key("xenrt"):
+        partnode = getPartitionNode(devnode, FLASH_BOOT_PARTITION_NUMBER)
+        write_xenrt(ui, answers, partnode)
 
     run_post_install_script(answers)
     
