@@ -63,7 +63,7 @@ def writeImageWithProgress(ui, devnode, answers):
     bzfilesize = answers['image-size']
     rdbufsize = 16<<10
     reads_done = 0
-    reads_needed = int(float(bzfilesize)/float(rdbufsize))
+    reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
 
     if ui:
         pd = ui.progress.initProgressDialog(
