@@ -234,6 +234,14 @@ def write_xenrt(ui, answers, partnode):
                 f = open(mountPoint + '/xenrt-revert-to-factory', 'w')
                 f.write('yesimeanit')
                 f.close()
+            if answers.has_key('xenrt-serial'):
+                serport = int(answers['xenrt-serial'])
+                f = open(mountPoint + '/linux.opt', 'w')
+                f.write('CONSOLE=/dev/ttyS%u' % (serport))
+                f.close()
+                f = open(mountPoint + '/xen.opt', 'w')
+                f.write('com%u=115200,8n1 console=com%u,tty' % (serport+1, serport+1))
+                f.close()
         finally:
             util.umount(partnode)
             os.system('/bin/rmdir "'+mountPoint+'"')

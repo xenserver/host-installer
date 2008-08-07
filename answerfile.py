@@ -348,6 +348,9 @@ def parseOemSource(n):
         xenrt = n.getElementsByTagName('xenrt')[0]
         if xenrt.getAttribute('scorch').lower() != 'false':
             results['xenrt-scorch'] = True
+        serport = xenrt.getAttribute('serial')
+        if serport:
+            results['xenrt-serial'] = str(serport)
         results['xenrt'] = getText(xenrt.childNodes)
 
     return results
