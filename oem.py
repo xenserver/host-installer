@@ -14,6 +14,7 @@
 import commands
 import sys
 import os
+import stat
 import os.path
 import shutil
 import time
@@ -59,11 +60,23 @@ def writeImageWithProgress(ui, devnode, answers):
         decompressor = bz2.BZ2Decompressor().decompress
     else:
         decompressor = lambda x: x
-    devfd = open(devnode, mode="wb")
     bzfilesize = answers['image-size']
     rdbufsize = 16<<10
     reads_done = 0
     reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
+
+    # sanity check that devnode is a block dev
+    realpath = os.path.realpath(devnode) # follow if symlink
+    if not os.path.exists(realpath) or not stat.S_ISBLK(os.stat(realpath)[0]):
+        msg = "Error: %s is not a block device or a symlink to one!" % devnode
+        xelogging.log(msg)
+        if ui:
+            ui.OKDialog("Error", msg)
+        image_fd.close()
+        return EXIT_ERROR
+
+    # sanity check passed - open the block device to which we want to write
+    devfd = open(devnode, mode="wb")
 
     if ui:
         pd = ui.progress.initProgressDialog(
