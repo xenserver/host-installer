@@ -165,12 +165,12 @@ class SecondGenUpgrader(Upgrader):
                     new_config.close()
                     old_config.close()
 
-                    v = product.Version(prev_install.version.major,
-                                        prev_install.version.minor,
-                                        prev_install.version.release)
-                    f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
-                    f.write("PRODUCT_VERSION='%s'\n" % v)
-                    f.close()
+            v = product.Version(prev_install.version.major,
+                                prev_install.version.minor,
+                                prev_install.version.release)
+            f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
+            f.write("PRODUCT_VERSION='%s'\n" % v)
+            f.close()
         finally:
             if tds:
                 if os.path.ismount(tds):
