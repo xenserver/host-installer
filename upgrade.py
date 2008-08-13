@@ -108,7 +108,7 @@ class SecondGenUpgrader(Upgrader):
 
             # restore files:
             restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 
-                       'etc/xensource/license', 
+                       'etc/xensource/license', 'etc/xensource/xapi-ssl.pem',
                        'etc/ssh/ssh_host_dsa_key', 'etc/ssh/ssh_host_dsa_key.pub',
                        'etc/ssh/ssh_host_key', 'etc/ssh/ssh_host_key.pub',
                        'etc/ssh/ssh_host_rsa_key', 'etc/ssh/ssh_host_rsa_key.pub']
