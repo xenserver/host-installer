@@ -58,10 +58,12 @@ rhmkinitrd() {
 
 rhmkinitrd ${MNTPOINT}/boot/initrd
 
-LOOPS=$(losetup -a | sed -ne 's#\(^/dev/loop[0-9]*\):.*('${MNTPOINT}'.*$#\1#p')
-for LOOP in ${LOOPS} ; do
-    losetup -d ${LOOP}
-done
+if losetup -a >/dev/null 2>&1 ; then
+    LOOPS=$(losetup -a | sed -ne 's#\(^/dev/loop[0-9]*\):.*('${MNTPOINT}'.*$#\1#p')
+    for LOOP in ${LOOPS} ; do
+        losetup -d ${LOOP}
+    done
+fi
 
 umount ${MNTPOINT}
 rmdir ${MNTPOINT}
