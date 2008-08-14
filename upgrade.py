@@ -99,6 +99,7 @@ class SecondGenUpgrader(Upgrader):
         xelogging.log("Restoring preserved files")
         backup_volume = backend.getBackupPartName(self.source.primary_disk)
         tds = None
+        regen_ifcfg = False
         try:
             tds = tempfile.mkdtemp(dir = "/tmp", prefix = "upgrade-src-")
             util.mount(backup_volume, tds)
@@ -133,6 +134,15 @@ class SecondGenUpgrader(Upgrader):
             if not upgrade_db:
                 restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
 
+            save_dir = os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
+            if os.path.exists(os.path.join(tds, save_dir)):
+                restore += [ save_dir + f
+                             for f in os.listdir(os.path.join(tds, save_dir))
+                             if re.match('ifcfg-[a-z0-9.]+$', f) ]
+            else:
+                os.mkdir(os.path.join(mounts['root'], save_dir))
+                regen_ifcfg = True
+
             for f in restore:
                 src = os.path.join(tds, f)
                 dst = os.path.join(mounts['root'], f)
@@ -143,6 +153,7 @@ class SecondGenUpgrader(Upgrader):
                     xelogging.log("WARNING: /%s did not exist in the backup image." % f)
 
             if upgrade_db:
+                xelogging.log("Converting xapi database")
                 # chroot into the backup partition and dump db to stdout
                 new_db = open(os.path.join(mounts['root'], 'var/xapi/state.db'), 'w')
                 cmd = ["/usr/sbin/chroot", tds, "/opt/xensource/bin/xapi-db-process", "-xmltostdout"]
@@ -171,13 +182,59 @@ class SecondGenUpgrader(Upgrader):
             f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
             f.write("PRODUCT_VERSION='%s'\n" % v)
             f.close()
+
+            # CA-21443: initial ifcfg files are needed for pool eject
+            if regen_ifcfg:
+                xelogging.log("Generating firstboot ifcfg files from firstboot data")
+                try:
+                    net_dict = util.readKeyValueFile(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR, 'network.conf'))
+                    if net_dict.has_key('ADMIN_INTERFACE'):
+                        mgmt_dict = util.readKeyValueFile(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % net_dict['ADMIN_INTERFACE']))
+                        xelogging.log(mgmt_dict)
+                        brname = 'xenbr%s' % mgmt_dict['LABEL'][3:]
+                        eth_ifcfg = open(os.path.join(mounts['root'], save_dir, 'ifcfg-%s' % mgmt_dict['LABEL']), 'w')
+                        print >>eth_ifcfg, "XEMANAGED=yes"
+                        print >>eth_ifcfg, "DEVICE=%s" % mgmt_dict['LABEL']
+                        print >>eth_ifcfg, "ONBOOT=no"
+                        print >>eth_ifcfg, "TYPE=Ethernet"
+                        print >>eth_ifcfg, "HWADDR=%s" % net_dict['ADMIN_INTERFACE']
+                        print >>eth_ifcfg, "BRIDGE=%s" % brname
+                        eth_ifcfg.close()
+
+                        br_ifcfg = open(os.path.join(mounts['root'], save_dir, 'ifcfg-%s' % brname), 'w')
+                        print >>br_ifcfg, "XEMANAGED=yes"
+                        print >>br_ifcfg, "DEVICE=%s" % brname
+                        print >>br_ifcfg, "ONBOOT=no"
+                        print >>br_ifcfg, "TYPE=Bridge"
+                        print >>br_ifcfg, "DELAY=0"
+                        print >>br_ifcfg, "STP=0"
+                        print >>br_ifcfg, "PIFDEV=%s" % mgmt_dict['LABEL']
+                        if mgmt_dict['MODE'] == 'static':
+                            print >>br_ifcfg, "BOOTPROTO=none"
+                            print >>br_ifcfg, "NETMASK=%s" % mgmt_dict['NETMASK']
+                            print >>br_ifcfg, "IPADDR=%s" % mgmt_dict['IP']
+                            print >>br_ifcfg, "GATEWAY=%s" % mgmt_dict['GATEWAY']
+                            i = 1
+                            while mgmt_dict.has_key('DNS%d' % i):
+                                print >>br_ifcfg, "DNS%d=%s" % (i, mgmt_dict['DNS%d' % i])
+                                i += 1
+                            if i > 1:
+                                print >>br_ifcfg, "PEERDNS=yes"
+                        else:
+                            print >>br_ifcfg, "BOOTPROTO=dhcp"
+                            print >>br_ifcfg, "PERSISTENT_DHCLIENT=yes"
+                            print >>br_ifcfg, "PEERDNS=yes"
+                        br_ifcfg.close()
+                except:
+                    pass
+
         finally:
             if tds:
                 if os.path.ismount(tds):
                     util.umount(tds)
                 os.rmdir(tds)
 
-# Upgarders provided here, in preference order:
+# Upgraders provided here, in preference order:
 class UpgraderList(list):
     def getUpgrader(self, product, version):
         for x in self:

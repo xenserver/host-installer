@@ -913,6 +913,9 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
         nc.close()
 
+    save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
+    os.mkdir(save_dir)
+
     # Write out initial network configuration file for management interface:
     sysconf_admin_iface_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_iface)
     sysconf_admin_iface_fd = open(sysconf_admin_iface_file, 'w')
@@ -924,6 +927,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     print >>sysconf_admin_iface_fd, "HWADDR=%s" % admin_config.hwaddr
     print >>sysconf_admin_iface_fd, "BRIDGE=%s" % admin_bridge
     sysconf_admin_iface_fd.close()
+    util.runCmd2(['cp', '-p', sysconf_admin_iface_file, save_dir])
 
     sysconf_bridge_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_bridge)
     sysconf_bridge_fd = open(sysconf_bridge_file, "w")
@@ -949,6 +953,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         if domain:
             print >>sysconf_bridge_fd, "DOMAIN=%s" % domain
     sysconf_bridge_fd.close()
+    util.runCmd2(['cp', '-p', sysconf_bridge_file, save_dir])
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
