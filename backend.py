@@ -422,6 +422,9 @@ def writeDom0DiskPartitions(disk):
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
+    if not os.path.exists(disk):
+        raise RuntimeError, "The disk %s could not be found." % disk
+
     # partition the disk:
     diskutil.writePartitionTable(disk, [root_size, root_size, -1])
     diskutil.makeActivePartition(disk, 1)
