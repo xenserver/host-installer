@@ -901,7 +901,8 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
                     print >>ac, "MODE=static"
                     print >>ac, "IP=%s" % admin_config.ipaddr
                     print >>ac, "NETMASK=%s" % admin_config.netmask
-                    print >>ac, "GATEWAY=%s" % admin_config.gateway
+                    if admin_config.gateway:
+                        print >>ac, "GATEWAY=%s" % admin_config.gateway
                     if manual_nameservers:
                         for i in range(len(nameservers)):
                             print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
@@ -948,7 +949,8 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         print >>sysconf_bridge_fd, "BOOTPROTO=none"
         print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config.netmask
         print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config.ipaddr
-        print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
+        if admin_config.gateway:
+            print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
         if manual_nameservers:
             print >>sysconf_bridge_fd, "PEERDNS=yes"
             for i in range(len(nameservers)):
