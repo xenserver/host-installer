@@ -976,11 +976,21 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
 # use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts):
+    # CA-21996: kudzu can get confused and write ifcfg files for the
+    # the wrong interface. If we move the network-scripts sideways
+    # then it still performs its other tasks.
+    os.rename("%s/etc/sysconfig/network-scripts" % mounts['root'], 
+              "%s/etc/sysconfig/network-scripts.hold" % mounts['root'])
+
     util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
     assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
+
+    # restore directory
+    os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
+              "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
 def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_bridge):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
