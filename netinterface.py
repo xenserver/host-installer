@@ -60,7 +60,7 @@ class NetInterface:
             # CA-11825: broadcast needs to be determined for non-standard networks
             bcast = None
             rc, output = util.runCmd2(['/bin/ipcalc', '-b', self.ipaddr, self.netmask],
-                                      with_output=True)
+                                      with_stdout=True)
             if rc == 0:
                 bcast = output[10:]
             f.write("iface %s inet static\n" % iface)

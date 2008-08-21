@@ -68,7 +68,7 @@ def runCmd(command, with_output = False):
     else:
         return rv
 
-def runCmd2(command, with_output = False):
+def runCmd2(command, with_stdout = False, with_stderr = False):
     cmd = subprocess.Popen(command,
                            stdout = subprocess.PIPE,
                            stderr = subprocess.PIPE)
@@ -96,10 +96,14 @@ def runCmd2(command, with_output = False):
     if err:
         l += "\nSTANDARD ERROR:\n" + err
     xelogging.log(l)
-    if with_output:
+    if (not with_stdout) and (not with_stderr):
+        return rv
+    elif with_stdout and with_stderr:
+        return rv, out, err
+    elif with_stdout:
         return rv, out
     else:
-        return rv
+        return rv, err
 
 ###
 # mounting/unmounting
@@ -126,9 +130,9 @@ def mount(dev, mountpoint, options = None, fstype = None):
     cmd.append(mountpoint)
 
     xelogging.log("Mount command is %s" % str(cmd))
-    rc = runCmd2(cmd)
+    rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
     if rc != 0:
-        raise MountFailureException
+        raise MountFailureException, "out: '%s' err: '%s'" % (out, err)
 
 def bindMount(source, mountpoint):
     xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
