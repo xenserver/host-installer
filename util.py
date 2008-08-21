@@ -126,8 +126,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
     cmd.append(mountpoint)
 
     xelogging.log("Mount command is %s" % str(cmd))
-    rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
-                          stderr = subprocess.PIPE).wait()
+    rc = runCmd2(cmd)
     if rc != 0:
         raise MountFailureException
 
