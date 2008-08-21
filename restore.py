@@ -118,7 +118,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                       os.path.join(dest_mnt, bootloader_config)])
 
         # find out the label
-        v, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/bootloader.tmp'], with_stdout = True)
+        v, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/bootloader.tmp'], with_output = True)
         p = re.compile('root=LABEL=root-\w+')
         labels = p.findall(out)
 
