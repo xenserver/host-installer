@@ -35,8 +35,12 @@ mount ${PARTITION} ${MNTPOINT}
 rhmkinitrd() {
     # mkinitrd is only available in squashfs root filesystem
     OUTPUT="$1"
-    ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
-    mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    if [ -e ${MNTPOINT}/rootfs ] ; then
+        ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
+        mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    else
+        ROOTFS_MNTPOINT=${MNTPOINT}
+    fi
     mount -t tmpfs none ${ROOTFS_MNTPOINT}/mnt 
     mount -t tmpfs none ${ROOTFS_MNTPOINT}/var/tmp
     mount -t sysfs none ${ROOTFS_MNTPOINT}/sys
@@ -52,8 +56,10 @@ rhmkinitrd() {
     umount ${ROOTFS_MNTPOINT}/sys
     umount ${ROOTFS_MNTPOINT}/var/tmp
     umount ${ROOTFS_MNTPOINT}/mnt
-    umount ${ROOTFS_MNTPOINT}
-    rmdir ${ROOTFS_MNTPOINT}
+    if [ "${ROOTFS_MNTPOINT}" != "${MNTPOINT}" ] ; then
+        umount ${ROOTFS_MNTPOINT}
+        rmdir ${ROOTFS_MNTPOINT}
+    fi
 }
 
 rhmkinitrd ${MNTPOINT}/boot/initrd

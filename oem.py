@@ -373,7 +373,13 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.showMessageDialog("Imaging", "Populating primary system image...")
     
     partnode = getPartitionNode(devnode, SYS_1_PARTITION_NUMBER)
-    rv, output = util.runCmd('%s/populate-partition %s %s system-image-1 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
+
+    if answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"):
+        write_op = "system-image-1-rw"
+    else:
+        write_op = "system-image-1"
+
+    rv, output = util.runCmd('%s/populate-partition %s %s %s 2>&1' % (scriptdir,sr_devnode, partnode, write_op), with_output=True)
     if ui:
         ui.progress.clearModelessDialog()
     if rv:
@@ -387,7 +393,13 @@ def go_disk(ui, args, answerfile_address):
         ui.progress.showMessageDialog("Imaging", "Populating secondary system image...")
     
     partnode = getPartitionNode(devnode, SYS_2_PARTITION_NUMBER)
-    rv, output = util.runCmd('%s/populate-partition %s %s system-image-2 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
+
+    if answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"):
+        write_op = "system-image-2-rw"
+    else:
+        write_op = "system-image-2"
+
+    rv, output = util.runCmd('%s/populate-partition %s %s %s 2>&1' % (scriptdir,sr_devnode, partnode, write_op), with_output=True)
     if ui:
         ui.progress.clearModelessDialog()
     if rv:

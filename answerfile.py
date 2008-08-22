@@ -168,6 +168,10 @@ def parseOemHdd(n):
     results.update(parseOemSource(n))
     results.update(parseScripts(n))
 
+    rw = n.getElementsByTagName('rootfs-writable')
+    if len(rw) == 1:
+        results['rootfs-writable'] = True
+
     return results
 
 def parseOemFlash(n):

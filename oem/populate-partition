@@ -49,8 +49,21 @@ mount_image_partition() {
     return 0
 }
 
+mount_squashfs() {
+    IMG=$1
+    MPNT=$2
+    SQUASHFS_LOOP_DEVICE=$(losetup -f)
+    losetup ${SQUASHFS_LOOP_DEVICE} ${IMG} || return 1
+    if ! mount -t squashfs $SQUASHFS_LOOP_DEVICE $MPNT ; then
+        losetup -d ${SQUASHFS_LOOP_DEVICE}
+        return 1
+    fi
+    return 0
+}
+
 write_system() {
     SYS_PNUM=$1
+    RW_MODE=$2
 
     # Filesystem is transferred using tar, rather than dd, because we do not
     # have full control over the partition table (unlike on flash). We have
@@ -81,15 +94,46 @@ write_system() {
         exit 1
     fi
 
-    # Transfer filesystem contents to target partition:
-    if ! ( cd ${MNTPOINT_SRC} && tar cf - . ) | ( cd ${MNTPOINT_DST} && tar xf - . ) ; then
-        umount ${MNTPOINT_DST}
-        rmdir ${MNTPOINT_DST}
-        umount ${MNTPOINT_SRC}
-        rmdir ${MNTPOINT_SRC}
-        losetup -d ${IMAGE_LOOP_DEVICE}
-        echo "Error transferring system partition contents to: ${DEST_PARTITION}"
-        exit 1
+    if [ "X${RW_MODE}" = "Xread-only" ] || [ ! -r ${MNTPOINT_SRC}/rootfs ] ; then
+        # Transfer filesystem contents to target partition:
+        if ! ( cd ${MNTPOINT_SRC} && tar cf - . ) | ( cd ${MNTPOINT_DST} && tar xf - . ) ; then
+            umount ${MNTPOINT_DST}
+            rmdir ${MNTPOINT_DST}
+            umount ${MNTPOINT_SRC}
+            rmdir ${MNTPOINT_SRC}
+            losetup -d ${IMAGE_LOOP_DEVICE}
+            echo "Error transferring system partition contents to: ${DEST_PARTITION}"
+            exit 1
+        fi
+    else
+        MNTPOINT_INNER_SRC="$(mktemp -d /tmp/mnt-XXXXXX)"
+        if ! mount_squashfs ${MNTPOINT_SRC}/rootfs ${MNTPOINT_INNER_SRC} ; then
+            umount ${MNTPOINT_DST}
+            rmdir ${MNTPOINT_DST}
+            umount ${MNTPOINT_SRC}
+            rmdir ${MNTPOINT_SRC}
+            losetup -d ${IMAGE_LOOP_DEVICE}
+            echo "Error mounting compressed system image: ${MNTPOINT_SRC}/rootfs"
+            exit 1
+        fi
+
+        # Transfer filesystem contents to target partition:
+        if ! ( cd ${MNTPOINT_INNER_SRC} && tar cf - . ) | ( cd ${MNTPOINT_DST} && tar xf - . ) ; then
+            umount ${MNTPOINT_INNER_SRC}
+            rmdir ${MNTPOINT_INNER_SRC}
+            losetup -d ${SQUASHFS_LOOP_DEVICE}
+            umount ${MNTPOINT_DST}
+            rmdir ${MNTPOINT_DST}
+            umount ${MNTPOINT_SRC}
+            rmdir ${MNTPOINT_SRC}
+            losetup -d ${IMAGE_LOOP_DEVICE}
+            echo "Error transferring system partition contents to: ${DEST_PARTITION}"
+            exit 1
+        fi
+
+        umount ${MNTPOINT_INNER_SRC}
+        rmdir ${MNTPOINT_INNER_SRC}
+        losetup -d ${SQUASHFS_LOOP_DEVICE}
     fi
 
     # The work of the source is done
@@ -117,11 +161,16 @@ write_system() {
         umount ${MNTPOINT_ROOTFS}
         rmdir ${MNTPOINT_ROOTFS}
     elif [ -e "${MNTPOINT_DST}/sbin/extlinux" ] ; then
+        mount -t tmpfs none ${MNTPOINT_DST}/proc
+        mount -o bind /dev ${MNTPOINT_DST}/dev
+        echo "${DEST_PARTITION} / ext3 rw,data=ordered 0 0" >${MNTPOINT_DST}/proc/mounts
         if chroot ${MNTPOINT_DST} /sbin/extlinux --install /boot ; then
             INSTALLED="ok"
         else
             echo "Error installing bootloader on: ${DEST_PARTITION}"
         fi
+        umount ${MNTPOINT_DST}/dev
+        umount ${MNTPOINT_DST}/proc
     fi
 
     umount ${MNTPOINT_DST}
@@ -278,10 +327,16 @@ write_mbr() {
 
 case "$COMMAND" in
     system-image-1)
-            write_system 1
+            write_system 1 read-only
+        ;;
+    system-image-1-rw)
+            write_system 1 read-write
         ;;
     system-image-2)
-            write_system 2
+            write_system 2 read-only
+        ;;
+    system-image-2-rw)
+            write_system 2 read-write
         ;;
     mutable-state)
             write_mutable
