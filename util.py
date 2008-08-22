@@ -140,10 +140,9 @@ def bindMount(source, mountpoint):
         raise MountFailureException()
 
 def umount(mountpoint, force = False):
+    # FIXME - implement force
     xelogging.log("Unmounting %s (force = %s)" % (mountpoint, force))
-    rc = subprocess.Popen(['/bin/umount', mountpoint],
-                          stdout = subprocess.PIPE,
-                          stderr = subprocess.PIPE).wait()
+    rc = runCmd2(['/bin/umount', mountpoint])
     return rc
 
 def parseTime(timestr):
