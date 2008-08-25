@@ -73,6 +73,7 @@ def writeImageWithProgress(ui, devnode, answers):
         if ui:
             ui.OKDialog("Error", msg)
         image_fd.close()
+        util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
         return EXIT_ERROR
 
     # sanity check passed - open the block device to which we want to write
