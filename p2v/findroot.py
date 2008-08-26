@@ -212,7 +212,9 @@ def findHostName(mnt):
             if not line or line.startswith('#'):
                 continue
             hostname = line
+            hn.close()
             return hostname
+        hn.close()
    
     # suse before red hat, coz etc/sysconfig/network is a 
     # directory on suse
@@ -224,11 +226,13 @@ def findHostName(mnt):
             if not line or line.startswith('#'):
                 continue
             hostname = line
+            hn.close()
             return hostname
+        hn.close()
 
     #red hat
     hnFile = os.path.join(mnt,'etc', 'sysconfig', 'network')
-    if os.path.exists(hnFile):
+    if os.path.exists(hnFile) and os.path.isfile(hnFile):
         hn = open(hnFile)
         for line in hn.readlines():
             line = line.strip()
@@ -237,7 +241,9 @@ def findHostName(mnt):
             (name, value) = line.split('=')
             if (name) == 'HOSTNAME':
                 hostname = value
+                hn.close()
                 return hostname
+        hn.close()
  
     return hostname
     
