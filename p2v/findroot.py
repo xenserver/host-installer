@@ -42,7 +42,7 @@ def scan():
     #activate LVM
     util.runCmd2(['vgscan'])
     util.runCmd2(['vgchange', '-a', 'y'])
-    rc, out = util.runCmd2(['/sbin/blkid', '-c', '/dev/null'], with_output = True)
+    rc, out = util.runCmd2(['/sbin/blkid', '-c', '/dev/null'], with_stdout = True)
     if rc == 0 and out:
         for line in out.split("\n"):
             attrs = parse_blkid(line)

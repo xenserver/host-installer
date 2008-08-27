@@ -142,7 +142,7 @@ def diskFromPartition(partition):
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
     symlink = None
-    v, out = util.runCmd2(['/usr/bin/udevinfo', '-q', 'symlink', '-n', partition], with_output = True)
+    v, out = util.runCmd2(['/usr/bin/udevinfo', '-q', 'symlink', '-n', partition], with_stdout = True)
     if v == 0:
         for link in out.split():
             if link.startswith('disk/by-id'):
