@@ -65,10 +65,30 @@ def writeImageWithProgress(ui, devnode, answers):
     reads_done = 0
     reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
 
+    # See if the target device node is present and wait a while
+    # in case it shows up
+    devnode_present = False
+    retries = 10
+    while not devnode_present:
+        if not os.path.exists(devnode):
+            if retries > 0:
+                retries -= 1
+                time.sleep(1)
+            else:
+                msg = "Device node %s not present." % devnode
+                xelogging.log(msg)
+                if ui:
+                    ui.OKDialog("Error", msg)
+                image_fd.close()
+                util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
+                return EXIT_ERROR
+        else:
+            devnode_present = True
+
     # sanity check that devnode is a block dev
     realpath = os.path.realpath(devnode) # follow if symlink
     if not os.path.exists(realpath) or not stat.S_ISBLK(os.stat(realpath)[0]):
-        msg = "Error: %s is not a block device or a symlink to one!" % devnode
+        msg = "Error: %s is not a block device or a symlink to one!" % realpath
         xelogging.log(msg)
         if ui:
             ui.OKDialog("Error", msg)
