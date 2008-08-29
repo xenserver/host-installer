@@ -66,14 +66,15 @@ def writeImageWithProgress(ui, devnode, answers):
     reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
 
     # See if the target device node is present and wait a while
-    # in case it shows up
+    # in case it shows up, kicking the udev trigger in the loop
     devnode_present = False
-    retries = 10
+    retries = 5
     while not devnode_present:
         if not os.path.exists(devnode):
             if retries > 0:
                 retries -= 1
-                time.sleep(1)
+                util.runCmd2(["udevtrigger"])
+                time.sleep(2)
             else:
                 msg = "Device node %s not present." % devnode
                 xelogging.log(msg)
