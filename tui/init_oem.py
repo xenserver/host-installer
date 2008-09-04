@@ -198,42 +198,59 @@ def get_remote_file(answers):
         default = answers['source-address']
     else:
         default = ""
-    (button, result) = EntryWindow(
-        tui.screen,
-        "Specify image",
-        text,
-        [(label, default)], entryWidth = 50,
-        buttons = ['Ok', 'Back'])
-    if button == 'back': return LEFT_BACKWARDS
 
-    dirname   = os.path.dirname(result[0])
-    basename  = os.path.basename(result[0])
+    found_file = False
+    while found_file == False:
 
-    if answers['source-media'] == 'nfs':
-        accessor  = repository.NFSAccessor(dirname)
-    else:
-        accessor  = repository.URLAccessor(dirname)
+        (button, result) = EntryWindow(
+            tui.screen,
+            "Specify image",
+            text,
+            [(label, default)], entryWidth = 50,
+            buttons = ['Ok', 'Back'])
+            
+        if button == 'back':
+            return LEFT_BACKWARDS
 
-    try:
-        accessor.start()
-    except:
-        ButtonChoiceWindow(
-            tui.screen, "Directory inaccessible",
-            """Unable to access directory.  Please check the address was valid and try again""",
-            ['Back'])
-        return LEFT_BACKWARDS
+        dirname   = os.path.dirname(result[0])
+        basename  = os.path.basename(result[0])
 
-    if not accessor.access(basename):
-        ButtonChoiceWindow(
-            tui.screen, "Image not found",
-            """The image was not found at the location specified.  Please check the file name was valid and try again""",
-            ['Back'])
-        accessor.finish()
-        return LEFT_BACKWARDS
-    else:
-        answers['image-fd'] = accessor.openAddress(basename)
+        if answers['source-media'] == 'nfs':
+            accessor  = repository.NFSAccessor(dirname)
+        else:
+            accessor  = repository.URLAccessor(dirname)
+
+        try:
+            accessor.start()
+        except:
+            ButtonChoiceWindow(
+                tui.screen, "Directory inaccessible",
+                """Unable to access directory.  Please check the address was valid and try again""",
+                ['Back'])
+            continue
+
+        if not accessor.access(basename):
+            ButtonChoiceWindow(
+                tui.screen, "Image not found",
+                """The image was not found at the location specified.  Please check the file name was valid and try again""",
+                ['Back'])
+            accessor.finish()
+            continue
+
+        try:
+            answers['image-fd'] = accessor.openAddress(basename)
+        except:
+            ButtonChoiceWindow(
+                tui.screen, "File inaccessible",
+                """Unable to access file.  Please check the file permissions""",
+                ['Back'])
+            continue
+
         answers['image-name'] = basename
         answers['accessor'] = accessor    # This is just a way of stopping GC on this object
+        
+        # Success!
+        found_file = True
 
     if answers['source-media'] == 'nfs':
         fullpath = os.path.join(accessor.location, basename)
