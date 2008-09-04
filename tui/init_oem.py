@@ -22,6 +22,7 @@ import tui.network
 import repository
 import snackutil
 import os
+import os.path
 import stat
 import diskutil
 import util
@@ -47,6 +48,9 @@ def choose_operation():
         (' * Install %s to hard disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_DISK),
         (' * Reset the password for an existing installation', init_constants.OPERATION_RESET_PASSWORD)
         ]
+
+    if os.path.exists("/opt/xensource/nohddui"):
+        del entries[1]
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % PRODUCT_BRAND,

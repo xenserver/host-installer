@@ -132,6 +132,10 @@ def main(args):
             answer_device = val.lower()
         elif opt == "--reboot":
             reboot = True
+        elif opt == "--nohddui":
+            nohddui_file = open('/opt/xensource/nohddui', 'w')
+            print >>nohddui_file, 'nohddui'
+            nohddui_file.close()
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
