@@ -606,8 +606,9 @@ def reset_password(ui, args, answerfile_address):
     mountPoint = tempfile.mkdtemp('.oeminstaller')
     os.system('/bin/mkdir -p "'+mountPoint+'"')
 
+    partition_dev = '/dev/' + partition.replace("!", "/")
     try:
-        util.mount('/dev/'+partition, mountPoint, fstype='ext3', options=['rw'])
+        util.mount(partition_dev, mountPoint, fstype='ext3', options=['rw'])
         try:
             # sed command replaces the root password entry in /etc/passwd with !!
             sedCommand = '/bin/sed -ie \'s#^root:[^:]*#root:' + passwordHash +'#\' "' + mountPoint+'/'+subdir+'/etc/passwd"'
@@ -616,7 +617,7 @@ def reset_password(ui, args, answerfile_address):
             if os.system(sedCommand) != 0:
                 raise Exception('Password file manipulation failed')
         finally:
-            util.umount('/dev/'+partition)
+            util.umount(partition_dev)
     except Exception, e:
         ui.OKDialog("Failed", str(e))
         return EXIT_ERROR

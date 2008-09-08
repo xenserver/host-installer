@@ -351,8 +351,9 @@ def get_state_partition(answers):
     mountPoint = tempfile.mkdtemp('.oeminstaller')
     os.system('/bin/mkdir -p "'+mountPoint+'"')
     for partition in partitionList:
+        partition_dev = '/dev/' + partition.replace("!", "/")
         try:
-            util.mount('/dev/'+partition, mountPoint, fstype='ext3', options=['ro'])
+            util.mount(partition_dev, mountPoint, fstype='ext3', options=['ro'])
             try:
                 inventoryFilenames = glob.glob(mountPoint+'/*/etc/xensource-inventory')
                 for filename in inventoryFilenames:
@@ -362,7 +363,7 @@ def get_state_partition(answers):
                     name = values.get('PRODUCT_BRAND', '')+' '+values.get('PRODUCT_VERSION', '')+' ('+partition+', '+values.get('INSTALLATION_UUID', '')+')'
                     entries.append((name, target))
             finally:
-                util.umount('/dev/'+partition)
+                util.umount(partition_dev)
             
         except Exception, e:
             pass # Failed to mount and read inventory - not a state partition
