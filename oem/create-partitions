@@ -16,7 +16,7 @@ SYSTEM_PARTITION_SIZE="4096M"
 STATE_PARTITION_SIZE="1024M"
 
 DISK=$1
-[ -b ${DISK} ] || ( echo >2 "Disk is not a block device: ${DISK}" ; exit 1 )
+[ -b ${DISK} ] || ( echo >&2 "Disk is not a block device: ${DISK}" ; exit 1 )
 
 # How many existing primary partitions are there?
 # -----------------------------------------------
@@ -25,7 +25,7 @@ if fdisk -l ${DISK} 2>&1 | grep -q "doesn't contain a valid" ; then
     PREV_PRI_COUNT=0
     # Create an empty partition table here:
     if ! echo -e "w\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
-        echo >2 "Failed to create empty partition table on ${DISK}"
+        echo >&2 "Failed to create empty partition table on ${DISK}"
         exit 1
     fi
 else
@@ -38,7 +38,7 @@ if [ 0 != $(( ${PREV_PRI_COUNT} > 2 )) ] ; then
     dd if=/dev/zero of=${DISK} bs=512 count=1
     sync
     if ! echo -e "w\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
-        echo >2 "Failed to create empty partition table on ${DISK}"
+        echo >&2 "Failed to create empty partition table on ${DISK}"
         exit 1
     fi
     PREV_PRI_COUNT=0
@@ -48,7 +48,7 @@ else
         ACTIVE=$(fdisk -l ${DISK} | sed -ne 's,^'${DISK}'p\?'${PNUM}'  *\*,,p')
         if [ -n "${ACTIVE}" ] ; then
             if ! echo -e "a\n${PNUM}\nw\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
-                echo >2 "Failed to clear active flag on partition ${PNUM} on ${DISK}"
+                echo >&2 "Failed to clear active flag on partition ${PNUM} on ${DISK}"
                 exit 1
             fi
         fi
@@ -64,7 +64,7 @@ if [ "x${EXTENDED}" != "x" ] ; then
     dd if=/dev/zero of=${DISK} bs=512 count=1
     sync
     if ! echo -e "w\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
-        echo >2 "Failed to create empty partition table on ${DISK}"
+        echo >&2 "Failed to create empty partition table on ${DISK}"
         exit 1
     fi
     PREV_PRI_COUNT=0
@@ -92,7 +92,7 @@ fi
 if ! echo -e "n\np\n${FAT_PNUM}\n\n+1\nt\n${SPECIFY}6\na\n${FAT_PNUM}\nw\n" | \
      fdisk ${DISK} >/dev/null 2>&1
 then
-    echo >2 "Failed to create FAT partition on ${DISK}"
+    echo >&2 "Failed to create FAT partition on ${DISK}"
     exit 1
 fi
 
@@ -104,7 +104,7 @@ SPECIFY=""
 [ "x${PREV_PRI_COUNT}" == "x2" ] || SPECIFY="${EXTENDED_PNUM}\n"
 if ! echo -e "n\ne\n${SPECIFY}\n\nw\n" | fdisk ${DISK} >/dev/null 2>&1
 then
-    echo >2 "Failed to create Extended partition on ${DISK}"
+    echo >&2 "Failed to create Extended partition on ${DISK}"
     exit 1
 fi
 
@@ -121,7 +121,7 @@ SPECIFY=""
 if ! echo -e "n\n${SPECIFY}\n+${SYSTEM_PARTITION_SIZE}\nn\n${SPECIFY}\n+${SYSTEM_PARTITION_SIZE}\nn\n${SPECIFY}\n+${STATE_PARTITION_SIZE}\nn\n${SPECIFY}\n\nt\n8\n8e\nw\n"\
      | fdisk ${DISK} >/dev/null 2>&1
 then
-    echo >2 "Failed to create logical partitions on ${DISK}"
+    echo >&2 "Failed to create logical partitions on ${DISK}"
     exit 1
 fi
 
