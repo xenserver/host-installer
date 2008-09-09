@@ -29,6 +29,7 @@ import util
 import glob
 import re
 import tempfile
+import constants
 
 def get_keymap():
     entries = generalui.getKeymaps()
@@ -156,10 +157,22 @@ def get_blockdev_to_recover(answers, flashonly, alreadyinstalled = False):
     if result == 'rescan':     return REPEAT_STEP
 
 def get_flash_blockdev_to_recover(answers):
-    return get_blockdev_to_recover(answers, flashonly=True)
+    rv = get_blockdev_to_recover(answers, flashonly=True)
+
+    # Placeholders the future.  Not currently used when installing to flash.
+    answers['guest-disks'] = [ ]
+    answers['sr-type'] = constants.SR_TYPE_LVM
+
+    return rv
 
 def get_disk_blockdev_to_recover(answers):
-    return get_blockdev_to_recover(answers, flashonly=False)
+    rv = get_blockdev_to_recover(answers, flashonly=False)
+
+    # always claim remainder of primary disk for local storage, and no other disks.
+    answers['guest-disks'] = [ answers['primary-disk'] ]
+    answers['sr-type'] = constants.SR_TYPE_LVM
+    
+    return rv
 
 def get_installation_blockdev(answers):
     return get_blockdev_to_recover(answers, flashonly=False, alreadyinstalled=True)

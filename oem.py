@@ -38,10 +38,11 @@ import bz2
 import re
 import md5crypt
 import random
+import backend
 
 from version import *
 from answerfile import AnswerfileError
-from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
 
@@ -305,11 +306,7 @@ def go_disk(ui, args, answerfile_address):
             return None # keeps outer loop going
 
     xelogging.log("Starting install to disk, partitioning")
-
-    SYS_1_PARTITION_NUMBER = 5
-    SYS_2_PARTITION_NUMBER = 6
-    STATE_PARTITION_NUMBER = 7
-    SR_PARTITION_NUMBER    = 8
+    answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_DISK
 
     devnode = answers["primary-disk"]
 
@@ -343,8 +340,8 @@ def go_disk(ui, args, answerfile_address):
     retries = 5
     while not all_devnodes_present:
         for pnum in (BOOT_PARTITION_NUMBER,
-                     SYS_1_PARTITION_NUMBER, SYS_2_PARTITION_NUMBER,
-                     STATE_PARTITION_NUMBER, SR_PARTITION_NUMBER):
+                     OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER,
+                     OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER):
             p_devnode = getPartitionNode(devnode, pnum)
             if not os.path.exists(p_devnode):
                 if retries > 0:
@@ -361,7 +358,7 @@ def go_disk(ui, args, answerfile_address):
     # Step 3: decompress the image into the SR partition (use as tmp dir)
     xelogging.log("Decompressing image")
 
-    sr_devnode = getPartitionNode(devnode, SR_PARTITION_NUMBER)
+    sr_devnode = getPartitionNode(devnode, OEMHDD_SR_PARTITION_NUMBER)
     rv = writeImageWithProgress(ui, sr_devnode, answers)
     if rv:
         return EXIT_ERROR
@@ -394,7 +391,7 @@ def go_disk(ui, args, answerfile_address):
     if ui:
         ui.progress.showMessageDialog("Imaging", "Populating primary system image...")
     
-    partnode = getPartitionNode(devnode, SYS_1_PARTITION_NUMBER)
+    partnode = getPartitionNode(devnode, OEMHDD_SYS_1_PARTITION_NUMBER)
 
     if answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"):
         write_op = "system-image-1-rw"
@@ -414,7 +411,7 @@ def go_disk(ui, args, answerfile_address):
     if ui:
         ui.progress.showMessageDialog("Imaging", "Populating secondary system image...")
     
-    partnode = getPartitionNode(devnode, SYS_2_PARTITION_NUMBER)
+    partnode = getPartitionNode(devnode, OEMHDD_SYS_2_PARTITION_NUMBER)
 
     if answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"):
         write_op = "system-image-2-rw"
@@ -434,7 +431,7 @@ def go_disk(ui, args, answerfile_address):
     if ui:
         ui.progress.showMessageDialog("Imaging", "Initializing writable storage...")
     
-    partnode = getPartitionNode(devnode, STATE_PARTITION_NUMBER)
+    partnode = getPartitionNode(devnode, OEMHDD_STATE_PARTITION_NUMBER)
     rv, output = util.runCmd('%s/populate-partition %s %s mutable-state 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
     if ui:
         ui.progress.clearModelessDialog()
@@ -464,21 +461,34 @@ def go_disk(ui, args, answerfile_address):
     
     # Create a partition containing the remaining disk space and tell XAPI to 
     # initialise it as the Local SR on first boot
-    partnode = getPartitionNode(devnode, STATE_PARTITION_NUMBER)
-    rv, output = util.runCmd('%s/update-partitions %s %s %s 2>&1' % (scriptdir,devnode,sr_devnode,partnode), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
+    try:
+        partnode = getPartitionNode(devnode, OEMHDD_STATE_PARTITION_NUMBER)
+        mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'oem-state-partition-')
+        try:
+            util.mount(partnode, mntpoint)
+            try:
+                mounts = {'state': mntpoint}
+                backend.prepareStorageRepositories(answers['operation'], mounts, answers['primary-disk'], answers['guest-disks'], answers['sr-type'])
+            finally:
+                util.umount(mntpoint)
+        finally:
+            os.rmdir(mntpoint)
+    except Exception, e:
+        message =  "Fatal error occurred during SR initialization:\n\n%s\n\nPress any key to reboot" % str(e)
+        xelogging.log(message)
         if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during SR initialization:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
+            ui.progress.clearModelessDialog()
+            ui.OKDialog ("Error", message)
         return EXIT_ERROR
+    else:
+        if ui:
+            ui.progress.clearModelessDialog()
 
     ###########################################################################
     # update the initrds on the bootable partitions to support access to this disk
     if ui:
         ui.progress.showMessageDialog("update-initrd", "Customizing startup modules...")
-    for part in (SYS_1_PARTITION_NUMBER, SYS_2_PARTITION_NUMBER):
+    for part in (OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER):
         partnode = getPartitionNode(devnode,part)
         rv, output = util.runCmd('%s/update-initrd %s 2>&1' % (scriptdir,partnode), with_output=True)
         if rv:
@@ -526,6 +536,8 @@ def go_flash(ui, args, answerfile_address):
             return None # keeps outer loop going
 
     xelogging.log("Starting install to flash write")
+    answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_FLASH
+
     devnode = answers["primary-disk"]
 
     rv = writeImageWithProgress(ui, devnode, answers)

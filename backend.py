@@ -27,6 +27,7 @@ import shutil
 import constants
 import hardware
 import upgrade
+import init_constants
 
 # Product version and constants:
 import version
@@ -162,7 +163,7 @@ def getFinalisationSequence(ans):
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(prepareStorageRepositories, A(ans, 'installation-uuid', 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
+            Task(prepareStorageRepositories, A(ans, 'operation', 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -436,33 +437,44 @@ def writeGuestDiskPartitions(disk):
 
     diskutil.clearDiskPartitions(disk)
 
-def getSRPhysDevs(primary_disk, guest_disks):
+def getSRPhysDevs(primary_disk, guest_disks, is_oem = False):
+    if is_oem:
+        pd_sr_part = constants.OEMHDD_SR_PARTITION_NUMBER
+    else:
+        pd_sr_part = constants.default_sr_firstpartition
+
     def sr_partition(disk):
         if disk == primary_disk:
-            return diskutil.determinePartitionName(disk, 3)
+            return diskutil.determinePartitionName(disk, pd_sr_part)
         else:
             return disk
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def prepareStorageRepositories(install_uuid, mounts, primary_disk, guest_disks, sr_type):
+def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_type):
+
+    is_oem = (operation == init_constants.OPERATION_INSTALL_OEM_TO_DISK)
+        
     if len(guest_disks) == 0:
         xelogging.log("No storage repository requested.")
         return None
 
-    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
+    if is_oem:
+        directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
+    else:
+        directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
 
     xelogging.log("Arranging for storage repositories to be created at first boot...")
 
-    partitions = getSRPhysDevs(primary_disk, guest_disks)
+    partitions = getSRPhysDevs(primary_disk, guest_disks, is_oem)
 
     sr_type_strings = { constants.SR_TYPE_EXT: 'ext', 
                         constants.SR_TYPE_LVM: 'lvm' }
     sr_type_string = sr_type_strings[sr_type]
 
     # write a config file for the prepare-storage firstboot script:
-    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
-    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
+    util.assertDir(directory)
+    fd = open(os.path.join(directory, 'default-storage.conf'), 'w')
     links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
     print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
     print >>fd, "TYPE='%s'" % sr_type_string

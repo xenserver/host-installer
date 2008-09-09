@@ -24,6 +24,7 @@ import util
 import answerfile
 import uicontroller
 import constants
+import init_constants
 
 # hardware
 import diskutil
@@ -49,7 +50,7 @@ def main(args):
 
 def go(ui, args, answerfile_address):
     extra_repo_defs = []
-    results = {'keymap': None, 'serial-console': None}
+    results = {'keymap': None, 'serial-console': None, 'operation': init_constants.OPERATION_INSTALL }
     suppress_extra_cd_dialog = False
     serial_console = None
 

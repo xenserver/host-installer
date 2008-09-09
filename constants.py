@@ -73,6 +73,11 @@ default_sr_firstpartition = 3
 swap_location = '/var/swap/swap.001'
 swap_size = 512
 
+OEMHDD_SYS_1_PARTITION_NUMBER = 5
+OEMHDD_SYS_2_PARTITION_NUMBER = 6
+OEMHDD_STATE_PARTITION_NUMBER = 7
+OEMHDD_SR_PARTITION_NUMBER    = 8
+
 MIN_PASSWD_LEN=6
 
 # file locations - installer filesystem

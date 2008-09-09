@@ -22,7 +22,6 @@ install:
 	install -m755 oem/create-partitions $(INSTALLER_DIR)/oem
 	install -m755 oem/populate-partition $(INSTALLER_DIR)/oem
 	install -m755 oem/update-initrd $(INSTALLER_DIR)/oem
-	install -m755 oem/update-partitions $(INSTALLER_DIR)/oem
 
 # Others
 	install -m644 answerfile.py $(INSTALLER_DIR)

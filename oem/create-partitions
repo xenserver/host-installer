@@ -23,21 +23,13 @@ DISK=$1
 if fdisk -l ${DISK} 2>&1 | grep -q "doesn't contain a valid" ; then
     # No partition table present
     PREV_PRI_COUNT=0
-    # Create an empty partition table here:
-    if ! echo -e "w\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
-        echo >&2 "Failed to create empty partition table on ${DISK}"
-        exit 1
-    fi
 else
     PREV_PRI_COUNT=$(fdisk -l ${DISK} | sed -ne 's,^'${DISK}'p\?[1-4] ,,p' | wc -l)
 fi
 
-if [ 0 != $(( ${PREV_PRI_COUNT} > 2 )) ] ; then
+if [ \( ${PREV_PRI_COUNT} -gt 2 \) -o \( ${PREV_PRI_COUNT} -eq 0 \)  ] ; then
     # Cannot coexist with these partitions, so remove them.
-    # Create an empty partition table.
-    dd if=/dev/zero of=${DISK} bs=512 count=1
-    sync
-    if ! echo -e "w\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
+    if ! echo -e "o\nw\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
         echo >&2 "Failed to create empty partition table on ${DISK}"
         exit 1
     fi
@@ -61,9 +53,7 @@ EXTENDED=$(fdisk -l ${DISK} | sed -ne 's,^\('${DISK}'p\?[1-4]\).*Extended$,\1,p'
 if [ "x${EXTENDED}" != "x" ] ; then
     # Cannot coexist with an existing extended partition.
     # Create an empty partition table.
-    dd if=/dev/zero of=${DISK} bs=512 count=1
-    sync
-    if ! echo -e "w\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
+    if ! echo -e "o\nw\n" | fdisk ${DISK} >/dev/null 2>&1 ; then
         echo >&2 "Failed to create empty partition table on ${DISK}"
         exit 1
     fi
