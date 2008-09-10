@@ -43,15 +43,21 @@ def get_keymap():
 
     return entry
 
-def choose_operation():
+def choose_operation(menu_option):
     entries = [ 
         (' * Install %s to flash disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_FLASH),
         (' * Install %s to hard disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_DISK),
         (' * Reset the password for an existing installation', init_constants.OPERATION_RESET_PASSWORD)
         ]
 
-    if os.path.exists("/opt/xensource/nohddui"):
+    # Menu options: all, none, hdd, flash
+    if menu_option = "none":
+        del entries[0:2]
+    if menu_option = "hdd":
+        del entries[0]
+    if menu_option = "flash":
         del entries[1]
+    # Nothing to do for 'all'. 'all' is default.
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
