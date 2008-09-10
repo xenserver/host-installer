@@ -51,11 +51,11 @@ def choose_operation(menu_option):
         ]
 
     # Menu options: all, none, hdd, flash
-    if menu_option = "none":
+    if menu_option == "none":
         del entries[0:2]
-    if menu_option = "hdd":
+    if menu_option == "hdd":
         del entries[0]
-    if menu_option = "flash":
+    if menu_option == "flash":
         del entries[1]
     # Nothing to do for 'all'. 'all' is default.
 
