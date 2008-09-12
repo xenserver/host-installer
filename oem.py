@@ -38,6 +38,7 @@ import bz2
 import re
 import md5crypt
 import random
+import fcntl
 import backend
 
 from version import *
@@ -129,6 +130,12 @@ def writeImageWithProgress(ui, devnode, answers):
     else:
         image_fd.close()
         devfd.close()
+
+    # fresh image written - need to re-read partition table 
+    # (0x125F == BLKRRPART):
+    devfd = open(devnode, mode="we")
+    fcntl.ioctl(devfd, 0x125F)
+    devfd.close()
 
     # image successfully written
     if ui:
