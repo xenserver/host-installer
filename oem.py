@@ -136,6 +136,7 @@ def writeImageWithProgress(ui, devnode, answers):
     devfd = open(devnode, mode="we")
     fcntl.ioctl(devfd, 0x125F)
     devfd.close()
+    util.runCmd2(['udevsettle'])
 
     # image successfully written
     if ui:
