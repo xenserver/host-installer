@@ -136,7 +136,14 @@ def writeImageWithProgress(ui, devnode, answers):
     # fresh image written - need to re-read partition table 
     # (0x125F == BLKRRPART):
     devfd = open(devnode, mode="we")
-    fcntl.ioctl(devfd, 0x125F)
+    try:
+        fcntl.ioctl(devfd, 0x125F)
+    except IOError, e:
+        # CA-23402: devfd might have been a partition and we can't tell with 
+        # easily so we try the ioctl and ignore IOError exceptions, which is
+        # what gets raised in this cause.
+        xelogging.log("BLKRRPART failed - expected in HDD installs. Error was %s" % str(e))
+        pass
     devfd.close()
     util.runCmd2(['udevsettle', '--timeout=30'])
 
