@@ -31,11 +31,44 @@ MNTPOINT="$(mktemp -d /tmp/mnt-XXXXXX)"
 # Mount the partition
 mount ${PARTITION} ${MNTPOINT}
 
-# build a redhat style initrd: usage rhmkinitrd <filename>
-rhmkinitrd() {
-    # mkinitrd is only available in squashfs root filesystem
-    OUTPUT="$1"
+# determine the xen kernel version
+kernelversion_xen() {
     if [ -e ${MNTPOINT}/rootfs ] ; then
+        ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
+        mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    else
+        ROOTFS_MNTPOINT=${MNTPOINT}
+    fi
+    KVER=$(basename `/bin/ls -1td ${ROOTFS_MNTPOINT}/lib/modules/2.6*xen`)
+    if [ "${ROOTFS_MNTPOINT}" != "${MNTPOINT}" ] ; then
+        umount ${ROOTFS_MNTPOINT}
+        rmdir ${ROOTFS_MNTPOINT}
+    fi
+    echo "$KVER"
+}
+
+# determine the kdump kernel version
+kernelversion_kdump() {
+    if [ -e ${MNTPOINT}/rootfs ] ; then
+        ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
+        mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
+    else
+        ROOTFS_MNTPOINT=${MNTPOINT}
+    fi
+    KVER=$(basename `/bin/ls -1td ${ROOTFS_MNTPOINT}/lib/modules/2.6*kdump`)
+    if [ "${ROOTFS_MNTPOINT}" != "${MNTPOINT}" ] ; then
+        umount ${ROOTFS_MNTPOINT}
+        rmdir ${ROOTFS_MNTPOINT}
+    fi
+    echo "$KVER"
+}
+
+# build a redhat style initrd: usage mkinitrd_common <filename> <kernelversion>
+mkinitrd_common() {
+    OUTPUT="$1"
+    KVER="$2"
+    if [ -e ${MNTPOINT}/rootfs ] ; then
+        # mkinitrd is only available in squashfs root filesystem
         ROOTFS_MNTPOINT=$(mktemp -d /tmp/mnt-XXXXXX)
         mount -oloop -t squashfs ${MNTPOINT}/rootfs ${ROOTFS_MNTPOINT}
     else
@@ -44,7 +77,6 @@ rhmkinitrd() {
     mount -t tmpfs none ${ROOTFS_MNTPOINT}/mnt 
     mount -t tmpfs none ${ROOTFS_MNTPOINT}/var/tmp
     mount -t sysfs none ${ROOTFS_MNTPOINT}/sys
-    KVER=$(basename `/bin/ls -1td ${ROOTFS_MNTPOINT}/lib/modules/2.6*xen`)
     mount -t tmpfs none ${ROOTFS_MNTPOINT}/dev
     tar -C /dev -c . | tar -C ${ROOTFS_MNTPOINT}/dev -x
     FSLABEL=$(dumpe2fs ${PARTITION} | sed -ne 's/Filesystem volume name:[[:space:]]*//p')
@@ -62,7 +94,21 @@ rhmkinitrd() {
     fi
 }
 
-rhmkinitrd ${MNTPOINT}/boot/initrd
+# Build the initrd loaded at boot
+mkinitrd_xen() {
+    KVER=$(kernelversion_xen)
+    mkinitrd_common ${MNTPOINT}/boot/initrd ${KVER}
+}
+
+# Build the initrd loaded on panic
+mkinitrd_kdump() {
+    KVER=$(kernelversion_kdump)
+    mkinitrd_common ${MNTPOINT}/boot/initrd-${KVER}.img ${KVER}
+}
+
+# Build the initrds
+mkinitrd_xen
+mkinitrd_kdump
 
 if losetup -a >/dev/null 2>&1 ; then
     LOOPS=$(losetup -a | sed -ne 's#\(^/dev/loop[0-9]*\):.*('${MNTPOINT}'.*$#\1#p')
