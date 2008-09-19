@@ -241,7 +241,7 @@ def splitNetloc(netloc):
         
     return (hostname, username, password)
 
-def splitArgs(argsIn):
+def splitArgs(argsIn, array_args = ()):
     """ Split argument array into dictionary
 
     [ '--alpha', '--beta=42' ]
@@ -255,7 +255,16 @@ def splitArgs(argsIn):
         if eq == -1:
             argsOut[arg] = None
         else:
-            argsOut[arg[:eq]] = arg[eq+1:]
+            k = arg[:eq]
+            v = arg[eq+1:]
+            if k in array_args:
+                if argsOut.has_key(k):
+                    argsOut[k].append(v)
+                else:
+                    argsOut[k] = [v]
+            else:
+                argsOut[k] = v
+
     return argsOut    
 
 def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):

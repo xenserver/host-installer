@@ -251,6 +251,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    reboot = main(util.splitArgs(sys.argv[1:]))
+    reboot = main(util.splitArgs(sys.argv[1:], ('--console')))
     if reboot:
         os.system("reboot")

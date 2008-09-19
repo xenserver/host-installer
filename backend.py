@@ -141,7 +141,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console', 'boot-serial'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -565,7 +565,7 @@ def writeMenuItems(f, fn, s):
     for entry in entries:
         fn(f, entry)
 
-def installBootLoader(mounts, disk, bootloader, serial):
+def installBootLoader(mounts, disk, bootloader, serial, boot_serial):
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
@@ -586,9 +586,9 @@ def installBootLoader(mounts, disk, bootloader, serial):
 
     try:
         if bootloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk, serial)
+            installGrub(mounts, disk, serial, boot_serial)
         elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
-            installExtLinux(mounts, disk, serial)
+            installExtLinux(mounts, disk, serial, boot_serial)
         else:
             raise RuntimeError, "Unknown bootloader."
 
@@ -630,11 +630,12 @@ def writeExtLinuxMenuItem(f, item):
     f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
     f.write("\n")
 
-def installExtLinux(mounts, disk, serial):
+def installExtLinux(mounts, disk, serial, boot_serial):
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
 
     if serial:
         f.write("serial %s %s\n" % (serial['port'][0][4:], serial['baud']))
+    if boot_serial:
         f.write("default xe-serial\n")
     else:
         f.write("default xe\n")
@@ -662,7 +663,7 @@ def writeGrubMenuItem(f, item):
     f.write("   module %s\n" % item['kernel'])
     f.write("   module %s\n\n" % item['initrd'])
 
-def installGrub(mounts, disk, serial):
+def installGrub(mounts, disk, serial, boot_serial):
     grubroot = getGrUBDevice(disk, mounts)
 
     # move the splash screen to a safe location so we don't delete it
@@ -685,11 +686,13 @@ def installGrub(mounts, disk, serial):
     if serial:
         grubconf += "serial --unit=%s --speed=%s\n" % (serial['port'][0][4:], serial['baud'])
         grubconf += "terminal --timeout=10 console serial\n"
-        grubconf += "default 1\n"
     else:
         grubconf += "terminal console\n"
+    if boot_serial:
+        grubconf += "default 1\n"
+    else:
         grubconf += "default 0\n"
-        
+
     grubconf += "timeout 5\n\n"
 
     # splash screen?

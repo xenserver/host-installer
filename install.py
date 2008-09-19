@@ -53,15 +53,20 @@ def go(ui, args, answerfile_address):
     results = {'keymap': None, 'serial-console': None, 'operation': init_constants.OPERATION_INSTALL }
     suppress_extra_cd_dialog = False
     serial_console = None
+    boot_console = None
+    boot_serial = False
 
     for (opt, val) in args.items():
         if opt == "--boot-console":
             # takes precedence over --console
             if val.startswith('ttyS'):
-                serial_console = val
+                boot_console = val
         elif opt == "--console":
-            if val.startswith('ttyS') and not serial_console:
-                serial_console = val
+            for console in val:
+                if console.startswith('ttyS'):
+                    serial_console = console
+            if val[-1].startswith('ttyS'):
+                boot_serial = True
         elif opt == "--keymap":
             results["keymap"] = val
             xelogging.log("Keymap specified on command-line: %s" % val)
@@ -83,9 +88,12 @@ def go(ui, args, answerfile_address):
         elif opt == "--onecd":
             suppress_extra_cd_dialog = True
 
+    if boot_console and not serial_console:
+        serial_console = boot_console
+        boot_serial = True
     if serial_console:
         try:
-            serial = {'baud': '9600', 'data': '8', 'parity': 'n', 'stop': '1'}
+            serial = {'baud': '9600', 'data': '8', 'parity': 'n', 'stop': '1', 'term': 'vt102'}
             param = serial_console.split(',')
             dev = param[0]
             if len(param) == 2:
@@ -98,10 +106,10 @@ def go(ui, args, answerfile_address):
             serial['port'] = (dev, "com%d" % n)
             if args.has_key('term'):
                 serial['term'] = args['term']
-            else:
-                serial['term'] = 'vt102'
             results['serial-console'] = serial
-            xelogging.log("Serial console specified on command-line: %s" % serial_console)
+            results['boot-serial'] = boot_serial
+            xelogging.log("Serial console specified on command-line: %s, default boot: %s" % 
+                          (serial_console, boot_serial))
         except:
             pass
 
