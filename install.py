@@ -50,7 +50,12 @@ def main(args):
 
 def go(ui, args, answerfile_address):
     extra_repo_defs = []
-    results = {'keymap': None, 'serial-console': None, 'operation': init_constants.OPERATION_INSTALL }
+    results = {
+        'keymap': None, 
+        'serial-console': None,
+        'operation': init_constants.OPERATION_INSTALL,
+        'boot-serial': False
+        }
     suppress_extra_cd_dialog = False
     serial_console = None
     boot_console = None
