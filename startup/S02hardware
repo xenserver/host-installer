@@ -30,7 +30,7 @@ start()
   mknod -m 666 /dev/zero c 1 5
   mknod -m 600 /dev/console c 5 1
 
-  echo "Detecting hardware..."
+  echo -n "Detecting hardware."
   export UDEVD_MAX_CHILDS=1
   export UDEVD_MAX_CHILDS_RUNNING=64
   udevd --daemon
@@ -38,6 +38,7 @@ start()
   udevsettle --timeout=180
 
   # repeat after deleting temp blacklist
+  echo -n '.'
   rm -f /etc/modprobe.d/temp-blacklist
   udevtrigger
   udevsettle --timeout=180
@@ -49,8 +50,10 @@ start()
   done
 
   # need dm-mod for P2V:
+  echo -n '.'
   modprobe dm-mod
   udevsettle --timeout=180
+  echo
 
   /sbin/biosdevname -d >/dev/null
   if [ $? -eq 0 ] ; then
