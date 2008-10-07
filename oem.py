@@ -59,11 +59,12 @@ def writeImageWithProgress(ui, devnode, answers):
     image_name = answers['image-name']
     image_fd    = answers['image-fd']
     if re.search(".bz2$", image_name):
-        decompressor = bz2.BZ2Decompressor().decompress
+        decompressing = True
+        decompressor = bz2.BZ2Decompressor()
     else:
-        decompressor = lambda x: x
+        decompressing = False
     bzfilesize = answers['image-size']
-    rdbufsize = 16<<10
+    rdbufsize = 16<<14
     reads_done = 0
     reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
 
@@ -117,7 +118,14 @@ def writeImageWithProgress(ui, devnode, answers):
             reads_done += 1
             if not buffer:
                 break
-            devfd.write(decompressor(buffer))
+            if decompressing:
+                while buffer:
+                    devfd.write(decompressor.decompress(buffer))
+                    buffer = decompressor.unused_data
+                    if buffer:
+                        decompressor = bz2.BZ2Decompressor()
+            else:
+                devfd.write(buffer)
             if ui:
                 ui.progress.displayProgressDialog(min(reads_needed, reads_done), pd)
     except Exception, e:
