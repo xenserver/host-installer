@@ -318,7 +318,7 @@ write_boot() {
 }
 
 write_mbr() {
-    if ! head -c 410 <${IMAGE} >${DEST_PARTITION} ; then
+    if ! dd count=1 bs=410 if=${IMAGE} of=${DEST_PARTITION} ; then
         echo "Failure installing MBR on : ${DEST_PARTITION}"
         exit 1
     fi
