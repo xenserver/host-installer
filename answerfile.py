@@ -183,6 +183,9 @@ def parseOemFlash(n):
     results.update(parseOemSource(n))
     results.update(parseScripts(n))
 
+    # guest-disks:
+    results['guest-disks'] = []
+    results['sr-type'] = constants.SR_TYPE_LVM
     return results
 
 

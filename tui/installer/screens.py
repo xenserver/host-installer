@@ -1075,7 +1075,7 @@ def get_ntp_servers(answers):
     result = gf.runOnce()
 
     if buttons.buttonPressed(result) in ['ok', None]:
-        if not dhcp_cb.value():
+        if hide_cb or not dhcp_cb.value():
             servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
             if len(servers) == 0:
                 ButtonChoiceWindow(tui.screen,

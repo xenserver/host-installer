@@ -451,18 +451,73 @@ def getSRPhysDevs(primary_disk, guest_disks, is_oem = False):
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_type):
+def writeFirstbootFile(operation, mounts, filename, content):
 
-    is_oem = (operation == init_constants.OPERATION_INSTALL_OEM_TO_DISK)
-        
-    if len(guest_disks) == 0:
-        xelogging.log("No storage repository requested.")
-        return None
-
-    if is_oem:
+    if init_constants.operationIsOEMInstall(operation):
         directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
     else:
         directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
+        
+    util.assertDir(directory) # Creates the directory if not present
+    fd = open(os.path.join(directory, filename), 'w')
+    for line in content:
+        print >>fd, line
+    fd.close()
+
+def prepareNetworking(operation, mounts, interface, config, nameservers):
+    if config is None:
+        content = [ '# Not configured' ]
+    else:
+        if config.isStatic():
+            mode='Static'
+        else:
+            mode='DHCP'
+        content = [
+            "XSINTERFACE='%s'" % interface,
+            "XSMODE='%s'" % mode,
+            "XSMAC='%s'" % config.get('hwaddr', ''),
+            "XSIPADDR='%s'" % config.get('ipaddr', ''),
+            "XSNETMASK='%s'" % config.get('netmask', ''),
+            "XSGATEWAY='%s'" % config.get('gateway', ''),
+            "XSDNS='%s'" % ','.join(nameservers)
+        ]
+    xelogging.log('Writing firstboot network configuration '+', '.join(content))
+    writeFirstbootFile(operation, mounts, 'networking.conf', content)
+
+def prepareHostname(operation, mounts, hostname):
+    content=[ "XSHOSTNAME='%s'" % hostname ]
+    xelogging.log('Writing firstboot hostname configuration '+', '.join(content))
+    writeFirstbootFile(operation, mounts, 'hostname.conf', content)
+
+def prepareNTP(operation, mounts, method, ntp_servers):
+    content=[
+        "XSTIMEMETHOD='%s'" % method,
+        "XSNTPSERVERS='%s'" % ','.join(ntp_servers)
+    ]
+    xelogging.log('Writing firstboot NTP configuration '+', '.join(content))
+    writeFirstbootFile(operation, mounts, 'ntp.conf', content)
+
+def prepareTimezone(operation, mounts, timezone):
+    content=[
+        "XSTIMEZONE='%s'" % timezone
+    ]
+    xelogging.log('Writing firstboot timezone configuration '+', '.join(content))
+    writeFirstbootFile(operation, mounts, 'timezone.conf', content)
+    
+def preparePassword(operation, mounts, password_hash):
+    content=[
+        "XSPASSWORD='%s'" % password_hash
+    ]
+    xelogging.log('Writing firstboot password configuration '+', '.join(content))
+    writeFirstbootFile(operation, mounts, 'password.conf', content)
+    
+def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_type):
+    
+    is_oem = init_constants.operationIsOEMInstall(operation)
+    
+    if len(guest_disks) == 0:
+        xelogging.log("No storage repository requested.")
+        return None
 
     xelogging.log("Arranging for storage repositories to be created at first boot...")
 
@@ -473,14 +528,19 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
     sr_type_string = sr_type_strings[sr_type]
 
     # write a config file for the prepare-storage firstboot script:
-    util.assertDir(directory)
-    fd = open(os.path.join(directory, 'default-storage.conf'), 'w')
+    
     links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
-    print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
-    print >>fd, "TYPE='%s'" % sr_type_string
-
-    fd.close()
-
+    content = [
+        "XSPARTITIONS='%s'" % str.join(" ", links),
+        "XSTYPE='%s'" % sr_type_string,
+        # Legacy names
+        "PARTITIONS='%s'" % str.join(" ", links),
+        "TYPE='%s'" % sr_type_string
+    ]
+    
+    xelogging.log('Writing firstboot storage configuration '+', '.join(content))
+    writeFirstbootFile(operation, mounts, 'default-storage.conf', content)
+    
 ###
 # Create dom0 disk file-systems:
 

@@ -30,6 +30,7 @@ import glob
 import re
 import tempfile
 import constants
+import netutil
 
 def get_keymap():
     entries = generalui.getKeymaps()
@@ -43,21 +44,41 @@ def get_keymap():
 
     return entry
 
-def choose_operation(menu_option):
-    entries = [ 
-        (' * Install %s to flash disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_FLASH),
-        (' * Install %s to hard disk' % BRAND_SERVER, init_constants.OPERATION_INSTALL_OEM_TO_DISK),
-        (' * Reset the password for an existing installation', init_constants.OPERATION_RESET_PASSWORD)
-        ]
+def choose_operation(menu_option, custom):
+    entries = [ ]
+
 
     # Menu options: all, none, hdd, flash
-    if menu_option == "none":
-        del entries[0:2]
-    if menu_option == "hdd":
-        del entries[0]
-    if menu_option == "flash":
-        del entries[1]
-    # Nothing to do for 'all'. 'all' is default.
+    # Custom options: all, default, custom
+    textPrefix = ' * Install '+BRAND_SERVER+' to '
+    if menu_option in ['all', 'flash']:
+        if custom =='default':
+            # Append a tuple, so double brackets
+            entries.append((textPrefix + 'flash disk',
+                init_constants.OPERATION_INSTALL_OEM_TO_FLASH))
+        elif custom == 'custom':
+            entries.append((textPrefix + 'flash disk',
+                init_constants.OPERATION_INSTALL_OEM_TO_FLASH_CUSTOM))
+        elif custom == 'all':
+            entries.append((textPrefix + 'flash disk using default configuration',
+                init_constants.OPERATION_INSTALL_OEM_TO_FLASH)) 
+            entries.append((textPrefix + 'flash disk with custom configuration',
+                init_constants.OPERATION_INSTALL_OEM_TO_FLASH_CUSTOM)) 
+    if menu_option in ['all', 'hdd']:
+        if custom =='default':
+            # Append a tuple, so double brackets
+            entries.append((textPrefix + 'hard disk',
+                init_constants.OPERATION_INSTALL_OEM_TO_DISK))
+        elif custom == 'custom':
+            entries.append((textPrefix + 'hard disk',
+                init_constants.OPERATION_INSTALL_OEM_TO_DISK_CUSTOM))
+        elif custom == 'all':
+            entries.append((textPrefix + 'hard disk using default configuration',
+                init_constants.OPERATION_INSTALL_OEM_TO_DISK)) 
+            entries.append((textPrefix + 'hard disk with custom configuration',
+                init_constants.OPERATION_INSTALL_OEM_TO_DISK_CUSTOM)) 
+                
+    entries.append((' * Reset the password for an existing installation', init_constants.OPERATION_RESET_PASSWORD))
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
@@ -70,42 +91,63 @@ def choose_operation(menu_option):
     else:
         return -1
 
-# Set of questions to pose if install "to flash disk" is chosen
-def recover_pen_drive_sequence():
-    answers = {}
+def oem_not_preserve_settings(answers):
+    return not answers.get('preserve-settings', False)
+
+def oem_is_custom(answers):
+    return answers.get('custom', None) == 'custom'
+    
+def oem_is_flash(answers):
+    return answers['target-type'] == 'flash'
+    
+def oem_is_hdd(answers):
+    return answers['target-type'] == 'hdd'
+    
+def oem_install_sequence(answers):
+    fullAnswers = answers.copy()
+    fullAnswers['network-hardware'] = netutil.scanConfiguration()
+    
     uic = uicontroller
+    uis = tui.installer.screens
     seq = [
-        uic.Step(get_flash_blockdev_to_recover),
+        uic.Step(get_disk_blockdev_to_recover, predicates = [oem_is_hdd]),
+        uic.Step(get_flash_blockdev_to_recover, predicates = [oem_is_flash]),
         uic.Step(get_image_media),
         uic.Step(get_remote_file, predicates = [lambda a: a['source-media'] != 'local']),
         uic.Step(get_local_file,  predicates = [lambda a: a['source-media'] == 'local']),
-        uic.Step(confirm_recover_blockdev),
-        ]
-    rc = uicontroller.runSequence(seq, answers)
+        uic.Step(uis.get_root_password, predicates = [oem_is_custom]),
+        uic.Step(uis.get_admin_interface, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_admin_interface_configuration, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_name_service_configuration, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_timezone_region, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_timezone_city, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_time_configuration_method, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_ntp_servers, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(confirm_recover_blockdev)
+    ]
+    rc = uicontroller.runSequence(seq, fullAnswers)
 
     if rc == -1:
         return None
     else:
-        return answers
+        return fullAnswers
 
+# Set of questions to pose if install "to flash disk" is chosen
+def recover_pen_drive_sequence(custom):
+    answers = {
+        'custom' : custom,
+        'target-type' : 'flash'
+        }
+    return oem_install_sequence(answers)
 
 # Set of questions to pose if install "to hard disk" is chosen
-def recover_disk_drive_sequence():
-    answers = {}
-    uic = uicontroller
-    seq = [
-        uic.Step(get_disk_blockdev_to_recover),
-        uic.Step(get_image_media),
-        uic.Step(get_remote_file, predicates = [lambda a: a['source-media'] != 'local']),
-        uic.Step(get_local_file,  predicates = [lambda a: a['source-media'] == 'local']),
-        uic.Step(confirm_recover_blockdev),
-        ]
-    rc = uicontroller.runSequence(seq, answers)
+def recover_disk_drive_sequence(custom):
+    answers = {
+        'custom' : custom,
+        'target-type' : 'hdd'
+        }
+    return oem_install_sequence(answers)
 
-    if rc == -1:
-        return None
-    else:
-        return answers
 
 # Set of questions to pose if "reset password" is chosen
 def reset_password_sequence():

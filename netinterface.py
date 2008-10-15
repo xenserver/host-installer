@@ -46,6 +46,15 @@ class NetInterface:
                 "ipaddr = '%s', netmask = '%s', gateway = '%s', dns = '%s'>" % \
                 (self.ipaddr, self.netmask, self.gateway, self.dns)
 
+    def get(self, name, default = None):
+        retval = default
+        if hasattr(self, name):
+            attr = getattr(self, name)
+            if attr is not None:
+                retval = attr
+        return retval
+        
+
     def isStatic(self):
         """ Returns true if a static interface configuration is represented. """
         return self.mode == self.Static

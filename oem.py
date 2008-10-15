@@ -18,6 +18,7 @@ import stat
 import os.path
 import shutil
 import time
+import types
 
 # user interface:
 import tui
@@ -43,7 +44,7 @@ import backend
 
 from version import *
 from answerfile import AnswerfileError
-from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER, OEMFLASH_STATE_PARTITION_NUMBER
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
 
@@ -313,7 +314,7 @@ def write_xenrt(ui, answers, partnode):
         return EXIT_ERROR
     xelogging.log("Wrote XenRT data files")
 
-def go_disk(ui, args, answerfile_address):
+def go_disk(ui, args, answerfile_address, custom):
     "Install oem edition to disk"
 
     # loading an answerfile?
@@ -326,7 +327,7 @@ def go_disk(ui, args, answerfile_address):
     else:
         xelogging.log("Starting install to disk dialog")
         if ui:
-            answers = ui.init_oem.recover_disk_drive_sequence()
+            answers = ui.init_oem.recover_disk_drive_sequence(custom)
         if not answers:
             return None # keeps outer loop going
 
@@ -482,32 +483,20 @@ def go_disk(ui, args, answerfile_address):
 
     ###########################################################################
     if ui:
-        ui.progress.showMessageDialog("VM Storage", "Creating disk partition for local storage...")
-    
-    # Create a partition containing the remaining disk space and tell XAPI to 
-    # initialise it as the Local SR on first boot
+        ui.progress.showMessageDialog("Configuration Files", "Writing configuration files...")
+
     try:
-        partnode = getPartitionNode(devnode, OEMHDD_STATE_PARTITION_NUMBER)
-        mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'oem-state-partition-')
-        try:
-            util.mount(partnode, mntpoint)
-            try:
-                mounts = {'state': mntpoint}
-                backend.prepareStorageRepositories(answers['operation'], mounts, answers['primary-disk'], answers['guest-disks'], answers['sr-type'])
-            finally:
-                util.umount(mntpoint)
-        finally:
-            os.rmdir(mntpoint)
+        write_oem_firstboot_files(answers)
     except Exception, e:
-        message =  "Fatal error occurred during SR initialization:\n\n%s\n\nPress any key to reboot" % str(e)
+        message =  "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e)
         xelogging.log(message)
         if ui:
             ui.progress.clearModelessDialog()
             ui.OKDialog ("Error", message)
         return EXIT_ERROR
-    else:
-        if ui:
-            ui.progress.clearModelessDialog()
+
+    if ui:
+        ui.progress.clearModelessDialog()
 
     ###########################################################################
     # update the initrds on the bootable partitions to support access to this disk
@@ -544,7 +533,7 @@ def go_disk(ui, args, answerfile_address):
 
     return EXIT_OK
 
-def go_flash(ui, args, answerfile_address):
+def go_flash(ui, args, answerfile_address, custom):
     "Install oem edition to flash"
 
     # loading an answerfile?
@@ -556,7 +545,7 @@ def go_flash(ui, args, answerfile_address):
 
     else:
         xelogging.log("Starting install to flash dialog")
-        answers = ui.init_oem.recover_pen_drive_sequence()
+        answers = ui.init_oem.recover_pen_drive_sequence(custom)
         if not answers:
             return None # keeps outer loop going
 
@@ -569,10 +558,25 @@ def go_flash(ui, args, answerfile_address):
     if rv != EXIT_OK:
         return rv
 
-    FLASH_BOOT_PARTITION_NUMBER = 4
+
+    if ui:
+        ui.progress.showMessageDialog("Configuration Files", "Writing configuration files...")
+
+    try:
+        write_oem_firstboot_files(answers)
+    except Exception, e:
+        message =  "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e)
+        xelogging.log(message)
+        if ui:
+            ui.progress.clearModelessDialog()
+            ui.OKDialog ("Error", message)
+        return EXIT_ERROR
+
+    if ui:
+        ui.progress.clearModelessDialog()
 
     if answers.has_key("xenrt"):
-        partnode = getPartitionNode(devnode, FLASH_BOOT_PARTITION_NUMBER)
+        partnode = getPartitionNode(devnode, OEMFLASH_BOOT_PARTITION_NUMBER)
         write_xenrt(ui, answers, partnode)
 
     run_post_install_script(answers)
@@ -587,7 +591,46 @@ def go_flash(ui, args, answerfile_address):
 
     return EXIT_OK
 
+def write_oem_firstboot_files(answers):
+    # Create a partition containing the remaining disk space and tell XAPI to 
+    # initialise it as the Local SR on first boot
+    operation = answers['operation']
+    is_hdd = init_constants.operationIsOEMHDDInstall(operation)
+    if is_hdd:
+        partnode = getPartitionNode(answers['primary-disk'], OEMHDD_STATE_PARTITION_NUMBER)
+    else:
+        partnode = getPartitionNode(answers['primary-disk'], OEMFLASH_STATE_PARTITION_NUMBER)
+        
+    mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'oem-state-partition-')
+    try:
+        util.mount(partnode, mntpoint)
+        try:
+            mounts = {'state': mntpoint}
 
+            if is_hdd:
+                backend.prepareStorageRepositories(operation, mounts, answers['primary-disk'], answers['guest-disks'], answers['sr-type'])
+        
+            nameserver_IPs = []
+            man_ns = answers.get('manual-nameservers', [False])
+            if man_ns[0]:
+                nameserver_IPs = man_ns[1]
+                
+            hostname = ''
+            man_hostname = answers.get('manual-hostname', [False])
+            if man_hostname[0]:
+                hostname = man_hostname[1]
+            
+            backend.prepareNetworking(operation, mounts,
+                answers.get('net-admin-interface', ''), answers.get('net-admin-configuration', None), nameserver_IPs)
+            backend.prepareHostname(operation, mounts, hostname)
+            backend.prepareNTP(operation, mounts,
+                answers.get('time-config-method', '').upper(), answers.get('ntp-servers', []))
+            backend.prepareTimezone(operation, mounts, answers.get('timezone', ''))
+            backend.preparePassword(operation, mounts, password_hash(answers.get('root-password', '!!')))
+        finally:
+            util.umount(mntpoint)
+    finally:
+        os.rmdir(mntpoint)
 
 def OemManufacturerTest(ui, oem_manufacturer):
     """ Returns True if the manufacturer of this machine is the correct OEM.
@@ -623,22 +666,35 @@ def OemManufacturerTest(ui, oem_manufacturer):
 
     return True
 
+def password_hash(password):
+    xelogging.log('Password is '+password)
+    if password == '!!':
+        retval = password # xsconsole will prompt for a new password when it detects this value
+    else:
+        # Generate a salt value without sed special characters
+        salt = "".join(random.sample('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 8))
+        retval = md5crypt.md5crypt(password, '$1$'+salt+'$')
+    return retval
+
+def direct_set_password(password, mountPoint):
+    xelogging.log('Setting password in '+mountPoint)
+    passwordHash = password_hash(password)
+    # sed command replaces the root password entry in /etc/passwd
+    sedCommand = '/bin/sed -ie \'s#^root:[^:]*#root:' + passwordHash +'#\' "' + mountPoint+'/etc/passwd"'
+
+    xelogging.log("Executing "+sedCommand)
+    if os.system(sedCommand) != 0:
+        raise Exception('Password file manipulation failed')
+
 def reset_password(ui, args, answerfile_address):
     xelogging.log("Starting reset password")
     answers = ui.init_oem.reset_password_sequence()
     if not answers:
         return None # keeps outer loop going
 
-
     xelogging.log("Resetting password on "+str(answers['partition']))
 
     password = answers['new-password']
-     # Generate a salt value without sed special characters
-    salt = "".join(random.sample('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz', 8))
-    if password == '!!':
-        passwordHash = password # xsconsole will prompt for a new password when it detects this value
-    else:
-        passwordHash = md5crypt.md5crypt(password, '$1$'+salt+'$')
     partition, subdir = answers['partition']
     mountPoint = tempfile.mkdtemp('.oeminstaller')
     os.system('/bin/mkdir -p "'+mountPoint+'"')
@@ -647,12 +703,7 @@ def reset_password(ui, args, answerfile_address):
     try:
         util.mount(partition_dev, mountPoint, fstype='ext3', options=['rw'])
         try:
-            # sed command replaces the root password entry in /etc/passwd with !!
-            sedCommand = '/bin/sed -ie \'s#^root:[^:]*#root:' + passwordHash +'#\' "' + mountPoint+'/'+subdir+'/etc/passwd"'
-
-            xelogging.log("Executing "+sedCommand)
-            if os.system(sedCommand) != 0:
-                raise Exception('Password file manipulation failed')
+            direct_set_password(password, mountPoint+'/'+subdir)
         finally:
             util.umount(partition_dev)
     except Exception, e:
