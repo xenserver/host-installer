@@ -380,7 +380,7 @@ def use_extra_media(answers, vt_warning):
 
     default = 0
     if answers.has_key('more-media') and not answers['more-media']:
-            default = 1
+        default = 1
 
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,
