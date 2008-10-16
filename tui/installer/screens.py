@@ -15,6 +15,7 @@ import datetime
 
 import generalui
 import uicontroller
+from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import constants
 import diskutil
 import xelogging
@@ -56,9 +57,9 @@ Please make sure you have backed up any data you wish to preserve before proceed
 
     # advance to next screen:
     if button == 'cancel installation':
-        return uicontroller.EXIT
+        return EXIT
     else:
-        return 1
+        return RIGHT_FORWARDS
 
 def hardware_warnings(answers, ram_warning, vt_warning):
     vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
@@ -79,10 +80,8 @@ def hardware_warnings(answers, ram_warning, vt_warning):
         width = 60
         )
 
-    if button == 'back':
-        return -1
-    else:
-        return 1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 def overwrite_warning(answers):
     button = ButtonChoiceWindow(
@@ -97,14 +96,12 @@ Alternatively, please contact a Technical Support Representative for the recomme
         width = 60, default = 1
         )
 
-    if button == 'back':
-        return -1
-    else:
-        return 1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 def get_admin_interface(answers):
     direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'], answers.has_key('net-admin-interface') and answers['net-admin-interface'] or None)
-    if direction == 1:
+    if direction == RIGHT_FORWARDS:
         answers['net-admin-interface'] = iface
     return direction
 
@@ -139,7 +136,7 @@ def get_admin_interface_configuration(answers):
         nic, txt = "Please specify how networking should be configured for the management interface on this host.",
         defaults = defaults
         )
-    if rc == 1:
+    if rc == RIGHT_FORWARDS:
         answers['net-admin-configuration'] = conf
     return rc
 
@@ -166,24 +163,23 @@ def get_installation_type(answers, insts):
         entries,
         ['Ok', 'Back'], width=60, default = default)
 
-    if button != 'back':
-        if entry == None:
-            answers['install-type'] = constants.INSTALL_TYPE_FRESH
-            answers['preserve-settings'] = False
+    if button == 'back': return LEFT_BACKWARDS
 
-            if answers.has_key('installation-to-overwrite'):
-                del answers['installation-to-overwrite']
-        else:
-            answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
-            answers['installation-to-overwrite'], preservable = entry
-            answers['preserve-settings'] = preservable
+    if entry == None:
+        answers['install-type'] = constants.INSTALL_TYPE_FRESH
+        answers['preserve-settings'] = False
 
-            for k in ['guest-disks', 'primary-disk', 'default-sr-uuid']:
-                if answers.has_key(k):
-                    del answers[k]
-        return 1
+        if answers.has_key('installation-to-overwrite'):
+            del answers['installation-to-overwrite']
     else:
-        return -1
+        answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
+        answers['installation-to-overwrite'], preservable = entry
+        answers['preserve-settings'] = preservable
+
+        for k in ['guest-disks', 'primary-disk', 'default-sr-uuid']:
+            if answers.has_key(k):
+                del answers[k]
+    return RIGHT_FORWARDS
 
 def upgrade_settings_warning(answers):
     button = ButtonChoiceWindow(
@@ -196,10 +192,8 @@ Warning: You must use the current values. Failure to do so may result in an inco
         width = 60
         )
 
-    if button == 'back':
-        return -1
-    else:
-        return 1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 def force_backup_screen(answers):
     button = ButtonChoiceWindow(
@@ -212,11 +206,10 @@ This will erase data currently on the backup partition (which includes previous 
 Continue with installation?""",
         ['Continue', 'Back']
         )
-    if button in ['continue', None]:
-        answers['backup-existing-installation'] = True
-        return 1
-    else:
-        return -1
+    if button == 'back': return LEFT_BACKWARDS
+
+    answers['backup-existing-installation'] = True
+    return RIGHT_FORWARDS
 
 def backup_existing_installation(answers):
     # default selection:
@@ -233,18 +226,14 @@ def backup_existing_installation(answers):
         "Back-up Existing Installation?",
         """Would you like to back-up your existing installation before re-installing %s?
 
-The backup will be placed on the second partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, diskutil.determinePartitionName(answers['installation-to-overwrite'].primary_disk, 2)),
+The backup will be placed on the second partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, diskutil.determinePartitionName(answers['installation-to-overwrite'].primary_disk, RETAIL_BACKUP_PARTITION_NUMBER)),
         ['Yes', 'No', 'Back'], default = default
         )
 
-    if button == 'no':
-        answers['backup-existing-installation'] = False
-        return 1
-    elif button == 'back':
-        return -1
-    else:
-        answers['backup-existing-installation'] = True
-        return 1
+    if button == 'back': return LEFT_BACKWARDS
+
+    answers['backup-existing-installation'] = (button == 'yes')
+    return RIGHT_FORWARDS
 
 def eula_screen(answers):
     eula_file = open(constants.EULA_PATH, 'r')
@@ -259,10 +248,10 @@ def eula_screen(answers):
             ['Accept EULA', 'Back'], width=60, default=1)
 
         if button == 'accept eula':
-            return 1
+            return RIGHT_FORWARDS
         elif button == 'back':
-            return -1
-        elif button == None:
+            return LEFT_BACKWARDS
+        else:
             ButtonChoiceWindow(
                 tui.screen,
                 "End User License Agreement",
@@ -272,7 +261,7 @@ def eula_screen(answers):
 def confirm_erase_volume_groups(answers):
     problems = diskutil.findProblematicVGs(answers['guest-disks'])
     if len(problems) == 0:
-        return uicontroller.SKIP_SCREEN
+        return SKIP_SCREEN
 
     if len(problems) == 1:
         affected = "The volume group affected is %s.  Are you sure you wish to continue?" % problems[0]
@@ -286,10 +275,8 @@ def confirm_erase_volume_groups(answers):
 %s""" % (PRODUCT_BRAND, affected),
                                 ['Continue', 'Back'], width=60)
 
-    if button in [None, 'continue']:
-        return 1
-    elif button == 'back':
-        return -1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 (
     REPOCHK_NO_ACCESS,
@@ -368,24 +355,22 @@ def select_installation_source(answers):
         ['Ok', 'Back'], default=default
         )
 
-    if button in ["ok", None]:
-        # clear the source-address key?
-        if answers.has_key('source-media') and answers['source-media'] != entry:
-            answers['source-address'] = ""
+    if button == 'back': return LEFT_BACKWARDS
 
-        # store their answer:
-        answers['source-media'] = entry
+    # clear the source-address key?
+    if answers.has_key('source-media') and answers['source-media'] != entry:
+        answers['source-address'] = ""
 
-        # if local, check that the media is correct:
-        if entry == 'local':
-            answers['source-address'] = ""
-            if not interactive_check_repo_def(('local', ''), True):
-                return 0
+    # store their answer:
+    answers['source-media'] = entry
 
-        return 1
+    # if local, check that the media is correct:
+    if entry == 'local':
+        answers['source-address'] = ""
+        if not interactive_check_repo_def(('local', ''), True):
+            return REPEAT_STEP
 
-    elif button == "back":
-        return -1
+    return RIGHT_FORWARDS
 
 def use_extra_media(answers, vt_warning):
     if vt_warning:
@@ -393,13 +378,9 @@ def use_extra_media(answers, vt_warning):
     else:
         extra_text = ""
 
-    if answers.has_key('more-media'):
-        if answers['more-media']:
-            default = 0
-        else:
+    default = 0
+    if answers.has_key('more-media') and not answers['more-media']:
             default = 1
-    else:
-        default = 0
 
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,
@@ -409,14 +390,10 @@ def use_extra_media(answers, vt_warning):
         default = default
         )
 
-    if rc in ['yes', None]:
-        answers['more-media'] = True
-        return 1
-    elif rc == 'no':
-        answers['more-media'] = False
-        return 1
-    else:
-        return -1
+    if rc == 'back': return LEFT_BACKWARDS
+
+    answers['more-media'] = (rc != 'no')
+    return RIGHT_FORWARDS
 
 def setup_runtime_networking(answers):
     defaults = None
@@ -470,20 +447,18 @@ def get_url_location(answers):
 
         button = bb.buttonPressed(gf.runOnce())
 
-        if button in ['ok', None]:
-            if user_field.value() != '':
-                if passwd_field.value() != '':
-                    answers['source-address'] = url_field.value().replace('//', '//%s:%s@' % (user_field.value(), passwd_field.value()), 1)
-                else:
-                    answers['source-address'] = url_field.value().replace('//', '//%s@' % user_field.value(), 1)
+        if button == 'back': return LEFT_BACKWARDS
+
+        if user_field.value() != '':
+            if passwd_field.value() != '':
+                answers['source-address'] = url_field.value().replace('//', '//%s:%s@' % (user_field.value(), passwd_field.value()), 1)
             else:
-                answers['source-address'] = url_field.value()
-            done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
-        elif button == "back":
-            done = True
+                answers['source-address'] = url_field.value().replace('//', '//%s@' % user_field.value(), 1)
+        else:
+            answers['source-address'] = url_field.value()
+        done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
             
-    if button in [None, 'ok']: return 1
-    if button == 'back': return -1
+    return RIGHT_FORWARDS
 
 def get_nfs_location(answers):
     text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
@@ -504,13 +479,11 @@ def get_nfs_location(answers):
             
         answers['source-address'] = result[0]
 
-        if button in ['ok', None]:
-            done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
-        elif button == "back":
-            done = True
+        if button == 'back': return LEFT_BACKWARDS
+
+        done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
             
-    if button in [None, 'ok']: return 1
-    if button == 'back': return -1
+    return RIGHT_FORWARDS
 
 def get_source_location(answers):
     if answers['source-media'] == 'url':
@@ -536,7 +509,10 @@ def verify_source(answers):
         (button, entry) = ListboxChoiceWindow(
             tui.screen, "Verify Installation Source", text,
             entries, ['Ok', 'Back'], default = default)
-        if button != 'back' and entry == VERIFY:
+
+        if button == 'back': return LEFT_BACKWARDS
+
+        if entry == VERIFY:
             # we need to do the verification:
             done = interactive_source_verification(
                 answers['source-media'], answers['source-address']
@@ -544,10 +520,7 @@ def verify_source(answers):
         else:
             done = True
 
-    if button == 'back':
-        return -1
-    else:
-        return 1
+    return RIGHT_FORWARDS
 
 def interactive_source_verification(media, address):
     xelogging.log("Checking media %s: %s" % (media, address))
@@ -629,7 +602,7 @@ def select_primary_disk(answers):
     # if only one disk, set default and skip this screen:
     if len(diskEntries) == 1:
         answers['primary-disk'] = diskEntries[0]
-        return uicontroller.SKIP_SCREEN
+        return SKIP_SCREEN
 
     # default value:
     default = None
@@ -648,15 +621,16 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
 
-    if button == "ok" or button == None: return 1
-    if button == "back": return -1
+    if button == 'back': return LEFT_BACKWARDS
+
+    return RIGHT_FORWARDS
 
 def select_guest_disks(answers):
     # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
     if len(diskEntries) == 1:
         answers['guest-disks'] = diskEntries
-        return uicontroller.SKIP_SCREEN
+        return SKIP_SCREEN
 
     # set up defaults:
     if answers.has_key('guest-disks'):
@@ -683,12 +657,15 @@ def select_guest_disks(answers):
     gf.add(buttons, 0, 2, growx = 1)
     
     result = gf.runOnce()
+    button = buttons.buttonPressed(gf.runOnce())
     
+    if button == 'back': return LEFT_BACKWARDS
+
     answers['guest-disks'] = cbt.getSelection()
 
     # if the user select no disks for guest storage, check this is what
     # they wanted:
-    if buttons.buttonPressed(result) == 'ok' and answers['guest-disks'] == []:
+    if answers['guest-disks'] == []:
         button = ButtonChoiceWindow(
             tui.screen,
             "Warning",
@@ -697,11 +674,9 @@ def select_guest_disks(answers):
 If you proceed, please refer to the user guide for details on provisioning storage after installation.""" % BRAND_GUEST,
             ['Continue', 'Back']
             )
-        if button == 'back':
-            return 0
+        if button == 'back': return REPEAT_STEP
 
-    if buttons.buttonPressed(result) in [None, 'ok']: return 1
-    if buttons.buttonPressed(result) == 'back': return -1
+    return RIGHT_FORWARDS
 
 def confirm_installation(answers):
     text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
@@ -727,8 +702,8 @@ def confirm_installation(answers):
         [ok, 'Back'], default = 1
         )
 
-    if button in [None, string.lower(ok)]: return 1
-    if button == "back": return -1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 def get_root_password(answers):
     done = False
@@ -739,15 +714,14 @@ def get_root_password(answers):
             "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from %s.)" % (BRAND_SERVER, BRAND_CONSOLE), 
             ['Password', 'Confirm'], buttons = ['Ok', 'Back'],
             )
-        if button == 'back':
-            return -1
+        if button == 'back': return LEFT_BACKWARDS
         
         (pw, conf) = result
         if pw == conf:
             if pw == None or len(pw) < constants.MIN_PASSWD_LEN:
                 ButtonChoiceWindow(tui.screen,
                                "Password Error",
-                               "The password has to be 6 characters or longer.",
+                               "The password has to be %d characters or longer." % constants.MIN_PASSWD_LEN,
                                ['Ok'])
             else:
                 done = True
@@ -761,7 +735,7 @@ def get_root_password(answers):
     assert button in ['ok', None]
     answers['root-password'] = pw
     answers['root-password-type'] = 'plaintext'
-    return 1
+    return RIGHT_FORWARDS
 
 def get_name_service_configuration(answers):
     # horrible hack - need a tuple due to bug in snack that means
@@ -877,78 +851,73 @@ def get_name_service_configuration(answers):
         for entry in [ns1_entry, ns2_entry, ns3_entry]:
             entry.setFlags(FLAG_DISABLED, use_manual_dns)
 
-    buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
-
-    # The form itself:
-    i = 1
-    gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', None, 1, 11)
-    gf.add(hn_title, 0, 0, padding = (0,0,0,0))
-    if not hide_rb:
-        gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
-        gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
-        i += 2
-    gf.add(hostname_grid, 0, i, padding = (0,0,0,1), anchorLeft = True)
-    
-    gf.add(ns_title, 0, i+1, padding = (0,0,0,0))
-    if not hide_rb:
-        gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
-        gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
-        i += 2
-    gf.add(ns1_grid, 0, i+2)
-    gf.add(ns2_grid, 0, i+3)
-    gf.add(ns3_grid, 0, i+4, padding = (0,0,0,1))
-    
-    gf.add(buttons, 0, 10, growx = 1)
-
     done = False
     while not done:
-        result = gf.run()
+        buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
 
-        if buttons.buttonPressed(result) == 'back':
-            done = True
+        # The form itself:
+        i = 1
+        gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', None, 1, 11)
+        gf.add(hn_title, 0, 0, padding = (0,0,0,0))
+        if not hide_rb:
+            gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
+            gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
+            i += 2
+        gf.add(hostname_grid, 0, i, padding = (0,0,0,1), anchorLeft = True)
+    
+        gf.add(ns_title, 0, i+1, padding = (0,0,0,0))
+        if not hide_rb:
+            gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
+            gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
+            i += 2
+        gf.add(ns1_grid, 0, i+2)
+        gf.add(ns2_grid, 0, i+3)
+        gf.add(ns3_grid, 0, i+4, padding = (0,0,0,1))
+    
+        gf.add(buttons, 0, 10, growx = 1)
+
+        button = buttons.buttonPressed(gf.runOnce())
+
+        if button == 'back': LEFT_BACKWARDS
+
+        # manual hostname?
+        if hn_manual_rb.selected():
+            answers['manual-hostname'] = (True, hostname.value())
         else:
-            # manual hostname?
-            if hn_manual_rb.selected():
-                answers['manual-hostname'] = (True, hostname.value())
-            else:
-                answers['manual-hostname'] = (False, None)
+            answers['manual-hostname'] = (False, None)
 
-            # manual nameservers?
-            if ns_manual_rb.selected():
-                answers['manual-nameservers'] = (True, [ns1_entry.value()])
-                if ns2_entry.value() != '':
-                    answers['manual-nameservers'][1].append(ns2_entry.value())
-                    if ns3_entry.value() != '':
-                        answers['manual-nameservers'][1].append(ns3_entry.value())
-            else:
-                answers['manual-nameservers'] = (False, None)
+        # manual nameservers?
+        if ns_manual_rb.selected():
+            answers['manual-nameservers'] = (True, [ns1_entry.value()])
+            if ns2_entry.value() != '':
+                answers['manual-nameservers'][1].append(ns2_entry.value())
+                if ns3_entry.value() != '':
+                    answers['manual-nameservers'][1].append(ns3_entry.value())
+        else:
+            answers['manual-nameservers'] = (False, None)
             
-            # validate before allowing the user to continue:
-            done = True
+        # validate before allowing the user to continue:
+        done = True
 
-            if hn_manual_rb.selected():
-                if not netutil.valid_hostname(hostname.value(), fqdn = True):
-                    done = False
-                    ButtonChoiceWindow(tui.screen,
+        if hn_manual_rb.selected():
+            if not netutil.valid_hostname(hostname.value(), fqdn = True):
+                done = False
+                ButtonChoiceWindow(tui.screen,
                                        "Name Service Configuration",
                                        "The hostname you entered was not valid.",
                                        ["Back"])
-                    continue
-            if ns_manual_rb.selected():
-                if not netutil.valid_ip_addr(ns1_entry.value()) or \
-                   (ns2_entry.value() != '' and not netutil.valid_ip_addr(ns2_entry.value())) or \
-                   (ns3_entry.value() != '' and not netutil.valid_ip_addr(ns3_entry.value())):
-                    done = False
-                    ButtonChoiceWindow(tui.screen,
-                                       "Name Service Configuration",
-                                       "Please check that you have entered at least one nameserver, and that the nameservers you specified are valid.",
-                                       ["Back"])
+                continue
+        if ns_manual_rb.selected():
+            if not netutil.valid_ip_addr(ns1_entry.value()) or \
+                    (ns2_entry.value() != '' and not netutil.valid_ip_addr(ns2_entry.value())) or \
+                    (ns3_entry.value() != '' and not netutil.valid_ip_addr(ns3_entry.value())):
+                done = False
+                ButtonChoiceWindow(tui.screen,
+                                   "Name Service Configuration",
+                                   "Please check that you have entered at least one nameserver, and that the nameservers you specified are valid.",
+                                   ["Back"])
 
-    tui.screen.popWindow()
-    if buttons.buttonPressed(result) in [None, "ok"]:
-        return 1
-    else:
-        return -1
+    return RIGHT_FORWARDS
 
 def get_timezone_region(answers):
     entries = generalui.getTimeZoneRegions()
@@ -965,11 +934,10 @@ def get_timezone_region(answers):
         entries, ['Ok', 'Back'], height = 8, scroll = 1,
         default = default)
 
-    if button in ["ok", None]:
-        answers['timezone-region'] = entries[entry]
-        return 1
-    
-    if button == "back": return -1
+    if button == 'back': return LEFT_BACKWARDS
+
+    answers['timezone-region'] = entries[entry]
+    return RIGHT_FORWARDS
 
 def get_timezone_city(answers):
     entries = generalui.getTimeZoneCities(answers['timezone-region'])
@@ -986,12 +954,11 @@ def get_timezone_city(answers):
         map(lambda x: x.replace('_', ' '), entries),
         ['Ok', 'Back'], height = 8, scroll = 1, default = default)
 
-    if button == "ok" or button == None:
-        answers['timezone-city'] = entries[entry]
-        answers['timezone'] = "%s/%s" % (answers['timezone-region'], answers['timezone-city'])
-        return 1
-    
-    if button == "back": return -1
+    if button == 'back': return LEFT_BACKWARDS
+
+    answers['timezone-city'] = entries[entry]
+    answers['timezone'] = "%s/%s" % (answers['timezone-region'], answers['timezone-city'])
+    return RIGHT_FORWARDS
 
 def get_time_configuration_method(answers):
     ENTRY_NTP = "Using NTP", "ntp"
@@ -1009,17 +976,17 @@ def get_time_configuration_method(answers):
         "How should the local time be determined?\n\n(Note that if you choose to enter it manually, you will need to respond to a prompt at the end of the installation.)",
         entries, ['Ok', 'Back'], default = default)
 
-    if button == "ok" or button == None:
-        if entry == 'ntp':
-            answers['time-config-method'] = 'ntp'
-        elif entry == 'manual':
-            answers['time-config-method'] = 'manual'
-        return 1
-    if button == "back": return -1
+    if button == 'back': return LEFT_BACKWARDS
+
+    if entry == 'ntp':
+        answers['time-config-method'] = 'ntp'
+    elif entry == 'manual':
+        answers['time-config-method'] = 'manual'
+    return RIGHT_FORWARDS
 
 def get_ntp_servers(answers):
     if answers['time-config-method'] != 'ntp':
-        return uicontroller.SKIP_SCREEN
+        return SKIP_SCREEN
 
     def dhcp_change():
         for x in [ ntp1_field, ntp2_field, ntp3_field ]:
@@ -1072,24 +1039,23 @@ def get_ntp_servers(answers):
     gf.add(entry_grid, 0, i, padding = (0,0,0,1))
     gf.add(buttons, 0, i+1, growx = 1)
 
-    result = gf.runOnce()
+    button = buttons.buttonPressed(gf.runOnce())
 
-    if buttons.buttonPressed(result) in ['ok', None]:
-        if hide_cb or not dhcp_cb.value():
-            servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
-            if len(servers) == 0:
-                ButtonChoiceWindow(tui.screen,
-                                   "NTP Configuration",
-                                   "You didn't specify any NTP servers!",
-                                   ["Ok"])
-                return 0
-            else:
-                answers['ntp-servers'] = servers
+    if button == 'back': return LEFT_BACKWARDS
+
+    if hide_cb or not dhcp_cb.value():
+        servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
+        if len(servers) == 0:
+            ButtonChoiceWindow(tui.screen,
+                               "NTP Configuration",
+                               "You did not specify any NTP servers",
+                               ["Ok"])
+            return REPEAT_STEP
         else:
-            answers['ntp-servers'] = []
-        return 1
-    elif buttons.buttonPressed(result) == 'back':
-        return -1
+            answers['ntp-servers'] = servers
+    else:
+        answers['ntp-servers'] = []
+    return RIGHT_FORWARDS
 
 # this is used directly by backend.py - 'now' is localtime
 def set_time(answers, now, show_back_button = False):
@@ -1139,10 +1105,9 @@ def set_time(answers, now, show_back_button = False):
             buttons = ButtonBar(tui.screen, [("Ok", "ok")])
         gf.add(buttons, 0, 2, growx = 1)
         
-        result = gf.runOnce()
+        button = buttons.buttonPressed(gf.runOnce())
 
-        if buttons.buttonPressed(result) == "back":
-            return -1
+        if button == 'back': return LEFT_BACKWARDS
 
         # first, check they entered something valid:
         try:
@@ -1161,7 +1126,7 @@ def set_time(answers, now, show_back_button = False):
             done = True
 
     # we're done:
-    assert buttons.buttonPressed(result) == "ok"
+    assert button == 'ok'
     answers['set-time'] = True
     answers['set-time-dialog-dismissed'] = datetime.datetime.now()
     answers['localtime'] = datetime.datetime(int(year.value()),
@@ -1169,7 +1134,7 @@ def set_time(answers, now, show_back_button = False):
                                              int(day.value()),
                                              int(hour.value()),
                                              int(minute.value()))
-    return 1
+    return RIGHT_FORWARDS
 
 def installation_complete():
     ButtonChoiceWindow(tui.screen,
@@ -1179,14 +1144,14 @@ def installation_complete():
 Please remove any local media from the drive, and press Enter to reboot.""" % PRODUCT_BRAND,
                        ['Ok'])
 
-    return 1
+    return RIGHT_FORWARDS
 
 def request_media(medianame):
     button = ButtonChoiceWindow(tui.screen, "Media Not Found",
                                 "Please insert the media labelled '%s' into your drive.  If the media is already present, then the installer was unable to locate it - please refer to your user guide, or a Technical Support Representative, for more information" % medianame,
                                 ['Retry', 'Cancel'], width=50)
 
-    return button != "cancel"
+    return button != 'cancel'
 
 ###
 # Getting more media:

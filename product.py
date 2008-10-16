@@ -242,10 +242,9 @@ class ExistingInstallation(object):
                 raise SettingsNotAvailable, "error reading keymap data"
 
             # root password:
-            rc, out = util.runCmd(
-                'chroot %s python -c \'import pwd; print pwd.getpwnam("root")[1]\'' % mntpoint,
-                with_output = True
-                )
+            rc, out = util.runCmd2(['chroot', mntpoint, 'python', '-c',
+                                    'import pwd; print pwd.getpwnam("root")[1]'], 
+                                   with_stdout = True)
 
             if rc != 0:
                 raise SettingsNotAvailable, "error retrieving root password"
@@ -353,8 +352,7 @@ def findXenSourceProducts():
 
     # get a list of disks, then try to examine the first partition of each disk:
     partitions = [ diskutil.determinePartitionName(x, 1) for x in diskutil.getQualifiedDiskList() ]
-    if not os.path.exists("/tmp/mnt"):
-        os.mkdir("/tmp/mnt")
+    util.assertDir("/tmp/mnt")
 
     mountpoint = "/tmp/mnt"
     inventory_file = os.path.join(mountpoint, constants.INVENTORY_FILE)

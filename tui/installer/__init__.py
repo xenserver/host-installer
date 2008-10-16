@@ -13,6 +13,7 @@
 import tui.installer.screens 
 import tui.progress
 import uicontroller
+from uicontroller import LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
 import netutil
 import repository
@@ -124,7 +125,7 @@ def more_media_sequence(installed_repo_ids):
             more = tui.progress.OKDialog("New Media", "Please insert your extra disc now.", True)
             if more == "cancel":
                 # they hit cancel:
-                rv = -1
+                rv = LEFT_BACKWARDS
                 done = True
             else:
                 # they hit OK - check there is a disc
@@ -136,7 +137,7 @@ def more_media_sequence(installed_repo_ids):
                         ['Back'])
                 else:
                     # found repositories - can leave this screen
-                    rv = 1
+                    rv = RIGHT_FORWARDS
                     done = True
         return rv
 
@@ -145,7 +146,7 @@ def more_media_sequence(installed_repo_ids):
         repos = repository.repositoriesFromDefinition('local', '')
         assert len(repos) > 0
 
-        default_button = 1
+        default_button = RIGHT_FORWARDS
         media_contents = []
         for r in repos:
             if r.identifier() in installed_repo_ids:
@@ -164,14 +165,14 @@ def more_media_sequence(installed_repo_ids):
             if ans == 'verify media':
                 tui.installer.screens.interactive_source_verification('local', '')
             elif ans == 'back':
-                rc = -1
+                rc = LEFT_BACKWARDS
                 done = True
             else:
-                rc = 1
+                rc = RIGHT_FORWARDS
                 done = True
 
         return rc
 
     seq = [ uicontroller.Step(get_more_media), uicontroller.Step(confirm_more_media) ]
     direction = uicontroller.runSequence(seq, {})
-    return (direction == 1, False)
+    return (direction == RIGHT_FORWARDS, False)

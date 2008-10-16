@@ -27,6 +27,7 @@ import tui
 import tui.network
 import tui.progress
 import uicontroller
+from uicontroller import EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import xmlrpclib
 import socket
 
@@ -43,8 +44,8 @@ def welcome_screen(answers):
                        ['Ok', 'Cancel'], width=50)
 
     # advance to next screen:
-    if button == "cancel": return uicontroller.EXIT
-    return 1
+    if button == 'cancel': return EXIT
+    return RIGHT_FORWARDS
 
 # specify target
 def get_target(answers):
@@ -69,19 +70,16 @@ def get_target(answers):
     entries.setField(Textbox(11, 1, "Password:"), 0, 2)
     entries.setField(e_pw, 1, 2)
 
-    gf = GridFormHelp(tui.screen, 'Target Host', None, 1, 3)
-    gf.add(t, 0, 0, padding = (0, 0, 0, 1))
-    gf.add(entries, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(bb, 0, 2, growx = 1)
+    done = False
+    while not done:
+        gf = GridFormHelp(tui.screen, 'Target Host', None, 1, 3)
+        gf.add(t, 0, 0, padding = (0, 0, 0, 1))
+        gf.add(entries, 0, 1, padding = (0, 0, 0, 1))
+        gf.add(bb, 0, 2, growx = 1)
 
-    loop = True
-    ret = 1
-    while loop:
-        result = gf.run()
+        button = bb.buttonPressed(gf.runOnce())
 
-        if bb.buttonPressed(result) == 'back':
-            ret = -1
-            break
+        if button == 'back': return LEFT_BACKWARDS
 
         # CA-6614: validate input and clearer error reporting
         host = e_host.value()
@@ -140,7 +138,7 @@ def get_target(answers):
             session = rc['Value']
             rc = server.VM.get_by_name_label(session, "XenSource P2V Server")
             if rc['Status'] == 'Success' and rc['Value'] != []:
-                loop = False
+                done = False
             elif rc['Status'] == 'Failure' and rc['ErrorDescription'][0] == 'HOST_IS_SLAVE':
                 # redirect to master
                 xelogging.log("%s is slave, redirecting to %s" % (host, rc['ErrorDescription'][1]))
@@ -155,13 +153,11 @@ def get_target(answers):
                     ['Back']
                     )
 
-    tui.screen.popWindow()
-    return ret
+    return RIGHT_FORWARDS
 
 # select storage repository:
 # TODO better error checking.
 def select_sr(answers):
-    ret = 1
     # login
     server = xmlrpclib.Server(answers['target-host-name'])
     rc = server.session.login_with_password(answers['target-host-user'], answers['target-host-password'])
@@ -207,23 +203,22 @@ def select_sr(answers):
                            "No suitable storage repositories were found.", 
                            buttons = ['Ok'])
         server.session.logout(session)
-        return -1
+        return LEFT_BACKWARDS
 
-    rc, entry = ListboxChoiceWindow(
+    button, entry = ListboxChoiceWindow(
         tui.screen, "Storage Repository", "Which storage repository would you like to create disk images in?",
         list_srs, ['Ok', 'Back'], height = 8, scroll = 1
         )
 
-    if rc in [None, 'ok']:
+    if button != 'back':
         rc = server.SR.get_by_uuid(session, entry)
         assert rc['Status'] == 'Success', "Failure calling server.SR.get_by_uuid(%s, %s)" % (session, entry)
         answers['target-sr'] = entry
         answers['target-sr-remaining'] = long(srs[rc['Value']]['physical_size']) - long(srs[rc['Value']]['virtual_allocation'])
-    else:
-        ret = -1
 
     server.session.logout(session)
-    return ret
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 #let the user chose the OS install
 def os_install_screen(answers):
@@ -246,12 +241,11 @@ def os_install_screen(answers):
                 os_install_strings,
                 ['Ok', 'Back'])
             
-        if button == "ok" or button == None:
-            xelogging.log("os_install = " + str(supported_os_installs[entry]))
-            answers['osinstall'] = supported_os_installs[entry]
-            return 1
-        else:
-            return -1
+        if button == 'back': return LEFT_BACKWARDS
+
+        xelogging.log("os_install = " + str(supported_os_installs[entry]))
+        answers['osinstall'] = supported_os_installs[entry]
+        return RIGHT_FORWARDS
     else: 
         # TODO, CA-2747  pull this out of a supported OS list.
         xelogging.log("No supported operating systems found.")
@@ -289,25 +283,21 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
             new_size = long(size[0])
             success = True
 
-    if button == "ok" or button == None:
-        answers['target-vm-disksize-mb'] = new_size
-        return 1
-    else:
-        return -1
+    if button == 'back': return LEFT_BACKWARDS
+
+    answers['target-vm-disksize-mb'] = new_size
+    return RIGHT_FORWARDS
 
 def confirm_screen(answers):
     button = ButtonChoiceWindow(tui.screen, "Confirm Operation",
         "All required information has now been collected.  The data transfer may take a long time and cause significant network traffic.",
         ['Start Transfer', 'Back'], width = 40)
 
-    if button in ['start transfer', None]:
-        return 1
-    else:
-        return -1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
 def finish_screen():
     xelogging.writeLog("/tmp/install-log")
     xelogging.collectLogs('/tmp')
-    ButtonChoiceWindow(tui.screen, "Finish P2V", """P2V operation successfully completed. Please press Enter to reboot the machine.""", ['Ok'], width = 50)
-    return 1
-
+    ButtonChoiceWindow(tui.screen, "Finish P2V", "P2V operation successfully completed. Please press Enter to reboot the machine.", ['Ok'], width = 50)
+    return RIGHT_FORWARDS

@@ -213,7 +213,7 @@ def getExtendedDiskInfo(disk, inMb = 0):
 
 def clearDiskPartitions(disk):
     assert disk[:5] == '/dev/'
-    assert util.runCmd2(["dd", "if=/dev/zero", "of=%s" % disk, "count=512", "bs=1"]) == 0
+    assert util.runCmd2(["dd", "if=/dev/zero", "of=%s" % disk, "bs=512", "count=1"]) == 0
 
 # partitions is a list of sizes in MB, currently we only make primary partitions.
 # this is a completely destructive process.
@@ -244,14 +244,7 @@ def writePartitionTable(disk, partitions):
     # wait for fdisk to finish:
     assert pipe.wait() == 0
 
-    # on older installer filesystem with udev=058 we needed to 
-    # hackily call udevstart - do this if appropriate
-    if os.path.exists('/sbin/udevstart'):
-        os.system('/sbin/udevstart')
-
-    # on newer installer fielsystems with udev=091 we can do the
-    # correct thing, which is to wait for the udev events to be
-    # correctly processed:
+    # Wait for the udev events to be correctly processed:
     if os.path.exists('/sbin/udevsettle'):
         os.system('/sbin/udevsettle --timeout=5')
 

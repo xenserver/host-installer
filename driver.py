@@ -14,6 +14,7 @@
 import os
 import sys
 import traceback
+import platform
 
 # user-interface stuff:
 import tui.installer
@@ -73,8 +74,7 @@ def doInteractiveLoadDriver(ui):
                 driver_repos.append(r)
 
         total_rc = 0
-        _, uname_r = util.runCmd("uname -r", with_output = True)
-        uname_r = uname_r.strip()
+        uname_r = platform.uname()[2]
         for name, driver in drivers:
             if hardware.module_file_uname(driver) == uname_r:
                 rc = hardware.modprobe_file(driver, name = name)
