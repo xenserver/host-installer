@@ -878,7 +878,7 @@ def get_name_service_configuration(answers):
 
         button = buttons.buttonPressed(gf.runOnce())
 
-        if button == 'back': LEFT_BACKWARDS
+        if button == 'back': return LEFT_BACKWARDS
 
         # manual hostname?
         if hn_manual_rb.selected():
