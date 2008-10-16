@@ -367,11 +367,11 @@ def configureNTP(mounts, ntp_servers):
         ntpsconf.close()
 
     # now turn on the ntp service:
-    util.runCmd('chroot %s chkconfig ntpd on' % mounts['root'])
+    util.runCmd2(['chroot', mounts['root'], 'chkconfig', 'ntpd', 'on'])
 
 def configureTimeManually(mounts, ui_package):
-    # display the Set TIme dialog in the chosen UI:
-    rc, time = util.runCmd('chroot %s timeutil getLocalTime' % mounts['root'], with_output = True)
+    # display the Set Time dialog in the chosen UI:
+    rc, time = util.runCmd2(['chroot', mounts['root'], 'timeutil', 'getLocalTime'], with_stdout = True)
     answers = {}
     ui_package.installer.screens.set_time(answers, util.parseTime(time))
         
@@ -381,8 +381,8 @@ def configureTimeManually(mounts, ui_package):
                newtime.hour, newtime.minute)
         
     # chroot into the dom0 and set the time:
-    assert runCmd('chroot %s timeutil setLocalTime "%s"' % (mounts['root'], timestr)) == 0
-    assert runCmd("hwclock --utc --systohc") == 0
+    assert util.runCmd2(['chroot', mounts['root'], 'timeutil', 'setLocalTime', '%s' % timestr]) == 0
+    assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 def runScripts(mounts, scripts):
     for script in scripts:
@@ -403,13 +403,13 @@ def removeBlockingVGs(disks):
         util.runCmd2(['vgremove', vg])
 
 def getRootPartNumber(disk):
-    return 1
+    return RETAIL_ROOT_PARTITION_NUMBER
 
 def getRootPartName(disk):
     return diskutil.determinePartitionName(disk, getRootPartNumber(disk))
 
 def getBackupPartNumber(disk):
-    return 2
+    return RETAIL_BACKUP_PARTITION_NUMBER
 
 def getBackupPartName(disk):
     return diskutil.determinePartitionName(disk, getBackupPartNumber(disk))
@@ -648,7 +648,7 @@ def installExtLinux(mounts, disk, serial, boot_serial):
     
     f.close()
 
-    assert util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "/boot"]) == 0
+    assert util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"]) == 0
 
     for m in ["mboot", "menu", "chain"]:
         assert util.runCmd2(["ln", "-f",
@@ -740,7 +740,7 @@ def umountVolumes(mounts, cleanup, force = False):
 # second stage install helpers:
     
 def doDepmod(mounts):
-    runCmd("chroot %s depmod %s" % (mounts['root'], version.KERNEL_VERSION))
+    assert util.runCmd2(['chroot', mounts['root'], 'depmod', version.KERNEL_VERSION]) == 0
 
 def writeKeyboardConfiguration(mounts, keymap):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
@@ -771,18 +771,9 @@ def writeFstab(mounts):
     fstab.close()
 
 def enableAgent(mounts):
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--del', 'xend' ])
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xenservices' ])
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xapi' ])
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'xapi-domains' ])
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'perfmon' ])
-    util.runCmd2(['chroot', mounts['root'],
-                  'chkconfig', '--add', 'snapwatchd' ])
+    util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--del', 'xend'])
+    for service in ['xenservices', 'xapi', 'xapi-domains', 'perfmon', 'snapwatchd']:
+        util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
@@ -821,8 +812,8 @@ def setTimeZone(mounts, tz):
     timeconfig.close()
 
     # make the localtime link:
-    runCmd("ln -sf /usr/share/zoneinfo/%s %s/etc/localtime" %
-           (tz, mounts['root']))
+    assert util.runCmd2(['ln', '-sf', '/usr/share/zoneinfo/%s' % tz, 
+                         '%s/etc/localtime' % mounts['root']]) == 0
 
 def setRootPassword(mounts, root_password, pwdtype):
     # avoid using shell here to get around potential security issues.  Also
@@ -933,7 +924,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         nc.close()
 
     save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
-    os.mkdir(save_dir)
+    util.assertDir(save_dir)
 
     # Write out initial network configuration file for management interface:
     sysconf_admin_iface_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_iface)
@@ -999,7 +990,7 @@ def writeModprobeConf(mounts):
 
     util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
-    assert runCmd("chroot %s kudzu -q -k %s" % (mounts['root'], version.KERNEL_VERSION)) == 0
+    assert util.runCmd2(['chroot', mounts['root'], 'kudzu', '-q', '-k', version.KERNEL_VERSION]) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
@@ -1027,8 +1018,9 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
-    assert runCmd("mkdir -p %s/root/.ssh/" % mounts['root']) == 0
-    assert runCmd("touch %s/root/.ssh/authorized_keys" % mounts['root']) == 0
+    util.assertDir("%s/root/.ssh/" % mounts['root'])
+    fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
+    fh.close()
 
 def backupExisting(existing):
     primary_partition = getRootPartName(existing.primary_disk)
@@ -1087,14 +1079,12 @@ def getGrUBDevice(disk, mounts):
 def writeLog(primary_disk):
     try: 
         bootnode = getRootPartName(primary_disk)
-        if not os.path.exists("/tmp/mnt"):
-            os.mkdir("/tmp/mnt")
+        util.assertDir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
         log_location = "/tmp/mnt/root"
         if os.path.islink(log_location):
             log_location = os.path.join("/tmp/mnt", os.readlink(log_location).lstrip("/"))
-        if not os.path.exists(log_location):
-            os.mkdir(log_location)
+        util.assertDir(log_location)
         xelogging.writeLog(os.path.join(log_location, "install-log"))
         try:
             xelogging.collectLogs(log_location)

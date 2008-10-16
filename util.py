@@ -44,7 +44,7 @@ def copyFile(source, dest):
     assert os.path.isfile(source)
     assert os.path.isdir(dest)
     
-    assert runCmd("cp -f %s %s/" % (source, dest)) == 0
+    assert runCmd2(['cp', '-f', source, '%s/' % dest]) == 0
 
 def copyFilesFromDir(sourcedir, dest):
     assert os.path.isdir(sourcedir)
@@ -52,7 +52,7 @@ def copyFilesFromDir(sourcedir, dest):
 
     files = os.listdir(sourcedir)
     for f in files:
-        assert runCmd("cp -a %s/%s %s/" % (sourcedir, f, dest)) == 0
+        assert runCmd2(['cp', '-a', '%s/%s' % (sourcedir, f), '%s/' % dest]) == 0
 
 ###
 # shell
@@ -214,7 +214,7 @@ def fetchFile(source, dest):
             os.rmdir(d)
 
 def getUUID():
-    rc, out = runCmd('uuidgen', with_output = True)
+    rc, out = runCmd2(['uuidgen'], with_stdout = True)
     assert rc == 0
 
     return out.strip()

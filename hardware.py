@@ -88,14 +88,14 @@ def module_present(module):
 
 def modprobe(module, params = ""):
     xelogging.log("Loading module %s" % " ".join([module, params]))
-    rc = util.runCmd("modprobe %s %s" % (module, params))
+    rc = util.runCmd2(['modprobe', module, params])
     if rc != 0:
         xelogging.log("(Failed.)")
 
     return rc
 
 def module_file_uname(module):
-    rc, out = util.runCmd("modinfo %s" % module, with_output = True)
+    rc, out = util.runCmd2(['modinfo', module], with_stdout = True)
     if rc != 0:
         raise RuntimeError, "Error interrogating module"
     vermagics = filter(lambda x: x.startswith("vermagic:"), out.split("\n"))
@@ -113,7 +113,7 @@ def modprobe_file(module, params = "", name = None):
     # module are and modprobe them:
     #
     # deps will initially look like 'depends:    x,y,z'
-    rc, out = util.runCmd("modinfo %s" % module, with_output = True)
+    rc, out = util.runCmd2(['modinfo', module], with_stdout = True)
     if rc != 0:
         raise RuntimeError, "Error interrogating module."
     [deps] = filter(lambda x: x.startswith("depends:"),
@@ -144,7 +144,7 @@ def VTSupportEnabled():
     # get the answer and cache it if necessary:
     if _vt_support == None:
         assert os.path.exists(constants.XENINFO)
-        rc, caps = util.runCmd(constants.XENINFO + " xen-caps", with_output = True)
+        rc, caps = util.runCmd2([constants.XENINFO, 'xen-caps'], with_stdout = True)
         assert rc == 0
         caps = caps.strip().split(" ")
         _vt_support = "hvm-3.0-x86_32" in caps
@@ -152,6 +152,6 @@ def VTSupportEnabled():
 
 def getHostTotalMemoryKB():
     assert os.path.exists(constants.XENINFO)
-    rc, mem = util.runCmd(constants.XENINFO + " host-total-mem", with_output = True)
+    rc, mem = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
     assert rc == 0
     return int(mem.strip())

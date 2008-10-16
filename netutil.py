@@ -71,7 +71,7 @@ def ifdown(interface):
 
 # work out if an interface is up:
 def interfaceUp(interface):
-    rc, out = util.runCmd("ip addr show %s" % interface, with_output = True)
+    rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout = True)
     if rc != 0:
         return False
     inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
@@ -82,7 +82,7 @@ def getPCIInfo(interface):
     devpath = os.path.realpath('/sys/class/net/%s/device' % interface)
     slot = devpath[len(devpath) - 7:]
 
-    rc, output = util.runCmd('lspci -i /usr/share/misc/pci.ids -s %s' % slot, with_output=True)
+    rc, output = util.runCmd2(['lspci', '-i', '/usr/share/misc/pci.ids', '-s', slot], with_stdout=True)
 
     if rc == 0:
         return output

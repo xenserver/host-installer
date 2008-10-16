@@ -11,6 +11,7 @@
 # written by Andrew Peace
 
 import uicontroller
+from uicontroller import LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import tui
 import tui.progress
 import netutil
@@ -123,15 +124,14 @@ PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
         if not loop:
             tui.screen.popWindow()
 
-    if buttons.buttonPressed(result) in ['ok', None]:
-        if bool(dhcp_rb.selected()):
-            answers = NetInterface(NetInterface.DHCP, nic.hwaddr)
-        else:
-            answers = NetInterface(NetInterface.Static, nic.hwaddr, ip_field.value(),
-                subnet_field.value(), gateway_field.value(), dns_field.value())
-        return 1, answers
-    elif buttons.buttonPressed(result) == 'back':
-        return -1, None
+    if buttons.buttonPressed(result) == 'back': return LEFT_BACKWARDS, None
+
+    if bool(dhcp_rb.selected()):
+        answers = NetInterface(NetInterface.DHCP, nic.hwaddr)
+    else:
+        answers = NetInterface(NetInterface.Static, nic.hwaddr, ip_field.value(),
+                               subnet_field.value(), gateway_field.value(), dns_field.value())
+    return RIGHT_FORWARDS, answers
 
 def select_netif(text, conf, default=None):
     """ Display a screen that displays a choice of network interfaces to the
@@ -146,10 +146,8 @@ def select_netif(text, conf, default=None):
     netif_list = [("%s (%s)" % ((x, conf[x].hwaddr)), x) for x in netifs]
     rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,
                                     ['Ok', 'Back'], width=45, default=def_iface)
-    if rc in ['ok', None]:
-        return 1, entry
-    elif rc == "back":
-        return -1, None
+    if rc == 'back': return LEFT_BACKWARDS, None
+    return RIGHT_FORWARDS, entry
 
 def requireNetworking(answers, defaults=None):
     """ Display the correct sequence of screens to get networking
@@ -160,7 +158,7 @@ def requireNetworking(answers, defaults=None):
     nethw = netutil.scanConfiguration()
     if len(nethw.keys()) == 0:
         tui.progress.OKDialog("Networking", "No ethernet device found")
-        return 0
+        return REPEAT_STEP
 
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:
@@ -168,8 +166,10 @@ def requireNetworking(answers, defaults=None):
         """ Show the dialog for selecting an interface.  Sets
         answers['interface'] to the name of the interface selected (a
         string). """
+        if answers.has_key('interface'):
+            default = answers['interface']
         direction, iface = select_netif("%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND), nethw, default)
-        if direction == 1:
+        if direction == RIGHT_FORWARDS:
             answers['interface'] = iface
         return direction
 
@@ -178,7 +178,7 @@ def requireNetworking(answers, defaults=None):
         to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
         direction, conf = get_iface_configuration(nethw[answers['interface']], txt, defaults=defaults, include_dns=True)
-        if direction == 1:
+        if direction == RIGHT_FORWARDS:
             answers['config'] = conf
         return direction
 
@@ -199,7 +199,7 @@ def requireNetworking(answers, defaults=None):
         seq = [ uicontroller.Step(specify_configuration, args=[text, def_conf]) ]
     direction = uicontroller.runSequence(seq, conf_dict)
 
-    if direction == 1:
+    if direction == RIGHT_FORWARDS:
         netutil.writeDebStyleInterfaceFile(
             {conf_dict['interface']: conf_dict['config']},
             '/etc/network/interfaces'
@@ -218,7 +218,7 @@ def requireNetworking(answers, defaults=None):
         if netutil.ifup(conf_dict['interface']) != 0 or not netutil.interfaceUp(conf_dict['interface']):
             tui.progress.clearModelessDialog()
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
-            direction = 0
+            direction = REPEAT_STEP
         else:
             if answers and type(answers) == dict:
                 answers['net-admin-interface'] = conf_dict['interface']
@@ -226,5 +226,3 @@ def requireNetworking(answers, defaults=None):
             tui.progress.clearModelessDialog()
         
     return direction
-
-
