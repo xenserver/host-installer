@@ -100,7 +100,14 @@ Alternatively, please contact a Technical Support Representative for the recomme
     return RIGHT_FORWARDS
 
 def get_admin_interface(answers):
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'], answers.has_key('net-admin-interface') and answers['net-admin-interface'] or None)
+    default = None
+    try:
+        if answers.has_key('net-admin-interface'):
+            default = answers['net-admin-interface']
+    except:
+        pass
+
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'], default)
     if direction == RIGHT_FORWARDS:
         answers['net-admin-interface'] = iface
     return direction
@@ -109,28 +116,16 @@ def get_admin_interface_configuration(answers):
     assert answers.has_key('net-admin-interface')
     nic = answers['network-hardware'][answers['net-admin-interface']]
 
-    if answers.has_key('runtime-iface-configuration'):
-        # we have a runtime interface configuration; check to see if there is
-        # configuration for the interface we're currently trying to configure.
-        # If so, use it to get default values; we're being super careful to
-        # check bounds, etc. here.  answers['runtime-iface-configuration'] is 
-        # a pair, (all_dhcp, manual_config), where manual_config is a map
-        # of interface name (string) -> network config.
-        ric = answers['runtime-iface-configuration']
-        if len(ric) != 2: # this should never really happen but best to be safe
-            defaults = None
-        else:
-            ric_all_dhcp, ric_manual_config = ric
-            if ric_manual_config == None or ric_all_dhcp:
-                defaults = None
-            else:
-                # have we already configured this interface?
-                if ric_manual_config.has_key(answers['net-admin-interface']):
-                    defaults = ric_manual_config[answers['net-admin-interface']]
-                else:
-                    defaults = None
-    else:
-        defaults = None
+    defaults = None
+    try:
+        if answers.has_key('net-admin-configuration'):
+            defaults = answers['net-admin-configuration']
+        elif answers.has_key('runtime-iface-configuration'):
+            all_dhcp, manual_config = answers['runtime-iface-configuration']
+            if not all_dhcp:
+                defaults = manual_config[answers['net-admin-interface']]
+    except:
+        pass
 
     rc, conf = tui.network.get_iface_configuration(
         nic, txt = "Please specify how networking should be configured for the management interface on this host.",
@@ -397,11 +392,17 @@ def use_extra_media(answers, vt_warning):
 
 def setup_runtime_networking(answers):
     defaults = None
-    if answers.has_key('installation-to-overwrite'):
-        try:
+    try:
+        if answers.has_key('net-admin-interface'):
+            defaults = {'net-admin-interface': answers['net-admin-interface']}
+            if answers.has_key('runtime-iface-configuration') and \
+                    answers['runtime-iface-configuration'][1].has_key(answers['net-admin-interface']):
+                defaults['net-admin-configuration'] = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
+        elif answers.has_key('installation-to-overwrite'):
             defaults = answers['installation-to-overwrite'].readSettings()
-        except:
-            pass
+    except:
+        pass
+
     return tui.network.requireNetworking(answers, defaults)
 
 def get_url_location(answers):
