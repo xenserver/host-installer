@@ -177,7 +177,8 @@ def requireNetworking(answers, defaults=None):
         """ Show the dialog for setting nic config.  Sets answers['config']
         to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
-        direction, conf = get_iface_configuration(nethw[answers['interface']], txt, defaults=defaults, include_dns=True)
+        direction, conf = get_iface_configuration(nethw[answers['interface']], txt, 
+                                                  defaults=defaults, include_dns=True)
         if direction == RIGHT_FORWARDS:
             answers['config'] = conf
         return direction
