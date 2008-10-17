@@ -13,6 +13,7 @@
 import os
 import util
 import re
+import subprocess
 
 class NIC:
     def __init__(self, name, hwaddr, pci_string):
@@ -79,15 +80,26 @@ def interfaceUp(interface):
 
 # make a string to help users identify a network interface:
 def getPCIInfo(interface):
+    info = "<Information unknown>"
     devpath = os.path.realpath('/sys/class/net/%s/device' % interface)
     slot = devpath[len(devpath) - 7:]
 
     rc, output = util.runCmd2(['lspci', '-i', '/usr/share/misc/pci.ids', '-s', slot], with_stdout=True)
 
     if rc == 0:
-        return output
-    else:
-        return "<Information unknown.>"
+        info = output.strip('\n')
+
+    cur_if = None
+    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize = 1, stdout = subprocess.PIPE)
+    for line in pipe.stdout:
+        l = line.strip('\n')
+        if l.startswith('Kernel name'):
+            cur_if = l[13:]
+        elif l.startswith('PCI Slot') and cur_if == interface and l[16:] != 'embedded':
+            info += "\nSlot "+l[16:]
+    pipe.wait()
+
+    return info
 
 def __readOneLineFile__(filename):
     f = open(filename)
