@@ -657,7 +657,6 @@ def select_guest_disks(answers):
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 2, growx = 1)
     
-    result = gf.runOnce()
     button = buttons.buttonPressed(gf.runOnce())
     
     if button == 'back': return LEFT_BACKWARDS
