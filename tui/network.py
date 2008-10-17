@@ -22,14 +22,27 @@ from snack import *
 
 def get_iface_configuration(nic, txt = None, show_identify = True, defaults = None, include_dns = False):
     def identify_interface(nic):
-        ButtonChoiceWindow(tui.screen,
-                           "Identify Interface",
-                           """Name: %s
+        gf = GridFormHelp(tui.screen, 'Identify Interface', None, 1, 2)
+        bb = ButtonBar(tui.screen, [ 'Ok' ])
+        name_text = Textbox(13, 1, "Name:")
+        mac_text = Textbox(13, 1, "MAC Address:")
+        pci_text = Textbox(13, 1, "PCI Details:")
+        name_val = Textbox(10, 1, nic.name)
+        mac_val = Textbox(20, 1, nic.hwaddr)
+        pci_val = TextboxReflowed(40, nic.pci_string)
+        id_grid = Grid(2, 3)
+        id_grid.setField(name_text, 0, 0)
+        id_grid.setField(name_val, 1, 0, anchorLeft = 1)
+        id_grid.setField(mac_text, 0, 1)
+        id_grid.setField(mac_val, 1, 1, anchorLeft = 1)
+        id_grid.setField(pci_text, 0, 2)
+        id_grid.setField(pci_val, 1, 2, anchorLeft = 1)
 
-MAC Address: %s
+        gf.add(id_grid, 0, 0, padding = (0,0,0,1))
+        gf.add(bb, 0, 1, growx = 1)
 
-PCI details: %s""" % (nic.name, nic.hwaddr, nic.pci_string),
-                           ['Ok'], width=60)
+        gf.runOnce()
+
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
