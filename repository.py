@@ -16,7 +16,7 @@ import tempfile
 import urlparse
 import urllib2
 import ftplib
-import popen2
+import subprocess
 import re
 
 import xelogging
@@ -24,6 +24,7 @@ import diskutil
 import hardware
 import version
 import util
+from util import dev_null
 import product
 
 class NoRepository(Exception):
@@ -291,7 +292,9 @@ class BzippedPackage(Package):
 
         xelogging.log("Starting installation of package %s" % self.name)
         
-        pipe = popen2.Popen3('tar -C %s -xjf - &>/dev/null' % os.path.join(base, self.destination), bufsize = 1024 * 1024)
+        pipe = subprocess.Popen(['tar', '-C', os.path.join(base, self.destination), '-xj'], 
+                                bufsize = 1024 * 1024, stdin = subprocess.PIPE, 
+                                stdout = dev_null(), stderr = dev_null())
     
         data = ''
         current_progress = 0
@@ -302,15 +305,12 @@ class BzippedPackage(Package):
             data = package.read(10485760)
             if data == '':
                 break
-            else:
-                pipe.tochild.write(data)
+
+            pipe.stdin.write(data)
             current_progress += len(data)
             progress(current_progress / 100)
 
-        pipe.tochild.flush()
-    
-        pipe.tochild.close()
-        pipe.fromchild.close()
+        pipe.stdin.close()
         rc = pipe.wait()
         if rc != 0:
             desc = 'returned [%d]' % rc

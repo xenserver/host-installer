@@ -259,6 +259,7 @@ def confirm_erase_volume_groups(answers):
         return SKIP_SCREEN
 
     if len(problems) == 1:
+        xelogging.log("Problematic VGs: %s" % problems)
         affected = "The volume group affected is %s.  Are you sure you wish to continue?" % problems[0]
     elif len(problems) > 1:
         affected = "The volume groups affected are %s.  Are you sure you wish to continue?" % generalui.makeHumanList(problems)

@@ -6,7 +6,7 @@
 
 ###
 # XEN CLEAN INSTALLER
-# Utilty functions for the clean installer
+# Utility functions for the clean installer
 #
 # written by Andrew Peace
 
@@ -24,6 +24,8 @@ import string
 import tempfile
 
 random.seed()
+
+_dev_null_fh = None
 
 ###
 # directory/tree management
@@ -69,41 +71,33 @@ def runCmd(command, with_output = False):
         return rv
 
 def runCmd2(command, with_stdout = False, with_stderr = False):
-    cmd = subprocess.Popen(command,
-                           stdout = subprocess.PIPE,
-                           stderr = subprocess.PIPE)
-    rv = cmd.wait()
-
     out = ""
     err = ""
+    cmd = subprocess.Popen(command, bufsize = 1,
+                           stdout = subprocess.PIPE,
+                           stderr = subprocess.PIPE)
 
-    nextout = cmd.stdout.read()
-    while nextout:
-        out += nextout
-        nextout = cmd.stdout.read()
+    for line in cmd.stdout:
+        out += line
+    for line in cmd.stderr:
+        err += line
 
-    nexterr = cmd.stderr.read()
-    while nexterr:
-        err += nexterr
-        nexterr = cmd.stderr.read()
+    rv = cmd.wait()
 
-    output = "STANDARD OUT:\n" + out + \
-             "STANDARD ERR:\n" + err
-    
     l = "ran %s; rc %d" % (str(command), rv)
-    if out:
+    if out != "":
         l += "\nSTANDARD OUT:\n" + out
-    if err:
+    if err != "":
         l += "\nSTANDARD ERROR:\n" + err
     xelogging.log(l)
-    if (not with_stdout) and (not with_stderr):
-        return rv
-    elif with_stdout and with_stderr:
+
+    if with_stdout and with_stderr:
         return rv, out, err
     elif with_stdout:
         return rv, out
-    else:
+    elif with_stderr:
         return rv, err
+    return rv
 
 ###
 # mounting/unmounting
@@ -119,17 +113,14 @@ def mount(dev, mountpoint, options = None, fstype = None):
         assert type(options) == list
 
     if fstype:
-        cmd.append('-t')
-        cmd.append(fstype)
+        cmd += ['-t', fstype]
 
     if options:
-        cmd.append("-o")
-        cmd.append(",".join(options))
+        cmd += ['-o', ",".join(options)]
 
     cmd.append(dev)
     cmd.append(mountpoint)
 
-    xelogging.log("Mount command is %s" % str(cmd))
     rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
     if rc != 0:
         raise MountFailureException, "out: '%s' err: '%s'" % (out, err)
@@ -138,10 +129,9 @@ def bindMount(source, mountpoint):
     xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
     
     cmd = [ '/bin/mount', '--bind', source, mountpoint]
-    rc = subprocess.Popen(cmd, stdout = subprocess.PIPE,
-                          stderr = subprocess.PIPE).wait()
+    rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
     if rc != 0:
-        raise MountFailureException()
+        raise MountFailureException, "out: '%s' err: '%s'" % (out, err)
 
 def umount(mountpoint, force = False):
     xelogging.log("Unmounting %s (force = %s)" % (mountpoint, force))
@@ -289,3 +279,9 @@ def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):
         defs = [ (a, quotestrip(b)) for (a,b) in defs ]
 
     return dict(defs)
+
+def dev_null():
+    global _dev_null_fh
+    if not _dev_null_fh:
+        _dev_null_fh = open("/dev/null", 'r+')
+    return _dev_null_fh

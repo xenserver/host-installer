@@ -14,7 +14,7 @@ import re
 import os.path
 import subprocess
 import util
-import popen2
+from util import dev_null
 import xelogging
 
 # hd* -> (ide has majors 3, 22, 33, 34, 56, 57, 88, 89, 90, 91, each major has
@@ -226,7 +226,7 @@ def writePartitionTable(disk, partitions):
     clearDiskPartitions(disk)
 
     pipe = subprocess.Popen(['/sbin/fdisk', disk], stdin = subprocess.PIPE,
-                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+                            stdout = dev_null(), stderr = dev_null(), close_fds = True)
 
     for i in range(0, len(partitions)):
         pipe.stdin.write('n\n') # new partition
@@ -253,9 +253,9 @@ def makeActivePartition(disk, partition_number):
     xelogging.log("About to make an active partition on disk %s" % disk)
 
     pipe = subprocess.Popen(['/sbin/fdisk', disk], stdin = subprocess.PIPE,
-                            stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+                            stdout = dev_null(), stderr = dev_null())
 
-    pipe.stdin.write('a\n') # new partition
+    pipe.stdin.write('a\n') # toggle bootable flag
     pipe.stdin.write('%d\n' % int(partition_number)) # ith partition
 
     # write the partition table to disk:
@@ -268,27 +268,28 @@ def getVolumeGroups():
     """ Returns a list of strings, each of which is the
     name of a volume group found by 'vgs'. """
 
-    pipe = popen2.Popen3("vgs --noheadings 2>/dev/null")
-    vgs = pipe.fromchild.readlines()
+    vgs = []
+    pipe = subprocess.Popen(['vgs', '--noheadings'], bufsize = 1, stdout = subprocess.PIPE,
+                            stderr = dev_null(), close_fds = True)
+    for line in pipe.stdout:
+        vgs.append(line.split()[0])
     pipe.wait()
-
-    vgs = [ x.strip().split(" ")[0] for x in vgs ]
 
     return vgs
-    
+
 # get a mapping of partitions to the volume group they are part of:
 def getVGPVMap():
-    pipe = popen2.Popen3("pvscan 2>/dev/null | egrep '*[ \t]*PV' | awk '{print $2,$4;}'")
-    volumes = pipe.fromchild.readlines()
-    pipe.wait()
-
-    volumes = map(lambda x: x.strip('\n').split(' '), volumes)
     rv = {}
-    for [vg, pv] in volumes:
-        if rv.has_key(pv):
-            rv[pv].append(vg)
-        else:
-            rv[pv] = [vg]
+    pipe = subprocess.Popen(['pvscan'], bufsize = 1, stdout = subprocess.PIPE,
+                            stderr = dev_null(), close_fds = True)
+    for line in pipe.stdout:
+        a = line.split()
+        if a[0] == 'PV' and a[2] == 'VG':
+            if rv.has_key(a[3]):
+                rv[a[3]].append(a[1])
+            else:
+                rv[a[3]] = [a[1]]
+    pipe.wait()
 
     return rv
 
