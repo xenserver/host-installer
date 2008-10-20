@@ -44,7 +44,7 @@ import backend
 
 from version import *
 from answerfile import AnswerfileError
-from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER, OEMFLASH_STATE_PARTITION_NUMBER
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER, OEMFLASH_STATE_PARTITION_NUMBER, OEMFLASH_BOOT_PARTITION_NUMBER
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
 
@@ -667,7 +667,6 @@ def OemManufacturerTest(ui, oem_manufacturer):
     return True
 
 def password_hash(password):
-    xelogging.log('Password is '+password)
     if password == '!!':
         retval = password # xsconsole will prompt for a new password when it detects this value
     else:
