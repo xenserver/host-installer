@@ -1096,7 +1096,7 @@ def backupExisting(existing):
         cmd = ['cp', '-a'] + \
               [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
               ['%s/' % backup_mount]
-        util.runCmd2(cmd)
+        assert util.runCmd2(cmd) == 0
         util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
         
     finally:
