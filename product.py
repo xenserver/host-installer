@@ -19,6 +19,7 @@ from netinterface import *
 import constants
 import version
 import re
+import stat
 import tempfile
 import xelogging
 
@@ -156,6 +157,28 @@ class ExistingInstallation(object):
 
     def getRootPartition(self):
         return diskutil.determinePartitionName(self.primary_disk, 1)
+
+    def isUpgradeable(self):
+        mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
+        root = self.getRootPartition()
+        try:
+            util.mount(root, mntpoint, options = ['ro'])
+
+            state_files = os.listdir(os.path.join(mntpoint, 'etc/firstboot.d/state'))
+            firstboot_files = [ f for f in os.listdir(os.path.join(mntpoint, 'etc/firstboot.d')) \
+                                    if f[0].isdigit() and os.stat(os.path.join(mntpoint, 'etc/firstboot.d', f))[stat.ST_MODE] & stat.S_IXUSR ]
+
+            result = (len(state_files) == len(firstboot_files))
+        except:
+            result = False
+
+        util.umount(mntpoint)
+        os.rmdir(mntpoint)
+
+        if not result:
+            xelogging.log("Product %s cannot be upgraded" % str(self))
+
+        return result
 
     def settingsAvailable(self):
         try:
