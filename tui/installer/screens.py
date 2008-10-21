@@ -93,7 +93,7 @@ Continuing will result in a clean installation, all existing configuration will 
 
 Alternatively, please contact a Technical Support Representative for the recommended upgrade path.""",
         ['Ok', 'Back'],
-        width = 60, default = 1
+        width = 60
         )
 
     if button == 'back': return LEFT_BACKWARDS
