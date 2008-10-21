@@ -1033,11 +1033,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         nfd.write("HOSTNAME=%s\n" % hostname)
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
-    nfd.write("PMAP_ARGS=-l\n")
-    # CA-16367: Prevent rpc.statd being handled a port by portmap
-    # which conflicts with the xHA heartbeating port
-    nfd.write("STATD_PORT=600\n")
-    nfd.write("STATD_OUTGOING_PORT=601\n")
     nfd.close()
 
 # use kudzu to write initial modprobe-conf:
