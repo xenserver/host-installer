@@ -457,32 +457,79 @@ def writeFirstbootFile(operation, mounts, filename, content):
         directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
     else:
         directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
-        
+
     util.assertDir(directory) # Creates the directory if not present
     fd = open(os.path.join(directory, filename), 'w')
     for line in content:
         print >>fd, line
     fd.close()
 
-def prepareNetworking(operation, mounts, interface, config, nameservers):
-    if config is None:
-        content = [ '# Not configured' ]
+def disableFirstbootScript(operation, mounts, filename):
+    xelogging.log('Disabling firstboot script '+filename)
+
+    if init_constants.operationIsOEMInstall(operation):
+        directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
     else:
-        if config.isStatic():
-            mode='Static'
-        else:
-            mode='DHCP'
-        content = [
-            "XSINTERFACE='%s'" % interface,
-            "XSMODE='%s'" % mode,
-            "XSMAC='%s'" % config.get('hwaddr', ''),
-            "XSIPADDR='%s'" % config.get('ipaddr', ''),
-            "XSNETMASK='%s'" % config.get('netmask', ''),
-            "XSGATEWAY='%s'" % config.get('gateway', ''),
-            "XSDNS='%s'" % ','.join(nameservers)
+        directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
+    log_directory = directory + '/../log'
+    state_directory = directory + '/../state'
+    
+    util.assertDir(log_directory) # Creates the directory if not present
+    fd = open(os.path.join(log_directory, filename), 'w')
+    print >>fd, '# This firstboot script was disabled by the installer and did not run'
+    fd.close()
+    
+    util.assertDir(state_directory) # Creates the directory if not present
+    fd = open(os.path.join(state_directory, filename), 'w')
+    print >>fd, 'success'
+    print >>fd, '# This firstboot script was disabled by the installer and did not run'
+    fd.close()
+
+def prepareNetworking(operation, mounts, interface, config, nameservers, nethw):
+    if config is None:
+        admin_mac = ''
+        network_content = [
+            "ADMIN_INTERFACE=''",
+            "INTERFACES='%s'" % ' '.join(nethw.values())
         ]
-    xelogging.log('Writing firstboot network configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'networking.conf', content)
+    else:
+        admin_mac = config.get('hwaddr', '')
+        network_content = [
+            "ADMIN_INTERFACE='%s'" % admin_mac,
+            "INTERFACES='%s'" % ' '.join( [ x.hwaddr for x in nethw.values() ] )
+        ]
+    xelogging.log('Writing firstboot network.conf '+', '.join(network_content))
+    writeFirstbootFile(operation, mounts, 'network.conf', network_content)
+        
+    for label, net_instance in nethw.iteritems():
+        mac = net_instance.hwaddr
+        content = [ '# Installer-generated configuration for '+label ]
+        if mac.lower() != admin_mac.lower():
+            # This is not the management interface so leave unconfigured
+            content += [
+                "LABEL='%s'" % label,
+                "MODE='none'"
+            ]
+        else:
+            # This is the management interface
+            if config.isStatic():
+                content += [
+                    "LABEL='%s'" % label,
+                    "MODE='static'",
+                    "IP='%s'" % config.get('ipaddr', ''),
+                    "NETMASK='%s'" % config.get('netmask', ''),
+                    "GATEWAY='%s'" % config.get('gateway', '')
+                ]
+            else:
+                content += [
+                    "LABEL='%s'" % label,
+                    "MODE='dhcp'"
+                ]
+            # Nameservers can be specified for both DHCP and static configurations
+            for i, nameserver in enumerate(nameservers):
+                content.append('DNS'+str(i+1)+"='"+nameserver.strip()+"'")
+        writeFirstbootFile(operation, mounts, 'interface-'+mac.lower()+'.conf', content)
+    disableFirstbootScript(operation, mounts, '27-detect-nics')
 
 def prepareHostname(operation, mounts, hostname):
     content=[ "XSHOSTNAME='%s'" % hostname ]
