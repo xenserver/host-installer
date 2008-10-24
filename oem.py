@@ -630,7 +630,7 @@ def write_oem_firstboot_files(answers):
                 backend.preparePassword(operation, mounts, password_hash(answers.get('root-password', '!!')))
             backend.prepareHostname(operation, mounts, hostname)
             backend.prepareNTP(operation, mounts,
-                answers.get('time-config-method', '').upper(), answers.get('ntp-servers', []))
+                answers.get('time-config-method', '').lower(), answers.get('ntp-servers', []))
             backend.prepareTimezone(operation, mounts, answers.get('timezone', ''))
         finally:
             util.umount(mntpoint)

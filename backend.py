@@ -539,7 +539,7 @@ def prepareHostname(operation, mounts, hostname):
 def prepareNTP(operation, mounts, method, ntp_servers):
     content=[
         "XSTIMEMETHOD='%s'" % method,
-        "XSNTPSERVERS='%s'" % ','.join(ntp_servers)
+        "XSNTPSERVERS='%s'" % ' '.join(ntp_servers)
     ]
     xelogging.log('Writing firstboot NTP configuration '+', '.join(content))
     writeFirstbootFile(operation, mounts, 'ntp.conf', content)
