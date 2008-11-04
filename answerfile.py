@@ -264,6 +264,8 @@ def parseRootPassword(n):
 
 def parseExistingInstallation(n):
     results = {}
+    if len(n.getElementsByTagName('existing-installation')) == 0:
+        raise AnswerfileError, "No existing installation specified."
     disk = "/dev/" + getText(n.getElementsByTagName('existing-installation')[0].childNodes)
     installations = product.findXenSourceProducts()
     installations = filter(lambda x: x.primary_disk == disk, installations)
