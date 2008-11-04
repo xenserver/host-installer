@@ -140,7 +140,7 @@ class SecondGenUpgrader(Upgrader):
                              for f in os.listdir(os.path.join(tds, save_dir))
                              if re.match('ifcfg-[a-z0-9.]+$', f) ]
             else:
-                os.mkdir(os.path.join(mounts['root'], save_dir))
+                util.assertDir(os.path.join(mounts['root'], save_dir))
                 regen_ifcfg = True
 
             for f in restore:
