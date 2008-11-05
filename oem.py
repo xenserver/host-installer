@@ -299,7 +299,7 @@ def write_xenrt(ui, answers, partnode):
             if answers.has_key('xenrt-serial'):
                 serport = int(answers['xenrt-serial'])
                 f = open(mountPoint + '/linux.opt', 'w')
-                f.write('CONSOLE=/dev/ttyS%u' % (serport))
+                f.write('console=ttyS%u,115200n8' % (serport))
                 f.close()
                 f = open(mountPoint + '/xen.opt', 'w')
                 f.write('com%u=115200,8n1 console=com%u,tty' % (serport+1, serport+1))
