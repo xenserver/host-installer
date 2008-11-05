@@ -153,7 +153,7 @@ def getFinalisationSequence(ans):
         Task(mkinitrd, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
-        Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), []),
+        Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
 
