@@ -42,6 +42,7 @@ def scan():
     #activate LVM
     util.runCmd2(['vgscan'])
     util.runCmd2(['vgchange', '-a', 'y'])
+    util.runCmd2(['udevsettle', '--timeout=5'])
     rc, out = util.runCmd2(['/sbin/blkid', '-c', '/dev/null'], with_stdout = True)
     if rc == 0 and out:
         for line in out.split("\n"):
