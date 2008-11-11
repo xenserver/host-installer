@@ -138,7 +138,7 @@ def get_target(answers):
             session = rc['Value']
             rc = server.VM.get_by_name_label(session, "XenSource P2V Server")
             if rc['Status'] == 'Success' and rc['Value'] != []:
-                done = False
+                done = True
             elif rc['Status'] == 'Failure' and rc['ErrorDescription'][0] == 'HOST_IS_SLAVE':
                 # redirect to master
                 xelogging.log("%s is slave, redirecting to %s" % (host, rc['ErrorDescription'][1]))
