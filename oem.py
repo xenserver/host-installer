@@ -41,10 +41,11 @@ import md5crypt
 import random
 import fcntl
 import backend
+from pbzip2file import *
 
 from version import *
 from answerfile import AnswerfileError
-from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER, OEMFLASH_STATE_PARTITION_NUMBER, OEMFLASH_BOOT_PARTITION_NUMBER
+from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER, OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER, OEMFLASH_STATE_PARTITION_NUMBER, OEMFLASH_BOOT_PARTITION_NUMBER, INSTALL_TYPE_REINSTALL
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
 
@@ -60,11 +61,11 @@ def writeImageWithProgress(ui, devnode, answers):
     image_name = answers['image-name']
     image_fd    = answers['image-fd']
     if re.search(".bz2$", image_name):
-        decompressing = True
-        decompressor = bz2.BZ2Decompressor()
+        input_fd = PBZ2File(image_fd)
+        # Guess compression density
+        bzfilesize = int(answers['image-size'] * 1.65)
     else:
-        decompressing = False
-    bzfilesize = answers['image-size']
+        bzfilesize = answers['image-size']
     rdbufsize = 16<<14
     reads_done = 0
     reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
@@ -103,6 +104,28 @@ def writeImageWithProgress(ui, devnode, answers):
         util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
         return EXIT_ERROR
 
+    rdbufsize = 16<<14
+    reads_done = 0
+
+    if answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:
+        installation = answers['installation-to-overwrite']
+        partition_info = diskutil.readPartitionInfoFromImageFD(input_fd, 1)
+        rc, size = util.runCmd2(['blockdev', '--getsize64', devnode], with_stdout = True)
+        if rc != 0:
+            raise Exception('Indeterminate size of destination partition: '+str(size))
+        else:
+            if partition_info.size > size:
+                raise Exception('Operation not possible - the new image in larger than the current partition size')
+        bzfilesize = partition_info.size
+        size_limit = partition_info.size
+        input_fd.seek(partition_info.start, PBZ2File.SEEK_SET)
+        xelogging.log('Writing image of size '+str(partition_info.size) + ', starting at '+str(partition_info.start) +
+        ' bytes to partition '+devnode+', size '+str(size))
+    else:
+        size_limit = None
+    reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
+
+
     # sanity check passed - open the block device to which we want to write
     devfd = open(devnode, mode="wb")
 
@@ -113,20 +136,22 @@ def writeImageWithProgress(ui, devnode, answers):
             reads_needed)
         ui.progress.displayProgressDialog(0, pd)
 
+    bytes_read = 0
+    this_read_size = rdbufsize
     try:
         while True:
-            buffer = image_fd.read(rdbufsize)
+            if size_limit is not None:
+                this_read_size = size_limit - bytes_read
+            this_read_size = min(this_read_size, rdbufsize)
+            if this_read_size < 0:
+                break
+                
+            buffer = input_fd.read(this_read_size)
+            bytes_read += len(buffer)
             reads_done += 1
             if not buffer:
                 break
-            if decompressing:
-                while buffer:
-                    devfd.write(decompressor.decompress(buffer))
-                    buffer = decompressor.unused_data
-                    if buffer:
-                        decompressor = bz2.BZ2Decompressor()
-            else:
-                devfd.write(buffer)
+            devfd.write(buffer)
             if ui:
                 ui.progress.displayProgressDialog(min(reads_needed, reads_done), pd)
     except Exception, e:
@@ -327,7 +352,7 @@ def go_disk(ui, args, answerfile_address, custom):
     else:
         xelogging.log("Starting install to disk dialog")
         if ui:
-            answers = ui.init_oem.recover_disk_drive_sequence(custom)
+            answers = ui.init_oem.recover_disk_drive_sequence(ui, custom)
         if not answers:
             return None # keeps outer loop going
 
@@ -545,14 +570,17 @@ def go_flash(ui, args, answerfile_address, custom):
 
     else:
         xelogging.log("Starting install to flash dialog")
-        answers = ui.init_oem.recover_pen_drive_sequence(custom)
+        answers = ui.init_oem.recover_pen_drive_sequence(ui, custom)
         if not answers:
             return None # keeps outer loop going
 
     xelogging.log("Starting install to flash write")
     answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_FLASH
 
-    devnode = answers["primary-disk"]
+    if answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:
+        devnode = answers['installation-to-overwrite'].root_partition
+    else:
+        devnode = answers["primary-disk"]
 
     rv = writeImageWithProgress(ui, devnode, answers)
     if rv != EXIT_OK:

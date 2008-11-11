@@ -136,7 +136,7 @@ def bindMount(source, mountpoint):
 def umount(mountpoint, force = False):
     xelogging.log("Unmounting %s (force = %s)" % (mountpoint, force))
 
-    cmd = ['/bin/umount']
+    cmd = ['/bin/umount', '-d'] # -d option also removes the loop device (if present)
     if force:
         cmd.append('-f')
     cmd.append(mountpoint)

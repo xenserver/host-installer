@@ -167,17 +167,8 @@ def go(ui, args, answerfile_address):
         # find existing installations:
         if ui:
             ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-        try:
-            installed_products = product.findXenSourceProducts()
-        except Exception, e:
-            xelogging.log("A problem occurred whilst scanning for existing installations:")
-            ex = sys.exc_info()
-            err = str.join("", traceback.format_exception(*ex))
-            xelogging.log(err)
-            xelogging.log("This is not fatal.  Continuing anyway.")
-            installed_products = []
-        upgradeable_products = filter(lambda p: p.isUpgradeable() and upgrade.upgradeAvailable(p),
-                                    installed_products)
+        installed_products = product.find_installed_products()
+        upgradeable_products = upgrade.filter_for_upgradeable_products(installed_products)
         if ui:
             ui.progress.clearModelessDialog()
         

@@ -37,6 +37,7 @@ from netinterface import *
 
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
+from variant import *
 
 # Attempt to configure the network:
 def configureNetworking(ui, device):
@@ -138,6 +139,12 @@ def main(args):
             flash_and_or_hdd = val
         elif opt == "--custom":
             custom = val
+
+    # Set up the variant object
+    if oem_edition:
+        Variant.setInstance(VariantOEM())
+    else:
+        Variant.setInstance(VariantRetail())
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:

@@ -31,6 +31,8 @@ import re
 import tempfile
 import constants
 import netutil
+import product
+import upgrade
 
 def get_keymap():
     entries = generalui.getKeymaps()
@@ -103,13 +105,25 @@ def oem_is_flash(answers):
 def oem_is_hdd(answers):
     return answers['target-type'] == 'hdd'
     
-def oem_install_sequence(answers):
+def oem_install_sequence(ui, answers):
     fullAnswers = answers.copy()
     fullAnswers['network-hardware'] = netutil.scanConfiguration()
+    
+    # find existing installations:
+    if ui:
+        ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
+    installed_products = product.find_installed_products()
+    upgradeable_products = upgrade.filter_for_upgradeable_products(installed_products)
+    if ui:
+        ui.progress.clearModelessDialog()
     
     uic = uicontroller
     uis = tui.installer.screens
     seq = [
+        uic.Step(uis.overwrite_warning,
+            predicates=[lambda _:len(installed_products) > 0 and len(upgradeable_products) == 0]),
+        uic.Step(uis.get_installation_type, args=[upgradeable_products],
+            predicates=[lambda _:len(upgradeable_products) > 0]),
         uic.Step(get_disk_blockdev_to_recover, predicates = [oem_is_hdd]),
         uic.Step(get_flash_blockdev_to_recover, predicates = [oem_is_flash]),
         uic.Step(get_image_media),
@@ -133,20 +147,20 @@ def oem_install_sequence(answers):
         return fullAnswers
 
 # Set of questions to pose if install "to flash disk" is chosen
-def recover_pen_drive_sequence(custom):
+def recover_pen_drive_sequence(ui, custom):
     answers = {
         'custom' : custom,
         'target-type' : 'flash'
         }
-    return oem_install_sequence(answers)
+    return oem_install_sequence(ui, answers)
 
 # Set of questions to pose if install "to hard disk" is chosen
-def recover_disk_drive_sequence(custom):
+def recover_disk_drive_sequence(ui, custom):
     answers = {
         'custom' : custom,
         'target-type' : 'hdd'
         }
-    return oem_install_sequence(answers)
+    return oem_install_sequence(ui, answers)
 
 
 # Set of questions to pose if "reset password" is chosen

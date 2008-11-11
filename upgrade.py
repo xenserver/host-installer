@@ -249,3 +249,8 @@ class UpgraderList(list):
         return False
     
 __upgraders__ = UpgraderList([ SecondGenUpgrader ])
+
+def filter_for_upgradeable_products(installed_products):
+    upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),
+        installed_products)
+    return upgradeable_products

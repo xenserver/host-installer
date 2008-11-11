@@ -10,9 +10,11 @@
 #
 # written by Andrew Peace
 
-import re
+import re, sys
 import os.path
 import subprocess
+from pprint import pprint
+
 import util
 from util import dev_null
 import xelogging
@@ -61,7 +63,6 @@ def getDiskList():
         except:
             # it wasn't an actual entry, maybe the headers or something:
             continue
-
     return disks
 
 # this works on this principle that everything that isn't a
@@ -138,6 +139,12 @@ def diskFromPartition(partition):
         return partition[:partition.rfind("-part")]
 
     return partition[:len(partition) - numlen]
+
+def partitionNumberFromPartition(partition):
+    match = re.search(r'([0-9]+)$',partition)
+    if not match:
+        raise Exception('Cannot extract partitiohn number from '+partition)
+    return int(match.group(1))
 
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
@@ -338,3 +345,62 @@ def determinePartitionName(guestdisk, partitionNumber):
         return guestdisk + "-part%d" % partitionNumber
     else:
         return guestdisk + "%d" % partitionNumber
+
+class PartitionRecord:
+    ELEMENTS = ['partition_number', 'bootable', 'type', 'lba_start', 'lba_size', 'start', 'size']
+    def __init__(self, *args, **keywords):
+        for k, v in keywords.items():
+            assert k in self.ELEMENTS # Check this is a name that we expect
+            setattr(self, k, v)
+        assert len(keywords) == len(self.ELEMENTS)
+        
+    def __str__(self):
+        return ', '.join( [ name+"='"+str(getattr(self, name))+"'" for name in self.ELEMENTS ] )    
+
+def readPartitionInfoFromImageFD(file_desc, partition_number):
+    # On entry, the current posisiton in the file should be at the start of the partition table
+    
+    # Assume a 512 byte sector size.  This will be true for our images but not for some hard disks
+    SECTOR_SIZE = 512
+
+    # Skip code area (440 bytes), optional disk signature (4) bytes, and NULLs (2 bytes)
+    file_desc.read(446)
+    record = None
+    for i in range(4):
+        boot_byte = ord(file_desc.read(1))
+        if boot_byte == 0:
+            bootable = False
+        elif boot_byte == 0x80:
+            bootable = True
+        else:
+            raise Exception('Corrupt partition table in image - status value '+str(boot_byte))
+        hsc_start = [ ord(c) for c in file_desc.read(3) ] # Start sector as head/sector/cylinder
+        type = ord(file_desc.read(1))
+
+        hsc_end = [ ord(c) for c in file_desc.read(3) ] # End sector as head/sector/cylinder
+        # Read LBA start and size as 4 byte little-endian values
+        lba_start = reduce( lambda x, y: (x << 8) + y, reversed([ ord(c) for c in file_desc.read(4) ]) )
+        lba_size = reduce( lambda x, y: (x << 8) + y, reversed([ ord(c) for c in file_desc.read(4) ]) )
+
+        if i+1 == partition_number:
+            if type == 15:
+                raise Exception('Extended partitions are not supported')
+            record  = PartitionRecord(partition_number=partition_number, bootable=bootable,
+                type=type, lba_start=lba_start, lba_size=lba_size,
+                start = lba_start*SECTOR_SIZE, size= lba_size * SECTOR_SIZE)
+
+    if file_desc.read(2) != '\x55\xaa':
+        raise Exception('Invalid boot record signature in partition table')
+    
+    if record is None:
+        raise Exception('No record for partition number '+str(partition_number))
+    
+    return record
+    
+if __name__ == '__main__':
+    fd = file(sys.argv[1],'r')
+    for i in range(4):
+        pprint(str(readPartitionInfoFromImageFD(fd, i+1)))
+        fd.seek(0, 0) # Go back to file start
+    fd.close()
+    

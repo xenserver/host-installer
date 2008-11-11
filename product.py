@@ -22,6 +22,7 @@ import re
 import stat
 import tempfile
 import xelogging
+from variant import *
 
 class SettingsNotAvailable(Exception):
     pass
@@ -141,44 +142,48 @@ THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 XENSERVER_4_1_0 = Version(4,1,0)
 
 class ExistingInstallation(object):
-    def __init__(self, name, brand, version, primary_disk, inventory):
+    def __init__(self, name, brand, version, root_partition, state_partition, inventory, build):
         self.name = name
         self.brand = brand
         self.version = version
-        self.primary_disk = primary_disk
+        self.root_partition = root_partition
+        self.state_partition = state_partition
+        self.primary_disk = diskutil.diskFromPartition(root_partition)
         self.inventory = inventory
+        self.build = build
 
     def __str__(self):
         return "%s v%s on %s" % (
-            self.brand, str(self.version), self.primary_disk)
+            self.brand, str(self.version), self.root_partition)
 
     def getInventoryValue(self, k):
         return self.inventory[k]
 
-    def getRootPartition(self):
-        return diskutil.determinePartitionName(self.primary_disk, 1)
-
     def isUpgradeable(self):
-        mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
-        root = self.getRootPartition()
-        try:
-            util.mount(root, mntpoint, options = ['ro'])
-
+        def scanPartition(mntpoint):
             state_files = os.listdir(os.path.join(mntpoint, 'etc/firstboot.d/state'))
             firstboot_files = [ f for f in os.listdir(os.path.join(mntpoint, 'etc/firstboot.d')) \
                                     if f[0].isdigit() and os.stat(os.path.join(mntpoint, 'etc/firstboot.d', f))[stat.ST_MODE] & stat.S_IXUSR ]
 
             result = (len(state_files) == len(firstboot_files))
-        except:
-            result = False
+            if not result:
+                xelogging.log('Upgradeability test failed:')
+                xelogging.log('  Firstboot:'+', '.join(firstboot_files))
+                xelogging.log('  State: '+', '.join(state_files))
 
-        util.umount(mntpoint)
-        os.rmdir(mntpoint)
+            return result
+            
+        try:
+            ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartition, self.build)
+        except Exception, e:
+            xelogging.log('Upgradeability test failed:')
+            xelogging.log_exception(e)
+            ret_val = False
 
-        if not result:
+        if not ret_val:
             xelogging.log("Product %s cannot be upgraded" % str(self))
 
-        return result
+        return ret_val
 
     def settingsAvailable(self):
         try:
@@ -194,14 +199,12 @@ class ExistingInstallation(object):
     
     def readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
+        
         if self.version < XENSERVER_4_1_0:
             raise SettingsNotAvailable, "version too old"
         
-        mntpoint = tempfile.mkdtemp(prefix="root-", dir='/tmp')
-        root = self.getRootPartition()
-        results = {}
-        try:
-            util.mount(root, mntpoint, options = ['ro'])
+        def scanPartition(mntpoint):
+            results = {}
 
             # primary disk:
             results['primary-disk'] = self.primary_disk
@@ -332,17 +335,17 @@ class ExistingInstallation(object):
                     else:
                         results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, hwaddr)
                     break
-        finally:
-            util.umount(mntpoint)
-            os.rmdir(mntpoint)
+            return results
+            
+        ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartitition, self.build)
 
-        return results
+        return ret_val
 
 def findXenSourceBackups():
     """Scans the host and find partitions containing backups of XenSource
     products.  Returns a list of device node paths to partitions containing
     said backups. """
-
+    Variant.inst().raiseIfOEM('findXenSourceBackups')
     partitions = diskutil.getQualifiedPartitionList()
     backups = []
     try:
@@ -373,37 +376,37 @@ def findXenSourceProducts():
     Currently requires supervisor privileges due to mounting
     filesystems."""
 
-    # get a list of disks, then try to examine the first partition of each disk:
-    partitions = [ diskutil.determinePartitionName(x, 1) for x in diskutil.getQualifiedDiskList() ]
-    util.assertDir("/tmp/mnt")
-
-    mountpoint = "/tmp/mnt"
-    inventory_file = os.path.join(mountpoint, constants.INVENTORY_FILE)
-
+    # get a list of disks, then try to examine the root partition(s) of each disk:
+    partitions = Variant.inst().rootPartitionCandidates()
+    
     installs = []
 
     # go through each partition, and see if it is an XS dom0.
     for p in partitions:
-        try:
-            util.mount(p, mountpoint)
-        except:
-            # unable to mount it, so ignore it
-            continue
-
-        try:
+        
+        def scanPartition(mountpoint):
+            inventory_file = os.path.join(mountpoint, constants.INVENTORY_FILE)
             if os.path.exists(inventory_file):
                 inv = readInventoryFile(inventory_file)
+                xelogging.log('Inventory on '+str(p)+': '+str(inv))
                 inst = ExistingInstallation(
                     inv['PRODUCT_NAME'],
                     inv['PRODUCT_BRAND'],
                     Version.from_string("%s-%s" % (inv['PRODUCT_VERSION'], inv['BUILD_NUMBER'])),
-                    diskutil.diskFromPartition(p),
-                    inv
+                    p,
+                    Variant.inst().findStatePartitionFromRoot(p),
+                    inv,
+                    inv['BUILD_NUMBER']
                     )
                 xelogging.log("Found an installation: %s" % str(inst))
                 installs.append(inst)
-        finally:
-            util.umount(mountpoint)
+
+        try:
+            # Run scanPartition over p, treating it as a root partition
+            Variant.inst().runOverRootPartition(p, scanPartition)
+        except Exception, e:
+            xelogging.log('Test for root partition '+p+' negative:')
+            xelogging.log_exception(e)
 
     return installs
 
@@ -417,3 +420,14 @@ def readNetworkScriptFile(filename):
         'NETWORK', 'BROADCAST', 'NAME'
         ]
     return util.readKeyValueFile(filename, allowed_keys = netkeys, strip_quotes = True)
+
+def find_installed_products():
+    try:
+        installed_products = findXenSourceProducts()
+    except Exception, e:
+        xelogging.log("A problem occurred whilst scanning for existing installations:")
+        xelogging.log_exception(e)
+        xelogging.log("This is not fatal.  Continuing anyway.")
+        installed_products = []
+    return installed_products
+            
