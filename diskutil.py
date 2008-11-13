@@ -143,7 +143,7 @@ def diskFromPartition(partition):
 def partitionNumberFromPartition(partition):
     match = re.search(r'([0-9]+)$',partition)
     if not match:
-        raise Exception('Cannot extract partitiohn number from '+partition)
+        raise Exception('Cannot extract partition number from '+partition)
     return int(match.group(1))
 
 # Given a partition (e.g. /dev/sda1), get the id symlink:

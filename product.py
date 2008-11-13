@@ -337,7 +337,7 @@ class ExistingInstallation(object):
                     break
             return results
             
-        ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartitition, self.build)
+        ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartition, self.build)
 
         return ret_val
 
