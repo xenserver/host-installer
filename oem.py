@@ -89,7 +89,7 @@ def writeImageWithProgress(ui, devnode, answers):
                     ui.OKDialog("Error", msg)
                 image_fd.close()
                 util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
-                return EXIT_ERROR
+                raise Exception(msg)
         else:
             devnode_present = True
 
@@ -102,7 +102,7 @@ def writeImageWithProgress(ui, devnode, answers):
             ui.OKDialog("Error", msg)
         image_fd.close()
         util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
-        return EXIT_ERROR
+        raise Exception(msg)
 
     rdbufsize = 16<<14
     reads_done = 0
@@ -160,9 +160,7 @@ def writeImageWithProgress(ui, devnode, answers):
             ui.progress.clearModelessDialog()
         image_fd.close()
         devfd.close()
-        if ui:
-            ui.OKDialog("Error", "Fatal error occurred during write.  Press any key to reboot")
-        return EXIT_ERROR
+        raise Exception("Fatal error occurred during write.  Press any key to reboot")
     else:
         image_fd.close()
         devfd.close()
@@ -194,8 +192,6 @@ def writeImageWithProgress(ui, devnode, answers):
 
     image_fd.close()
     devfd.close()
-
-    return EXIT_OK
 
 def run_post_install_script(answers):
     if answers.has_key('post-install-script'):
@@ -339,6 +335,83 @@ def write_xenrt(ui, answers, partnode):
         return EXIT_ERROR
     xelogging.log("Wrote XenRT data files")
 
+def hdd_create_disk_partitions(ui, devnode):
+    rv, output = util.runCmd('%s/create-partitions %s 2>&1' % (scriptdir,devnode), with_output=True)
+    if rv != 0:
+        raise Exception(output)
+    
+def hdd_boot_partition_number(devnode):
+    # Lookup the boot partition number
+    rv, output = util.runCmd('/sbin/fdisk -l %s 2>&1 | /bin/sed -ne \'s,^%sp\\?\\([1-4]\\)  *\\*.*$,\\1,p\' 2>&1' % (devnode, devnode), with_output=True)
+    if rv != 0:
+        raise Exception(output)
+    return int(output)    
+
+def hdd_verify_partition_nodes(devnode): 
+    xelogging.log("Ensuring that the device nodes for the new partitions are available")
+    all_devnodes_present = False
+    retries = 5
+    while not all_devnodes_present:
+        for pnum in (hdd_boot_partition_number(devnode),
+                OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER,
+                OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER):
+            p_devnode = getPartitionNode(devnode, pnum)
+            if not os.path.exists(p_devnode):
+                if retries > 0:
+                    retries -= 1
+                    time.sleep(1)
+                    break
+                else:
+                    raise Exception("Partition device nodes failed to appear")
+
+        else: # This else belongs to the for statement
+            all_devnodes_present = True
+
+def hdd_install_mbr(sr_devnode, devnode):
+        rv, output = util.runCmd('%s/populate-partition %s %s master-boot-record 2>&1' % (scriptdir,sr_devnode, devnode), with_output=True)
+        if rv != 0:
+            raise Exception(output)
+
+def hdd_write_root_partition(sr_devnode, partition_node, image_number, writeable):
+    xelogging.log("Populating system partition "+partition_node)
+
+    if writeable:
+        write_op = "system-image-"+str(image_number)+"-rw"
+    else:
+        write_op = "system-image-"+str(image_number)
+
+    rv, output = util.runCmd('%s/populate-partition %s %s %s 2>&1' % (scriptdir, sr_devnode, partition_node, write_op),
+        with_output=True)
+    if rv != 0:
+        raise Exception(output)
+
+def hdd_write_state_partition(sr_devnode, partition_node):
+    rv, output = util.runCmd('%s/populate-partition %s %s mutable-state 2>&1' % (scriptdir, sr_devnode, partition_node),
+        with_output=True)
+    if rv != 0:
+        raise Exception(output)
+
+def hdd_write_boot_partition(sr_devnode, partition_node):
+    rv, output = util.runCmd('%s/populate-partition %s %s boot 2>&1' % (scriptdir, sr_devnode, partition_node),
+        with_output=True)
+    if rv != 0:
+        raise Exception(output)
+
+def hdd_update_initrd(partition_node):
+    rv, output = util.runCmd('%s/update-initrd %s 2>&1' % (scriptdir, partition_node), with_output=True)
+    if rv != 0:
+        raise Exception(output)
+
+def wrap_ui_info(ui, info, function, title = None):
+    if ui:
+        ui.progress.showMessageDialog(title or "Installing", info)
+    xelogging.log(info)
+    try:
+        function()
+    finally:
+        if ui:
+            ui.progress.clearModelessDialog()
+
 def go_disk(ui, args, answerfile_address, custom):
     "Install oem edition to disk"
 
@@ -359,63 +432,9 @@ def go_disk(ui, args, answerfile_address, custom):
     xelogging.log("Starting install to disk, partitioning")
     answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_DISK
 
+    reinstall = ( answers.get('install-type', None) == INSTALL_TYPE_REINSTALL )
     devnode = answers["primary-disk"]
 
-    # Step 1: create system partitions.
-    #
-    if ui:
-        ui.progress.showMessageDialog("Partitioning", "Creating the system image disk partitions ...")
-    
-    rv, output = util.runCmd('%s/create-partitions %s 2>&1' % (scriptdir,devnode), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during disk partitioning:\n\n%s\n\n"
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-
-    # Step 2: ensure that the device nodes for the new partitions are available
-    xelogging.log("Waiting on new partition device nodes")
-
-    # lookup the boot partition number
-    rv, output = util.runCmd('/sbin/fdisk -l %s 2>&1 | /bin/sed -ne \'s,^%sp\\?\\([1-4]\\)  *\\*.*$,\\1,p\' 2>&1' % (devnode, devnode), with_output=True)
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error identifying boot partition:\n\n%s\n\n"
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-    BOOT_PARTITION_NUMBER = int(output)
-
-    all_devnodes_present = False
-    retries = 5
-    while not all_devnodes_present:
-        for pnum in (BOOT_PARTITION_NUMBER,
-                     OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER,
-                     OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER):
-            p_devnode = getPartitionNode(devnode, pnum)
-            if not os.path.exists(p_devnode):
-                if retries > 0:
-                    retries -= 1
-                    time.sleep(1)
-                    break
-                else:
-                    ui.OKDialog("Error", "Partition device nodes failed to appear. Press any key to reboot")
-                    return EXIT_ERROR
-
-        else:
-            all_devnodes_present = True
-
-    # Step 3: decompress the image into the SR partition (use as tmp dir)
-    xelogging.log("Decompressing image")
-
-    sr_devnode = getPartitionNode(devnode, OEMHDD_SR_PARTITION_NUMBER)
-    rv = writeImageWithProgress(ui, sr_devnode, answers)
-    if rv:
-        return EXIT_ERROR
-
-    # Step 4: populate the partitions from the decompressed image.
-    #
     # The boot partition is a primary FAT16 partition with a well-known label.
     # The extended partition contains:
     #   p5: system image 1
@@ -423,132 +442,53 @@ def go_disk(ui, args, answerfile_address, custom):
     #   p7: writable state
     #   p8: local SR
 
-    xelogging.log("Populating system partitions")
-
-    ###########################################################################
-    if ui:
-        ui.progress.showMessageDialog("Imaging", "Installing master boot record...")
-    
-    rv, output = util.runCmd('%s/populate-partition %s %s master-boot-record 2>&1' % (scriptdir,sr_devnode, devnode), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during installation of master boot record:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-
-    ###########################################################################
-    if ui:
-        ui.progress.showMessageDialog("Imaging", "Populating primary system image...")
-    
-    partnode = getPartitionNode(devnode, OEMHDD_SYS_1_PARTITION_NUMBER)
-
-    if answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"):
-        write_op = "system-image-1-rw"
-    else:
-        write_op = "system-image-1"
-
-    rv, output = util.runCmd('%s/populate-partition %s %s %s 2>&1' % (scriptdir,sr_devnode, partnode, write_op), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during population of primary system image:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-
-    ###########################################################################
-    if ui:
-        ui.progress.showMessageDialog("Imaging", "Populating secondary system image...")
-    
-    partnode = getPartitionNode(devnode, OEMHDD_SYS_2_PARTITION_NUMBER)
-
-    if answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"):
-        write_op = "system-image-2-rw"
-    else:
-        write_op = "system-image-2"
-
-    rv, output = util.runCmd('%s/populate-partition %s %s %s 2>&1' % (scriptdir,sr_devnode, partnode, write_op), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error occurred during population of secondary system image:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-
-    ###########################################################################
-    if ui:
-        ui.progress.showMessageDialog("Imaging", "Initializing writable storage...")
-    
-    partnode = getPartitionNode(devnode, OEMHDD_STATE_PARTITION_NUMBER)
-    rv, output = util.runCmd('%s/populate-partition %s %s mutable-state 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error occurred initializing writable storage:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-
-    ###########################################################################
-    if ui:
-        ui.progress.showMessageDialog("Imaging", "Initializing boot partition...")
-    
-    partnode = getPartitionNode(devnode, BOOT_PARTITION_NUMBER)
-    rv, output = util.runCmd('%s/populate-partition %s %s boot 2>&1' % (scriptdir,sr_devnode, partnode), with_output=True)
-    if ui:
-        ui.progress.clearModelessDialog()
-    if rv:
-        if ui:
-            ui.OKDialog ("Error", "Fatal error occurred initializing boot partition:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-
-    ###########################################################################
-    if ui:
-        ui.progress.showMessageDialog("Configuration Files", "Writing configuration files...")
-
     try:
-        write_oem_firstboot_files(answers)
+        writeable = (answers.has_key("rootfs-writable") or os.path.exists("/opt/xensource/rw"))
+        if reinstall:
+            # Reinstall writes a single partition from the image to the target partition directly,
+            # so root_partition is typically /dev/sda5 or /dev/sda6
+            if writeable:
+                raise Exception('Writeable Upgrade or Freshen installations are not yet supported')
+            reinstall_node = answers['installation-to-overwrite'].root_partition
+            writeImageWithProgress(ui, reinstall_node, answers)
+            wrap_ui_info(ui, 'Customizing startup modules ...', lambda: hdd_update_initrd(reinstall_node))
+        else:
+            # Full install first decompresses the entire image into the partition that's going
+            # to be used as an SR in the final configuration. 
+            wrap_ui_info(ui, 'Creating the system image disk partitions ...',
+                lambda: hdd_create_disk_partitions(ui, devnode))
+            hdd_verify_partition_nodes(devnode)
+            sr_devnode = getPartitionNode(devnode, OEMHDD_SR_PARTITION_NUMBER)
+            writeImageWithProgress(ui, sr_devnode, answers)
+            wrap_ui_info(ui, 'Installing the master boot record ...', lambda: hdd_install_mbr(sr_devnode, devnode))
+
+            wrap_ui_info(ui, 'Installing primary system image ...',
+                lambda: hdd_write_root_partition(sr_devnode, getPartitionNode(devnode, OEMHDD_SYS_1_PARTITION_NUMBER), 1, writeable))
+            wrap_ui_info(ui, 'Installing secondary system image ...',
+                lambda: hdd_write_root_partition(sr_devnode, getPartitionNode(devnode, OEMHDD_SYS_2_PARTITION_NUMBER), 2, writeable))
+            wrap_ui_info(ui, 'Initializing storage for configuration information ...',
+                lambda: hdd_write_state_partition(sr_devnode, getPartitionNode(devnode, OEMHDD_STATE_PARTITION_NUMBER)))
+            wrap_ui_info(ui, 'Installing boot image ...',
+                lambda: hdd_write_boot_partition(sr_devnode, getPartitionNode(devnode, hdd_boot_partition_number(devnode))))
+            write_oem_firstboot_files(answers) # Completes quickly so no banner
+            wrap_ui_info(ui, 'Customizing startup modules ...',
+                lambda: hdd_update_initrd(getPartitionNode(devnode, OEMHDD_SYS_1_PARTITION_NUMBER)))
+            wrap_ui_info(ui, 'Customizing startup modules ...',
+                lambda: hdd_update_initrd(getPartitionNode(devnode, OEMHDD_SYS_2_PARTITION_NUMBER)))
+            if answers.has_key("xenrt"):
+                wrap_ui_info(ui, 'Writing XenRT information ...',
+                    lambda: write_xenrt(ui, answers, getPartitionNode(devnode, hdd_boot_partition_number(devnode))))
+            wrap_ui_info(ui, 'Finalizing installation ...',
+                lambda: run_post_install_script(answers))
     except Exception, e:
-        message =  "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e)
-        xelogging.log(message)
+        xelogging.log_exception(e)
         if ui:
-            ui.progress.clearModelessDialog()
-            ui.OKDialog ("Error", message)
+            ui.OKDialog ("Error", "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e))
         return EXIT_ERROR
-
-    if ui:
-        ui.progress.clearModelessDialog()
-
-    ###########################################################################
-    # update the initrds on the bootable partitions to support access to this disk
-    if ui:
-        ui.progress.showMessageDialog("update-initrd", "Customizing startup modules...")
-    for part in (OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER):
-        partnode = getPartitionNode(devnode,part)
-        rv, output = util.runCmd('%s/update-initrd %s 2>&1' % (scriptdir,partnode), with_output=True)
-        if rv:
-            break;
-    if rv:
-        if ui:
-            ui.progress.clearModelessDialog()
-            ui.OKDialog ("Error", "Fatal error occurred during customization of startup modules:\n\n%s\n\n" 
-                         "Press any key to reboot" % output)
-        return EXIT_ERROR
-    
-    ###########################################################################
-    if answers.has_key("xenrt"):
-        partnode = getPartitionNode(devnode, BOOT_PARTITION_NUMBER)
-        write_xenrt(ui, answers, partnode)
 
     run_post_install_script(answers)
 
-    # success!
     if ui:
-        ui.progress.clearModelessDialog()
         if answerfile_address:
             ui.progress.showMessageDialog("Success", "Install complete - rebooting")
             time.sleep(2)
@@ -582,21 +522,13 @@ def go_flash(ui, args, answerfile_address, custom):
     else:
         devnode = answers["primary-disk"]
 
-    rv = writeImageWithProgress(ui, devnode, answers)
-    if rv != EXIT_OK:
-        return rv
-
-
-    if ui:
-        ui.progress.showMessageDialog("Configuration Files", "Writing configuration files...")
-
     try:
+        writeImageWithProgress(ui, devnode, answers)
         write_oem_firstboot_files(answers)
     except Exception, e:
         message =  "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e)
         xelogging.log(message)
         if ui:
-            ui.progress.clearModelessDialog()
             ui.OKDialog ("Error", message)
         return EXIT_ERROR
 

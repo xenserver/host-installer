@@ -383,7 +383,7 @@ def readPartitionInfoFromImageFD(file_desc, partition_number):
         lba_size = reduce( lambda x, y: (x << 8) + y, reversed([ ord(c) for c in file_desc.read(4) ]) )
 
         if i+1 == partition_number:
-            if type == 15:
+            if type in (0x05, 0x0F, 0x85):
                 raise Exception('Extended partitions are not supported')
             record  = PartitionRecord(partition_number=partition_number, bootable=bootable,
                 type=type, lba_start=lba_start, lba_size=lba_size,

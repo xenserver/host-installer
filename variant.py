@@ -20,7 +20,7 @@
 # Python library imports
 import os, tempfile
 # Local file imports
-import diskutil, util
+import diskutil, util, xelogging
 
 class Variant: # Superclass
     __inst = None # Reference to the singleton object
@@ -74,9 +74,10 @@ class VariantOEM(Variant):
     def rootPartitionCandidates(self):
         # Get a list of disks, then return the first, second and third partition of each disk.
         # OEM has two root partitions, and these can be preceded by an OEM utility partition
+        # In OEM HDD the root partitions live in an extended partition so are partitions 5 and 6
         partitions = []
         for disk in diskutil.getQualifiedDiskList():
-            for i in range(1, 4): # range(1, 4) is [1, 2, 3]
+            for i in range(1, 7): # range(1, 7) is 1 to 6
                 partitions.append(diskutil.determinePartitionName(disk, i))
 
         return partitions
