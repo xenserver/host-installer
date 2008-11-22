@@ -57,7 +57,7 @@ def getPartitionNode(disknode, pnum):
         midfix = "-part"
     return disknode + midfix + str(pnum)
 
-def writeImageWithProgress(ui, devnode, answers):
+def writeDataWithProgress(ui, filename, answers, is_devnode):
     image_name = answers['image-name']
     image_fd    = answers['image-fd']
     if re.search(".bz2$", image_name):
@@ -65,12 +65,69 @@ def writeImageWithProgress(ui, devnode, answers):
         # Guess compression density
         bzfilesize = int(answers['image-size'] * 1.65)
     else:
+        input_fd = image_fd
         bzfilesize = answers['image-size']
+
+    if answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:
+        installation = answers['installation-to-overwrite']
+        partition_info = diskutil.readPartitionInfoFromImageFD(input_fd, 1)
+        xelogging.log('Writing image of size '+str(partition_info.size) + ', starting at '+str(partition_info.start) +
+        ' bytes to '+filename)
+        if is_devnode:
+            rc, size = util.runCmd2(['blockdev', '--getsize64', filename], with_stdout = True)
+            if rc != 0:
+                raise Exception('Indeterminate size of destination partition: '+str(size))
+            elif partition_info.size > int(size):
+                raise Exception('Operation not possible - the new image in larger than the current partition size')
+            xelogging.log('Target partition size is '+str(size))
+
+        bzfilesize = partition_info.size
+        size_limit = partition_info.size
+        input_fd.seek(partition_info.start, PBZ2File.SEEK_SET)
+    else:
+        size_limit = None
+
     rdbufsize = 16<<14
     reads_done = 0
-    reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
+    reads_needed = (bzfilesize + rdbufsize - 1) / rdbufsize # Round up
+    bytes_read = 0
+    this_read_size = rdbufsize
 
-    # See if the target device node is present and wait a while
+    if ui:
+        pd = ui.progress.initProgressDialog(
+            "Decompressing image",
+            "%(image_name)s is being written to %(filename)s" % locals(),
+            reads_needed)
+        ui.progress.displayProgressDialog(0, pd)
+
+    devfd = open(filename, mode="wb")
+    try:
+        try:
+            while True:
+                if size_limit is not None:
+                    this_read_size = size_limit - bytes_read
+                this_read_size = min(this_read_size, rdbufsize)
+                if this_read_size <= 0:
+                    break
+                    
+                buffer = input_fd.read(this_read_size)
+                bytes_read += len(buffer)
+                reads_done += 1
+                if not buffer:
+                    break
+                devfd.write(buffer)
+                if ui:
+                    ui.progress.displayProgressDialog(min(reads_needed, reads_done), pd)
+        except Exception, e:
+            # Change exception wording for user, and log the original
+            xelogging.log_exception(e)
+            raise Exception("Fatal error occurred during write.  Press any key to reboot")
+    finally:
+        devfd.close()
+    if ui:
+        ui.progress.clearModelessDialog()
+
+def writeImageWithProgress(ui, devnode, answers):
     # in case it shows up, kicking the udev trigger in the loop
     util.runCmd2(["udevsettle", "--timeout=30"])
     devnode_present = os.path.exists(devnode)
@@ -87,7 +144,6 @@ def writeImageWithProgress(ui, devnode, answers):
                 xelogging.log(msg)
                 if ui:
                     ui.OKDialog("Error", msg)
-                image_fd.close()
                 util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
                 raise Exception(msg)
         else:
@@ -98,72 +154,10 @@ def writeImageWithProgress(ui, devnode, answers):
     if not os.path.exists(realpath) or not stat.S_ISBLK(os.stat(realpath)[0]):
         msg = "Error: %s is not a block device or a symlink to one!" % realpath
         xelogging.log(msg)
-        if ui:
-            ui.OKDialog("Error", msg)
-        image_fd.close()
         util.runCmd2(["ls", "-l", "/dev/disk/by-id"])
         raise Exception(msg)
 
-    rdbufsize = 16<<14
-    reads_done = 0
-
-    if answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:
-        installation = answers['installation-to-overwrite']
-        partition_info = diskutil.readPartitionInfoFromImageFD(input_fd, 1)
-        rc, size = util.runCmd2(['blockdev', '--getsize64', devnode], with_stdout = True)
-        if rc != 0:
-            raise Exception('Indeterminate size of destination partition: '+str(size))
-        else:
-            if partition_info.size > size:
-                raise Exception('Operation not possible - the new image in larger than the current partition size')
-        bzfilesize = partition_info.size
-        size_limit = partition_info.size
-        input_fd.seek(partition_info.start, PBZ2File.SEEK_SET)
-        xelogging.log('Writing image of size '+str(partition_info.size) + ', starting at '+str(partition_info.start) +
-        ' bytes to partition '+devnode+', size '+str(size))
-    else:
-        size_limit = None
-    reads_needed = (bzfilesize + rdbufsize - 1)/rdbufsize # roundup
-
-
-    # sanity check passed - open the block device to which we want to write
-    devfd = open(devnode, mode="wb")
-
-    if ui:
-        pd = ui.progress.initProgressDialog(
-            "Decompressing image",
-            "%(image_name)s is being written to %(devnode)s" % locals(),
-            reads_needed)
-        ui.progress.displayProgressDialog(0, pd)
-
-    bytes_read = 0
-    this_read_size = rdbufsize
-    try:
-        while True:
-            if size_limit is not None:
-                this_read_size = size_limit - bytes_read
-            this_read_size = min(this_read_size, rdbufsize)
-            if this_read_size < 0:
-                break
-                
-            buffer = input_fd.read(this_read_size)
-            bytes_read += len(buffer)
-            reads_done += 1
-            if not buffer:
-                break
-            devfd.write(buffer)
-            if ui:
-                ui.progress.displayProgressDialog(min(reads_needed, reads_done), pd)
-    except Exception, e:
-        xelogging.log_exception(e)
-        if ui:
-            ui.progress.clearModelessDialog()
-        image_fd.close()
-        devfd.close()
-        raise Exception("Fatal error occurred during write.  Press any key to reboot")
-    else:
-        image_fd.close()
-        devfd.close()
+    writeDataWithProgress(ui, devnode, answers, is_devnode = True)
 
     # fresh image written - need to re-read partition table 
     # (0x125F == BLKRRPART):
@@ -174,24 +168,20 @@ def writeImageWithProgress(ui, devnode, answers):
         # CA-23402: devfd might have been a partition and we can't tell with 
         # easily so we try the ioctl and ignore IOError exceptions, which is
         # what gets raised in this cause.
-        xelogging.log("BLKRRPART failed - expected in HDD installs. Error was %s" % str(e))
-        pass
+        xelogging.log("BLKRRPART failed - expected in reinstalls and HDD installs. Error was %s" % str(e))
     devfd.close()
     util.runCmd2(['udevsettle', '--timeout=30'])
 
-    # image successfully written
-    if ui:
-        ui.progress.clearModelessDialog()
-
+def offer_to_eject(ui, answers):
     if ui: 
         da = answers['accessor'] 
         if da.canEject():
             rv = ui.OKDialog ("Eject?", "Press OK to eject media", hasCancel = True)
             if rv in [ 'ok', None ]:
-                da.eject()
-
-    image_fd.close()
-    devfd.close()
+                try:
+                    da.eject()
+                except:
+                    pass # Ignore failure
 
 def run_post_install_script(answers):
     if answers.has_key('post-install-script'):
@@ -412,6 +402,14 @@ def wrap_ui_info(ui, info, function, title = None):
         if ui:
             ui.progress.clearModelessDialog()
 
+def hdd_install_writeable_root_partition(ui, partition_node, image_number, answers):
+    temp_file = tempfile.mkstemp('-rootPart.fs')[1]
+    try:
+        writeDataWithProgress(ui, temp_file, answers, is_devnode = False)
+        hdd_write_root_partition(temp_file, partition_node, 0, writeable = True)
+    finally:
+        os.remove(temp_file)
+
 def go_disk(ui, args, answerfile_address, custom):
     "Install oem edition to disk"
 
@@ -447,15 +445,18 @@ def go_disk(ui, args, answerfile_address, custom):
         if reinstall:
             # Reinstall writes a single partition from the image to the target partition directly,
             # so root_partition is typically /dev/sda5 or /dev/sda6
-            if writeable:
-                raise Exception('Writeable Upgrade or Freshen installations are not yet supported')
             reinstall_node = answers['installation-to-overwrite'].root_partition
-            writeImageWithProgress(ui, reinstall_node, answers)
+            if writeable:
+                # Always write the first root partition from the image
+                wrap_ui_info(ui, 'Installing system image ...',
+                    lambda: hdd_install_writeable_root_partition(ui, reinstall_node, 1, answers))
+            else:
+                writeImageWithProgress(ui, reinstall_node, answers)
             wrap_ui_info(ui, 'Customizing startup modules ...', lambda: hdd_update_initrd(reinstall_node))
         else:
             # Full install first decompresses the entire image into the partition that's going
             # to be used as an SR in the final configuration. 
-            wrap_ui_info(ui, 'Creating the system image disk partitions ...',
+            wrap_ui_info(ui, 'Creating system image disk partitions ...',
                 lambda: hdd_create_disk_partitions(ui, devnode))
             hdd_verify_partition_nodes(devnode)
             sr_devnode = getPartitionNode(devnode, OEMHDD_SR_PARTITION_NUMBER)
@@ -488,13 +489,18 @@ def go_disk(ui, args, answerfile_address, custom):
 
     run_post_install_script(answers)
 
+    answers['image-fd'].close() #  Must close file before ejecting
+
     if ui:
         if answerfile_address:
             ui.progress.showMessageDialog("Success", "Install complete - rebooting")
             time.sleep(2)
             ui.progress.clearModelessDialog()
         else:
+            offer_to_eject(ui, answers)
             ui.OKDialog("Success", "Install complete.  Click OK to reboot")
+
+
 
     return EXIT_OK
 
@@ -532,21 +538,21 @@ def go_flash(ui, args, answerfile_address, custom):
             ui.OKDialog ("Error", message)
         return EXIT_ERROR
 
-    if ui:
-        ui.progress.clearModelessDialog()
-
     if answers.has_key("xenrt"):
         partnode = getPartitionNode(devnode, OEMFLASH_BOOT_PARTITION_NUMBER)
-        write_xenrt(ui, answers, partnode)
+        wrap_ui_info(ui, 'Writing XenRT information ...', lambda: write_xenrt(ui, answers, partnode))
 
-    run_post_install_script(answers)
-    
+    wrap_ui_info(ui, 'Finalizing installation ...', lambda: run_post_install_script(answers))
+
+    answers['image-fd'].close() # Must close file before ejecting
+
     if ui:
         if answerfile_address:
             ui.progress.showMessageDialog("Success", "Install complete - rebooting")
             time.sleep(2)
             ui.progress.clearModelessDialog()
         else:
+            offer_to_eject(ui, answers)
             ui.OKDialog("Success", "Install complete.  Click OK to reboot")
 
     return EXIT_OK

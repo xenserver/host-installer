@@ -3,7 +3,8 @@
 # Reads from a multi-partition flash image file and populates the target
 # partition with the requested partition contents.
 
-# Flash system image, uncompressed, eg. oem-foo-bar.img
+# Flash system image, uncompressed, e.g. oem-foo-bar.img or filesystem
+# image, e.g. oem-foo-bar.fs
 IMAGE=$1
 
 # target partition, e.g. /dev/sda1
@@ -23,12 +24,17 @@ read_image_partition_offset() {
     IMG=$1
     PNUM=$2
 
-    BYTES=$(fdisk -l ${IMG} | sed -ne 's/^Units = .* \([0-9]*\) bytes$/\1/p')
-    START=$(fdisk -l ${IMG} | sed -ne 's,^'${IMG}'p\?'${PNUM}' *\*\? *\([0-9][0-9]*\) .*$,\1,p')
-    if [[ $PNUM == 1 ]] ; then
-        OFFSET=512
+    if [[ $PNUM == 0 ]] ; then
+        # Partition 0 means that this is a filesystem image
+        OFFSET=0
     else
-        OFFSET=$(( ${BYTES} * ${START} - ${BYTES} ))
+        BYTES=$(fdisk -l ${IMG} | sed -ne 's/^Units = .* \([0-9]*\) bytes$/\1/p')
+        START=$(fdisk -l ${IMG} | sed -ne 's,^'${IMG}'p\?'${PNUM}' *\*\? *\([0-9][0-9]*\) .*$,\1,p')
+        if [[ $PNUM == 1 ]] ; then
+            OFFSET=512
+        else
+            OFFSET=$(( ${BYTES} * ${START} - ${BYTES} ))
+        fi
     fi
 }
 
@@ -326,11 +332,18 @@ write_mbr() {
 }
 
 case "$COMMAND" in
+    system-image-0)
+            write_system 0 read-only
+        ;;
+    system-image-0-rw)
+            write_system 0 read-write
+        ;;
     system-image-1)
             write_system 1 read-only
         ;;
     system-image-1-rw)
             write_system 1 read-write
+
         ;;
     system-image-2)
             write_system 2 read-only

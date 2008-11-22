@@ -21,6 +21,7 @@
 import os, tempfile
 # Local file imports
 import diskutil, util, xelogging
+from constants import INVENTORY_FILE
 
 class Variant: # Superclass
     __inst = None # Reference to the singleton object
@@ -88,15 +89,19 @@ class VariantOEM(Variant):
         mountpoint = tempfile.mkdtemp('-runOverRoot')
         util.mount(partition, mountpoint, ['ro'], 'ext3')
         try:
-            rootfs_path = mountpoint+'/rootfs'
-            rootfs_mountpoint = tempfile.mkdtemp('-runOverRootFS')
-            util.mount(rootfs_path, rootfs_mountpoint, ['loop', 'ro'], 'squashfs')
-            
-            try:
-                ret_val = procedure(rootfs_mountpoint)
-            finally:
-                util.umount(rootfs_mountpoint)
-                os.rmdir(rootfs_mountpoint)
+            if os.path.exists(os.path.join(mountpoint, INVENTORY_FILE)):
+                # This is a rootfs-writable installation, so no need to loop-mount rootfs
+                ret_val = procedure(mountpoint)            
+            else:
+                rootfs_path = mountpoint+'/rootfs'
+                rootfs_mountpoint = tempfile.mkdtemp('-runOverRootFS')
+                util.mount(rootfs_path, rootfs_mountpoint, ['loop', 'ro'], 'squashfs')
+                
+                try:
+                    ret_val = procedure(rootfs_mountpoint)
+                finally:
+                    util.umount(rootfs_mountpoint)
+                    os.rmdir(rootfs_mountpoint)
         finally:
             util.umount(mountpoint)
             os.rmdir(mountpoint)
