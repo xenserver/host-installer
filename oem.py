@@ -72,7 +72,7 @@ def writeImageWithProgress(ui, devnode, answers):
 
     # See if the target device node is present and wait a while
     # in case it shows up, kicking the udev trigger in the loop
-    util.runCmd2(["udevsettle", "--timeout=30"])
+    util.runCmd2(["udevsettle", "--timeout=45"])
     devnode_present = os.path.exists(devnode)
     retries = 3
     while not devnode_present:
@@ -80,7 +80,7 @@ def writeImageWithProgress(ui, devnode, answers):
             if retries > 0:
                 retries -= 1
                 util.runCmd2(['udevtrigger'])
-                util.runCmd2(['udevsettle', '--timeout=30'])
+                util.runCmd2(['udevsettle', '--timeout=45'])
                 time.sleep(2)
             else:
                 msg = "Device node %s not present." % devnode
@@ -177,7 +177,7 @@ def writeImageWithProgress(ui, devnode, answers):
         xelogging.log("BLKRRPART failed - expected in HDD installs. Error was %s" % str(e))
         pass
     devfd.close()
-    util.runCmd2(['udevsettle', '--timeout=30'])
+    util.runCmd2(['udevsettle', '--timeout=45'])
 
     # image successfully written
     if ui:
