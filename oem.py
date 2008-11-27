@@ -129,7 +129,7 @@ def writeDataWithProgress(ui, filename, answers, is_devnode):
 
 def writeImageWithProgress(ui, devnode, answers):
     # in case it shows up, kicking the udev trigger in the loop
-    util.runCmd2(["udevsettle", "--timeout=30"])
+    util.runCmd2(["udevsettle", "--timeout=45"])
     devnode_present = os.path.exists(devnode)
     retries = 3
     while not devnode_present:
@@ -137,7 +137,7 @@ def writeImageWithProgress(ui, devnode, answers):
             if retries > 0:
                 retries -= 1
                 util.runCmd2(['udevtrigger'])
-                util.runCmd2(['udevsettle', '--timeout=30'])
+                util.runCmd2(['udevsettle', '--timeout=45'])
                 time.sleep(2)
             else:
                 msg = "Device node %s not present." % devnode
@@ -170,7 +170,7 @@ def writeImageWithProgress(ui, devnode, answers):
         # what gets raised in this cause.
         xelogging.log("BLKRRPART failed - expected in reinstalls and HDD installs. Error was %s" % str(e))
     devfd.close()
-    util.runCmd2(['udevsettle', '--timeout=30'])
+    util.runCmd2(['udevsettle', '--timeout=45'])
 
 def offer_to_eject(ui, answers):
     if ui: 
