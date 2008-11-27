@@ -490,7 +490,7 @@ def prepareNetworking(operation, mounts, interface, config, nameservers, nethw):
         admin_mac = ''
         network_content = [
             "ADMIN_INTERFACE=''",
-            "INTERFACES='%s'" % ' '.join(nethw.values())
+            "INTERFACES='%s'" % ' '.join( [ x.hwaddr for x in nethw.values() ] )
         ]
     else:
         admin_mac = config.get('hwaddr', '')
