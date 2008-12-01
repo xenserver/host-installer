@@ -35,7 +35,7 @@ class PBZ2File:
         self.decompressor = bz2.BZ2Decompressor()
         self.unused_output = ''
         if self.buffering == 0:
-            self.buffering = 32768
+            self.buffering = 128
         self.extent = None
         self.error = False
         
@@ -53,7 +53,14 @@ class PBZ2File:
                 input = self.file.read(self.buffering)
                 if len(input) == 0: # End of file
                     break
-                data += self.decompressor.decompress(input)
+                try:
+                    data += self.decompressor.decompress(input)
+                except EOFError:
+                    # This catches the event where the previous decompress() consumed exactly all
+                    # of the input data, triggering BZ_STREAM_END on the last byte, but leaving no unused_data
+                    # to trigger the case below.
+                    self.decompressor = bz2.BZ2Decompressor()
+                    data += self.decompressor.decompress(input)
                 while len(self.decompressor.unused_data) > 0:
                     # Create a new compressor to handle pbzip2's multiple blocks
                     unused_data = self.decompressor.unused_data

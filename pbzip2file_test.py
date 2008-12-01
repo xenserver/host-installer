@@ -84,16 +84,21 @@ def pbzip2file_test_main():
                 raise Exception('Test file too small for seek tests')
             f0 = file(filename, 'rb')
             f1 = PBZ2File(bz2filename, 'rb')
-            for i in range(10):
-                offset = random.randint(0, (size - test_size*2) / 2)
-                from_cur = random.randint(0, (size - test_size*2) / 2)
-                f0.seek(offset, PBZ2File.SEEK_SET)
-                f1.seek(offset, PBZ2File.SEEK_SET)
-                f0.seek(from_cur, PBZ2File.SEEK_CUR)
-                f1.seek(from_cur, PBZ2File.SEEK_CUR)
-                self.failIf(f0.read(test_size) != f1.read(test_size))
-                self.failIf(f0.read(test_size) != f1.read(test_size))
-                
+            offsets = [ random.randint(0, (size - test_size*2) / 2) for i in range(10) ]
+            from_curs = [ random.randint(0, (size - test_size*2) / 2) for i in range(10) ]
+            for offset, from_cur in zip(offsets, from_curs):
+                try:
+                    f0.seek(offset, PBZ2File.SEEK_SET)
+                    f1.seek(offset, PBZ2File.SEEK_SET)
+                    f0.seek(from_cur, PBZ2File.SEEK_CUR)
+                    f1.seek(from_cur, PBZ2File.SEEK_CUR)
+                    self.failIf(f0.read(test_size) != f1.read(test_size))
+                    self.failIf(f0.read(test_size) != f1.read(test_size))
+                   
+                except:
+                    print 'Failure for offset='+str(offset)+' in offsets='+str(offsets)+' from_curs='+str(from_curs)
+                    raise
+                    
         def test_random_seek_end(self):
             size = os.path.getsize(filename)
             test_size = 64
