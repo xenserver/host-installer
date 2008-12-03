@@ -15,6 +15,7 @@ import constants
 import product
 import xelogging
 import netutil
+import diskutil
 from netinterface import *
 
 import xml.dom.minidom
@@ -268,7 +269,7 @@ def parseExistingInstallation(n):
         raise AnswerfileError, "No existing installation specified."
     disk = "/dev/" + getText(n.getElementsByTagName('existing-installation')[0].childNodes)
     installations = product.findXenSourceProducts()
-    installations = filter(lambda x: x.primary_disk == disk, installations)
+    installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
     if len(installations) != 1:
         raise AnswerfileError, "Could not locate the installation specified to be reinstalled."
     results['installation-to-overwrite'] = installations[0]
