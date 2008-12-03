@@ -524,7 +524,7 @@ def go_flash(ui, args, answerfile_address, custom):
     xelogging.log("Starting install to flash write")
     answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_FLASH
 
-    reinstall = (answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:)
+    reinstall = (answers.get('install-type', None) == INSTALL_TYPE_REINSTALL)
     if reinstall:
         devnode = answers['installation-to-overwrite'].root_partition
     else:
