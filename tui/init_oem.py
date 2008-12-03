@@ -104,16 +104,25 @@ def oem_is_flash(answers):
     
 def oem_is_hdd(answers):
     return answers['target-type'] == 'hdd'
-    
+
+def oem_is_clean_install(answers):
+    return answers['install-type'] == constants.INSTALL_TYPE_FRESH
+
+def oem_is_reinstall(answers):
+    return answers['install-type'] == constants.INSTALL_TYPE_REINSTALL
+
 def oem_install_sequence(ui, answers):
     fullAnswers = answers.copy()
     fullAnswers['network-hardware'] = netutil.scanConfiguration()
-    
+
     # find existing installations:
     if ui:
         ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
     installed_products = product.find_installed_products()
     upgradeable_products = upgrade.filter_for_upgradeable_products(installed_products)
+    if len(upgradeable_products) == 0:
+        fullAnswers['install-type'] = constants.INSTALL_TYPE_FRESH
+        fullAnswers['preserve-settings'] = False
     if ui:
         ui.progress.clearModelessDialog()
     
@@ -124,8 +133,8 @@ def oem_install_sequence(ui, answers):
             predicates=[lambda _:len(installed_products) > 0 and len(upgradeable_products) == 0]),
         uic.Step(uis.get_installation_type, args=[upgradeable_products],
             predicates=[lambda _:len(upgradeable_products) > 0]),
-        uic.Step(get_disk_blockdev_to_recover, predicates = [oem_is_hdd]),
-        uic.Step(get_flash_blockdev_to_recover, predicates = [oem_is_flash]),
+        uic.Step(get_disk_blockdev_to_recover, predicates = [oem_is_hdd, oem_is_clean_install]),
+        uic.Step(get_flash_blockdev_to_recover, predicates = [oem_is_flash, oem_is_clean_install]),
         uic.Step(get_image_media),
         uic.Step(get_remote_file, predicates = [lambda a: a['source-media'] != 'local']),
         uic.Step(get_local_file,  predicates = [lambda a: a['source-media'] == 'local']),
@@ -338,7 +347,7 @@ def get_remote_file(answers):
 def get_local_file(answers):
 
     # build dalist, a list of accessor objects to mounted CDs and USB partitions
-    dev2write = answers["primary-disk"][5:] # strip the 5-char "/dev/" off
+    dev2write = answers.get('primary-disk', '')[5:] # strip the 5-char "/dev/" off
     removable_devs = diskutil.getRemovableDeviceList()
     if dev2write in removable_devs: removable_devs.remove(dev2write)
     dalist = []
@@ -403,7 +412,11 @@ def get_local_file(answers):
     return RIGHT_FORWARDS
 
 def confirm_recover_blockdev(answers):
-    dev = answers["primary-disk"][5:] # strip the 5-char "/dev/" off
+    if answers.get('install-type', None) == constants.INSTALL_TYPE_REINSTALL:
+        devnode = answers['installation-to-overwrite'].root_partition
+    else:
+        devnode = answers["primary-disk"]
+    dev = devnode[5:] # strip the 5-char "/dev/" off
     vendor, model, _ = diskutil.getExtendedDiskInfo(dev)
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,
@@ -419,7 +432,11 @@ def confirm_recover_blockdev(answers):
     return LEFT_BACKWARDS * 3 # back to get image_media
 
 def get_state_partition(answers):
-    dev = answers["primary-disk"][5:] # strip the 5-char "/dev/" off
+    if answers.get('install-type', None) == constants.INSTALL_TYPE_REINSTALL:
+        devnode = answers['installation-to-overwrite'].root_partition
+    else:
+        devnode = answers["primary-disk"]
+    dev = devnode[5:] # strip the 5-char "/dev/" off
     vendor, model, _ = diskutil.getExtendedDiskInfo(dev)
     partitionList = sorted(diskutil.partitionsOnDisk(dev))
     entries = []

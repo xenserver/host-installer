@@ -431,7 +431,7 @@ def go_disk(ui, args, answerfile_address, custom):
     answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_DISK
 
     reinstall = ( answers.get('install-type', None) == INSTALL_TYPE_REINSTALL )
-    devnode = answers["primary-disk"]
+
 
     # The boot partition is a primary FAT16 partition with a well-known label.
     # The extended partition contains:
@@ -454,6 +454,7 @@ def go_disk(ui, args, answerfile_address, custom):
                 writeImageWithProgress(ui, reinstall_node, answers)
             wrap_ui_info(ui, 'Customizing startup modules ...', lambda: hdd_update_initrd(reinstall_node))
         else:
+            devnode = answers["primary-disk"]
             # Full install first decompresses the entire image into the partition that's going
             # to be used as an SR in the final configuration. 
             wrap_ui_info(ui, 'Creating system image disk partitions ...',
@@ -523,14 +524,16 @@ def go_flash(ui, args, answerfile_address, custom):
     xelogging.log("Starting install to flash write")
     answers['operation'] = init_constants.OPERATION_INSTALL_OEM_TO_FLASH
 
-    if answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:
+    reinstall = (answers.get('install-type', None) == INSTALL_TYPE_REINSTALL:)
+    if reinstall:
         devnode = answers['installation-to-overwrite'].root_partition
     else:
         devnode = answers["primary-disk"]
 
     try:
         writeImageWithProgress(ui, devnode, answers)
-        write_oem_firstboot_files(answers)
+        if not reinstall:
+            write_oem_firstboot_files(answers)
     except Exception, e:
         message =  "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e)
         xelogging.log(message)
@@ -560,6 +563,7 @@ def go_flash(ui, args, answerfile_address, custom):
 def write_oem_firstboot_files(answers):
     # Create a partition containing the remaining disk space and tell XAPI to 
     # initialise it as the Local SR on first boot
+
     operation = answers['operation']
     is_hdd = init_constants.operationIsOEMHDDInstall(operation)
     if is_hdd:
