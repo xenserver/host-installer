@@ -80,7 +80,10 @@ def choose_operation(menu_option, custom):
             entries.append((textPrefix + 'hard disk with custom configuration',
                 init_constants.OPERATION_INSTALL_OEM_TO_DISK_CUSTOM)) 
                 
-    entries.append((' * Reset the password for an existing installation', init_constants.OPERATION_RESET_PASSWORD))
+    entries.append((' * Reset the password for an existing installation',
+        init_constants.OPERATION_RESET_PASSWORD))
+    entries.append((' * Reset an existing installation to factory defaults',
+        init_constants.OPERATION_RESET_STATE_PARTITION))
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % PRODUCT_BRAND,
@@ -171,7 +174,6 @@ def recover_disk_drive_sequence(ui, custom):
         }
     return oem_install_sequence(ui, answers)
 
-
 # Set of questions to pose if "reset password" is chosen
 def reset_password_sequence():
     answers = {}
@@ -188,6 +190,23 @@ def reset_password_sequence():
         return None
     else:
         return answers
+
+# Set of questions to pose if "factory reset" is chosen
+def reset_state_partition_sequence():
+    answers = {}
+    uic = uicontroller
+    seq = [
+        uic.Step(get_installation_blockdev),
+        uic.Step(get_state_partition),
+        uic.Step(confirm_reset_state_partition)
+        ]
+    rc = uicontroller.runSequence(seq, answers)
+
+    if rc == -1:
+        return None
+    else:
+        return answers
+
 
 # Offer a list of block devices to the user
 def get_blockdev_to_recover(answers, flashonly, alreadyinstalled = False):
@@ -515,4 +534,16 @@ def confirm_reset_password(answers):
 
     return LEFT_BACKWARDS * 2 # back to the top level
 
-    
+def confirm_reset_state_partition(answers):
+    rc = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Confirm Factory Reset",
+        "Are you sure you want to reset this installation to factory defaults?  This "
+        "will delete ALL configuration information, ALL virtual machines and ALL "
+        "information in Storage Repositories on local disks.  This operation cannot be undone.",
+        ['Reset to Factory Defaults', 'Back'], default=1, width=70
+        )
+
+    if rc == 'reset to factory defaults': return RIGHT_FORWARDS
+
+    return LEFT_BACKWARDS * 2 # back to the top level

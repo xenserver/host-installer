@@ -686,3 +686,25 @@ def reset_password(ui, args, answerfile_address):
 
     ui.OKDialog("Success", "The password has been reset successfully.  Press <Enter> to reboot.")
     return EXIT_OK
+
+def reset_state_partition(ui, args, answerfile_address):
+    xelogging.log("Starting reset state partition")
+    answers = ui.init_oem.reset_state_partition_sequence()
+    if not answers:
+        return None # keeps outer loop going
+    partition, subdir = answers['partition']
+    xelogging.log("Resetting state partition on "+partition)
+
+    partition_dev = '/dev/' + partition.replace("!", "/")
+    try:
+        rc, stdout, stderr = util.runCmd2( ['mkfs.ext3', partition_dev], with_stdout = True, with_stderr = True)
+        if rc != 0:
+            raise Exception(stderr+stdout)
+    except Exception, e:
+        ui.OKDialog("Failed", str(e))
+        return EXIT_ERROR
+        
+    
+    ui.OKDialog("Success", "The installation has been reset to factory defaults.  Press <Enter> to reboot.")
+    return  EXIT_OK
+    
