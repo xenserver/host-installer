@@ -123,7 +123,9 @@ def go(ui, args, answerfile_address):
         assert ui != None or answerfile_address != None
 
         if answerfile_address:
-            results.update(answerfile.processAnswerfile(answerfile_address))
+            a = answerfile.Answerfile(answerfile_address)
+            results.update(a.parseScripts())
+            results.update(a.processAnswerfile())
 
         results['extra-repos'] = extra_repo_defs
 
@@ -221,6 +223,19 @@ def go(ui, args, answerfile_address):
         # and now on the disk if possible:
         if results.has_key('primary-disk'):
             backend.writeLog(results['primary-disk'])
+
+        xelogging.log(results)
+        if results.has_key('install-failed-script'):
+            # XenRT - run failure script
+            script = results['install-failed-script']
+            try:
+                xelogging.log("Running script: %s" % script)
+                util.fetchFile(script, "/tmp/script")
+                os.chmod("/tmp/script", 0555)
+                util.runCmd2(["/tmp/script"])
+                os.unlink("/tmp/script")
+            except Exception, e:
+                print "Failed to run script: %s" % script
 
         # exit with failure status:
         status = constants.EXIT_ERROR
