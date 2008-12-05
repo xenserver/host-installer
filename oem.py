@@ -512,7 +512,7 @@ def go_flash(ui, args, answerfile_address, custom):
     assert ui != None or answerfile_address != None
 
     if answerfile_address:
-        answers = answerfile.processAnswerfile(answerfile_address)
+        answers = answerfile.Answerfile(answerfile_address).processAnswerfile()
         post_process_answerfile_data(answers)
 
     else:
