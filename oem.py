@@ -512,7 +512,7 @@ def go_flash(ui, args, answerfile_address, custom):
     assert ui != None or answerfile_address != None
 
     if answerfile_address:
-        answers = answerfile.processAnswerfile(answerfile_address)
+        answers = answerfile.Answerfile(answerfile_address).processAnswerfile()
         post_process_answerfile_data(answers)
 
     else:
@@ -697,10 +697,16 @@ def reset_state_partition(ui, args, answerfile_address):
 
     partition_dev = '/dev/' + partition.replace("!", "/")
     try:
+        # Remake the state partition filesystem but preserve the filesystem label
+        rc, stdout, stderr = util.runCmd2( ['e2label', partition_dev], with_stdout = True, with_stderr = True)
+        current_label = stdout.strip()
+        if rc != 0: raise Exception('read e2label failed:\n'+stderr+stdout)
         rc, stdout, stderr = util.runCmd2( ['mkfs.ext3', partition_dev], with_stdout = True, with_stderr = True)
-        if rc != 0:
-            raise Exception(stderr+stdout)
+        if rc != 0: raise Exception('mkfs failed:\n'+stderr+stdout)
+        rc, stdout, stderr = util.runCmd2( ['e2label', partition_dev, current_label], with_stdout = True, with_stderr = True)
+        if rc != 0: raise Exception('write e2label failed:\n'+stderr+stdout)
     except Exception, e:
+        xelogging.log_exception(e)
         ui.OKDialog("Failed", str(e))
         return EXIT_ERROR
         
