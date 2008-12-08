@@ -475,6 +475,41 @@ class NFSAccessor(MountingAccessor):
     def __init__(self, nfspath):
         MountingAccessor.__init__(self, ['nfs'], nfspath)
 
+class URLFileWrapper:
+    "This wrapper emulate seek (forwards) for URL streams"
+    SEEK_SET = 0 # SEEK_CUR and SEEK_END not supported
+
+    def __init__(self, delegate):
+        self.delegate = delegate
+        self.pos = 0
+        
+    def __getattr__(self, name):
+        return getattr(self.delegate, name)
+
+    def read(self, *params):
+        ret_val = self.delegate.read(*params)
+        self.pos += len(ret_val)
+        return ret_val
+
+    def seek(self, offset, whence = 0):
+        consume = 0
+        if whence == self.SEEK_SET:
+            if offset >= self.pos:
+                consume = offset - self.pos
+            else:
+                raise Exception('Backward seek not supported')
+        else:
+           raise Exception('Only SEEK_SET supported')
+           
+        if consume > 0:
+            step = 100000
+            while consume > step:
+                if len(self.read(step)) != step: # Discard data
+                    raise IOError('Seek beyond end of file')
+                consume -= step
+            if len(self.read(consume)) != consume: # Discard data
+                raise IOError('Seek beyond end of file')
+
 class URLAccessor(Accessor):
     url_prefixes = ['http://', 'https://', 'ftp://']
 
@@ -557,7 +592,8 @@ class URLAccessor(Accessor):
             return False
 
     def openAddress(self, address):
-        return urllib2.urlopen(self._url_concat(self.baseAddress, address))
+        ret_val = urllib2.urlopen(self._url_concat(self.baseAddress, address))
+        return URLFileWrapper(ret_val)
 
 def repositoriesFromDefinition(media, address):
     if media == 'local':

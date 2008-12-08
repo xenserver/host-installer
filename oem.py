@@ -78,7 +78,7 @@ def writeDataWithProgress(ui, filename, answers, is_devnode):
             if rc != 0:
                 raise Exception('Indeterminate size of destination partition: '+str(size))
             elif partition_info.size > int(size):
-                raise Exception('Operation not possible - the new image in larger than the current partition size')
+                raise Exception('Operation not possible - the new image is larger than the current partition size')
             xelogging.log('Target partition size is '+str(size))
 
         bzfilesize = partition_info.size
