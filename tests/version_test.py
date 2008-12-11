@@ -7,18 +7,10 @@
 # Copyright Citrix, Inc. 2008
 
 import sys
+from framework import test, finish
 from product import Version
 ANY = Version.ANY
 
-test_pass = True
-
-def test(name, bool):
-    global test_pass
-    if bool:
-        print "[Pass] %s" % name
-    else:
-        test_pass = False
-        print "[Fail] %s" % name
 
 # Check equality: positive tests
 test("4.0.0 = 4.0.0", Version(4, 0, 0) == Version(4, 0, 0))
@@ -53,7 +45,10 @@ test("-ve: 3.0.0 > 4.0.0", not (Version(3, 0, 0) > Version(4, 0, 0)))
 test("-ve: 3.1.0 > 3.2.0", not (Version(3, 1, 0) > Version(3, 2, 0)))
 test("-ve: 3.2.0-100 > 3.0.0-100", not (Version(3, 0, 0, 100) > Version(3, 2, 0, 100)))
 
-if test_pass:
+###
+
+result = finish()
+if result:
     sys.exit(0)
 else:
     sys.exit(1)
