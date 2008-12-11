@@ -160,14 +160,14 @@ class Answerfile:
         for disk in self.nodelist.getElementsByTagName('guest-disk'):
             results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
-        results.update(parseSource(n))
+        results.update(self.parseSource())
         try:
-            results.update(parseInterfaces(n))
+            results.update(self.parseInterfaces())
         except IndexError:
             # Don't configure the admin interface if not specified in answerfile
             pass
-        results.update(parseOemSource(n))
-        results.update(parseScripts(n))
+        results.update(self.parseOemSource())
+        results.update(self.parseScripts())
 
         rw = self.nodelist.getElementsByTagName('rootfs-writable')
         if len(rw) == 1:
@@ -180,8 +180,8 @@ class Answerfile:
 
         # primary-disk:
         results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
-        results.update(parseOemSource(n))
-        results.update(parseScripts(n))
+        results.update(self.parseOemSource())
+        results.update(self.parseScripts())
 
         # guest-disks:
         results['guest-disks'] = []

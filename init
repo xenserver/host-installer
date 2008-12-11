@@ -255,6 +255,11 @@ def main(args):
                 xelogging.log("Resetting password")
                 rc = oem.reset_password(ui, args, answerfile_address)
 
+            # reset OEM state partition
+            elif operation == init_constants.OPERATION_RESET_STATE_PARTITION:
+                xelogging.log("Resetting password")
+                rc = oem.reset_state_partition(ui, args, answerfile_address)
+
             operation = None
             # if we're non-interactive, or weren't canceled, force us to exit:
             if rc == EXIT_OK or rc == EXIT_ERROR or not interactive:

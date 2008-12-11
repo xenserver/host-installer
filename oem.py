@@ -78,7 +78,7 @@ def writeDataWithProgress(ui, filename, answers, is_devnode):
             if rc != 0:
                 raise Exception('Indeterminate size of destination partition: '+str(size))
             elif partition_info.size > int(size):
-                raise Exception('Operation not possible - the new image in larger than the current partition size')
+                raise Exception('Operation not possible - the new image is larger than the current partition size')
             xelogging.log('Target partition size is '+str(size))
 
         bzfilesize = partition_info.size
@@ -512,7 +512,7 @@ def go_flash(ui, args, answerfile_address, custom):
     assert ui != None or answerfile_address != None
 
     if answerfile_address:
-        answers = answerfile.processAnswerfile(answerfile_address)
+        answers = answerfile.Answerfile(answerfile_address).processAnswerfile()
         post_process_answerfile_data(answers)
 
     else:
@@ -686,3 +686,31 @@ def reset_password(ui, args, answerfile_address):
 
     ui.OKDialog("Success", "The password has been reset successfully.  Press <Enter> to reboot.")
     return EXIT_OK
+
+def reset_state_partition(ui, args, answerfile_address):
+    xelogging.log("Starting reset state partition")
+    answers = ui.init_oem.reset_state_partition_sequence()
+    if not answers:
+        return None # keeps outer loop going
+    partition, subdir = answers['partition']
+    xelogging.log("Resetting state partition on "+partition)
+
+    partition_dev = '/dev/' + partition.replace("!", "/")
+    try:
+        # Remake the state partition filesystem but preserve the filesystem label
+        rc, stdout, stderr = util.runCmd2( ['e2label', partition_dev], with_stdout = True, with_stderr = True)
+        current_label = stdout.strip()
+        if rc != 0: raise Exception('read e2label failed:\n'+stderr+stdout)
+        rc, stdout, stderr = util.runCmd2( ['mkfs.ext3', partition_dev], with_stdout = True, with_stderr = True)
+        if rc != 0: raise Exception('mkfs failed:\n'+stderr+stdout)
+        rc, stdout, stderr = util.runCmd2( ['e2label', partition_dev, current_label], with_stdout = True, with_stderr = True)
+        if rc != 0: raise Exception('write e2label failed:\n'+stderr+stdout)
+    except Exception, e:
+        xelogging.log_exception(e)
+        ui.OKDialog("Failed", str(e))
+        return EXIT_ERROR
+        
+    
+    ui.OKDialog("Success", "The installation has been reset to factory defaults.  Press <Enter> to reboot.")
+    return  EXIT_OK
+    
