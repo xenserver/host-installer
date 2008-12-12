@@ -10,6 +10,7 @@ clean:
 
 precommit:
 	PYTHONPATH=. python tests/version_test.py
+	PYTHONPATH=. python tests/diskFromPartition_test.py
 
 install:
 	mkdir -p $(INSTALLER_DIR) $(SUPPORT_DIR)
