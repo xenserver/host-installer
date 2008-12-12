@@ -48,6 +48,19 @@ def main(args):
     ui.end_ui()
     return status
 
+def handle_install_failure(answers):
+    if answers.has_key('install-failed-script'):
+        # XenRT - run failure script
+        script = answers['install-failed-script']
+        try:
+            xelogging.log("Running script: %s" % script)
+            util.fetchFile(script, "/tmp/script")
+            os.chmod("/tmp/script", 0555)
+            util.runCmd2(["/tmp/script"])
+            os.unlink("/tmp/script")
+        except Exception, e:
+            print "Failed to run script: "+str(script) +': '+str(e)
+
 def go(ui, args, answerfile_address):
     extra_repo_defs = []
     results = {
@@ -200,42 +213,37 @@ def go(ui, args, answerfile_address):
             xelogging.log("The user aborted the installation from within the user interface.")
             status = constants.EXIT_USER_CANCEL
     except Exception, e:
-        # first thing to do is to get the traceback and log it:
-        ex = sys.exc_info()
-        err = str.join("", traceback.format_exception(*ex))
-        xelogging.log("INSTALL FAILED.")
-        xelogging.log("A fatal exception occurred:")
-        xelogging.log(err)
+        try:
+            # first thing to do is to get the traceback and log it:
+            ex = sys.exc_info()
+            err = str.join("", traceback.format_exception(*ex))
+            xelogging.log("INSTALL FAILED.")
+            xelogging.log("A fatal exception occurred:")
+            xelogging.log(err)
 
-        # now write out logs where possible:
-        xelogging.writeLog("/tmp/install-log")
-
-        # collect logs where possible
-        xelogging.collectLogs("/tmp")
-
-        # now display a friendly error dialog:
-        if ui:
-            ui.exn_error_dialog("install-log", True)
-        else:
-            txt = constants.error_string(str(e), 'install-log', True)
-            xelogging.log(txt)
-
-        # and now on the disk if possible:
-        if results.has_key('primary-disk'):
-            backend.writeLog(results['primary-disk'])
-
-        xelogging.log(results)
-        if results.has_key('install-failed-script'):
-            # XenRT - run failure script
-            script = results['install-failed-script']
-            try:
-                xelogging.log("Running script: %s" % script)
-                util.fetchFile(script, "/tmp/script")
-                os.chmod("/tmp/script", 0555)
-                util.runCmd2(["/tmp/script"])
-                os.unlink("/tmp/script")
-            except Exception, e:
-                print "Failed to run script: %s" % script
+            # now write out logs where possible:
+            xelogging.writeLog("/tmp/install-log")
+    
+            # collect logs where possible
+            xelogging.collectLogs("/tmp")
+    
+            # now display a friendly error dialog:
+            if ui:
+                ui.exn_error_dialog("install-log", True)
+            else:
+                txt = constants.error_string(str(e), 'install-log', True)
+                xelogging.log(txt)
+    
+            # and now on the disk if possible:
+            if results.has_key('primary-disk'):
+                backend.writeLog(results['primary-disk'])
+    
+            xelogging.log(results)
+        except Exception, e:
+            # Don't let logging exceptions prevent subsequent actions
+            print 'Logging failed: '+str(e)
+            
+        handle_install_failure(results)
 
         # exit with failure status:
         status = constants.EXIT_ERROR

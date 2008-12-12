@@ -322,6 +322,7 @@ def write_xenrt(ui, answers, partnode):
         if ui:
             ui.OKDialog("Failed", str(e))
         xelogging.log("Failure: " + str(e))
+        install.handle_install_failure(answers)
         return EXIT_ERROR
     xelogging.log("Wrote XenRT data files")
 
@@ -486,6 +487,7 @@ def go_disk(ui, args, answerfile_address, custom):
         xelogging.log_exception(e)
         if ui:
             ui.OKDialog ("Error", "Fatal error occurred:\n\n%s\n\nPress any key to reboot" % str(e))
+        install.handle_install_failure(answers)
         return EXIT_ERROR
 
     run_post_install_script(answers)
@@ -539,6 +541,8 @@ def go_flash(ui, args, answerfile_address, custom):
         xelogging.log(message)
         if ui:
             ui.OKDialog ("Error", message)
+            
+        install.handle_install_failure(answers)
         return EXIT_ERROR
 
     if answers.has_key("xenrt"):
