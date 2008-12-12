@@ -41,6 +41,7 @@ import md5crypt
 import random
 import fcntl
 import backend
+import install
 from pbzip2file import *
 
 from version import *
