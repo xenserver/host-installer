@@ -236,6 +236,7 @@ def requireNetworking(answers, defaults=None):
         else:
             if answers and type(answers) == dict:
                 answers['net-admin-interface'] = conf_dict['interface']
+                answers['net-admin-configuration'] = conf_dict['config']
                 answers['runtime-iface-configuration'] = (False, {conf_dict['interface']: conf_dict['config']})
             tui.progress.clearModelessDialog()
         
