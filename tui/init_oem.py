@@ -432,7 +432,7 @@ def get_local_file(answers):
 
 def confirm_recover_blockdev(answers):
     if answers.get('install-type', None) == constants.INSTALL_TYPE_REINSTALL:
-        devnode = answers['installation-to-overwrite'].root_partition
+        devnode = diskutil.diskFromPartition(answers['installation-to-overwrite'].root_partition)
     else:
         devnode = answers["primary-disk"]
     dev = devnode[5:] # strip the 5-char "/dev/" off
