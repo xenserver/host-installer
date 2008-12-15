@@ -141,14 +141,14 @@ def oem_install_sequence(ui, answers):
         uic.Step(get_image_media),
         uic.Step(get_remote_file, predicates = [lambda a: a['source-media'] != 'local']),
         uic.Step(get_local_file,  predicates = [lambda a: a['source-media'] == 'local']),
-        uic.Step(uis.get_root_password, predicates = [oem_is_custom]),
-        uic.Step(uis.get_admin_interface, predicates = [oem_is_custom, oem_not_preserve_settings]),
-        uic.Step(uis.get_admin_interface_configuration, predicates = [oem_is_custom, oem_not_preserve_settings]),
-        uic.Step(uis.get_name_service_configuration, predicates = [oem_is_custom, oem_not_preserve_settings]),
-        uic.Step(uis.get_timezone_region, predicates = [oem_is_custom, oem_not_preserve_settings]),
-        uic.Step(uis.get_timezone_city, predicates = [oem_is_custom, oem_not_preserve_settings]),
-        uic.Step(uis.get_time_configuration_method, predicates = [oem_is_custom, oem_not_preserve_settings]),
-        uic.Step(uis.get_ntp_servers, predicates = [oem_is_custom, oem_not_preserve_settings]),
+        uic.Step(uis.get_root_password, predicates = [oem_is_custom, oem_is_clean_install]),
+        uic.Step(uis.get_admin_interface, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
+        uic.Step(uis.get_admin_interface_configuration, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
+        uic.Step(uis.get_name_service_configuration, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
+        uic.Step(uis.get_timezone_region, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
+        uic.Step(uis.get_timezone_city, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
+        uic.Step(uis.get_time_configuration_method, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
+        uic.Step(uis.get_ntp_servers, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
         uic.Step(confirm_recover_blockdev)
     ]
     rc = uicontroller.runSequence(seq, fullAnswers)
