@@ -700,22 +700,34 @@ def reset_state_partition(ui, args, answerfile_address):
     partition, subdir = answers['partition']
     xelogging.log("Resetting state partition on "+partition)
 
+    mount_point = tempfile.mkdtemp('.oeminstaller')
     partition_dev = '/dev/' + partition.replace("!", "/")
+    # Preserve the data directory so that the local SR is recreated
+    preserve_path = mount_point+'/installer/etc/firstboot.d/data'
     try:
-        # Remake the state partition filesystem but preserve the filesystem label
-        rc, stdout, stderr = util.runCmd2( ['e2label', partition_dev], with_stdout = True, with_stderr = True)
-        current_label = stdout.strip()
-        if rc != 0: raise Exception('read e2label failed:\n'+stderr+stdout)
-        rc, stdout, stderr = util.runCmd2( ['mkfs.ext3', partition_dev], with_stdout = True, with_stderr = True)
-        if rc != 0: raise Exception('mkfs failed:\n'+stderr+stdout)
-        rc, stdout, stderr = util.runCmd2( ['e2label', partition_dev, current_label], with_stdout = True, with_stderr = True)
-        if rc != 0: raise Exception('write e2label failed:\n'+stderr+stdout)
+        util.mount(partition_dev, mount_point, fstype='ext3', options=['rw'])
+        try:
+            for root, dirs, files in os.walk(mount_point, topdown=False):
+                if not root.startswith(preserve_path):
+                    # Remove all files not in the preserved directory
+                    for name in files:
+                        os.remove(os.path.join(root, name))
+                    for name in dirs:
+                        dir_name = os.path.join(root, name)
+                        if not preserve_path.startswith(dir_name):
+                            # Remove all directories not in the full path of the preserved directory
+                            if os.path.islink(dir_name):
+                                os.remove(dir_name)
+                            else:
+                                os.rmdir(dir_name)
+
+        finally:
+            util.umount(partition_dev)
     except Exception, e:
         xelogging.log_exception(e)
         ui.OKDialog("Failed", str(e))
         return EXIT_ERROR
-        
-    
+
     ui.OKDialog("Success", "The installation has been reset to factory defaults.  Press <Enter> to reboot.")
     return  EXIT_OK
     
