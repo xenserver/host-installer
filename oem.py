@@ -703,19 +703,28 @@ def reset_state_partition(ui, args, answerfile_address):
     mount_point = tempfile.mkdtemp('.oeminstaller')
     partition_dev = '/dev/' + partition.replace("!", "/")
     # Preserve the data directory so that the local SR is recreated
-    preserve_path = mount_point+'/installer/etc/firstboot.d/data'
+    preserve_path = mount_point+'/installer/etc/firstboot.d'
+    preserve_files = [
+        mount_point+'/installer/etc/firstboot.d/log/27-detect-nics',
+        mount_point+'/installer/etc/firstboot.d/state/27-detect-nics'
+        ]              
     try:
         util.mount(partition_dev, mount_point, fstype='ext3', options=['rw'])
         try:
             for root, dirs, files in os.walk(mount_point, topdown=False):
-                if not root.startswith(preserve_path):
-                    # Remove all files not in the preserved directory
+                if not root.startswith(preserve_path+'/data'):
+                    # Remove files not in the preserved data directory
                     for name in files:
-                        os.remove(os.path.join(root, name))
+                        filename = os.path.join(root, name)
+                        if filename not in preserve_files:
+                            os.remove(filename)
                     for name in dirs:
                         dir_name = os.path.join(root, name)
-                        if not preserve_path.startswith(dir_name):
-                            # Remove all directories not in the full path of the preserved directory
+                        # Test whether first characters of dir_name and preserve_path are the same,
+                        # truncating to the length of the shortest string
+                        common_len = min(len(preserve_path), len(dir_name))
+                        if dir_name[:common_len] != preserve_path[:common_len]:
+                            # Remove all directories not in the path of the preserved directories
                             if os.path.islink(dir_name):
                                 os.remove(dir_name)
                             else:
