@@ -703,33 +703,29 @@ def reset_state_partition(ui, args, answerfile_address):
     mount_point = tempfile.mkdtemp('.oeminstaller')
     partition_dev = '/dev/' + partition.replace("!", "/")
     # Preserve the data directory so that the local SR is recreated
-    preserve_path = mount_point+'/installer/etc/firstboot.d'
-    preserve_files = [
-        mount_point+'/installer/etc/firstboot.d/log/27-detect-nics',
-        mount_point+'/installer/etc/firstboot.d/state/27-detect-nics'
+    preserve_path = mount_point+'/installer'
+    delete_files = [
+        mount_point+'/installer/applied.stamp'
         ]              
     try:
         util.mount(partition_dev, mount_point, fstype='ext3', options=['rw'])
         try:
             for root, dirs, files in os.walk(mount_point, topdown=False):
-                if not root.startswith(preserve_path+'/data'):
+                if not root.startswith(preserve_path):
                     # Remove files not in the preserved data directory
                     for name in files:
-                        filename = os.path.join(root, name)
-                        if filename not in preserve_files:
-                            os.remove(filename)
+                        os.remove(os.path.join(root, name))
                     for name in dirs:
                         dir_name = os.path.join(root, name)
-                        # Test whether first characters of dir_name and preserve_path are the same,
-                        # truncating to the length of the shortest string
-                        common_len = min(len(preserve_path), len(dir_name))
-                        if dir_name[:common_len] != preserve_path[:common_len]:
+                        if not dir_name.startswith(preserve_path):
                             # Remove all directories not in the path of the preserved directories
                             if os.path.islink(dir_name):
                                 os.remove(dir_name)
                             else:
                                 os.rmdir(dir_name)
-
+            for filename in delete_files:
+                if os.path.exists(filename):
+                    os.remove(filename)
         finally:
             util.umount(partition_dev)
     except Exception, e:
