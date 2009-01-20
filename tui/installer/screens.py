@@ -99,11 +99,11 @@ Please make sure you have backed up any data you wish to preserve before proceed
             iqns = map(lambda x : x.split()[-1], out.split('\n'))
 
             # ask user to select an IQN
+            entries = [ (x,x) for x in iqns ]
             if answers.has_key('iscsi-iqn'):
                 default = selectDefault(answers['iscsi-iqn'], entries)
             else:
                 default = None
-            entries = [ (x,x) for x in iqns ]
         
             (button, entry) = ListboxChoiceWindow(
                 tui.screen,
