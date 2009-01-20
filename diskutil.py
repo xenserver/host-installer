@@ -14,6 +14,7 @@ import re, sys
 import os.path
 import subprocess
 from pprint import pprint
+import constants
 
 import util
 from util import dev_null
@@ -404,3 +405,116 @@ if __name__ == '__main__':
         fd.seek(0, 0) # Go back to file start
     fd.close()
     
+class IscsiDeviceException(Exception):
+    pass
+
+def is_iscsi(device):
+    # Return True if this is an iscsi device
+    buf = os.stat(device)
+    major = os.major(buf.st_rdev)
+    minor = os.minor(buf.st_rdev)
+
+    # find /sys/block node
+    sysblockdir = None
+    sysblockdirs = [ "/sys/block/" + dev for dev in os.listdir("/sys/block") ]
+    for d in sysblockdirs:
+        if os.path.isfile(d + "/dev") and os.path.isfile(d + "/range"):
+            __major, __minor = map(int, open(d + "/dev").read().split(':'))
+            __range  = int(open(d + "/range").read())
+            if major == __major and __minor <= minor <= __minor + __range:
+                sysblockdir = d
+                break
+    
+    if not sysblockdir:
+        raise IscsiDeviceException, "Cannot find " + device + " in /sys/block"
+    
+    devpath = os.path.realpath(sysblockdir + "/device")
+
+    # find list of iSCSI block devs
+    for d in os.listdir("/sys/class/iscsi_session"):
+        __devpath = os.path.realpath("/sys/class/iscsi_session/" + d + "/device")
+        if devpath.startswith(__devpath):
+            # we have a match!
+            return True
+    
+    return False
+
+def iscsi_address_port_netdev(device):
+    # Return address, port, and netdev used to access this iscsi device
+    buf = os.stat(device)
+    major = os.major(buf.st_rdev)
+    minor = os.minor(buf.st_rdev)
+    
+    # find /sys/block node
+    sysblockdir = None
+    sysblockdirs = [ "/sys/block/" + dev for dev in os.listdir("/sys/block") ]
+    for d in sysblockdirs:
+        if os.path.isfile(d + "/dev") and os.path.isfile(d + "/range"):
+            __major, __minor = map(int, open(d + "/dev").read().split(':'))
+            __range  = int(open(d + "/range").read())
+            if major == __major and __minor <= minor <= __minor + __range:
+                sysblockdir = d
+                break
+        
+    if not sysblockdir:
+        raise IscsiDeviceException, "Cannot find " + device + " in /sys/block"
+
+    devpath = os.path.realpath(sysblockdir + "/device")
+
+    # find matching session
+    for s in os.listdir("/sys/class/iscsi_session"):
+        __devpath = os.path.realpath("/sys/class/iscsi_session/" + s + "/device")
+        if devpath.startswith(__devpath):
+            # we have a match!
+            connections = [ "/sys/class/iscsi_session/" + s + "/device/" + c 
+                            for c in os.listdir("/sys/class/iscsi_session/" + s + "/device/")
+                            if c.startswith("connection") ]
+            if len(connections) == 0:
+                raise IscsiDeviceException, "Cannot find connections in /sys/class/iscsi_session/" + s + "/device/"
+
+            # just choose the first one and ignore the rest: they should all map to the same IP:port
+            connection = connections[0]
+
+            iscsi_connections = [ connection + "/" + i 
+                                 for i in os.listdir(connection)
+                                 if i.startswith("iscsi_connection") ]
+            if len(iscsi_connections) == 0:
+                raise IscsiDeviceException, "Cannot find iscsi_connections in " + connection
+    
+            # just choose the first one and ignore the rest: they should all map to the same IP:port
+            iscsi_connection = iscsi_connections[0]
+            
+            ipaddr = open(iscsi_connection + "/persistent_address").read().strip()
+            port = int(open(iscsi_connection + "/persistent_port").read())
+            rv, out = util.runCmd2(['ip','route','get',ipaddr], with_stdout=True)
+            try:
+                tokens = out.split('\n')[0].split()
+                idx = tokens.index('dev')
+                netdev = tokens[idx + 1]
+            except:
+                raise IscsiDeviceException, "Cannot determine netdev used ofr iscsi device " + devpath
+
+            return ipaddr, port, netdev
+
+
+    raise IscsiDeviceException, "Cannot find matching session for " + devpath
+
+def log_available_disks():
+    disks = getQualifiedDiskList()
+
+    # make sure we have discovered at least one disk and
+    # at least one network interface:
+    if len(disks) == 0:
+        xelogging.log("No disks found on this host.")
+    else:
+        # make sure that we have enough disk space:
+        xelogging.log("Found disks: %s" % str(disks))
+        diskSizes = [getDiskDeviceSize(x) for x in disks]
+        diskSizesGB = [blockSizeToGBSize(x) for x in diskSizes]
+        xelogging.log("Disk sizes: %s" % str(diskSizesGB))
+
+        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x <= constants.max_primary_disk_size,
+                           diskSizesGB)
+        if len(dom0disks) == 0:
+            xelogging.log("Unable to find a suitable disk (with a size between %dGB and %dGB) to install to." % (constants.min_primary_disk_size, constants.max_primary_disk_size))
+

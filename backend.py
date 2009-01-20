@@ -146,12 +146,12 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'iscsi-iface'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
-        Task(mkinitrd, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'iscsi-iface'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-interface', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -281,13 +281,35 @@ def performInstallation(answers, ui_package):
     if not answers.has_key('bootloader'):
         answers['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
 
+    # work out whether primary disk is iscsi, and if so save the iface used to talk to it
+    if answers.has_key('primary-disk'):
+        primary_disk = answers['primary-disk'] # INSTALL CASE
+    else:
+        primary_disk = answers['installation-to-overwrite'].primary_disk # UPGRADE CASE
+        
+    if diskutil.is_iscsi(primary_disk):
+        answers['iscsi-target-ip'], \
+        answers['iscsi-target-port'], \
+        answers['iscsi-iface'] = \
+            diskutil.iscsi_address_port_netdev(primary_disk)
+    else:
+        answers['iscsi-target-ip'], \
+        answers['iscsi-target-port'], \
+        answers['iscsi-iface'] = \
+            (None,None,None)
+
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
     # haven't already recorded it as part of reading settings from an upgrade:
     if not answers.has_key('net-admin-bridge'):
         assert answers['net-admin-interface'].startswith("eth")
         answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
- 
+
+    # ...however, if the admin interface is also used for iSCSI access to primary disk then
+    # we must make it bridgeless
+    if answers['iscsi-iface'] == answers['net-admin-interface']:
+        answers['net-admin-bridge'] = None
+
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
@@ -594,22 +616,51 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
 def createDom0DiskFilesystems(disk):
     assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, getRootPartName(disk)]) == 0
 
-def __mkinitrd(mounts, kernel_version):
+def __mkinitrd(mounts, iscsi_iface, kernel_version):
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
-        output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
-        cmd = ['chroot', mounts['root'], 'mkinitrd', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic', output_file, kernel_version]
+        util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
 
+        if iscsi_iface:
+            # primary disk is iscsi via iscsi_iface.
+            # mkinitrd uses iscsiadm to talk to iscsid.  However, at this
+            # point iscsid is not running in the dom0 chroot.
+
+            # Make temporary copy of iscsi config in dom0 chroot
+            util.mount('none', os.path.join(mounts['root'], 'etc/iscsi'), None, 'tmpfs')
+            cmd = [ 'cp', '-a', '/etc/iscsi', os.path.join(mounts['root'], 'etc/')]
+            if util.runCmd2(cmd) != 0:
+                raise RuntimeError, "Failed to initialise temporary /etc/iscsi"
+        
+            # Start iscsid inside dom0 chroot
+            util.runCmd2(['killall', '-9', 'iscsid']) # just in case one is running 
+            cmd = [ 'chroot', mounts['root'], '/sbin/iscsid' ]
+            if util.runCmd2(cmd) != 0:
+                raise RuntimeError, "Failed to start iscsid in dom0 chroot"
+
+        # Run mkinitrd inside dom0 chroot
+        output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
+        cmd = ['chroot', mounts['root'], 'mkinitrd', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
+        if iscsi_iface:
+            cmd.append('--net-dev=%s' % iscsi_iface)
+        cmd.extend([output_file, kernel_version])
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
     finally:
+        if iscsi_iface:
+            # stop the iscsi daemon
+            util.runCmd2(['killall', '-9', 'iscsid'])
+            # Clear up temporary copy of iscsi config in dom0 chroot
+            util.umount(os.path.join(mounts['root'], 'etc/iscsi'))
+
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
+        util.umount(os.path.join(mounts['root'], 'proc'))
 
-def mkinitrd(mounts):
-    __mkinitrd(mounts, version.KERNEL_VERSION)
-    __mkinitrd(mounts, version.KDUMP_VERSION)
+def mkinitrd(mounts, iscsi_iface):
+    __mkinitrd(mounts, iscsi_iface, version.KERNEL_VERSION)
+    __mkinitrd(mounts, iscsi_iface, version.KDUMP_VERSION)
 
     # make the initrd-2.6-xen.img symlink:
     initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
@@ -943,7 +994,7 @@ def setRootPassword(mounts, root_password, pwdtype):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
+def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings, iscsi_iface):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -986,11 +1037,12 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     # ability to configure multiple interfaces but we only configure one.  When
     # upgrading the script should only modify the admin interface:
     nc = open(network_conf_file, 'w')
-    print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
+    if admin_iface != iscsi_iface:
+        print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
     if not preserve_settings:
-        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
+        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys() if x != iscsi_iface ])
     else:
-        print >>nc, "INTERFACES='%s'" % admin_config.hwaddr
+        print >>nc, "INTERFACES='%s'" % ((admin_iface != iscsi_iface) and admin_config.hwaddr or "")
     nc.close()
 
     # Write out the networking configuration.  Note that when doing a fresh
@@ -1002,7 +1054,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     ###
     if not preserve_settings:
         # Write a firstboot config file for every interface we know about
-        for intf in nethw.keys():
+        for intf in [ x for x in nethw.keys() if x != iscsi_iface ]:
             hwaddr = nethw[intf].hwaddr
             conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
             ac = open(conf_file, 'w')
@@ -1025,11 +1077,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
                 print >>ac, "MODE=none"
             ac.close()
 
-        nc = open(network_conf_file, 'w')
-        print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
-        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys()])
-        nc.close()
-
     save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
     util.assertDir(save_dir)
 
@@ -1037,41 +1084,44 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     sysconf_admin_iface_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_iface)
     sysconf_admin_iface_fd = open(sysconf_admin_iface_file, 'w')
     print >>sysconf_admin_iface_fd, "# DO NOT EDIT: This file generated by the installer"
-    print >>sysconf_admin_iface_fd, "XEMANAGED=yes"
     print >>sysconf_admin_iface_fd, "DEVICE=%s" % admin_iface
     print >>sysconf_admin_iface_fd, "ONBOOT=no"
     print >>sysconf_admin_iface_fd, "TYPE=Ethernet"
     print >>sysconf_admin_iface_fd, "HWADDR=%s" % admin_config.hwaddr
-    print >>sysconf_admin_iface_fd, "BRIDGE=%s" % admin_bridge
+    if admin_iface != iscsi_iface:
+        print >>sysconf_admin_iface_fd, "XEMANAGED=yes"
+        print >>sysconf_admin_iface_fd, "BRIDGE=%s" % admin_bridge
     sysconf_admin_iface_fd.close()
     util.runCmd2(['cp', '-p', sysconf_admin_iface_file, save_dir])
 
-    sysconf_bridge_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_bridge)
-    sysconf_bridge_fd = open(sysconf_bridge_file, "w")
-    print >>sysconf_bridge_fd, "# DO NOT EDIT: This file generated by the installer"
-    print >>sysconf_bridge_fd, "XEMANAGED=yes"
-    print >>sysconf_bridge_fd, "DEVICE=%s" % admin_bridge
-    print >>sysconf_bridge_fd, "ONBOOT=no"
-    print >>sysconf_bridge_fd, "TYPE=Bridge"
-    print >>sysconf_bridge_fd, "DELAY=0"
-    print >>sysconf_bridge_fd, "STP=off"
-    print >>sysconf_bridge_fd, "PIFDEV=%s" % admin_iface
-    if not admin_config.isStatic():
-        print >>sysconf_bridge_fd, "BOOTPROTO=dhcp"
-    else:
-        print >>sysconf_bridge_fd, "BOOTPROTO=none"
-        print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config.netmask
-        print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config.ipaddr
-        if admin_config.gateway:
-            print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
-        if manual_nameservers:
-            print >>sysconf_bridge_fd, "PEERDNS=yes"
-            for i in range(len(nameservers)):
-                print >>sysconf_bridge_fd, "DNS%d=%s" % (i+1, nameservers[i])
-        if domain:
-            print >>sysconf_bridge_fd, "DOMAIN=%s" % domain
-    sysconf_bridge_fd.close()
-    util.runCmd2(['cp', '-p', sysconf_bridge_file, save_dir])
+    if admin_iface != iscsi_iface:
+        sysconf_bridge_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_bridge)
+        sysconf_bridge_fd = open(sysconf_bridge_file, "w")
+        print >>sysconf_bridge_fd, "# DO NOT EDIT: This file generated by the installer"
+        print >>sysconf_bridge_fd, "XEMANAGED=yes"
+        print >>sysconf_bridge_fd, "DEVICE=%s" % admin_bridge
+        print >>sysconf_bridge_fd, "ONBOOT=no"
+        print >>sysconf_bridge_fd, "TYPE=Bridge"
+        print >>sysconf_bridge_fd, "DELAY=0"
+        print >>sysconf_bridge_fd, "STP=off"
+        print >>sysconf_bridge_fd, "PIFDEV=%s" % admin_iface
+        if not admin_config.isStatic():
+            print >>sysconf_bridge_fd, "BOOTPROTO=dhcp"
+        else:
+            print >>sysconf_bridge_fd, "BOOTPROTO=none"
+            print >>sysconf_bridge_fd, "NETMASK=%s" % admin_config.netmask
+            print >>sysconf_bridge_fd, "IPADDR=%s" % admin_config.ipaddr
+            if admin_config.gateway:
+                print >>sysconf_bridge_fd, "GATEWAY=%s" % admin_config.gateway
+            if manual_nameservers:
+                print >>sysconf_bridge_fd, "PEERDNS=yes"
+                for i in range(len(nameservers)):
+                    print >>sysconf_bridge_fd, "DNS%d=%s" % (i+1, nameservers[i])
+            if domain:
+                print >>sysconf_bridge_fd, "DOMAIN=%s" % domain
+        sysconf_bridge_fd.close()
+        util.runCmd2(['cp', '-p', sysconf_bridge_file, save_dir])
+
 
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
@@ -1100,7 +1150,13 @@ def writeModprobeConf(mounts):
     os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
               "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
-def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_bridge):
+def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_iface, admin_bridge):
+
+    # if admin_bridge is None then we are bridgeless so we need to use admin_iface for management instead
+    mgmt_iface = admin_bridge
+    if not mgmt_iface:
+        mgmt_iface = admin_iface
+
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
@@ -1116,7 +1172,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.write("DOM0_MEM='%d'\n" % constants.DOM0_MEM)
-    inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
+    inv.write("MANAGEMENT_INTERFACE='%s'\n" % mgmt_iface)
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):

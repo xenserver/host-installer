@@ -19,12 +19,12 @@ import netutil
 import repository
 import constants
 import upgrade
+import product
 import snackutil
 
 from snack import *
 
-def runMainSequence(results, ram_warning, vt_warning, installed_products, 
-                    upgradeable_products, suppress_extra_cd_dialog):
+def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     """ Runs the main installer sequence and updates results with a
     set of values ready for the backend. """
     uis = tui.installer.screens
@@ -57,7 +57,12 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products,
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
-    if len(upgradeable_products) == 0:
+    # initialise the list of installed/upgradeable products.
+    # This may change if we later add an iscsi disk
+    results['installed-products'] = product.find_installed_products()
+    results['upgradeable-products'] = upgrade.filter_for_upgradeable_products(results['installed-products'])
+
+    if not results.has_key('install-type'):
         results['install-type'] = constants.INSTALL_TYPE_FRESH
         results['preserve-settings'] = False
 
@@ -68,9 +73,9 @@ def runMainSequence(results, ram_warning, vt_warning, installed_products,
              args=[ram_warning, vt_warning],
              predicates=[lambda _:(ram_warning or vt_warning)]),
         Step(uis.overwrite_warning,
-             predicates=[lambda _:len(installed_products) > 0 and len(upgradeable_products) == 0]),
-        Step(uis.get_installation_type, args=[upgradeable_products],
-             predicates=[lambda _:len(upgradeable_products) > 0]),
+             predicates=[lambda _:len(results['installed-products']) > 0 and len(results['upgradeable-products']) == 0]),
+        Step(uis.get_installation_type, 
+             predicates=[lambda _:len(results['upgradeable-products']) > 0]),
         Step(uis.upgrade_settings_warning,
              predicates=[upgrade_but_no_settings_predicate]),
         Step(uis.backup_existing_installation,

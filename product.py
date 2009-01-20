@@ -286,13 +286,21 @@ class ExistingInstallation(object):
             # The dev -> MAC mapping for other devices will be preserved in the
             # database which is available in time for everything except the
             # management interface.
+            mgmt_if = self.getInventoryValue('MANAGEMENT_INTERFACE')
+
             for file in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
                                    os.listdir(os.path.join(mntpoint, 'etc/sysconfig/network-scripts'))):
                 devcfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', file), strip_quotes = False)
-                if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
-                    brcfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
+                if not devcfg.has_key('DEVICE'):
+                    continue
+                if (devcfg['DEVICE']) == mgmt_if or (devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == mgmt_if):
+                    mgmt_if_cfg = util.readKeyValueFile(os.path.join(mntpoint, 'etc/sysconfig/network-scripts', 'ifcfg-'+mgmt_if), strip_quotes = False)
                     results['net-admin-interface'] = devcfg['DEVICE']
-                    results['net-admin-bridge'] = devcfg['BRIDGE']
+                    # if DEVICE is not bridgeless save the bridge name
+                    if devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == mgmt_if:
+                        results['net-admin-bridge'] = devcfg['BRIDGE']
+                    else:
+                        results['net-admin-bridge'] = None
 
                     # get hardware address if it was recorded, otherwise look it up:
                     if devcfg.has_key('HWADDR'):
@@ -310,10 +318,10 @@ class ExistingInstallation(object):
                     default = lambda d, k, v: d.has_key(k) and d[k] or v
 
                     #results['net-admin-configuration'] = {'enabled': True}
-                    if (not brcfg.has_key('BOOTPROTO')) or brcfg['BOOTPROTO'] != 'dhcp':
-                        ip = default(brcfg, 'IPADDR', None)
-                        netmask = default(brcfg, 'NETMASK', None)
-                        gateway = default(brcfg, 'GATEWAY', None)
+                    if (not mgmt_if_cfg.has_key('BOOTPROTO')) or mgmt_if_cfg['BOOTPROTO'] != 'dhcp':
+                        ip = default(mgmt_if_cfg, 'IPADDR', None)
+                        netmask = default(mgmt_if_cfg, 'NETMASK', None)
+                        gateway = default(mgmt_if_cfg, 'GATEWAY', None)
 
                         if not ip or not netmask:
                             raise SettingsNotAvailable, "IP address or netmask missing"

@@ -148,13 +148,7 @@ def go(ui, args, answerfile_address):
 
         status = constants.EXIT_OK
 
-        disks = diskutil.getQualifiedDiskList()
         nethw = netutil.scanConfiguration()        
-
-        # make sure we have discovered at least one disk and
-        # at least one network interface:
-        if len(disks) == 0:
-            raise RuntimeError, "No disks found on this host."
 
         if len(nethw.keys()) == 0:
             raise RuntimeError, "No network interfaces found on this host."
@@ -162,17 +156,9 @@ def go(ui, args, answerfile_address):
         # record the network configuration at startup so it remains consistent
         # in the face of kudzu:
         results['network-hardware'] = nethw
-
-        # make sure that we have enough disk space:
-        xelogging.log("Found disks: %s" % str(disks))
-        diskSizes = [diskutil.getDiskDeviceSize(x) for x in disks]
-        diskSizesGB = [diskutil.blockSizeToGBSize(x) for x in diskSizes]
-        xelogging.log("Disk sizes: %s" % str(diskSizesGB))
-
-        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x <= constants.max_primary_disk_size,
-                           diskSizesGB)
-        if len(dom0disks) == 0:
-            raise RuntimeError, "Unable to find a suitable disk (with a size between %dGB and %dGB) to install to." % (constants.min_primary_disk_size, constants.max_primary_disk_size)
+        
+        # debug: print out what disks have been discovered
+        diskutil.log_available_disks()
 
         # how much RAM do we have?
         ram_found_mb = hardware.getHostTotalMemoryKB() / 1024
@@ -182,8 +168,6 @@ def go(ui, args, answerfile_address):
         # find existing installations:
         if ui:
             ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-        installed_products = product.find_installed_products()
-        upgradeable_products = upgrade.filter_for_upgradeable_products(installed_products)
         if ui:
             ui.progress.clearModelessDialog()
         
@@ -196,7 +180,7 @@ def go(ui, args, answerfile_address):
         aborted = False
         if ui and not answerfile_address:
             uiexit = ui.installer.runMainSequence(
-                results, ram_warning, vt_warning, installed_products, upgradeable_products, suppress_extra_cd_dialog
+                results, ram_warning, vt_warning, suppress_extra_cd_dialog
                 )
             if uiexit == uicontroller.EXIT:
                 aborted = True
