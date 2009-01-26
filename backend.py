@@ -1183,13 +1183,13 @@ def writeLog(primary_disk):
         bootnode = getRootPartName(primary_disk)
         util.assertDir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
-        log_location = "/tmp/mnt/root"
+        log_location = "/tmp/mnt/var/log/installer"
         if os.path.islink(log_location):
             log_location = os.path.join("/tmp/mnt", os.readlink(log_location).lstrip("/"))
         util.assertDir(log_location)
         xelogging.writeLog(os.path.join(log_location, "install-log"))
         try:
-            xelogging.collectLogs(log_location)
+            xelogging.collectLogs(log_location, "/tmp/mnt/root")
         except:
             pass
         try:

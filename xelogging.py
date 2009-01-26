@@ -55,7 +55,7 @@ def writeLog(destination):
     dfd.write(__log__)
     dfd.close()
 
-def collectLogs(dst):
+def collectLogs(dst, tarball_dir = None):
     """ Make a support tarball including all logs (and some more) from 'dst'."""
     os.system("cat /proc/bus/pci/devices >%s/pci-log" % dst)
     os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dst)
@@ -70,6 +70,9 @@ def collectLogs(dst):
     os.system("ps axf >%s/processes-log" % dst)
     os.system("vgscan -P >%s/vgscan-log 2>&1" % dst)
 
+    if not tarball_dir:
+        tarball_dir = dst
+
     # now, try to get the startup-log (it won't be in the same directory
     # most likely, but check in case):
     if not os.path.exists("%s/startup-log" % dst):
@@ -82,7 +85,7 @@ def collectLogs(dst):
     logs = " ".join(logs)
 
     # tar up contents
-    os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, dst, logs))
+    os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, tarball_dir, logs))
 
 def openLog(file):
     if hasattr(file, 'name'):
