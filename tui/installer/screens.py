@@ -498,7 +498,7 @@ def verify_source(answers):
     done = False
     SKIP, VERIFY = range(2)
     entries = [ ("Skip verification", SKIP),
-                ("Verify Installation Source", VERIFY), ]
+                ("Verify installation source", VERIFY), ]
 
     if answers['source-media'] == 'local':
         text = "Would you like to test your media?"
