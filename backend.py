@@ -428,7 +428,7 @@ def writeDom0DiskPartitions(disk):
 
     # partition the disk:
     diskutil.writePartitionTable(disk, [root_size, root_size, -1])
-    diskutil.makeActivePartition(disk, 1)
+    diskutil.makeActivePartition(disk, constants.RETAIL_ROOT_PARTITION_NUMBER)
 
 def writeGuestDiskPartitions(disk):
     # we really don't want to screw this up...
@@ -441,7 +441,7 @@ def getSRPhysDevs(primary_disk, guest_disks, is_oem = False):
     if is_oem:
         pd_sr_part = constants.OEMHDD_SR_PARTITION_NUMBER
     else:
-        pd_sr_part = constants.default_sr_firstpartition
+        pd_sr_part = constants.RETAIL_SR_PARTITION_NUMBER
 
     def sr_partition(disk):
         if disk == primary_disk:
