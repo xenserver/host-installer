@@ -250,7 +250,7 @@ def eula_screen(answers):
             ButtonChoiceWindow(
                 tui.screen,
                 "End User License Agreement",
-                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter to press it) in order to install this product.",
+                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this product.",
                 ['Ok'])
 
 def confirm_erase_volume_groups(answers):
