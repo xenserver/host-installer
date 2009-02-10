@@ -134,8 +134,10 @@ Please make sure you have backed up any data you wish to preserve before proceed
 
     # update the list of installed/upgradeable products as this may have
     # changed as a result of adding a disk
+    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
     answers['installed-products'] = product.find_installed_products()
     answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
+    tui.progress.clearModelessDialog()
 
     return RIGHT_FORWARDS
 

@@ -165,12 +165,6 @@ def go(ui, args, answerfile_address):
         ram_warning = ram_found_mb < constants.MIN_SYSTEM_RAM_MB
         vt_warning = not hardware.VTSupportEnabled()
 
-        # find existing installations:
-        if ui:
-            ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-        if ui:
-            ui.progress.clearModelessDialog()
-        
         # Generate the UI sequence and populate some default
         # values in backend input.  Note that not all these screens
         # will be displayed as they have conditional to skip them at

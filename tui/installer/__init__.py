@@ -59,8 +59,10 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     # initialise the list of installed/upgradeable products.
     # This may change if we later add an iscsi disk
+    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
     results['installed-products'] = product.find_installed_products()
     results['upgradeable-products'] = upgrade.filter_for_upgradeable_products(results['installed-products'])
+    tui.progress.clearModelessDialog()
 
     if not results.has_key('install-type'):
         results['install-type'] = constants.INSTALL_TYPE_FRESH
