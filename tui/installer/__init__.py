@@ -158,12 +158,13 @@ def more_media_sequence(installed_repo_ids):
         repos = repository.repositoriesFromDefinition('local', '')
         assert len(repos) > 0
 
-        default_button = RIGHT_FORWARDS
+        USE, VERIFY, BACK = range(3)
+        default_button = VERIFY
         media_contents = []
         for r in repos:
             if r.identifier() in installed_repo_ids:
                 media_contents.append(" * %s (already installed)" % r.name())
-                default_button = 2
+                default_button = BACK
             else:
                 media_contents.append(" * %s" % r.name())
         text = "The media you have inserted contains:\n\n" + "\n".join(media_contents)

@@ -353,7 +353,7 @@ def eula_screen(answers):
             ButtonChoiceWindow(
                 tui.screen,
                 "End User License Agreement",
-                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter to press it) in order to install this product.",
+                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this product.",
                 ['Ok'])
 
 def confirm_erase_volume_groups(answers):
@@ -601,7 +601,7 @@ def verify_source(answers):
     done = False
     SKIP, VERIFY = range(2)
     entries = [ ("Skip verification", SKIP),
-                ("Verify Installation Source", VERIFY), ]
+                ("Verify installation source", VERIFY), ]
 
     if answers['source-media'] == 'local':
         text = "Would you like to test your media?"

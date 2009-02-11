@@ -69,15 +69,15 @@ root_size = 4096
 rootfs_type = 'ext3'
 rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
                                     for x in range(8)])
-default_sr_firstpartition = 3
 swap_location = '/var/swap/swap.001'
 swap_size = 512
 
 OEMFLASH_STATE_PARTITION_NUMBER = 3
 OEMFLASH_BOOT_PARTITION_NUMBER = 4
     
-RETAIL_ROOT_PARTITION_NUMBER = 1
+RETAIL_ROOT_PARTITION_NUMBER   = 1
 RETAIL_BACKUP_PARTITION_NUMBER = 2
+RETAIL_SR_PARTITION_NUMBER     = 3
 
 OEMHDD_SYS_1_PARTITION_NUMBER = 5
 OEMHDD_SYS_2_PARTITION_NUMBER = 6
