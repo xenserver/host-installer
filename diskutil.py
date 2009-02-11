@@ -430,6 +430,10 @@ def is_iscsi(device):
     
     devpath = os.path.realpath(sysblockdir + "/device")
 
+    if not os.path.isdir("/sys/class/iscsi_session"):
+        # iscsi modules not even loaded
+        return False 
+
     # find list of iSCSI block devs
     for d in os.listdir("/sys/class/iscsi_session"):
         __devpath = os.path.realpath("/sys/class/iscsi_session/" + d + "/device")
