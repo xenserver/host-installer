@@ -141,20 +141,7 @@ class SecondGenUpgrader(Upgrader):
                              if re.match('ifcfg-[a-z0-9.]+$', f) ]
             else:
                 util.assertDir(os.path.join(mounts['root'], save_dir))
-                # Nothing to restore so regenerate the ifcfg files.
-                # (Unless primary disk is an iSCSI device that depends on admin i/f.  
-                # In this case only the initrd should ever bring up the admin interface.)
                 regen_ifcfg = True
-                if diskutil.is_iscsi(self.source.primary_disk):
-                    ipaddr, port, netdev = util.iscsi_address_port_netdev(self.source.primary_disk)
-                    try:
-                        net_dict = util.readKeyValueFile(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR, 'network.conf'))
-                        mgmt_dict = util.readKeyValueFile(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % net_dict['ADMIN_INTERFACE']))
-                        mgmt_dev = mgmt_dict['LABEL']
-                        if mgmt_dev == netdev:
-                            regen_ifcfg = False
-                    except:
-                        pass
 
             for f in restore:
                 src = os.path.join(tds, f)

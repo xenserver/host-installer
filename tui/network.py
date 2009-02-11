@@ -162,7 +162,7 @@ def select_netif(text, conf, default=None):
     if rc == 'back': return LEFT_BACKWARDS, None
     return RIGHT_FORWARDS, entry
 
-def requireNetworking(answers, defaults=None):
+def requireNetworking(answers, defaults=None, msg=None):
     """ Display the correct sequence of screens to get networking
     configuration.  Bring up the network according to this configuration.
     If answers is a dictionary, set it's 'runtime-iface-configuration' key
@@ -175,13 +175,15 @@ def requireNetworking(answers, defaults=None):
 
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:
-    def select_interface(answers, default):
+    def select_interface(answers, default, msg):
         """ Show the dialog for selecting an interface.  Sets
         answers['interface'] to the name of the interface selected (a
         string). """
         if answers.has_key('interface'):
             default = answers['interface']
-        direction, iface = select_netif("%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND), nethw, default)
+        if msg == None:
+            msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND)
+        direction, iface = select_netif(msg, nethw, default)
         if direction == RIGHT_FORWARDS:
             answers['interface'] = iface
         return direction
@@ -205,7 +207,7 @@ def requireNetworking(answers, defaults=None):
         if defaults.has_key('net-admin-configuration'):
             def_conf = defaults['net-admin-configuration']
     if len(nethw.keys()) > 1:
-        seq = [ uicontroller.Step(select_interface, args=[def_iface]), 
+        seq = [ uicontroller.Step(select_interface, args=[def_iface, msg]), 
                 uicontroller.Step(specify_configuration, args=[None, def_conf]) ]
     else:
         text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % version.PRODUCT_BRAND

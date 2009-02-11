@@ -53,84 +53,96 @@ def welcome_screen(answers):
                                 """This setup tool will install %s on your server.  Installing %s will erase all data on the disks selected for use unless an upgrade option is chosen.
 
 Please make sure you have backed up any data you wish to preserve before proceeding with the installation.""" % (PRODUCT_BRAND, PRODUCT_BRAND),
-                                ['Ok', 'Cancel Installation', 'Attach iSCSI disks'], width = 60)
+                                ['Ok', 'Cancel Installation'], width = 60)
 
     # advance to next screen:
     if button == 'cancel installation':
         return EXIT
-    elif button == 'attach iscsi disks':
-        # iSCSI needs networking...
-        tui.network.requireNetworking(answers, None)
+    else:
+        return RIGHT_FORWARDS
 
-        # configure iSCSI initiator name before starting daemon
-        rv, iname = util.runCmd2([ '/sbin/iscsi-iname' ], with_stdout=True)
-        if rv: raise RuntimeError, "/sbin/iscsi-iname failed"
-        open("/etc/iscsi/initiatorname.iscsi","w").write("InitiatorName=%s" % iname)
+def add_iscsi_disks(answers):
+    button = ButtonChoiceWindow(tui.screen,
+                                "iSCSI",
+                                "Locate additional iSCSI disks",
+                                ['Skip', 'Ok', 'Back'], width = 60)
+    if button in ['skip', None]:
+        return RIGHT_FORWARDS
+    if button == 'back':
+        return LEFT_BACKWARDS
+    
+    # iSCSI needs networking...
+    tui.network.requireNetworking(answers, msg="Please specify which network interface would you like to use to access the iSCSI target")
 
-        try:
-            # start iSCSI daemon
-            rv = util.runCmd2([ '/sbin/modprobe', 'iscsi_tcp' ])
-            if rv: raise RuntimeError, "/sbin/modprobe iscsi_tcp failed"
-            rv = util.runCmd2([ '/sbin/iscsid' ])
-            if rv: raise RuntimeError, "/sbin/iscsid failed"
+    # configure iSCSI initiator name before starting daemon
+    rv, iname = util.runCmd2([ '/sbin/iscsi-iname' ], with_stdout=True)
+    if rv: raise RuntimeError, "/sbin/iscsi-iname failed"
+    open("/etc/iscsi/initiatorname.iscsi","w").write("InitiatorName=%s" % iname)
+
+    try:
+        # start iSCSI daemon
+        rv = util.runCmd2([ '/sbin/modprobe', 'iscsi_tcp' ])
+        if rv: raise RuntimeError, "/sbin/modprobe iscsi_tcp failed"
+        rv = util.runCmd2([ '/sbin/iscsid' ])
+        if rv: raise RuntimeError, "/sbin/iscsid failed"
        
-            # ask for location of iSCSI server
-            text = "Enter the IP address of the iSCSI target"
-            if answers.has_key('iscsi-target-address'):
-                default = answers['iscsi-target-address']
-            else:
-                default = ""
-            (button, result) = EntryWindow(
-                tui.screen,
-                "iSCSI target IP",
-                text,
-                [("IP Address[:Port]:", default)], entryWidth = 50, width = 50,
-                buttons = ['Ok', 'Back'])
+        # ask for location of iSCSI server
+        text = "Enter the IP address of the iSCSI target"
+        if answers.has_key('iscsi-target-address'):
+            default = answers['iscsi-target-address']
+        else:
+            default = ""
+        (button, result) = EntryWindow(
+            tui.screen,
+            "iSCSI target IP",
+            text,
+            [("IP Address[:Port]:", default)], entryWidth = 50, width = 50,
+            buttons = ['Ok', 'Back'])
             
-            answers['iscsi-target-address'] = result[0]
+        answers['iscsi-target-address'] = result[0]
 
-            if button == 'back':
-                return REPEAT_STEP
+        if button == 'back':
+            return REPEAT_STEP
 
-            # discover IQNs offered by iSCSI server
-            rv, out = util.runCmd2([ '/sbin/iscsiadm', '-m', 'discovery', '-t', 'sendtargets', '-p', answers['iscsi-target-address']], with_stdout=True)
-            if rv: raise RuntimeError, "/sbin/iscsiadm -m discovery failed"
-            out = out.strip()
-            iqns = map(lambda x : x.split()[-1], out.split('\n'))
+        # discover IQNs offered by iSCSI server
+        rv, out = util.runCmd2([ '/sbin/iscsiadm', '-m', 'discovery', '-t', 'sendtargets', '-p', answers['iscsi-target-address']], with_stdout=True)
+        if rv: raise RuntimeError, "/sbin/iscsiadm -m discovery failed"
+        out = out.strip()
+        iqns = map(lambda x : x.split()[-1], out.split('\n'))
 
-            # ask user to select an IQN
-            entries = [ (x,x) for x in iqns ]
-            if answers.has_key('iscsi-iqn'):
-                default = selectDefault(answers['iscsi-iqn'], entries)
-            else:
-                default = None
+        # ask user to select an IQN
+        entries = [ (x,x) for x in iqns ]
+        if answers.has_key('iscsi-iqn'):
+            default = selectDefault(answers['iscsi-iqn'], entries)
+        else:
+            default = None
         
-            (button, entry) = ListboxChoiceWindow(
-                tui.screen,
-                "IQN",
-                "Select iSCSI IQN containing disks to be attached",
-                entries,
-                ['Ok', 'Back'], width=60, default = default)
+        (button, entry) = ListboxChoiceWindow(
+            tui.screen,
+            "IQN",
+            "Select iSCSI IQN containing disks to be attached",
+            entries,
+            ['Ok', 'Back'], width=60, default = default)
 
-            if button == 'back':
-                return REPEAT_STEP
+        if button == 'back':
+            return REPEAT_STEP
 
-            answers['iscsi-iqn'] = entry
+        answers['iscsi-iqn'] = entry
 
-            # Just in case we've been here before... unattach all IQNs now
-            util.runCmd2([ '/sbin/iscsiadm' ,'-m', 'node', '-u' ])
+        # Just in case we've been here before... unattach all IQNs now
+        util.runCmd2([ '/sbin/iscsiadm' ,'-m', 'node', '-u' ])
 
-            # attach IQN's disks
-            rv = util.runCmd2([ '/sbin/iscsiadm', '-m', 'node', '-T', answers['iscsi-iqn'], '-p', answers['iscsi-target-address'], '-l'])
-            if rv: raise RuntimeError, "/sbin/iscsiadm -m node -l failed"
+        # attach IQN's disks
+        rv = util.runCmd2([ '/sbin/iscsiadm', '-m', 'node', '-T', answers['iscsi-iqn'], '-p', answers['iscsi-target-address'], '-l'])
+        if rv: raise RuntimeError, "/sbin/iscsiadm -m node -l failed"
 
-            # debug: print out what disks we have now available
-            diskutil.log_available_disks()
+        # debug: print out what disks we have now available
+        diskutil.log_available_disks()
 
-        finally:
-            # Kill this iscsid as we don't need it anymore running in the installer root filesystem
-            util.runCmd2([ '/sbin/iscsiadm' ,'-k', '0' ])
-            util.runCmd2([ '/sbin/udevsettle' ])
+    finally:
+        # Kill this iscsid as we don't need it anymore running in the installer root filesystem
+        util.runCmd2([ '/sbin/iscsiadm' ,'-k', '0' ])
+        util.runCmd2([ '/sbin/udevsettle' ])
 
     # update the list of installed/upgradeable products as this may have
     # changed as a result of adding a disk
@@ -187,7 +199,16 @@ def get_admin_interface(answers):
     except:
         pass
 
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", answers['network-hardware'], default)
+    net_hw = answers['network-hardware']
+    
+    # if the primary disk is iSCSI we need to filter out the interface
+    # used to connect to that disk, as this cannot also be used as an
+    # admin interface
+    if diskutil.is_iscsi(answers['primary-disk']):
+        _, _, iscsi_iface = diskutil.iscsi_address_port_netdev(answers['primary-disk'])
+        net_hw.pop(iscsi_iface, None)
+
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default)
     if direction == RIGHT_FORWARDS:
         answers['net-admin-interface'] = iface
     return direction
@@ -712,6 +733,19 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
 def select_guest_disks(answers):
     # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
+
+    # filter out non-primary iscsi disks as only the primary disk
+    # may be an iscsi disk
+    def test(disk):
+        if disk != answers['primary-disk'] and diskutil.is_iscsi(disk):
+            return False
+        return True
+    diskEntries = filter(test, diskEntries)
+
+    if len(diskEntries) == 0:
+        answers['guest-disks'] = []
+        return SKIP_SCREEN
+
     if len(diskEntries) == 1:
         answers['guest-disks'] = diskEntries
         return SKIP_SCREEN

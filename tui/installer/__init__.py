@@ -57,6 +57,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
+    def iscsi_disks_enabled(answers):
+        return answers.has_key('enable-iscsi') and answers['enable-iscsi'] == True
+
     # initialise the list of installed/upgradeable products.
     # This may change if we later add an iscsi disk
     tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
@@ -74,6 +77,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],
              predicates=[lambda _:(ram_warning or vt_warning)]),
+        Step(uis.add_iscsi_disks,
+             predicates=[iscsi_disks_enabled]),
         Step(uis.overwrite_warning,
              predicates=[lambda _:len(results['installed-products']) > 0 and len(results['upgradeable-products']) == 0]),
         Step(uis.get_installation_type, 
