@@ -135,12 +135,12 @@ class SecondGenUpgrader(Upgrader):
                 restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
 
             save_dir = os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
+            util.assertDir(os.path.join(mounts['root'], save_dir))
             if os.path.exists(os.path.join(tds, save_dir)):
-                restore += [ save_dir + f
+                restore += [ os.path.join(save_dir, f)
                              for f in os.listdir(os.path.join(tds, save_dir))
                              if re.match('ifcfg-[a-z0-9.]+$', f) ]
             else:
-                util.assertDir(os.path.join(mounts['root'], save_dir))
                 regen_ifcfg = True
 
             for f in restore:
