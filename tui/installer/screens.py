@@ -402,12 +402,12 @@ def check_repo_def(definition, require_base_repo):
 
     return REPOCHK_NO_ERRORS
 
-def interactive_check_repo_def(defintiion, require_base_repo):
+def interactive_check_repo_def(definition, require_base_repo):
     """ Check repo definition and display an appropriate dialog based
     on outcome.  Returns boolean indicating whether to continue with
     the definition given or not. """
 
-    rc = check_repo_def(defintiion, require_base_repo)
+    rc = check_repo_def(definition, require_base_repo)
     if rc == REPOCHK_NO_ACCESS:
         ButtonChoiceWindow(
             tui.screen,
