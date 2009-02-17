@@ -113,6 +113,11 @@ def getRemovableDeviceList():
 def removable(device):
     if device.startswith('/dev/'):
         device = device[5:]
+
+    # CA-25624 - udev maps sr* to scd*
+    if device.startswith('scd'):
+        device='sr'+device[3:]
+
     return device in getRemovableDeviceList()
 
 def getQualifiedDeviceName(disk):
