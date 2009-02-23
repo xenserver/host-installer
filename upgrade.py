@@ -109,7 +109,7 @@ class SecondGenUpgrader(Upgrader):
 
             # restore files:
             restore = ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 
-                       'etc/xensource/license', 'etc/xensource/xapi-ssl.pem',
+                       'etc/xensource/xapi-ssl.pem',
                        'etc/ssh/ssh_host_dsa_key', 'etc/ssh/ssh_host_dsa_key.pub',
                        'etc/ssh/ssh_host_key', 'etc/ssh/ssh_host_key.pub',
                        'etc/ssh/ssh_host_rsa_key', 'etc/ssh/ssh_host_rsa_key.pub']
@@ -118,6 +118,21 @@ class SecondGenUpgrader(Upgrader):
             restore += [ 'etc/sysconfig/network-scripts/' + f
                          for f in os.listdir(os.path.join(tds, 'etc/sysconfig/network-scripts'))
                          if re.match('ifcfg-[a-z0-9.]+$', f) or re.match('route-[a-z0-9.]+$', f) ]
+
+            # CP-968: do not copy Express licence
+            copy_licence = True
+            lic = os.path.join(tds, 'etc/xensource/license')
+            if os.path.exists(lic):
+                l = open(lic, 'r')
+                try:
+                    for line in l:
+                        if line.find('sku_type="XE Express"') != -1:
+                            copy_licence = False
+                            break
+                finally:
+                    l.close()
+                if copy_licence:
+                    restore.append(lic)
 
             # CA-16795: upgrade xapi database if necessary
             upgrade_db = False
