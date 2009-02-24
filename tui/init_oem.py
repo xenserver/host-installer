@@ -121,9 +121,9 @@ def oem_install_sequence(ui, answers):
     # find existing installations:
     if ui:
         ui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-    installed_products = product.find_installed_products()
-    upgradeable_products = upgrade.filter_for_upgradeable_products(installed_products)
-    if len(upgradeable_products) == 0:
+    fullAnswers['installed-products'] = product.find_installed_products()
+    fullAnswers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(fullAnswers['installed-products'])
+    if len(fullAnswers['upgradeable-products']) == 0:
         fullAnswers['install-type'] = constants.INSTALL_TYPE_FRESH
         fullAnswers['preserve-settings'] = False
     if ui:
@@ -133,9 +133,9 @@ def oem_install_sequence(ui, answers):
     uis = tui.installer.screens
     seq = [
         uic.Step(uis.overwrite_warning,
-            predicates=[lambda _:len(installed_products) > 0 and len(upgradeable_products) == 0]),
-        uic.Step(uis.get_installation_type, args=[upgradeable_products],
-            predicates=[lambda _:len(upgradeable_products) > 0]),
+            predicates=[lambda _:len(fullAnswers['installed-products']) > 0 and len(fullAnswers['upgradeable-products']) == 0]),
+        uic.Step(uis.get_installation_type, 
+            predicates=[lambda _:len(results['upgradeable-products']) > 0]),
         uic.Step(get_disk_blockdev_to_recover, predicates = [oem_is_hdd, oem_is_clean_install]),
         uic.Step(get_flash_blockdev_to_recover, predicates = [oem_is_flash, oem_is_clean_install]),
         uic.Step(get_image_media),
