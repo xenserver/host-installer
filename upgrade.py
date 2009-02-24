@@ -120,19 +120,17 @@ class SecondGenUpgrader(Upgrader):
                          if re.match('ifcfg-[a-z0-9.]+$', f) or re.match('route-[a-z0-9.]+$', f) ]
 
             # CP-968: do not copy Express licence
-            copy_licence = True
-            lic = os.path.join(tds, 'etc/xensource/license')
+            lic_file = "etc/xensource/license"
+            lic = os.path.join(tds, lic_file)
             if os.path.exists(lic):
                 l = open(lic, 'r')
                 try:
                     for line in l:
-                        if line.find('sku_type="XE Express"') != -1:
-                            copy_licence = False
+                        if 'sku_type="XE Express"' not in line:
+                            restore.append(lic_file)
                             break
                 finally:
                     l.close()
-                if copy_licence:
-                    restore.append(lic)
 
             # CA-16795: upgrade xapi database if necessary
             upgrade_db = False
