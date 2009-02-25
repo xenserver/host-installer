@@ -125,10 +125,8 @@ class SecondGenUpgrader(Upgrader):
             if os.path.exists(lic):
                 l = open(lic, 'r')
                 try:
-                    for line in l:
-                        if 'sku_type="XE Express"' not in line:
-                            restore.append(lic_file)
-                            break
+                    if True not in ['sku_type="XE Express"' in line for line in l]:
+                        restore.append(lic_file)
                 finally:
                     l.close()
 
