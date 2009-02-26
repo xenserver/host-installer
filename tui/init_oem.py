@@ -135,7 +135,7 @@ def oem_install_sequence(ui, answers):
         uic.Step(uis.overwrite_warning,
             predicates=[lambda _:len(fullAnswers['installed-products']) > 0 and len(fullAnswers['upgradeable-products']) == 0]),
         uic.Step(uis.get_installation_type, 
-            predicates=[lambda _:len(results['upgradeable-products']) > 0]),
+            predicates=[lambda _:len(fullAnswers['upgradeable-products']) > 0]),
         uic.Step(get_disk_blockdev_to_recover, predicates = [oem_is_hdd, oem_is_clean_install]),
         uic.Step(get_flash_blockdev_to_recover, predicates = [oem_is_flash, oem_is_clean_install]),
         uic.Step(get_image_media),
