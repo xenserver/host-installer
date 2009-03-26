@@ -597,7 +597,7 @@ def get_source_location(answers):
         return get_nfs_location(answers)
 
 # verify the installation source?
-def verify_source(answers):
+def XXverify_source(answers):
     done = False
     SKIP, VERIFY = range(2)
     entries = [ ("Skip verification", SKIP),
@@ -627,7 +627,7 @@ def verify_source(answers):
 
     return RIGHT_FORWARDS
 
-def interactive_source_verification(media, address):
+def XXinteractive_source_verification(media, address):
     xelogging.log("Checking media %s: %s" % (media, address))
     try:
         repos = repository.repositoriesFromDefinition(

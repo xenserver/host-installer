@@ -17,9 +17,13 @@ import tui
 import init_constants
 import generalui
 import uicontroller
+from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS
 import tui.network
+import tui.progress
+import tui.repo
 import repository
 import snackutil
+import xelogging
 
 def get_keymap():
     entries = generalui.getKeymaps()
@@ -36,7 +40,6 @@ def get_keymap():
 def choose_operation(display_restore):
     entries = [ 
         (' * Install or upgrade %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
-        (' * Load a driver', init_constants.OPERATION_LOAD_DRIVER),
         (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
 
@@ -47,46 +50,36 @@ def choose_operation(display_restore):
                                           "Welcome to %s" % PRODUCT_BRAND,
                                           """Please select an operation:""",
                                           entries,
-                                          ['Ok', 'Exit and reboot'], width=70)
+                                          ['Ok', 'Load driver', 'Exit and reboot'], width=70)
 
     if button == 'ok' or button == None:
         return entry
+    elif button == 'load driver':
+        return init_constants.OPERATION_LOAD_DRIVER
     else:
-        return -1
+        return init_constants.OPERATION_REBOOT
 
-def already_activated():
-    while True:
-        form = GridFormHelp(tui.screen, "Installation already started", None, 1, 1)
-        tb = TextboxReflowed(50, """You have already activated the installation on a different console!
-        
-If this message is unexpected, please try restarting your machine, and ensure you only use one console (either serial, or tty).""")
-        form.add(tb, 0, 0)
-        form.run()
-
-def ask_load_module(m):
-    result = ButtonChoiceWindow(tui.screen,
-                                "Interactive Module Loading",
-                                "Load module %s?" % m,
-                                ['Yes', 'No'])
-
-    return result != 'no'
-
-def driver_disk_sequence():
-    answers = {}
+def driver_disk_sequence(answers):
     uic = uicontroller
     seq = [
-        uic.Step(get_driver_source),
-        uic.Step(tui.network.requireNetworking,
-                 predicates = [lambda a: a['source-media'] != 'local']),
-        uic.Step(get_driver_source_location),
+        uic.Step(tui.repo.select_repo_source, 
+                 args = ["Select Driver Source", "Please select where you would like to load a driver from:", 
+                         False]),
+        uic.Step(require_networking,
+                 predicates = [lambda a: a['source-media'] != 'local' and 
+                               not a.has_key('network-configured')]),
+        uic.Step(tui.repo.get_source_location, 
+                 predicates = [lambda a: a['source-media'] != 'local'],
+                 args = [False]),
         uic.Step(confirm_load_drivers),
+        uic.Step(tui.repo.verify_source, args=['driver disk']),
+        uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
 
-    if rc == -1:
+    if rc == LEFT_BACKWARDS:
         return None
-    else:
-        return (answers['source-media'], answers['source-address'])
+    return (answers['source-media'], answers['source-address'])
 
 def get_driver_source(answers):
     entries = [
@@ -100,80 +93,116 @@ def get_driver_source(answers):
         "Please select where you would like to load a driver from:",
         entries, ['Ok', 'Back'])
 
+    if result == 'back': return LEFT_BACKWARDS
+
     answers['source-media'] = entry
     if entry == 'local':
         answers['source-address'] = ''
+    return RIGHT_FORWARDS
 
-    if result in ['ok', None]: return 1
-    if result == 'back': return -1
+def require_networking(answers):
+    rc = tui.network.requireNetworking(answers)
 
-def get_driver_source_location(answers):
-    if answers['source-media'] not in ['url', 'nfs']:
-        return uicontroller.SKIP_SCREEN
-
-    if answers['source-media'] == 'url':
-        text = "Please enter the URL for your HTTP or FTP repository"
-        label = "URL:"
-    elif answers['source-media'] == 'nfs':
-        text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
-        label = "NFS Path:"
-        
-    if answers.has_key('source-address'):
-        default = answers['source-address']
-    else:
-        default = ""
-    (button, result) = EntryWindow(
-        tui.screen,
-        "Specify Repository",
-        text,
-        [(label, default)], entryWidth = 50,
-        buttons = ['Ok', 'Back'])
-    
-    answers['source-address'] = result[0]
-            
-    if button in [None, 'ok']: return 1
-    if button == 'back': return -1
+    # no further prompts
+    answers['network-configured'] = True
+    return rc
 
 def confirm_load_drivers(answers):
     # find drivers:
     try:
+        tui.progress.showMessageDialog("Please wait", "Searching for driver disks...")
         repos = repository.repositoriesFromDefinition(
             answers['source-media'], answers['source-address'])
+        tui.progress.clearModelessDialog()
     except:
         ButtonChoiceWindow(
             tui.screen, "Error",
             """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
             ['Back'])
-        return -1
+        return LEFT_BACKWARDS
         
     drivers = []
 
     for r in repos:
+        has_drivers = False
+        if answers.has_key('loaded-drivers') and r.identifier() in answers['loaded-drivers']:
+            xelogging.log("Already loaded %s" % r.identifier())
+            continue
         for p in r:
-            if p.type == "driver":
-                drivers.append(p)
+            if p.type.startswith("driver") and p.is_compatible():
+                has_drivers = True
+        if has_drivers:
+           drivers.append(p)
 
-    driver_names = [" * %s" % d.name for d in drivers]
     if len(drivers) == 0:
         ButtonChoiceWindow(
             tui.screen, "No drivers found",
-            """No drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
+            """No compatible drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
 
-Note that this driver-loading mechanism is only compatible with media/locations containing XenSource repositories.  Check the user guide for more information.""",
+Note that this driver-loading mechanism is only compatible with media/locations containing %s repositories.  Check the installation guide for more information.""" % PRODUCT_BRAND,
             ['Back'])
-        return -1
+        return LEFT_BACKWARDS
     else:
+        this_repo = None
+        driver_text = ""
+        for d in drivers:
+            if this_repo != d.repository:
+                driver_text += "\n%s\n\n" % d.repository.name().center(30)
+                this_repo = d.repository
+            driver_text += " * %s\n" % d.name
+
         if len(drivers) == 1:
-            text = "The following driver was found: \n\n"
+            text = "The following driver was found:\n"
         elif len(drivers) > 1:
-            text = "The following drivers were found:\n\n"
-        text += "\n".join(driver_names)
-        rc = ButtonChoiceWindow(
-            tui.screen, "Load drivers", text, ['Load Drivers', 'Back'])
+            text = "The following drivers were found:\n"
+        text += driver_text
 
-        if rc in ['load drivers', None]: return 1
-        if rc == 'back': return -1
+        while True:
+            rc = ButtonChoiceWindow(
+                tui.screen, "Load Drivers", text, ['Load drivers', 'Info', 'Back'])
 
+            if rc == 'back': return LEFT_BACKWARDS
+            if rc == 'load drivers':
+                answers['repos'] = repos
+                return RIGHT_FORWARDS
+
+            if rc == 'info':
+                hashes = [" %s %s" % (r.md5sum(), r.name()) for r in repos]
+                text2 = "The following MD5 hashes have been calculated. Please check them against those provided by the driver supplier:\n\n"
+                text2 += "\n".join(hashes)
+                ButtonChoiceWindow(
+                    tui.screen, "Driver Repository Information", text2, ['Ok'])
+
+def eula_screen(answers):
+    eula = ''
+    for r in answers['repos']:
+        for p in r:
+            if not p.is_compatible(): continue
+            e = p.eula()
+            if e:
+                eula += e + '\n'
+    if eula == '':
+        return SKIP_SCREEN
+
+    while True:
+        button = snackutil.ButtonChoiceWindowEx(
+            tui.screen,
+            "Driver License Agreement",
+            eula,
+            ['Accept EULA', 'Back'], width=60, default=1)
+
+        if button == 'accept eula':
+            return RIGHT_FORWARDS
+        elif button == 'back':
+            return LEFT_BACKWARDS
+        else:
+            ButtonChoiceWindow(
+                tui.screen,
+                "Driver License Agreement",
+                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this driver.",
+                ['Ok'])
+
+# OBSOLETE?
 def ask_export_destination_screen(answers):
     valid = False
     hn = ""
@@ -199,11 +228,10 @@ def ask_export_destination_screen(answers):
                     "You must enter a valid hostname",
                     ["Ok"])
 
-    if button == "back":
-        return -1
-    else:
-        return 1
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
 
+# OBSOLETE?
 def ask_host_password_screen(answers):
     button, result = snackutil.PasswordEntryWindow(
         tui.screen,
@@ -212,12 +240,11 @@ def ask_host_password_screen(answers):
         ["Password"], entryWidth = 30,
         buttons = ["Ok", "Back"])
 
+    if button == 'back': return LEFT_BACKWARDS
+
     answers['password'] = result[0]
 
-    if button == "back":
-        return -1
-    else:
-        return 1
+    return RIGHT_FORWARDS
 
 def select_backup(backups):
     entries = []

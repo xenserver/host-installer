@@ -96,6 +96,7 @@ def main(args):
     ui = tui
     interactive = True
     answer_device = 'all'
+    driver_answers = {}
     driver_repos = []
     init_network = False
     reboot = False
@@ -237,7 +238,7 @@ def main(args):
 
             # load a driver:
             elif operation == init_constants.OPERATION_LOAD_DRIVER:
-                driver_repos.extend(driver.doInteractiveLoadDriver(ui))
+                driver_repos.extend(driver.doInteractiveLoadDriver(ui, driver_answers))
                 rc = None
 
             # restore:

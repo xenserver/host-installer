@@ -26,6 +26,8 @@ import version
 import util
 from util import dev_null
 import product
+import cpiofile
+from constants import *
 
 class NoRepository(Exception):
     pass
@@ -47,12 +49,14 @@ class Repository:
         self._base = base
         self._product_brand = None
         self._product_version = None
+        self._md5 = md5.new()
 
         accessor.start()
 
         try:
             repofile = accessor.openAddress(self.path(self.REPOSITORY_FILENAME))
         except Exception, e:
+            accessor.finish()
             raise NoRepository, e
         self._parse_repofile(repofile)
         repofile.close()
@@ -60,6 +64,7 @@ class Repository:
         try:
             pkgfile = accessor.openAddress(self.path(self.PKGDATA_FILENAME))
         except Exception, e:
+            accessor.finish()
             raise NoRepository, e
         self._parse_packages(pkgfile)
         repofile.close()
@@ -74,7 +79,11 @@ class Repository:
 
     def _parse_repofile(self, repofile):
         """ Parse repository data -- get repository identifier and name. """
-        lines = [x.strip() for x in repofile.readlines()]
+        lines = []
+        for line in repofile:
+            self._md5.update(line)
+            lines.append(line.strip())
+
         self._identifier = lines[0]
         self._name = lines[1]
         if len(lines) >= 4:
@@ -105,11 +114,14 @@ class Repository:
             'tbz2' : BzippedPackage,
             'driver' : DriverPackage,
             'firmware' : FirmwarePackage,
+            'rpm' : RPMPackage,
+            'driver-rpm' : DriverRPMPackage,
             }
         
         lines = pkgfile.readlines()
         self._packages = []
         for line in lines:
+            self._md5.update(line)
             pkgdata_raw = line.strip().split(" ")
             (_name, _size, _md5sum, _type) = pkgdata_raw[:4]
             if pkgtype_mapping.has_key(_type):
@@ -144,27 +156,33 @@ class Repository:
             self._accessor.finish()
         return problems
 
-    def copyTo(self, destination):
+    def copyTo(self, destination, copy_packages = True):
         util.assertDir(destination)
 
         # write the XS-REPOSITORY file:
-        xsrep_fd = open(os.path.join(destination, 'XS-REPOSITORY'), 'w')
-        xsrep_fd.write(self.identifier() + '\n')
-        xsrep_fd.write(self.name() + '\n')
+        xsrep_fd = open(os.path.join(destination, self.REPOSITORY_FILENAME), 'w')
+        xsrep_fd.write(self._identifier + '\n')
+        xsrep_fd.write(self._name + '\n')
+        if self._product_brand:
+            xsrep_fd.write(self._product_brand + '\n')
+        if self._product_version:
+            xsrep_fd.write("%s\n" % self._product_version)
         xsrep_fd.close()
 
-        # copy the packages and write an XS-PACAKGES file:
-        xspkg_fd = open(os.path.join(destination, 'XS-PACKAGES'), 'w')
+        # copy the packages and write an XS-PACKAGES file:
+        xspkg_fd = open(os.path.join(destination, self.PKGDATA_FILENAME), 'w')
         for pkg in self:
-            repo_dir = os.path.dirname(pkg.repository_filename)
-            target_dir = os.path.join(destination, repo_dir)
-            util.assertDir(target_dir)
             xspkg_fd.write(pkg.pkgLine() + '\n')
 
-            # pkg.copy will use the full path for us, we just have to make sure
-            # the appropriate directory exists before using it (c.f. the
-            # the assertDir above).
-            pkg.copy(destination)
+            if copy_packages:
+                repo_dir = os.path.dirname(pkg.repository_filename)
+                target_dir = os.path.join(destination, repo_dir)
+                util.assertDir(target_dir)
+
+                # pkg.copy will use the full path for us, we just have to make sure
+                # the appropriate directory exists before using it (c.f. the
+                # the assertDir above).
+                pkg.copy(destination)
         xspkg_fd.close()
 
     def accessor(self):
@@ -172,6 +190,12 @@ class Repository:
 
     def __iter__(self):
         return self._packages.__iter__()
+
+    def record_install(self, answers):
+        self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier), False)
+
+    def md5sum(self):
+        return self._md5.hexdigest()
 
 class Package:
     def copy(self, destination):
@@ -199,6 +223,12 @@ class Package:
 
         dest_fd.close()
         package.close()
+
+    def is_compatible(self):
+        return True
+
+    def eula(self):
+        return None
 
 class DriverPackage(Package):
     def __init__(self, repository, name, size, md5sum, src, dest):
@@ -229,7 +259,7 @@ class DriverPackage(Package):
         return self.repository.accessor().access(self.repository_filename)
     
     def load(self):
-        # Coyp driver to a temporary location:
+        # Copy driver to a temporary location:
         util.assertDir('/tmp/drivers')
         temploc = os.path.join('/tmp/drivers', self.repository_filename)
         self.write(temploc)
@@ -361,6 +391,153 @@ class BzippedPackage(Package):
     def __repr__(self):
         return "<BzippedPackage: %s>" % self.name
 
+class RPMPackage(Package):
+    def __init__(self, repository, name, size, md5sum, src):
+        (
+            self.repository,
+            self.name,
+            self.size,
+            self.md5sum,
+            self.repository_filename,
+        ) = ( repository, name, long(size), md5sum, src, )
+        self.destination = 'tmp/%s' % os.path.basename(src)
+
+    def __repr__(self):
+        return "<RPMPackage: %s>" % self.name
+
+    def pkgLine(self):
+        return "%s %d %s rpm %s" % \
+               (self.name, self.size, self.md5sum, self.repository_filename)
+
+    def install(self, base, progress = lambda x: ()):
+        self.write(os.path.join(base, self.destination))
+        if util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-i', self.destination]) != 0:
+            raise ErrorInstallingPackage, "Installation of %s failed" % self.destination
+
+    def check(self, fast = False, progress = lambda x: ()):
+        """ Check a package against it's known checksum, or if fast is
+        specified, just check that the package exists. """
+        path = self.repository.path(self.repository_filename)
+        if fast:
+            return self.repository.accessor().access(path)
+        else:
+            try:
+                pkgfd = self.repository.accessor().openAddress(path)
+
+                xelogging.log("Validating package %s" % self.name)
+                m = md5.new()
+                data = ''
+                total_read = 0
+                while True:
+                    data = pkgfd.read(10485760)
+                    total_read += len(data)
+                    if data == '':
+                        break
+                    else:
+                        m.update(data)
+                    progress(total_read / (self.size / 100))
+                
+                pkgfd.close()
+                
+                calculated = m.hexdigest()
+                valid = (self.md5sum == calculated)
+                xelogging.log("Result: %s " % str(valid))
+                return valid
+            except Exception, e:
+                return False
+
+    def eula(self):
+        """ Extract the contents of any EULA files """
+
+        self.repository.accessor().start()
+
+        # Copy RPM to a temporary location:
+        util.assertDir('/tmp/rpm')
+        temploc = os.path.join('/tmp/rpm', self.repository_filename)
+        self.write(temploc)
+
+        tmpcpio = tempfile.mktemp(prefix="cpio-", dir="/tmp")
+        util.runCmd("rpm2cpio %s >%s" % (temploc, tmpcpio))
+
+        data = ''
+
+        payload = cpiofile.open(tmpcpio, 'r')
+
+        for cpioinfo in payload:
+            if cpioinfo.name.endswith('EULA'):
+                data += payload.extractfile(cpioinfo).read()
+
+        payload.close()
+
+        self.repository.accessor().finish()
+    
+        # Remove the RPM from the temporary location:
+        os.unlink(tmpcpio)
+        os.unlink(temploc)
+
+        return data
+
+class DriverRPMPackage(RPMPackage):
+    def __init__(self, repository, name, size, md5sum, kernel, src):
+        (
+            self.repository,
+            self.name,
+            self.size,
+            self.md5sum,
+            self.kernel_version,
+            self.repository_filename,
+        ) = ( repository, name, long(size), md5sum, kernel, src, )
+        self.destination = 'tmp/%s' % os.path.basename(src)
+
+    def __repr__(self):
+        return "<DriverRPMPackage: %s>" % self.name
+
+    def pkgLine(self):
+        return "%s %d %s driver-rpm %s %s" % \
+               (self.name, self.size, self.md5sum, self.kernel_version, self.repository_filename)
+    
+    def load(self):
+        # Skip drivers for kernels other than ours:
+        if not self.is_compatible():
+            xelogging.log("Skipping driver %s, version mismatch (%s != %s)" % 
+                          (self.name, self.kernel_version, version.KERNEL_VERSION))
+            return 0
+
+        self.repository.accessor().start()
+
+        # Copy driver to a temporary location:
+        util.assertDir('/tmp/drivers')
+        temploc = os.path.join('/tmp/drivers', self.repository_filename)
+        self.write(temploc)
+
+        # Install the RPM into the ramdisk:
+        rc = util.runCmd2(['/bin/rpm', '-i', temploc])
+
+        if rc == 0:
+            util.runCmd2(['/sbin/depmod'])
+            modules = []
+            rc, out = util.runCmd2(['/bin/rpm', '-qlp', temploc], with_stdout = True)
+            if rc == 0:
+                modules += filter(lambda x: x.endswith('.ko') and x not in modules, out.split("\n"))
+
+            # insmod the driver(s):
+            for module in modules:
+                rc = hardware.modprobe_file(module)
+                if rc != 0:
+                    xelogging.log("Failed to modprobe %s" %module)
+        else:
+            xelogging.log("Failed to install %s" % self.name)
+
+        self.repository.accessor().finish()
+
+        # Remove the driver from the temporary location:
+        os.unlink(temploc)
+
+        return rc
+
+    def is_compatible(self):
+        return self.kernel_version == 'any' or self.kernel_version == version.KERNEL_VERSION
+
 class Accessor:
     def pathjoin(base, name):
         return os.path.join(base, name)
@@ -388,11 +565,23 @@ class Accessor:
     
     def findRepositories(self):
         # Check known locations:
+        package_list = ['', 'packages', 'packages.main', 'packages.linux',
+                        'packages.site']
         repos = []
+
         self.start()
-        for loc in ['', 'packages', 'packages.main', 'packages.linux',
-                    'packages.site']:
+        try:
+            extra = self.openAddress('XS-REPOSITORY-LIST')
+            if extra:
+                for line in extra:
+                    package_list.append(line.strip())
+                extra.close()
+        except:
+            pass
+
+        for loc in package_list:
             if Repository.isRepo(self, loc):
+                xelogging.log("Repository found in /%s" % loc)
                 repos.append(Repository(self, loc))
         self.finish()
         return repos
@@ -442,7 +631,7 @@ class MountingAccessor(FilesystemAccessor):
     def finish(self):
         if self.start_count == 0:
             return
-        self.start_count = self.start_count - 1
+        self.start_count -= 1
         if self.start_count == 0:
             util.umount(self.location)
             os.rmdir(self.location)

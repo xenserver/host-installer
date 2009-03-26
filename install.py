@@ -37,6 +37,7 @@ import product
 import upgrade
 
 # general
+import repository
 import xelogging
 
 def main(args):
@@ -67,7 +68,8 @@ def go(ui, args, answerfile_address):
         'keymap': None, 
         'serial-console': None,
         'operation': init_constants.OPERATION_INSTALL,
-        'boot-serial': False
+        'boot-serial': False,
+        'extra-repos': []
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -142,8 +144,16 @@ def go(ui, args, answerfile_address):
             a = answerfile.Answerfile(answerfile_address)
             results.update(a.parseScripts())
             results.update(a.processAnswerfile())
+            if results.has_key('extra-repos'):
+                # load drivers now
+                for d in results['extra-repos']:
+                    for r in repository.repositoriesFromDefinition(*d):
+                        for p in r:
+                            if p.type.startswith('driver'):
+                                p.load()
 
-        results['extra-repos'] = extra_repo_defs
+        results['extra-repos'] += extra_repo_defs
+        xelogging.log("Driver repos: %s" % str(results['extra-repos']))
 
         # log the modules that we loaded:
         xelogging.log("All needed modules should now be loaded. We have loaded:")
@@ -246,4 +256,4 @@ def go(ui, args, answerfile_address):
     return status
 
 if __name__ == "__main__":
-    sys.exit(main(util.splitArgs(sys.argv[1:])))
+    sys.exit(main(util.splitArgs(sys.argv[1:], array_args = ('--extrarepo'))))

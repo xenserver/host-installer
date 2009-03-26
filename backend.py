@@ -136,6 +136,7 @@ def getRepoSequence(ans, repos):
                      pass_progress_callback = True,
                      progress_text = "Installing from %s..." % repo.name())
                 ]
+        seq.append(Task(repo.record_install, A(ans, 'mounts'), []))
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
 

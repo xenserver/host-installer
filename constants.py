@@ -102,3 +102,4 @@ BLOB_DIRECTORY = "var/xapi/blobs"
 MAIN_REPOSITORY_NAME = 'xs:main'
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
+INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"

@@ -12,6 +12,7 @@
 
 import tui.installer.screens 
 import tui.progress
+import tui.repo
 import uicontroller
 from uicontroller import LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
@@ -95,14 +96,14 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[is_clean_install_fn]),
         Step(uis.confirm_erase_volume_groups,
              predicates=[is_clean_install_fn]),
-        Step(uis.select_installation_source),
+        Step(tui.repo.select_repo_source, args = ["Select Installation Source", "Please select the type of source you would like to use for this installation"]),
         Step(uis.use_extra_media, args=[vt_warning],
              predicates=[local_media_predicate]),
         Step(uis.setup_runtime_networking, 
              predicates=[is_using_remote_media_fn]),
         Step(uis.get_source_location,
              predicates=[is_using_remote_media_fn]),
-        Step(uis.verify_source),
+        Step(tui.repo.verify_source, args=['installation']),
         Step(uis.get_root_password,
              predicates=[not_preserve_settings]),
         Step(uis.get_admin_interface,

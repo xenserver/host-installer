@@ -91,6 +91,7 @@ class Answerfile:
             results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
 
         results.update(self.parseSource())
+        results.update(self.parseDriverSource())
         results.update(self.parseInterfaces())
         results.update(self.parseRootPassword())
         results.update(self.parseNSConfig())
@@ -110,6 +111,7 @@ class Answerfile:
         results['backup-existing-installation'] = True
 
         results.update(self.parseSource())
+        results.update(self.parseDriverSource())
         results.update(self.parseInterfaces())
         results.update(self.parseRootPassword())
         results.update(self.parseNSConfig())
@@ -129,6 +131,7 @@ class Answerfile:
         results['backup-existing-installation'] = True
 
         results.update(self.parseSource())
+        results.update(self.parseDriverSource())
         results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
@@ -365,4 +368,19 @@ class Answerfile:
                 results['xenrt-serial'] = str(serport)
             results['xenrt'] = getText(xenrt.childNodes)
 
+        return results
+
+    def parseDriverSource(self):
+        results = {}
+        for source in self.nodelist.getElementsByTagName('driver-source'):
+            if not results.has_key('extra-repos'):
+                results['extra-repos'] = []
+
+            if source.getAttribute('type') == 'local':
+                address = "Install disc"
+            elif source.getAttribute('type') in ['url', 'nfs']:
+                address = getText(source.childNodes)
+            else:
+                raise AnswerfileError, "Invalid type for driver-source media specified."
+            results['extra-repos'].append((source.getAttribute('type'), address))
         return results
