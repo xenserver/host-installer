@@ -385,8 +385,9 @@ class BzippedPackage(Package):
                 return False
 
     def pkgLine(self):
-        return "%s %s %s tbz2 required %s %s" % (
-            self.name, self.size, self.md5sum, self.repository_filename, self.destination)
+        return "%s %s %s tbz2 %s %s /%s" % (
+            self.name, self.size, self.md5sum, self.required and "required" or "optional", 
+            self.repository_filename, self.destination)
 
     def __repr__(self):
         return "<BzippedPackage: %s>" % self.name
