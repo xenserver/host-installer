@@ -50,9 +50,10 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                upgrade.getUpgrader(answers['installation-to-overwrite']).requires_backup
     not_requires_backup = lambda a: not requires_backup(a)
 
-    def not_preserve_settings(answers):
-        return not answers.has_key('preserve-settings') or \
-               not answers['preserve-settings']
+    def preserve_settings(answers):
+        return answers.has_key('preserve-settings') and \
+               answers['preserve-settings']
+    not_preserve_settings = lambda a: not preserve_settings(a)
 
     def local_media_predicate(answers):
         return answers.has_key('source-media') and \
@@ -86,6 +87,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[lambda _:len(results['upgradeable-products']) > 0]),
         Step(uis.upgrade_settings_warning,
              predicates=[upgrade_but_no_settings_predicate]),
+        Step(uis.remind_driver_repos,
+             predicates=[is_reinstall_fn, preserve_settings]),
         Step(uis.backup_existing_installation,
              predicates=[is_reinstall_fn, not_requires_backup]),
         Step(uis.force_backup_screen,

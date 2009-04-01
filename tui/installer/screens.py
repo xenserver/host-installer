@@ -293,6 +293,35 @@ Warning: You must use the current values. Failure to do so may result in an inco
     if button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
+def remind_driver_repos(answers):
+    driver_list = []
+    settings = answers['installation-to-overwrite'].readSettings()
+    for repo in settings['repo-list']:
+        id, name, has_drivers = repo
+        if has_drivers and name not in driver_list:
+            driver_list.append(name)
+
+    if len(driver_list) == 0:
+        return SKIP_SCREEN
+
+    text = ''
+    for driver in driver_list:
+        text += " * %s" % driver
+
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "Installed Driver Disks",
+        """The following driver disks are present in the current installation:
+
+%s
+
+Please ensure that the functionality they provide is either included in the version of %s being installed or by a driver disk you have just loaded.""" % (text, PRODUCT_BRAND),
+        ['Ok', 'Back']
+        )
+
+    if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
+
 def force_backup_screen(answers):
     button = ButtonChoiceWindow(
         tui.screen,
