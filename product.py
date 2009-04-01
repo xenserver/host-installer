@@ -23,6 +23,7 @@ import stat
 import tempfile
 import xelogging
 from variant import *
+import repository
 
 class SettingsNotAvailable(Exception):
     pass
@@ -335,6 +336,26 @@ class ExistingInstallation(object):
                     else:
                         results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, hwaddr)
                     break
+
+            repo_list = []
+            
+            try:
+                for repo_id in os.listdir(os.path.join(mntpoint, constants.INSTALLED_REPOS_DIR)):
+                    has_driver = False
+
+                    repo = repository.Repository(repository.FilesystemAccessor(os.path.join(mntpoint, constants.INSTALLED_REPOS_DIR, repo_id)))
+                    for pkg in repo:
+                        if isinstance(pkg, repository.DriverRPMPackage) or isinstance(pkg, repository.DriverPackage):
+                            has_driver = True
+                            break
+
+                    repo_list.append((repo.identifier(), repo.name(), has_driver))
+            except Exception, e:
+                xelogging.log('Scan for driver disks failed:')
+                xelogging.log_exception(e)
+
+            results['repo-list'] = repo_list
+
             return results
             
         ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartition, self.build)
