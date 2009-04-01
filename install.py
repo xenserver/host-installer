@@ -150,7 +150,8 @@ def go(ui, args, answerfile_address):
                     for r in repository.repositoriesFromDefinition(*d):
                         for p in r:
                             if p.type.startswith('driver'):
-                                p.load()
+                                if p.load() != 0:
+                                    raise RuntimeError, "Failed to load driver %s." % p.name
 
         results['extra-repos'] += extra_repo_defs
         xelogging.log("Driver repos: %s" % str(results['extra-repos']))
