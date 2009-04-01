@@ -412,7 +412,21 @@ class RPMPackage(Package):
 
     def install(self, base, progress = lambda x: ()):
         self.write(os.path.join(base, self.destination))
-        if util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-i', self.destination]) != 0:
+        rc, name = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-q', '--qf', '%{NAME}', 
+                                 '-p', self.destination], with_stdout = True)
+        assert rc == 0
+
+        rc, new_ver = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 
+                                    '-p', self.destination], with_stdout = True)
+        assert rc == 0
+        rc, cur_ver = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 
+                                        name], with_stdout = True)
+        if rc == 0 and new_ver == cur_ver:
+            # skip, this version is already installed
+            xelogging.log("%s-%s already installed, skipping" % (name, new_ver))
+            return
+
+        if util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-U', self.destination]) != 0:
             raise ErrorInstallingPackage, "Installation of %s failed" % self.destination
 
     def check(self, fast = False, progress = lambda x: ()):
