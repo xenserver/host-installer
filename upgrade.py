@@ -68,10 +68,10 @@ class Upgrader(object):
         through the upgrade. """
         pass
 
-class SecondGenUpgrader(Upgrader):
-    """ Upgrader class for series 4 products. """
+class ThirdGenUpgrader(Upgrader):
+    """ Upgrader class for series 5 products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.Version(4, 1, 0), product.THIS_PRODUCT_VERSION) ]
+    upgrades_versions = [ (product.Version(5, 0, 0), product.THIS_PRODUCT_VERSION) ]
     requires_backup = True
 
     def __init__(self, source):
@@ -130,20 +130,7 @@ class SecondGenUpgrader(Upgrader):
                 finally:
                     l.close()
 
-            # CA-16795: upgrade xapi database if necessary
-            upgrade_db = False
-            db_conf = os.path.join(tds, 'etc/xensource/db.conf')
-            if os.path.exists(db_conf):
-                c = open(db_conf, 'r')
-                try:
-                    for line in c:
-                        if  line.strip('\n') == 'format:sqlite':
-                            upgrade_db = True
-                            break
-                finally:
-                    c.close()
-            if not upgrade_db:
-                restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
+            restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
 
             save_dir = os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
             util.assertDir(os.path.join(mounts['root'], save_dir))
@@ -162,30 +149,6 @@ class SecondGenUpgrader(Upgrader):
                     util.runCmd2(['cp', '-p', src, dst])
                 else:
                     xelogging.log("WARNING: /%s did not exist in the backup image." % f)
-
-            if upgrade_db:
-                xelogging.log("Converting xapi database")
-                # chroot into the backup partition and dump db to stdout
-                new_db = open(os.path.join(mounts['root'], 'var/xapi/state.db'), 'w')
-                cmd = ["/usr/sbin/chroot", tds, "/opt/xensource/bin/xapi-db-process", "-xmltostdout"]
-                pipe = subprocess.Popen(cmd, stdout = subprocess.PIPE)
-                for line in pipe.stdout:
-                    new_db.write(line)
-                assert pipe.wait() == 0
-                new_db.close()
-
-                # upgrade the db config
-                old_config = open(db_conf, 'r')
-                new_config = open(os.path.join(mounts['root'], 'etc/xensource/db.conf'), 'w')
-                try:
-                    for line in old_config:
-                        if line.startswith('format:'):
-                            new_config.write('format:xml\n')
-                        else:
-                            new_config.write(line)
-                finally:
-                    new_config.close()
-                    old_config.close()
 
             v = product.Version(prev_install.version.major,
                                 prev_install.version.minor,
@@ -259,7 +222,7 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ SecondGenUpgrader ])
+__upgraders__ = UpgraderList([ ThirdGenUpgrader ])
 
 def filter_for_upgradeable_products(installed_products):
     upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),
