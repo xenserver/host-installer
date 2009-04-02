@@ -162,7 +162,7 @@ Note that this driver-loading mechanism is only compatible with media/locations 
                 tui.screen, "Load Drivers", text, ['Load drivers', 'Info', 'Back'])
 
             if rc == 'back': return LEFT_BACKWARDS
-            if rc == 'load drivers':
+            if rc in [None, 'load drivers']:
                 answers['repos'] = repos
                 return RIGHT_FORWARDS
 
