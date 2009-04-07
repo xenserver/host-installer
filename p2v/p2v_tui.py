@@ -119,15 +119,19 @@ def get_target(answers):
                     msg = rc['ErrorDescription'][2]
             except socket.error, (e, str):
                 # error connecting to server
-                msg = str
+                msg = str.capitalize().rstrip('.')
             except IOError, e:
                 msg = e
             except xmlrpclib.ProtocolError, e:
                 msg = e.errmsg
             except Exception, e:
                 msg = e
-            
+
             if msg != '':
+                # CA-27806: cleanup error messages
+                if msg == "Not Found":
+                    msg = "Host not found"
+
                 ButtonChoiceWindow(
                     tui.screen, "Error", "Unable to connect to server.  Please check the details and try again.\n\nThe error was '%s'." % msg,
                     ['Back']
