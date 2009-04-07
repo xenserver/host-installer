@@ -253,7 +253,7 @@ def os_install_screen(answers):
     else: 
         # TODO, CA-2747  pull this out of a supported OS list.
         xelogging.log("No supported operating systems found.")
-        raise RuntimeError, "No supported operating systems found.  Please refer to the user guide for a list of supported operating systems and volume management technologies."
+        raise RuntimeError, "No supported operating systems found."
 
 def size_screen(answers):
     tui.progress.showMessageDialog("Working", "Determining size of the selected operating system, please wait...")
