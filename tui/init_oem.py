@@ -232,7 +232,8 @@ def get_blockdev_to_recover(answers, flashonly, alreadyinstalled = False):
             tui.screen,
             flashonly and "Select removable device" or "Select drive",
             alreadyinstalled and "Please select the device containing the installed software:" or "Please select on which device you would like to install:",
-            entries, ['Ok', 'Back', 'Rescan'])
+            entries, ['Ok', 'Back', 'Rescan'],
+            width = 55, height = 4, scroll = 1)
     else:
         result = ButtonChoiceWindow(
             tui.screen, "No drives found",
