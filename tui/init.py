@@ -125,9 +125,6 @@ def confirm_load_drivers(answers):
 
     for r in repos:
         has_drivers = False
-        if answers.has_key('loaded-drivers') and r.identifier() in answers['loaded-drivers']:
-            xelogging.log("Already loaded %s" % r.identifier())
-            continue
         for p in r:
             if p.type.startswith("driver") and p.is_compatible():
                 has_drivers = True

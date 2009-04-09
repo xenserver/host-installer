@@ -350,9 +350,7 @@ def performInstallation(answers, ui_package):
         xelogging.log("(Now installing from driver repositories that were previously stashed.)")
         rtype, rloc = driver_repo_def
         all_repos = repository.repositoriesFromDefinition(rtype, rloc)
-        repos = filter(lambda r: r.identifier() not in installed_repo_ids,
-                       all_repos)
-        new_ans = handleRepos(repos, new_ans)
+        new_ans = handleRepos(all_repos, new_ans)
         installed_repo_ids.extend([ r.identifier() for r in repositories])
 
     # complete the installation:
