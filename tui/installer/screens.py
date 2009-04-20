@@ -279,6 +279,20 @@ def get_installation_type(answers):
                 del answers[k]
     return RIGHT_FORWARDS
 
+def ha_master_upgrade(answers):
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "High Availability Enabled",
+        """High Availability must be disabled before upgrade.
+
+Please reboot this host, disable High Availability on the pool, check which server is the pool master and then restart the upgrade procedure.""",
+        ['Cancel', 'Back'],
+        width = 60
+        )
+
+    if button == 'back': return LEFT_BACKWARDS
+    return EXIT
+
 def upgrade_settings_warning(answers):
     button = ButtonChoiceWindow(
         tui.screen,

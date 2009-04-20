@@ -62,6 +62,12 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     def iscsi_disks_enabled(answers):
         return answers.has_key('enable-iscsi') and answers['enable-iscsi'] == True
 
+    def ha_enabled(answers):
+        settings = {}
+        if answers.has_key('installation-to-overwrite'):
+            settings = answers['installation-to-overwrite'].readSettings()
+        return settings.has_key('ha-armed') and settings['ha-armed']
+
     # initialise the list of installed/upgradeable products.
     # This may change if we later add an iscsi disk
     tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
@@ -87,6 +93,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[lambda _:len(results['upgradeable-products']) > 0]),
         Step(uis.upgrade_settings_warning,
              predicates=[upgrade_but_no_settings_predicate]),
+        Step(uis.ha_master_upgrade,
+             predicates=[is_reinstall_fn, ha_enabled]),
         Step(uis.remind_driver_repos,
              predicates=[is_reinstall_fn, preserve_settings]),
         Step(uis.backup_existing_installation,

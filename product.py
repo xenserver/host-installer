@@ -356,6 +356,15 @@ class ExistingInstallation(object):
 
             results['repo-list'] = repo_list
 
+            results['ha-armed'] = False
+            try:
+                db = open(os.path.join(mntpoint, "var/xapi/local.db"), 'r')
+                if db.readline().find('<row key="ha.armed" value="true"') != -1:
+                    results['ha-armed'] = True
+                db.close()
+            except:
+                pass
+
             return results
             
         ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartition, self.build)
