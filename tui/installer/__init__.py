@@ -188,7 +188,7 @@ def more_media_sequence(installed_repo_ids):
                                                  width=50, default=default_button)
             
             if ans == 'verify media':
-                tui.installer.screens.interactive_source_verification('local', '')
+                tui.repo.interactive_source_verification('local', '', 'installation')
             elif ans == 'back':
                 rc = LEFT_BACKWARDS
                 done = True
