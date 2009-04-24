@@ -50,14 +50,6 @@ from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL, OEMHDD_SYS_1_PARTIT
 
 scriptdir = os.path.dirname(sys.argv[0]) + "/oem"
 
-def getPartitionNode(disknode, pnum):
-    midfix = ""
-    if re.search("/cciss/", disknode):
-        midfix = "p"
-    elif re.search("/disk/by-id/", disknode):
-        midfix = "-part"
-    return disknode + midfix + str(pnum)
-
 def writeDataWithProgress(ui, filename, answers, is_devnode):
     image_name = answers['image-name']
     image_fd    = answers['image-fd']
@@ -347,7 +339,7 @@ def hdd_verify_partition_nodes(devnode):
         for pnum in (hdd_boot_partition_number(devnode),
                 OEMHDD_SYS_1_PARTITION_NUMBER, OEMHDD_SYS_2_PARTITION_NUMBER,
                 OEMHDD_STATE_PARTITION_NUMBER, OEMHDD_SR_PARTITION_NUMBER):
-            p_devnode = getPartitionNode(devnode, pnum)
+            p_devnode = diskutil.partitionFromDisk(devnode, pnum)
             if not os.path.exists(p_devnode):
                 if retries > 0:
                     retries -= 1
@@ -462,26 +454,26 @@ def go_disk(ui, args, answerfile_address, custom):
             wrap_ui_info(ui, 'Creating system image disk partitions ...',
                 lambda: hdd_create_disk_partitions(ui, devnode))
             hdd_verify_partition_nodes(devnode)
-            sr_devnode = getPartitionNode(devnode, OEMHDD_SR_PARTITION_NUMBER)
+            sr_devnode = diskutil.partitionFromDisk(devnode, OEMHDD_SR_PARTITION_NUMBER)
             writeImageWithProgress(ui, sr_devnode, answers)
             wrap_ui_info(ui, 'Installing the master boot record ...', lambda: hdd_install_mbr(sr_devnode, devnode))
 
             wrap_ui_info(ui, 'Installing primary system image ...',
-                lambda: hdd_write_root_partition(sr_devnode, getPartitionNode(devnode, OEMHDD_SYS_1_PARTITION_NUMBER), 1, writeable))
+                lambda: hdd_write_root_partition(sr_devnode, diskutil.partitionFromDisk(devnode, OEMHDD_SYS_1_PARTITION_NUMBER), 1, writeable))
             wrap_ui_info(ui, 'Installing secondary system image ...',
-                lambda: hdd_write_root_partition(sr_devnode, getPartitionNode(devnode, OEMHDD_SYS_2_PARTITION_NUMBER), 2, writeable))
+                lambda: hdd_write_root_partition(sr_devnode, diskutil.partitionFromDisk(devnode, OEMHDD_SYS_2_PARTITION_NUMBER), 2, writeable))
             wrap_ui_info(ui, 'Initializing storage for configuration information ...',
-                lambda: hdd_write_state_partition(sr_devnode, getPartitionNode(devnode, OEMHDD_STATE_PARTITION_NUMBER)))
+                lambda: hdd_write_state_partition(sr_devnode, diskutil.partitionFromDisk(devnode, OEMHDD_STATE_PARTITION_NUMBER)))
             wrap_ui_info(ui, 'Installing boot image ...',
-                lambda: hdd_write_boot_partition(sr_devnode, getPartitionNode(devnode, hdd_boot_partition_number(devnode))))
+                lambda: hdd_write_boot_partition(sr_devnode, diskutil.partitionFromDisk(devnode, hdd_boot_partition_number(devnode))))
             write_oem_firstboot_files(answers) # Completes quickly so no banner
             wrap_ui_info(ui, 'Customizing startup modules ...',
-                lambda: hdd_update_initrd(getPartitionNode(devnode, OEMHDD_SYS_1_PARTITION_NUMBER)))
+                lambda: hdd_update_initrd(diskutil.partitionFromDisk(devnode, OEMHDD_SYS_1_PARTITION_NUMBER)))
             wrap_ui_info(ui, 'Customizing startup modules ...',
-                lambda: hdd_update_initrd(getPartitionNode(devnode, OEMHDD_SYS_2_PARTITION_NUMBER)))
+                lambda: hdd_update_initrd(diskutil.partitionFromDisk(devnode, OEMHDD_SYS_2_PARTITION_NUMBER)))
             if answers.has_key("xenrt"):
                 wrap_ui_info(ui, 'Writing XenRT information ...',
-                    lambda: write_xenrt(ui, answers, getPartitionNode(devnode, hdd_boot_partition_number(devnode))))
+                    lambda: write_xenrt(ui, answers, diskutil.partitionFromDisk(devnode, hdd_boot_partition_number(devnode))))
             wrap_ui_info(ui, 'Finalizing installation ...',
                 lambda: run_post_install_script(answers))
     except Exception, e:
@@ -547,7 +539,7 @@ def go_flash(ui, args, answerfile_address, custom):
         return EXIT_ERROR
 
     if answers.has_key("xenrt"):
-        partnode = getPartitionNode(devnode, OEMFLASH_BOOT_PARTITION_NUMBER)
+        partnode = diskutil.partitionFromDisk(devnode, OEMFLASH_BOOT_PARTITION_NUMBER)
         wrap_ui_info(ui, 'Writing XenRT information ...', lambda: write_xenrt(ui, answers, partnode))
 
     wrap_ui_info(ui, 'Finalizing installation ...', lambda: run_post_install_script(answers))
@@ -572,9 +564,9 @@ def write_oem_firstboot_files(answers):
     operation = answers['operation']
     is_hdd = init_constants.operationIsOEMHDDInstall(operation)
     if is_hdd:
-        partnode = getPartitionNode(answers['primary-disk'], OEMHDD_STATE_PARTITION_NUMBER)
+        partnode = diskutil.partitionFromDisk(answers['primary-disk'], OEMHDD_STATE_PARTITION_NUMBER)
     else:
-        partnode = getPartitionNode(answers['primary-disk'], OEMFLASH_STATE_PARTITION_NUMBER)
+        partnode = diskutil.partitionFromDisk(answers['primary-disk'], OEMFLASH_STATE_PARTITION_NUMBER)
         
     mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'oem-state-partition-')
     try:

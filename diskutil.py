@@ -152,6 +152,15 @@ def partitionNumberFromPartition(partition):
         raise Exception('Cannot extract partition number from '+partition)
     return int(match.group(1))
 
+# Given a disk (eg. /dev/sda) and a partition number, get a partition name:
+def partitionFromDisk(disk, pnum):
+    midfix = ""
+    if re.search("/cciss/", disk):
+        midfix = "p"
+    elif re.search("/disk/by-id/", disk):
+        midfix = "-part"
+    return disk + midfix + str(pnum)
+
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
     symlink = None
