@@ -24,33 +24,38 @@ import util
 import constants
 import xelogging
 import backend
+from variant import VariantRetail, VariantOEMDisk, VariantOEMFlash
 
 class UpgraderNotAvailable(Exception):
     pass
 
 def upgradeAvailable(src):
-    return __upgraders__.hasUpgrader(src.name, src.version)
+    return __upgraders__.hasUpgrader(src.name, src.variant_class, src.version)
 
 def getUpgrader(src):
     """ Returns an upgrader instance suitable for src. Propogates a KeyError
     exception if no suitable upgrader is available (caller should have checked
     first by calling upgradeAvailable). """
-    return __upgraders__.getUpgrader(src.name, src.version)(src)
+    return __upgraders__.getUpgrader(src.name, src.variant_class, src.version)(src)
 
 class Upgrader(object):
     """ Base class for upgraders.  Superclasses should define an
-    upgrades_product variable that is the product they upgrade, and an 
+    upgrades_product variable that is the product they upgrade, an 
+    upgrades_variants list of Retail or OEM install types that they upgrade, and an 
     upgrades_versions that is a list of pairs of version extents they support
     upgrading."""
 
     requires_backup = False
+    optional_backup = True
+    repartition     = False
 
     def __init__(self, source):
         """ source is the ExistingInstallation object we're to upgrade. """
         self.source = source
 
-    def upgrades(cls, product, version):
+    def upgrades(cls, product, variant_class, version):
         return (cls.upgrades_product == product and
+                variant_class in cls.upgrades_variants and
                 True in [ _min <= version <= _max for (_min, _max) in cls.upgrades_versions ])
 
     upgrades = classmethod(upgrades)
@@ -69,10 +74,12 @@ class Upgrader(object):
         pass
 
 class ThirdGenUpgrader(Upgrader):
-    """ Upgrader class for series 5 products. """
+    """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
     upgrades_versions = [ (product.Version(5, 0, 0), product.THIS_PRODUCT_VERSION) ]
+    upgrades_variants = [ VariantRetail ]
     requires_backup = True
+    optional_backup = False
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
@@ -215,17 +222,28 @@ class ThirdGenUpgrader(Upgrader):
                     util.umount(tds)
                 os.rmdir(tds)
 
+class ThirdGenOEMDiskUpgrader(ThirdGenUpgrader):
+    """ Upgrader class for series 5 OEM Disk products. """
+    requires_backup = False
+    optional_backup = False
+    repartition     = True
+    upgrades_variants = [ VariantOEMDisk ]
+
+    def __init__(self, source):
+        ThirdGenUpgrader.__init__(self, source)
+
+
 # Upgraders provided here, in preference order:
 class UpgraderList(list):
-    def getUpgrader(self, product, version):
+    def getUpgrader(self, product, variant_class, version):
         for x in self:
-            if x.upgrades(product, version):
+            if x.upgrades(product, variant_class, version):
                 return x
         raise KeyError, "No upgrader found for %s" % version
 
-    def hasUpgrader(self, product, version):
+    def hasUpgrader(self, product, variant_class, version):
         for x in self:
-            if x.upgrades(product, version):
+            if x.upgrades(product, variant_class, version):
                 return True
         return False
     

@@ -72,6 +72,8 @@ rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
 swap_location = '/var/swap/swap.001'
 swap_size = 512
 
+OEMFLASH_SYS_1_PARTITION_NUMBER = 1
+OEMFLASH_SYS_2_PARTITION_NUMBER = 2
 OEMFLASH_STATE_PARTITION_NUMBER = 3
 OEMFLASH_BOOT_PARTITION_NUMBER = 4
     
@@ -83,6 +85,8 @@ OEMHDD_SYS_1_PARTITION_NUMBER = 5
 OEMHDD_SYS_2_PARTITION_NUMBER = 6
 OEMHDD_STATE_PARTITION_NUMBER = 7
 OEMHDD_SR_PARTITION_NUMBER    = 8
+
+OEM_BOOT_PARTITION_FAT_LABEL = "IHVCONFIG"
 
 MIN_PASSWD_LEN=6
 
@@ -103,3 +107,5 @@ MAIN_REPOSITORY_NAME = 'xs:main'
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
+
+SYSLINUX_CFG = "syslinux.cfg"

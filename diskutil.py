@@ -230,6 +230,22 @@ def getExtendedDiskInfo(disk, inMb = 0):
             getDiskDeviceModel(devname),
             inMb and (getDiskDeviceSize(devname)/2048) or getDiskDeviceSize(devname))
 
+def readFATPartitionLabel(partition):
+    """Read the FAT partition label directly, including whitespace."""
+    fd = open(partition)
+    bytes = fd.read(82)
+    fd.close()
+
+    if bytes[83:87] == "FAT32":
+        label = bytes[71:82]
+    elif bytes[54:59] == "FAT16":
+        label = bytes[43:54]
+    elif bytes[54:59] == "FAT12":
+        label = bytes[43:54]
+    else:
+        raise Exception("%s is not FAT partition" % partition)
+    return label
+
 ################################################################################
 # TOOLS FOR PARTITIONING DISKS
 
@@ -285,6 +301,25 @@ def makeActivePartition(disk, partition_number):
 
     # wait for fdisk to finish:
     assert pipe.wait() == 0
+
+def getActivePartition(disk):
+    """ Returns the active partition, if any"""
+    xelogging.log("Reading the active partition on disk %s" % disk)
+
+    active = None
+    pipe = subprocess.Popen(['/sbin/sfdisk', '-l', '-d', disk], bufsize = 1,
+                            stdin = dev_null(), stdout = subprocess.PIPE,
+                            stderr = dev_null(), close_fds = True)
+    for line in pipe.stdout:
+        theline = line.strip()
+        if theline.endswith('bootable'):
+            try:
+                active = theline.split(':')[0].strip()
+            except:
+                xelogging.log("Failed to parse the active partition on disk %s" % disk)
+                raise
+    pipe.wait()
+    return active
 
 def getVolumeGroups():
     """ Returns a list of strings, each of which is the

@@ -143,7 +143,7 @@ THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 XENSERVER_4_1_0 = Version(4,1,0)
 
 class ExistingInstallation(object):
-    def __init__(self, name, brand, version, root_partition, state_partition, inventory, build):
+    def __init__(self, name, brand, version, root_partition, state_partition, inventory, build, variant_class):
         self.name = name
         self.brand = brand
         self.version = version
@@ -152,6 +152,7 @@ class ExistingInstallation(object):
         self.primary_disk = diskutil.diskFromPartition(root_partition)
         self.inventory = inventory
         self.build = build
+        self.variant_class = variant_class
 
     def __str__(self):
         return "%s v%s on %s" % (
@@ -175,7 +176,7 @@ class ExistingInstallation(object):
             return result
             
         try:
-            ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartition, self.build)
+            ret_val = self.variant_class.runOverStatePartition(self.state_partition, scanPartition, self.build)
         except Exception, e:
             xelogging.log('Upgradeability test failed:')
             xelogging.log_exception(e)
@@ -192,8 +193,9 @@ class ExistingInstallation(object):
         except SettingsNotAvailable, text:
             xelogging.log("Settings unavailable: %s" % text)
             return False
-        except:
+        except Exception, e:
             xelogging.log("Settings unavailable: unhandled exception")
+            xelogging.log_exception(e)
             return False
         else:
             return True
@@ -236,11 +238,11 @@ class ExistingInstallation(object):
                 results['manual-hostname'] = (False, None)
 
             # nameservers:
-            if not os.path.exists(os.path.join(mntpoint, 'etc/resolv.conf')):
+            if not os.path.exists(os.path.join(mntpoint, self.variant_class.ETC_RESOLV_CONF)):
                 results['manual-nameservers'] = (False, None)
             else:
                 ns = []
-                fd = open(os.path.join(mntpoint, 'etc/resolv.conf'), 'r')
+                fd = open(os.path.join(mntpoint, self.variant_class.ETC_RESOLV_CONF), 'r')
                 lines = fd.readlines()
                 fd.close()
                 for line in lines:
@@ -249,7 +251,7 @@ class ExistingInstallation(object):
                 results['manual-nameservers'] = (True, ns)
 
             # ntp servers:
-            fd = open(os.path.join(mntpoint, 'etc/ntp.conf'), 'r')
+            fd = open(os.path.join(mntpoint, self.variant_class.ETC_NTP_CONF), 'r')
             lines = fd.readlines()
             fd.close()
             ntps = []
@@ -367,7 +369,7 @@ class ExistingInstallation(object):
 
             return results
             
-        ret_val = Variant.inst().runOverStatePartition(self.state_partition, scanPartition, self.build)
+        ret_val = self.variant_class.runOverStatePartition(self.state_partition, scanPartition, self.build)
 
         return ret_val
 
@@ -406,37 +408,38 @@ def findXenSourceProducts():
     Currently requires supervisor privileges due to mounting
     filesystems."""
 
-    # get a list of disks, then try to examine the root partition(s) of each disk:
-    partitions = Variant.inst().rootPartitionCandidates()
-    
     installs = []
 
-    # go through each partition, and see if it is an XS dom0.
-    for p in partitions:
-        
-        def scanPartition(mountpoint):
-            inventory_file = os.path.join(mountpoint, constants.INVENTORY_FILE)
-            if os.path.exists(inventory_file):
-                inv = readInventoryFile(inventory_file)
-                xelogging.log('Inventory on '+str(p)+': '+str(inv))
-                inst = ExistingInstallation(
-                    inv['PRODUCT_NAME'],
-                    inv['PRODUCT_BRAND'],
-                    Version.from_string("%s-%s" % (inv['PRODUCT_VERSION'], inv['BUILD_NUMBER'])),
-                    p,
-                    Variant.inst().findStatePartitionFromRoot(p),
-                    inv,
-                    inv['BUILD_NUMBER']
-                    )
-                xelogging.log("Found an installation: %s" % str(inst))
-                installs.append(inst)
+    for disk in diskutil.getQualifiedDiskList():
+        for v in [VariantRetail, VariantOEMFlash, VariantOEMDisk]:
 
-        try:
-            # Run scanPartition over p, treating it as a root partition
-            Variant.inst().runOverRootPartition(p, scanPartition)
-        except Exception, e:
-            xelogging.log('Test for root partition '+p+' negative:')
-            xelogging.log_exception(e)
+            found = None
+            try:
+                found = v.findInstallation(disk)
+
+            except Exception, e:
+                xelogging.log("Exception scanning for an installation on %s" % str(disk))
+                xelogging.log_exception(e)
+
+            if not found:
+                xelogging.log("Test for an installation on %s negative" % str(disk))
+                continue
+
+            (inv, rootPartition, statePartition, instVariant) = found
+
+            inst = ExistingInstallation(
+                inv['PRODUCT_NAME'],
+                inv['PRODUCT_BRAND'],
+                Version.from_string("%s-%s" % (inv['PRODUCT_VERSION'], inv['BUILD_NUMBER'])),
+                rootPartition,
+                statePartition,
+                inv,
+                inv['BUILD_NUMBER'],
+                instVariant
+                )
+
+            xelogging.log("Found an installation: %s" % str(inst))
+            installs.append(inst)
 
     return installs
 
