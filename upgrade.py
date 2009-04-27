@@ -131,6 +131,9 @@ class ThirdGenUpgrader(Upgrader):
                     l.close()
 
             restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
+            restore += [os.path.join(constants.FIRSTBOOT_DATA_DIR, f) for f in 
+                        os.listdir(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR))
+                        if f.endswith('.conf')]
 
             save_dir = os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
             util.assertDir(os.path.join(mounts['root'], save_dir))
@@ -156,6 +159,10 @@ class ThirdGenUpgrader(Upgrader):
             f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
             f.write("PRODUCT_VERSION='%s'\n" % v)
             f.close()
+
+            state = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'host.conf'), 'w')
+            print >>state, "UPGRADE=true"
+            state.close()
 
             # CA-21443: initial ifcfg files are needed for pool eject
             if regen_ifcfg:
