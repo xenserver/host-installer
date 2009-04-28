@@ -15,6 +15,8 @@ import os.path
 import subprocess
 import datetime
 import pickle
+import re
+import tempfile
 
 import repository
 import generalui
@@ -113,11 +115,16 @@ def getPrepSequence(ans):
                                 (lambda mygd: (lambda _: [mygd]))(gd), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
-        if ans['backup-existing-installation']:
-            seq.append(Task(backupExisting, As(ans, 'installation-to-overwrite'), [],
+        if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
+            seq.append(Task(backupExisting,
+                            A(ans, 'upgrader','installation-to-overwrite'), [],
                             progress_text = "Backing up existing installation..."))
-        seq.append(Task(prepareUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ], lambda upgrader, *a: upgrader.prepStateChanges))
-
+        seq.append(Task(prepareUpgrade,
+                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ],
+                        lambda progress_callback, upgrader, *a: upgrader.prepStateChanges,
+                        progress_text = "Preparing for upgrade...",
+                        progress_scale = 80,
+                        pass_progress_callback = True))
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
@@ -1167,13 +1174,10 @@ def touchSshAuthorizedKeys(mounts):
     fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
     fh.close()
 
-def backupExisting(existing):
-    primary_partition = getRootPartName(existing.primary_disk)
-    backup_partition = getBackupPartName(existing.primary_disk)
-    xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
-
+def backupFileSystem(primary_partition, backup_partition):
     # format the backup partition:
-    util.runCmd2(['mkfs.ext3', backup_partition])
+    if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
+        raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
 
     # copy the files across:
     primary_mount = '/tmp/backup/primary'
@@ -1187,11 +1191,168 @@ def backupExisting(existing):
               [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
               ['%s/' % backup_mount]
         assert util.runCmd2(cmd) == 0
-        util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
         
     finally:
         for mnt in [primary_mount, backup_mount]:
             util.umount(mnt)
+
+def stampBackupPartition(backup_partition):
+    backup_mount  = '/tmp/backup/backup'
+    util.assertDir(backup_mount)
+    try:
+        util.mount(backup_partition,  backup_mount)
+        util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
+    finally:
+        util.umount(backup_partition)
+
+def backupExisting(upgrader, existing):
+    if not upgrader.requires_backup and not upgrader.optional_backup:
+        # This upgrader doesn't support a backup during the upgrade, so skip it
+        xelogging.log("Skipping backup of existing installation: this upgrade does not support it" )
+        return
+    primary_partition = getRootPartName(existing.primary_disk)
+    backup_partition  = getBackupPartName(existing.primary_disk)
+
+    xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
+
+    backupFileSystem(primary_partition, backup_partition)
+    stampBackupPartition(backup_partition)
+
+
+################################################################################
+# Functions to convert disk format from OEM to Retail
+
+def removeExcessOemPartitions(existing):
+    """Remove all OEM disk partitions except state and SR partitions,
+       to enable conversion to Retail disk format. Converts state and SR
+       partitions from logical to primary partitions. The SR will have
+       the same partition number as the Retail SR and the state partition
+       will have the Retail backup partition number."""
+
+    disk = existing.primary_disk
+    xelogging.log("Repartitioning %s to convert from OEM to Retail format" % disk)
+
+    if not os.path.exists(disk):
+        raise RuntimeError, "The disk %s could not be found." % disk
+
+    # TODO - take into account service partitions
+    # For now, assert the truth we require for this process to succeed:
+    assert getRootPartNumber(disk)   == 1
+    assert getBackupPartNumber(disk) == 2
+
+    # Read the partition table in sector units
+    cmd = ["/sbin/sfdisk", "-l", "-uS", disk]
+    rc, ptn_table = util.runCmd2(cmd, with_stdout = True)
+    if rc != 0:
+        xelogging.log("Repartitioning %s failed when reading existing partition table" % disk)
+        raise RuntimeError, "Repartition of %s failed" % disk
+
+    state_p = diskutil.partitionFromDisk(disk, OEMHDD_STATE_PARTITION_NUMBER)
+    SR_p    = diskutil.partitionFromDisk(disk, OEMHDD_SR_PARTITION_NUMBER)
+
+    state_expr = re.compile('^%s\s+\*?\s+(\d+)\s+\d+\s+(\d+)\s+' % state_p, re.MULTILINE)
+    SR_expr    = re.compile('^%s\s+\*?\s+(\d+)\s+\d+\s+(\d+)\s+' % SR_p, re.MULTILINE)
+    try:
+        (state_start, state_size) = map(int, state_expr.search(ptn_table).groups())
+        (SR_start,       SR_size) = map(int,    SR_expr.search(ptn_table).groups())
+    except:
+        xelogging.log("Repartitioning %s failed when parsing partition table entries" % disk)
+        raise RuntimeError, "Repartition of %s failed parsing partition table entries" % disk
+
+    # Rewrite the partition table to renumber the SR and the state partition
+    # and remove everything else. We number so as to allow a later partition number 1.
+    first_partition  = diskutil.partitionFromDisk(disk, 1)
+    second_partition = diskutil.partitionFromDisk(disk, 2)
+    third_partition  = diskutil.partitionFromDisk(disk, 3)
+
+    new_ptn_table = """# partition table of %s
+unit: sectors
+%s : start=  0, size=  0, Id=0
+%s : start= %d, size= %d, Id=83
+%s : start= %d, size= %d, Id=8e
+""" % \
+    (disk, first_partition, second_partition, state_start, state_size, third_partition, SR_start, SR_size)
+
+    xelogging.log("Repartitioning %s\n%s\n" % (disk, new_ptn_table))
+
+    # sfdisk --force : sfdisk doesn't much like the sector layout that results
+    #                  when logical partitions become primary; hence '--force'.
+    cmd = ["/sbin/sfdisk", "--force", disk]
+    try:
+        pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
+                                     stdout = util.dev_null(),
+                                     stderr = util.dev_null(), close_fds = True)
+        pipe.stdin.write(new_ptn_table)
+        pipe.stdin.close()
+        assert pipe.wait() == 0
+    except:
+        xelogging.log("Repartitioning %s failed when reducing partition table entries" % disk)
+        raise RuntimeError, "Repartition of %s failed when reducing partition table entries" % disk
+
+def createRootPartitionTableEntry(disk):
+    """Add the root partition using similar code to the default install"""
+    try:
+        diskutil.addRootPartition(disk, RETAIL_ROOT_PARTITION_NUMBER, root_size)
+        diskutil.makeActivePartition(disk, RETAIL_ROOT_PARTITION_NUMBER)
+    except:
+        xelogging.log("Repartitioning %s failed to add new root partition table entry" % disk)
+        raise RuntimeError, "Repartitioning %s failed to add new root partition table entry" % disk
+
+def transferFSfromBackupToRoot(disk):
+    """Transfer the contents of the backup filesytem to the new root.
+       We do this so that the state partition can be erased to make room
+       for the standard backup partition.
+       IMPORTANT: after the partition table was rewritten, the state partition
+                  has been renumbered to be that of the Retail backup partition."""
+    root_partition = getRootPartName(disk)
+    backup_partition = diskutil.partitionFromDisk(disk, RETAIL_BACKUP_PARTITION_NUMBER)
+
+    backupFileSystem(backup_partition, root_partition)
+
+def removeBackupPartition(disk):
+    diskutil.removePrimaryPartition(disk, RETAIL_BACKUP_PARTITION_NUMBER)
+
+def createBackupPartition(disk):
+    """Add the backup partition using similar code to the default install"""
+    diskutil.addRootPartition(disk, RETAIL_BACKUP_PARTITION_NUMBER, root_size)
+
+    backup_partition = getBackupPartName(disk)
+    if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
+        xelogging.log("Repartitioning failed to format filesystem on %s" % backup_partition)
+        raise RuntimeError, "Repartitioning failed to format filesystem on %s" % backup_partition
+
+def extractOemStatefromRootToBackup(existing):
+    disk = existing.primary_disk
+
+    root_partition = getRootPartName(disk)
+    backup_partition = getBackupPartName(disk)
+
+    backupFileSystem(root_partition, backup_partition)
+
+    # Move state up out of the "xe-" directory and everything else out of the way
+    def rearrangeOEMState(partition, build):
+        state_mount = "/tmp/rearrange-state"
+        util.assertDir(state_mount)
+        try:
+            util.mount(partition, state_mount)
+
+            top_contents = os.listdir(state_mount)
+            retired = tempfile.mkdtemp(prefix='retired-', dir=state_mount)
+
+            for f in top_contents:
+                assert util.runCmd2(['mv', '-f', os.path.join(state_mount, f), retired]) == 0
+
+            state_dirname = "xe-%s" % build
+            state_path = os.path.join(retired, state_dirname)
+            if os.path.isdir(state_path):
+                contents = os.listdir(state_path)
+                for f in contents:
+                    assert util.runCmd2(['mv', '-f', os.path.join(state_path, f), state_mount]) == 0
+
+        finally:
+            util.umount(state_mount)
+
+    rearrangeOEMState(backup_partition, existing.build)
 
 
 ################################################################################
@@ -1271,9 +1432,9 @@ def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
     return upgrade.getUpgrader(source)
 
-def prepareUpgrade(upgrader, *args):
+def prepareUpgrade(progress_callback, upgrader, *args):
     """ Gets required state from existing installation. """
-    return upgrader.prepareUpgrade(*args)
+    return upgrader.prepareUpgrade(progress_callback, *args)
 
 def completeUpgrade(upgrader, *args):
     """ Puts back state into new filesystem. """

@@ -62,7 +62,7 @@ class Upgrader(object):
 
     prepStateChanges = []
     prepUpgradeArgs = []
-    def prepareUpgrade(self):
+    def prepareUpgrade(self, progress_callback):
         """ Collect any state needed from the installation, and return a
         tranformation on the answers dict. """
         return
@@ -86,7 +86,7 @@ class ThirdGenUpgrader(Upgrader):
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid']
     prepStateChanges = ['installation-uuid', 'control-domain-uuid', 'primary-disk']
-    def prepareUpgrade(self, installID, controlID):
+    def prepareUpgrade(self, progress_callback, installID, controlID):
         """ Try to preserve the installation and control-domain UUIDs from
         xensource-inventory."""
         try:
@@ -232,6 +232,33 @@ class ThirdGenOEMDiskUpgrader(ThirdGenUpgrader):
     def __init__(self, source):
         ThirdGenUpgrader.__init__(self, source)
 
+    prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid', 'installation-to-overwrite']
+    prepStateChanges = ['installation-uuid', 'control-domain-uuid', 'primary-disk']
+    def prepareUpgrade(self, progress_callback, installID, controlID, existing):
+        """ Prepare the disk for a Retail XenServer installation. """
+
+        inst_ctrl_pd = ThirdGenUpgrader.prepareUpgrade(self, progress_callback, installID, controlID)
+        disk = existing.primary_disk
+
+        progress_callback(10)
+        backend.removeExcessOemPartitions(existing)
+        progress_callback(20)
+        backend.createRootPartitionTableEntry(disk)
+        progress_callback(30)
+        backend.createDom0DiskFilesystems(disk)
+        progress_callback(40)
+        backend.transferFSfromBackupToRoot(disk)
+        progress_callback(50)
+        backend.removeBackupPartition(disk)
+        progress_callback(60)
+        backend.createBackupPartition(disk)
+        progress_callback(70)
+        backend.extractOemStatefromRootToBackup(existing)
+        progress_callback(80)
+
+        return inst_ctrl_pd
+
+################################################################################
 
 # Upgraders provided here, in preference order:
 class UpgraderList(list):
@@ -247,7 +274,7 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ ThirdGenUpgrader ])
+__upgraders__ = UpgraderList([ ThirdGenUpgrader, ThirdGenOEMDiskUpgrader ])
 
 def filter_for_upgradeable_products(installed_products):
     upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),

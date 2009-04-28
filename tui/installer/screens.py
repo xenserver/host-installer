@@ -336,6 +336,23 @@ Please ensure that the functionality they provide is either included in the vers
     if button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
+def repartition_existing(answers):
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "Convert Existing Installation",
+        """The installer needs to change the disk layout of your existing installation.
+
+This will remove any OEM software and install the %s %s product. The %s will be preserved. After this conversion any future updates or hotfixes must be obtained from %s rather than an OEM.
+
+The conversion will replace the primary and backup system image partitions to create the %s %s disk partition layout.
+
+Continue with installation?""" % ( COMPANY_NAME_SHORT, PRODUCT_BRAND, BRAND_GUESTS, COMPANY_NAME_SHORT, COMPANY_NAME_SHORT, PRODUCT_BRAND),
+        ['Continue', 'Back']
+        )
+    if button == 'back': return LEFT_BACKWARDS
+
+    return RIGHT_FORWARDS
+
 def force_backup_screen(answers):
     button = ButtonChoiceWindow(
         tui.screen,

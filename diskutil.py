@@ -286,6 +286,41 @@ def writePartitionTable(disk, partitions):
     if os.path.exists('/sbin/udevsettle'):
         os.system('/sbin/udevsettle --timeout=5')
 
+# This function is deliberately _very_ similar to the one above
+# in order to result in the same partition table
+def addRootPartition(disk, primary_partition_number, partition_size):
+    xelogging.log("About to write a root partition #%d to disk %s" % (primary_partition_number, disk))
+    
+    pipe = subprocess.Popen(['/sbin/fdisk', disk], stdin = subprocess.PIPE,
+                            stdout = dev_null(), stderr = dev_null(), close_fds = True)
+
+    pipe.stdin.write('n\n') # new partition
+    pipe.stdin.write('p\n') # primary
+    pipe.stdin.write('%d\n' % primary_partition_number) # partition
+    pipe.stdin.write('\n')  # default start cylinder
+    pipe.stdin.write('+%dM\n' % partition_size) # size in MB
+
+    # write the partition table to disk:
+    pipe.stdin.write('w\n')
+
+    # wait for fdisk to finish:
+    assert pipe.wait() == 0
+
+    # Wait for the udev events to be correctly processed:
+    if os.path.exists('/sbin/udevsettle'):
+        os.system('/sbin/udevsettle --timeout=5')
+
+def removePrimaryPartition(disk, primary_partition_number):
+    cmd = ["/sbin/sfdisk", "--force", disk, "-N", str(primary_partition_number)]
+    pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
+                                 stdout = dev_null(), stderr = dev_null(), close_fds = True)
+    pipe.stdin.write("0,0,0,-,\n")
+    pipe.stdin.close()
+    assert pipe.wait() == 0
+
+    # Wait for the udev events to be correctly processed:
+    if os.path.exists('/sbin/udevsettle'):
+        os.system('/sbin/udevsettle --timeout=5')
 
 def makeActivePartition(disk, partition_number):
     xelogging.log("About to make an active partition on disk %s" % disk)

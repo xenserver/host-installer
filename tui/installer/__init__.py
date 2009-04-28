@@ -48,7 +48,14 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     def requires_backup(answers):
         return answers.has_key("installation-to-overwrite") and \
                upgrade.getUpgrader(answers['installation-to-overwrite']).requires_backup
-    not_requires_backup = lambda a: not requires_backup(a)
+
+    def optional_backup(answers):
+        return answers.has_key("installation-to-overwrite") and \
+               upgrade.getUpgrader(answers['installation-to-overwrite']).optional_backup
+
+    def requires_repartition(answers):
+        return answers.has_key("installation-to-overwrite") and \
+               upgrade.getUpgrader(answers['installation-to-overwrite']).repartition
 
     def preserve_settings(answers):
         return answers.has_key('preserve-settings') and \
@@ -107,9 +114,11 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.remind_driver_repos,
              predicates=[is_reinstall_fn, preserve_settings]),
         Step(uis.backup_existing_installation,
-             predicates=[is_reinstall_fn, not_requires_backup]),
+             predicates=[is_reinstall_fn, optional_backup]),
         Step(uis.force_backup_screen,
              predicates=[is_reinstall_fn, requires_backup]),
+        Step(uis.repartition_existing,
+             predicates=[is_reinstall_fn, requires_repartition]),
         Step(uis.select_primary_disk,
              predicates=[is_clean_install_fn]),
         Step(uis.select_guest_disks,
