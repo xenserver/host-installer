@@ -62,6 +62,15 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     def iscsi_disks_enabled(answers):
         return answers.has_key('enable-iscsi') and answers['enable-iscsi'] == True
 
+    def preserve_timezone(answers):
+        if not_preserve_settings(answers):
+            return False
+        if not answers.has_key('installation-to-overwrite'):
+            return False
+        settings = answers['installation-to-overwrite'].readSettings()
+        return settings.has_key('timezone') and not settings.has_key('request-timezone')
+    not_preserve_timezone = lambda a: not preserve_timezone(a)
+
     def ha_enabled(answers):
         settings = {}
         if answers.has_key('installation-to-overwrite'):
@@ -124,9 +133,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.get_name_service_configuration,
              predicates=[not_preserve_settings]),
         Step(uis.get_timezone_region,
-             predicates=[not_preserve_settings]),
+             predicates=[not_preserve_timezone]),
         Step(uis.get_timezone_city,
-             predicates=[not_preserve_settings]),
+             predicates=[not_preserve_timezone]),
         Step(uis.get_time_configuration_method,
              predicates=[not_preserve_settings]),
         Step(uis.get_ntp_servers,

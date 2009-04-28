@@ -213,15 +213,21 @@ class ExistingInstallation(object):
             results['primary-disk'] = self.primary_disk
 
             # timezone:
-            fd = open(os.path.join(mntpoint, 'etc/sysconfig/clock'), 'r')
-            lines = fd.readlines()
-            fd.close()
             tz = None
-            for line in lines:
-                if line.startswith("ZONE="):
-                    tz = line[5:].strip()
+            clock_file = os.path.join(mntpoint, 'etc/sysconfig/clock')
+            if os.path.exists(clock_file):
+                fd = open(clock_file, 'r')
+                lines = fd.readlines()
+                fd.close()
+                for line in lines:
+                    if line.startswith("ZONE="):
+                        tz = line[5:].strip()
             if not tz:
-                raise SettingsNotAvailable, "timezone missing"
+                # No timezone found: a common case on a default OEM installation.
+                # Supply a default and for interactive installs prompt the user.
+                xelogging.log('No timezone configuration found.')
+                results['request-timezone'] = True
+                tz = "Europe/London"
             results['timezone'] = tz
 
             # hostname.  We will assume one was set anyway and thus write
@@ -261,14 +267,20 @@ class ExistingInstallation(object):
             results['ntp-servers'] = ntps
 
             # keyboard:
-            fd = open(os.path.join(mntpoint, 'etc/sysconfig/keyboard'), 'r')
-            lines = fd.readlines()
-            fd.close()
-            for line in lines:
-                if line.startswith('KEYTABLE='):
-                    results['keymap'] = line[9:].strip()
+            keyboard_file = os.path.join(mntpoint, 'etc/sysconfig/keyboard')
+            if os.path.exists(keyboard_file):
+                fd = open(keyboard_file, 'r')
+                lines = fd.readlines()
+                fd.close()
+                for line in lines:
+                    if line.startswith('KEYTABLE='):
+                        results['keymap'] = line[9:].strip()
+            # Do not error here if no keymap configuration is found.
+            # This enables upgrade to still carry state on hosts without
+            # keymap configured: a common case being a default OEM installation.
+            # A default keymap is assigned in the backend of this installer.
             if not results.has_key('keymap'):
-                raise SettingsNotAvailable, "error reading keymap data"
+                xelogging.log('No existing keymap configuration found.')
 
             # root password:
             rc, out = util.runCmd2(['sed', '-ne',
