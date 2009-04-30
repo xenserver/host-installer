@@ -365,9 +365,13 @@ def get_remote_file(answers):
     return RIGHT_FORWARDS
  
 def get_local_file(answers):
+    if answers.get('install-type', None) == constants.INSTALL_TYPE_REINSTALL:
+        devnode = diskutil.diskFromPartition(answers['installation-to-overwrite'].root_partition)
+    else:
+        devnode = answers["primary-disk"]
 
     # build dalist, a list of accessor objects to mounted CDs and USB partitions
-    dev2write = answers.get('primary-disk', '')[5:] # strip the 5-char "/dev/" off
+    dev2write = devnode[5:] # strip the 5-char "/dev/" off
     removable_devs = diskutil.getRemovableDeviceList()
     if dev2write in removable_devs: removable_devs.remove(dev2write)
     dalist = []
