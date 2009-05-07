@@ -16,7 +16,7 @@ import version
 import product
 import tui
 import tui.progress
-from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS
+from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import repository
 import generalui
 import urlparse

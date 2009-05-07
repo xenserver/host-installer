@@ -333,6 +333,9 @@ def performInstallation(answers, ui_package):
         all_repositories = repository.repositoriesFromDefinition(
             answers['source-media'], answers['source-address']
             )
+        if len(installed_repo_ids) == 0 and len(all_repositories) == 0:
+            # CA-29016: main repository has vanished
+            raise RuntimeError, "No repository found at the specified location."
 
         # only install repositories we've not already installed:
         repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
