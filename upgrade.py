@@ -128,8 +128,11 @@ class ThirdGenUpgrader(Upgrader):
 
             # CP-968: do not copy Express licence
             lic_file = "etc/xensource/license"
+            patch = os.path.join(tds, "var/patch/applied/1244e029-4f48-4503-82c7-db4e2ec8f70d")
             lic = os.path.join(tds, lic_file)
-            if os.path.exists(lic):
+            if os.path.exists(patch):
+                restore.append(lic_file)
+            elif os.path.exists(lic):
                 l = open(lic, 'r')
                 try:
                     if True not in ['sku_type="XE Express"' in line for line in l]:
