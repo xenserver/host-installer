@@ -552,7 +552,15 @@ class DriverRPMPackage(RPMPackage):
         return rc
 
     def is_compatible(self):
-        return self.kernel_version == 'any' or self.kernel_version == version.KERNEL_VERSION
+
+        def ver(str):
+            if str.endswith('xen'):
+                return str[:-3]
+            if str.endswith('kdump'):
+                return str[:-5]
+            return str
+    
+        return self.kernel_version == 'any' or ver(self.kernel_version) == ver(version.KERNEL_VERSION)
 
 class Accessor:
     def pathjoin(base, name):
