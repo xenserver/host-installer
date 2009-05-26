@@ -426,8 +426,9 @@ class RPMPackage(Package):
             xelogging.log("%s-%s already installed, skipping" % (name, new_ver))
             return
 
-        if util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-U', self.destination]) != 0:
-            raise ErrorInstallingPackage, "Installation of %s failed" % self.destination
+        rc, msg = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-U', self.destination], with_stderr = True)
+        if rc != 0:
+            raise ErrorInstallingPackage, "Installation of %s failed.\n%s" % (self.destination, msg.rstrip())
 
     def check(self, fast = False, progress = lambda x: ()):
         """ Check a package against it's known checksum, or if fast is
