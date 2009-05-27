@@ -258,6 +258,9 @@ class DriverPackage(Package):
     def check(self, fast = False, progress = lambda x: ()):
         return self.repository.accessor().access(self.repository_filename)
     
+    def is_loadable(self):
+        return True
+
     def load(self):
         # Copy driver to a temporary location:
         util.assertDir('/tmp/drivers')
@@ -511,10 +514,10 @@ class DriverRPMPackage(RPMPackage):
     def pkgLine(self):
         return "%s %d %s driver-rpm %s %s" % \
                (self.name, self.size, self.md5sum, self.kernel_version, self.repository_filename)
-    
+
     def load(self):
         # Skip drivers for kernels other than ours:
-        if not self.is_compatible():
+        if not self.is_loadable():
             xelogging.log("Skipping driver %s, version mismatch (%s != %s)" % 
                           (self.name, self.kernel_version, version.KERNEL_VERSION))
             return 0
@@ -561,6 +564,9 @@ class DriverRPMPackage(RPMPackage):
             return str
     
         return self.kernel_version == 'any' or ver(self.kernel_version) == ver(version.KERNEL_VERSION)
+    
+    def is_loadable(self):
+        return self.kernel_version == 'any' or self.kernel_version == version.KERNEL_VERSION
 
 class Accessor:
     def pathjoin(base, name):

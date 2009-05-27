@@ -69,20 +69,20 @@ def doInteractiveLoadDriver(ui, answers):
                     repo_has_drivers = True
                     if not p.is_compatible():
                         incompat_drivers.append(p)
-                    else:
+                    elif p.is_loadable():
                         if not answers.has_key('loaded-drivers'):
                             answers['loaded-drivers'] = []
-                            if p.name not in answers['loaded-drivers']:
-                                if p.load() == 0:
-                                    answers['loaded-drivers'].append(p.name)
-                                else:
-                                    repo_has_drivers = False
-                                    ButtonChoiceWindow(
-                                        ui.screen,
-                                        "Problem Loading Driver",
-                                        "Setup was unable to load the device driver %s you specified." % p.name,
-                                        ['Ok']
-                                        )
+                        if p.name not in answers['loaded-drivers']:
+                            if p.load() == 0:
+                                answers['loaded-drivers'].append(p.name)
+                            else:
+                                repo_has_drivers = False
+                                ButtonChoiceWindow(
+                                    ui.screen,
+                                    "Problem Loading Driver",
+                                    "Setup was unable to load the device driver %s you specified." % p.name,
+                                    ['Ok']
+                                    )
             if repo_has_drivers:
                 driver_repos.append(r)
 
