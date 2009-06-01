@@ -33,6 +33,8 @@ import constants
 import netutil
 import product
 import upgrade
+import urllib2
+import md5
 
 def get_keymap():
     entries = generalui.getKeymaps()
@@ -141,6 +143,7 @@ def oem_install_sequence(ui, answers):
         uic.Step(get_image_media),
         uic.Step(get_remote_file, predicates = [lambda a: a['source-media'] != 'local']),
         uic.Step(get_local_file,  predicates = [lambda a: a['source-media'] == 'local']),
+        uic.Step(verify_source),
         uic.Step(uis.get_root_password, predicates = [oem_is_custom, oem_is_clean_install]),
         uic.Step(uis.get_admin_interface, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
         uic.Step(uis.get_admin_interface_configuration, predicates = [oem_is_custom, oem_not_preserve_settings, oem_is_clean_install]),
@@ -351,7 +354,7 @@ def get_remote_file(answers):
             continue
 
         answers['image-name'] = basename
-        answers['accessor'] = accessor    # This is just a way of stopping GC on this object
+        answers['accessor'] = accessor
         
         # Success!
         found_file = True
@@ -425,13 +428,89 @@ def get_local_file(answers):
         return LEFT_BACKWARDS * 2
 
     filename = entry[0]
-    da       = entry[1]
-    fullpath = os.path.join(da.location, filename)
+    accessor = entry[1]
+    fd = accessor.openAddress(filename)
 
-    answers['image-fd'] = open(fullpath, "rb")
+    answers['image-fd'] = fd
     answers['image-name'] = filename
-    answers['image-size'] = os.stat(fullpath).st_size
-    answers['accessor'] = da    # This is just a way of stopping GC on this object
+    answers['image-size'] = os.fstat(fd.fileno()).st_size
+    answers['accessor'] = accessor
+
+    return RIGHT_FORWARDS
+
+
+# verify the installation source?
+def verify_source(answers):
+    done = False
+    SKIP, VERIFY = range(2)
+    
+    entries = [ ("Skip verification", SKIP),
+                ("Verify install image", VERIFY), ]
+
+    if answers['source-media'] == 'local':
+        text = "Would you like to test your media?"
+        default = entries[1]
+    else:
+        text = "Would you like to test the install image?  This may cause significant network traffic."
+        default = entries[0]
+
+    while not done:
+        (button, entry) = ListboxChoiceWindow(
+            tui.screen, "Verify Install Image", text,
+            entries, ['Ok', 'Back'], default = default)
+
+        if button == 'back':
+            return LEFT_BACKWARDS
+
+        if entry == SKIP:
+            return RIGHT_FORWARDS
+
+        if entry == VERIFY:
+            # we need to do the verification:
+            try:
+                # Accessor for repository containing image file.
+                # It also contains an md5sums file.
+                accessor = answers['accessor']
+                img_name = answers['image-name']
+
+                # Read upstream md5sum present in repo
+                try:
+                    lines = accessor.openAddress('md5sums').readlines()
+                    lookup = dict([(l.split()[1],l.split()[0]) for l in lines])
+                    upstream_md5sum = lookup[img_name]
+                except:
+                    raise Exception("Cannot find pre-calculated md5sum in md5sums file")
+
+                # Calculate the md5sum
+                fd = accessor.openAddress(img_name)
+                sz = answers['image-size']
+                rdbufsize = 16<<14
+                reads_done = 0
+                reads_needed = (sz + rdbufsize - 1) / rdbufsize # Round up
+                summer = md5.md5()
+                pd = tui.progress.initProgressDialog("Verifying image",
+                                                     "Calculating md5sum of %s" % answers['image-name'],
+                                                     reads_needed)
+                tui.progress.displayProgressDialog(0, pd)
+                while True:
+                    data = fd.read(rdbufsize)
+                    if not data: 
+                        break
+                    summer.update(data)
+                    reads_done += 1
+                    tui.progress.displayProgressDialog(min(reads_needed, reads_done), pd)
+                md5sum = summer.hexdigest()
+                tui.progress.clearModelessDialog()
+            except Exception, e:
+                tui.OKDialog("Error", str(e))
+                done = False
+            else:
+                if md5sum == upstream_md5sum: 
+                    tui.OKDialog("Success", "Image validated")
+                    done = True
+                else:
+                    tui.OKDialog("Failure", "Image invalid: upstream md5sum is %s which does not match calculated md5sum of %s" % (upstream_md5sum, md5sum))
+                    done = False
 
     return RIGHT_FORWARDS
 
