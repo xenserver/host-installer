@@ -78,6 +78,20 @@ def interfaceUp(interface):
     inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
     return len(inets) == 1
 
+# work out if a link is up:
+def linkUp(interface):
+    up = False
+    rc, out = util.runCmd2(['ethtool', interface], with_stdout = True)
+    if rc != 0:
+        return False
+    for line in out.split('\n'):
+        line = line.strip()
+        # examine auto-neg line, the link line always reports 'no' if the interface is down
+        if line.startswith('Duplex:'):
+            up = line.find('Unknown!') == -1
+            break
+    return up
+
 # make a string to help users identify a network interface:
 def getPCIInfo(interface):
     info = "<Information unknown>"

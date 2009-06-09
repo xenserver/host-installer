@@ -153,12 +153,29 @@ def select_netif(text, conf, default=None):
 
     netifs = conf.keys()
     netifs.sort()
-    def_iface = None
-    if default != None and default in netifs:
-        def_iface = ("%s (%s)" % ((default, conf[default].hwaddr)), default)
-    netif_list = [("%s (%s)" % ((x, conf[x].hwaddr)), x) for x in netifs]
-    rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,
-                                    ['Ok', 'Back'], width=45, default=def_iface)
+
+    if default not in netifs:
+        # find first link that is up
+        for iface in netifs:
+            if netutil.linkUp(iface):
+                default = iface
+                break
+
+    def lentry(iface):
+        tag = ''
+        if not netutil.linkUp(iface):
+            tag = ' [no link]'
+        return ("%s (%s)%s" % (iface, conf[iface].hwaddr, tag), iface)
+
+    while True:
+        def_iface = None
+        if default:
+            def_iface = lentry(default)
+        netif_list = [lentry(x) for x in netifs]
+        rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,
+                                        ['Ok', 'Refresh', 'Back'], width=45, default=def_iface)
+        if rc != 'refresh':
+            break
     if rc == 'back': return LEFT_BACKWARDS, None
     return RIGHT_FORWARDS, entry
 
