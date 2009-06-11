@@ -684,21 +684,21 @@ def writeMenuItems(f, fn, s):
         entries += [{
             'label':      "xe-serial",
             'title':      "%s (Serial)" % PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz %s=%s,%s%s%s console=%s,tty dom0_mem=%dM " \
-                          % (s['port'][1], s['baud'], s['data'], s['parity'], s['stop'], s['port'][1], constants.DOM0_MEM) \
+            'hypervisor': "/boot/xen.gz %s console=%s,tty dom0_mem=%dM " \
+                          % (s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=%s,%s%s%s" \
-                          % (constants.rootfs_label, s['port'][0], s['baud'], s['parity'], s['data']),
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=%s" \
+                          % (constants.rootfs_label, s.kernelFmt()),
             'initrd':     "/boot/initrd-2.6-xen.img",
         }, {
             'label':      "safe",
             'title':      "%s in Safe Mode" % PRODUCT_BRAND,
             'hypervisor': "/boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic " \
-                          + "dom0_mem=%dM %s=%s,%s%s%s console=%s,tty" \
-                          % (constants.DOM0_MEM, s['port'][1], s['baud'], s['data'], s['parity'], s['stop'], s['port'][1]),
+                          + "dom0_mem=%dM %s console=%s,tty" \
+                          % (constants.DOM0_MEM, s.xenFmt(), s.port),
             'kernel':     "/boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 " \
                           % constants.rootfs_label \
-                          + "console=%s,%s%s%s" % (s['port'][0], s['baud'], s['parity'], s['data']),
+                          + "console=%s" % s.kernelFmt(),
             'initrd':     "/boot/initrd-2.6-xen.img",
         }]
     entries += [{
@@ -716,11 +716,11 @@ def writeMenuItems(f, fn, s):
             'label':      "fallback-serial",
             'title':      "%s (Serial, Xen %s / Linux %s)" \
                           % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
-            'hypervisor': "/boot/xen-%s.gz %s=%s,%s%s%s console=%s,tty dom0_mem=%dM " \
-                          % (version.XEN_VERSION, s['port'][1], s['baud'], s['data'], s['parity'], s['stop'], s['port'][1], constants.DOM0_MEM) \
+            'hypervisor': "/boot/xen-%s.gz %s console=%s,tty dom0_mem=%dM " \
+                          % (version.XEN_VERSION, s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=%s,%s%s%s" \
-                          % (version.KERNEL_VERSION, constants.rootfs_label, s['port'][0], s['baud'], s['parity'], s['data']),
+            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=%s" \
+                          % (version.KERNEL_VERSION, constants.rootfs_label, s.kernelFmt()),
             'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
         }]
 
@@ -760,23 +760,22 @@ def installBootLoader(mounts, disk, bootloader, serial, boot_serial):
             lines = init.readlines()
             init.close()
             for line in lines:
-                if line.find("getty %s " % serial['port'][0]) != -1:
+                if line.find("getty %s " % serial.dev) != -1:
                     break
             else:
                 init = open("%s/etc/inittab" % mounts['root'], 'a')
-                label = serial['port'][0][3:].lower()
-                init.write("%s:2345:respawn:/sbin/agetty %s %s %s\n" % (label, serial['port'][0], serial['baud'], serial['term']))
+                init.write("s%d:2345:respawn:/sbin/agetty %s %s %s\n" % (serial.id, serial.dev, serial.baud, serial.term))
                 init.close()
 
             sec = open("%s/etc/securetty" % mounts['root'], 'r')
             lines = sec.readlines()
             sec.close()
             for line in lines:
-                if line.strip('\n') == serial['port'][0]:
+                if line.strip('\n') == serial.dev:
                     break
             else:
                 sec = open("%s/etc/securetty" % mounts['root'], 'a')
-                sec.write("%s\n" % serial['port'][0])
+                sec.write("%s\n" % serial.dev)
                 sec.close()
     finally:
         # unlink /proc/mounts
@@ -796,7 +795,7 @@ def installExtLinux(mounts, disk, serial, boot_serial):
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
 
     if serial:
-        f.write("serial %s %s\n" % (serial['port'][0][4:], serial['baud']))
+        f.write("serial %s %s\n" % (serial.id, serial.baud))
     if boot_serial:
         f.write("default xe-serial\n")
     else:
@@ -846,7 +845,7 @@ def installGrub(mounts, disk, serial, boot_serial):
     grubconf = ""
 
     if serial:
-        grubconf += "serial --unit=%s --speed=%s\n" % (serial['port'][0][4:], serial['baud'])
+        grubconf += "serial --unit=%d --speed=%s\n" % (serial.id, serial.baud)
         grubconf += "terminal --timeout=10 console serial\n"
     else:
         grubconf += "terminal console\n"

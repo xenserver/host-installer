@@ -14,7 +14,6 @@
 import os
 import sys
 import traceback
-import re
 
 # user-interface stuff:
 import tui.installer
@@ -79,13 +78,13 @@ def go(ui, args, answerfile_address):
     for (opt, val) in args.items():
         if opt == "--boot-console":
             # takes precedence over --console
-            if val.startswith('ttyS'):
+            if hardware.is_serialConsole(val):
                 boot_console = val
         elif opt == "--console":
             for console in val:
-                if console.startswith('ttyS'):
+                if hardware.is_serialConsole(console):
                     serial_console = console
-            if val[-1].startswith('ttyS'):
+            if hardware.is_serialConsole(val[-1]):
                 boot_serial = True
         elif opt == "--keymap":
             results["keymap"] = val
@@ -116,20 +115,7 @@ def go(ui, args, answerfile_address):
         boot_serial = True
     if serial_console:
         try:
-            serial = {'baud': '9600', 'data': '8', 'parity': 'n', 'stop': '1', 'term': 'vt102'}
-            param = serial_console.split(',')
-            dev = param[0]
-            if len(param) == 2:
-                pdict = re.match(r'(?P<baud>\d+)(?P<parity>[noe])?(?P<data>\d)?r?', 
-                                 param[1]).groupdict()
-                for (k, v) in pdict.items():
-                    if v != None:
-                        serial[k] = v
-            n = int(dev[4:])+1
-            serial['port'] = (dev, "com%d" % n)
-            if args.has_key('term'):
-                serial['term'] = args['term']
-            results['serial-console'] = serial
+            results['serial-console'] = hardware.SerialPort(serial_console)
             results['boot-serial'] = boot_serial
             xelogging.log("Serial console specified on command-line: %s, default boot: %s" % 
                           (serial_console, boot_serial))

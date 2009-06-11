@@ -16,6 +16,7 @@ import version
 import constants
 import xelogging
 import util
+import re
 
 # More of the hardware tools will be moved into here in future.
 
@@ -155,3 +156,35 @@ def getHostTotalMemoryKB():
     rc, mem = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
     assert rc == 0
     return int(mem.strip())
+
+def is_serialConsole(console):
+    return console.startswith('ttyS')
+
+class SerialPort:
+    def __init__(self, console):
+        """Create instance from Linux console parameter (e.g. ttyS0,115200n8)"""
+        self.dev = console
+        self.baud = '9600'
+        self.data = '8'
+        self.parity = 'n'
+        self.stop = '1'
+        self.term = 'vt102'
+
+        m = re.match(r'(tty\S+),(\d+)([noe])?(\d)?r?', console)
+        if m:
+            self.dev = m.group(1)
+            self.baud = m.group(2)
+            self.parity = m.group(3)
+            self.data = m.group(4)
+
+        m = re.search(r'(\d+)$', self.dev)
+        if m:
+            n = int(m.group(1))
+            self.id = n
+            self.port = "com%d" % (n+1)
+            
+    def kernelFmt(self):
+        return "%s,%s%s%s" % (self.dev, self.baud, self.parity, self.data)
+
+    def xenFmt(self):
+        return "%s=%s,%s%s%s" % (self.port, self.baud, self.data, self.parity, self.stop)
