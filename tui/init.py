@@ -103,8 +103,9 @@ def get_driver_source(answers):
 def require_networking(answers):
     rc = tui.network.requireNetworking(answers)
 
-    # no further prompts
-    answers['network-configured'] = True
+    if rc == RIGHT_FORWARDS:
+        # no further prompts
+        answers['network-configured'] = True
     return rc
 
 def confirm_load_drivers(answers):
