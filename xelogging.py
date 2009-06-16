@@ -84,8 +84,9 @@ def collectLogs(dst, tarball_dir = None):
     logs = filter(lambda x: x.endswith('-log'), os.listdir(dst))
     logs = " ".join(logs)
 
-    # tar up contents
-    os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, tarball_dir, logs))
+    if os.path.exists(tarball_dir):
+        # tar up contents
+        os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, tarball_dir, logs))
 
 def openLog(file):
     if hasattr(file, 'name'):
