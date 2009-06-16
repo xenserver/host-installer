@@ -272,6 +272,9 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
                 [('Size in MB:', total_size)],
                 buttons = ['Ok', 'Back'])
 
+
+        if button == 'back': return LEFT_BACKWARDS
+
         error = None
         if not size[0].isdigit():
             error = ("Invalid value", "Size must be numeric.")
@@ -286,8 +289,6 @@ Currently, %s MB is in use by the chosen operating system.  The default size of 
         else:
             new_size = long(size[0])
             success = True
-
-    if button == 'back': return LEFT_BACKWARDS
 
     answers['target-vm-disksize-mb'] = new_size
     return RIGHT_FORWARDS
