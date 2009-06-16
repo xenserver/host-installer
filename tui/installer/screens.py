@@ -669,9 +669,13 @@ def select_primary_disk(answers):
             e = (stringEntry, de)
             entries.append(e)
 
-    # we should have at least one disk (this should be checked before the UI is
-    # started.
-    assert len(entries) != 0
+    # we should have at least one disk
+    if len(entries) == 0:
+        ButtonChoiceWindow(tui.screen,
+                           "No Primary Disk",
+                           "No disk with sufficient space to install %s on was found." % PRODUCT_BRAND,
+                           ['Cancel'])
+        return EXIT
 
     # if only one disk, set default and skip this screen:
     if len(diskEntries) == 1:
