@@ -24,6 +24,7 @@ def initProgressDialog(title, text, total):
     form.add(scale, 0, 1, padding = (0,0,0,0))
 
     form.draw()
+    tui.screen.popHelpLine()
     tui.screen.pushHelpLine(PLEASE_WAIT_STRING)
     tui.screen.refresh()
 
@@ -37,6 +38,7 @@ def showMessageDialog(title, text):
 
     form.draw()
 
+    tui.screen.popHelpLine()
     tui.screen.pushHelpLine(PLEASE_WAIT_STRING)
     tui.screen.refresh()
 
