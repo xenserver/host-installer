@@ -655,6 +655,7 @@ class MountingAccessor(FilesystemAccessor):
                     success = True
                     break
             if not success:
+                os.rmdir(self.location)
                 raise util.MountFailureException
         self.start_count += 1
 
