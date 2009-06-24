@@ -675,8 +675,8 @@ def writeMenuItems(f, fn, s):
         {
             'label':      "xe",
             'title':      PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M console=/dev/null vga=mode-0x0311" % constants.DOM0_MEM,
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro quiet vga=785 splash" % (constants.rootfs_label),
+            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M console=comX vga=mode-0x0311" % constants.DOM0_MEM,
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0 quiet vga=785 splash" % constants.rootfs_label,
             'initrd':     "/boot/initrd-2.6-xen.img",
         }
     ]
@@ -687,8 +687,8 @@ def writeMenuItems(f, fn, s):
             'hypervisor': "/boot/xen.gz %s console=%s,tty dom0_mem=%dM " \
                           % (s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 console=%s" \
-                          % (constants.rootfs_label, s.kernelFmt()),
+            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
+                          % (constants.rootfs_label, s.dev),
             'initrd':     "/boot/initrd-2.6-xen.img",
         }, {
             'label':      "safe",
@@ -698,7 +698,7 @@ def writeMenuItems(f, fn, s):
                           % (constants.DOM0_MEM, s.xenFmt(), s.port),
             'kernel':     "/boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 " \
                           % constants.rootfs_label \
-                          + "console=%s" % s.kernelFmt(),
+                          + "xencons=hvc console=%s" % s.dev,
             'initrd':     "/boot/initrd-2.6-xen.img",
         }]
     entries += [{
@@ -707,7 +707,7 @@ def writeMenuItems(f, fn, s):
                           % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
             'hypervisor': "/boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M" \
                           % (version.XEN_VERSION, constants.DOM0_MEM),
-            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0" \
+            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0" \
                           % (version.KERNEL_VERSION, constants.rootfs_label),
             'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
         }]
@@ -719,8 +719,8 @@ def writeMenuItems(f, fn, s):
             'hypervisor': "/boot/xen-%s.gz %s console=%s,tty dom0_mem=%dM " \
                           % (version.XEN_VERSION, s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 console=%s" \
-                          % (version.KERNEL_VERSION, constants.rootfs_label, s.kernelFmt()),
+            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
+                          % (version.KERNEL_VERSION, constants.rootfs_label, s.dev),
             'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
         }]
 
@@ -756,27 +756,18 @@ def installBootLoader(mounts, disk, bootloader, serial, boot_serial):
 
         if serial:
             # ensure a getty will run on the serial console
-            init = open("%s/etc/inittab" % mounts['root'], 'r')
-            lines = init.readlines()
-            init.close()
-            for line in lines:
-                if line.find("getty %s " % serial.dev) != -1:
-                    break
-            else:
-                init = open("%s/etc/inittab" % mounts['root'], 'a')
-                init.write("s%d:2345:respawn:/sbin/agetty %s %s %s\n" % (serial.id, serial.dev, serial.baud, serial.term))
-                init.close()
+            old = open("%s/etc/inittab" % mounts['root'], 'r')
+            new = open('/tmp/inittab', 'w')
 
-            sec = open("%s/etc/securetty" % mounts['root'], 'r')
-            lines = sec.readlines()
-            sec.close()
-            for line in lines:
-                if line.strip('\n') == serial.dev:
-                    break
-            else:
-                sec = open("%s/etc/securetty" % mounts['root'], 'a')
-                sec.write("%s\n" % serial.dev)
-                sec.close()
+            for line in old:
+                if line.startswith("s%d:" % serial.id):
+                    new.write(re.sub(r'getty \S+ \S+', "getty %s %s" % (serial.dev, serial.baud), line))
+                else:
+                    new.write(line)
+
+            old.close()
+            new.close()
+            shutil.move('/tmp/inittab', "%s/etc/inittab" % mounts['root'])
     finally:
         # unlink /proc/mounts
         if os.path.exists("%s/proc/mounts" % mounts['root']):
@@ -887,7 +878,6 @@ def mountVolumes(primary_disk, cleanup):
     rootp = getRootPartName(primary_disk)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
-
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
     return mounts, new_cleanup
  

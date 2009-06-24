@@ -157,34 +157,38 @@ def getHostTotalMemoryKB():
     assert rc == 0
     return int(mem.strip())
 
+def getSerialConfig():
+    assert os.path.exists(constants.XENINFO)
+    rc, cmdline = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
+    assert rc == 0
+    m = re.match(r'.*(com\d=\S+)', cmdline)
+    return m and m.group(1) or None
+
 def is_serialConsole(console):
-    return console.startswith('ttyS')
+    return console.startswith('hvc') or console.startswith('ttyS')
 
 class SerialPort:
     def __init__(self, console):
-        """Create instance from Linux console parameter (e.g. ttyS0,115200n8)"""
-        self.dev = console
+        """Create instance from Xen console parameter (e.g. com1=115200,8n1)"""
+        self.dev = 'hvc0'
+        self.id = 0
+        self.port = 'com1'
         self.baud = '9600'
         self.data = '8'
         self.parity = 'n'
         self.stop = '1'
         self.term = 'vt102'
 
-        m = re.match(r'(tty\S+),(\d+)([noe])?(\d)?r?', console)
+        m = re.match(r'(com\d+)=(\d+),(\d)(.)(\d)', console)
         if m:
-            self.dev = m.group(1)
+            self.port = m.group(1)
             self.baud = m.group(2)
-            self.parity = m.group(3)
-            self.data = m.group(4)
+            self.data = m.group(3)
+            self.parity = m.group(4)
+            self.stop = m.group(5)
 
-        m = re.search(r'(\d+)$', self.dev)
-        if m:
-            n = int(m.group(1))
-            self.id = n
-            self.port = "com%d" % (n+1)
-            
     def kernelFmt(self):
-        return "%s,%s%s%s" % (self.dev, self.baud, self.parity, self.data)
+        return self.dev
 
     def xenFmt(self):
         return "%s=%s,%s%s%s" % (self.port, self.baud, self.data, self.parity, self.stop)

@@ -27,7 +27,7 @@ bash_shell=0
 OLDIFS="$IFS"
 IFS="
 "
-# spaces seperate arguments except for spaces enclosed by a pair of double quotes
+# spaces separate arguments except for spaces enclosed by a pair of double quotes
 args=$(sed -e s'/ *$//' -e 's/\(\("[^"]*"\)*\) \+/\1\n/g' /proc/cmdline)
 set --
 for arg in $args; do
@@ -57,7 +57,7 @@ if [ "$started_by_init" == "1" ]; then
   # started by init on the console
 
   # force TERM if on a serial console (Xen defeats init's attempt to do this)
-  case "$console" in ttyS*) export TERM=$term;; esac
+  case "$console" in hvc*|ttyS*) export TERM=$term;; esac
 
   if [ $bash_shell -eq 1 ]; then
     echo "Exiting this shell will run the installer:"
@@ -74,9 +74,10 @@ if [ "$started_by_init" == "1" ]; then
 	    b=9600
 	    t=linux
 	    case "$c" in
-	      ttyS*)
+	      hvc*|ttyS*)
+		xencon=`expr "$(xeninfo xen-commandline)" : '.*\(com.=[^ ]*\)'`
 		co=`expr "$c" : '\(ttyS.*\),'`
-		br=`expr "$c" : 'ttyS.*,\([0-9]*\)'`
+		br=`expr "$xencon" : 'com.*=\([0-9]*\)'`
 		[ -n "$co" ] && c=$co
 		[ -n "$br" ] && b=$br
 		t=$term;;

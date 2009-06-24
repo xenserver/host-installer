@@ -79,11 +79,11 @@ def go(ui, args, answerfile_address):
         if opt == "--boot-console":
             # takes precedence over --console
             if hardware.is_serialConsole(val):
-                boot_console = val
+                boot_console = hardware.getSerialConfig()
         elif opt == "--console":
             for console in val:
                 if hardware.is_serialConsole(console):
-                    serial_console = console
+                    serial_console = hardware.getSerialConfig()
             if hardware.is_serialConsole(val[-1]):
                 boot_serial = True
         elif opt == "--keymap":
