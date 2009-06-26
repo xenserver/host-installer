@@ -179,13 +179,13 @@ class SerialPort:
         self.stop = '1'
         self.term = 'vt102'
 
-        m = re.match(r'(com\d+)=(\d+),(\d)(.)(\d)', console)
+        m = re.match(r'(com\d+)=(\d+)(?:/\d+)?(?:,(\d)(.)?(\d)?)?', console)
         if m:
             self.port = m.group(1)
             self.baud = m.group(2)
-            self.data = m.group(3)
-            self.parity = m.group(4)
-            self.stop = m.group(5)
+            if m.group(3): self.data = m.group(3)
+            if m.group(4): self.parity = m.group(4)
+            if m.group(5): self.stop = m.group(5)
 
     def kernelFmt(self):
         return self.dev
