@@ -357,7 +357,7 @@ class PartitionTool:
         
     def readDiskDetails(self):
         # Read basic geometry
-        out = self.cmdWrap([self.SFDISK, '-Lg', self.device])
+        out = self.cmdWrap([self.SFDISK, '--no-reread', '-Lg', self.device])
         matches = re.match(r'^[^:]*:\s*(\d+)\s+cylinders,\s*(\d+)\s+heads,\s*(\d+)\s+sectors', out)
         if not matches:
             raise Exception("Couldn't decode sfdisk output: "+out)
@@ -366,7 +366,7 @@ class PartitionTool:
         self.sectors = int(matches.group(3))
         
         # Read sector size
-        out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
+        out = self.cmdWrap([self.SFDISK, '--no-reread', '-LluS', self.device])
         for line in out.split("\n"):
             matches = re.match(r'^\s*Units\s*=\s*sectors\s*of\s*(\d+)\s*bytes', line)
             if matches:
@@ -378,7 +378,7 @@ class PartitionTool:
         self.byteExtent = self.sectorExtent * self.sectorSize
     
     def partitionTable(self):
-        out = self.cmdWrap([self.SFDISK, '-Ld', self.device])
+        out = self.cmdWrap([self.SFDISK, '--no-reread', '-Ld', self.device])
         state = 0
         partitions = []
         for line in out.split("\n"):
@@ -411,7 +411,7 @@ class PartitionTool:
             input += line+'\n'
 
         process = subprocess.Popen(
-            [self.SFDISK, '-L', self.device],
+            [self.SFDISK, '--no-reread', '-L', self.device],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -420,7 +420,7 @@ class PartitionTool:
         if process.returncode != 0:
             raise Exception('Partition changes could not be applied: '+str(output))
         # Verify the table - raises exception on failure
-        self.cmdWrap([self.SFDISK, '-LVq', self.device])
+        self.cmdWrap([self.SFDISK, '--no-reread', '-LVq', self.device])
         
     def writePartitionTable(self):
         try:
