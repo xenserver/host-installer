@@ -96,8 +96,8 @@ class Task:
 #    the labels when the function is called (late-binding)
 # As: As above but evaluated immediately (early-binding)
 # Use A when you require state values as well as the initial input values
-A = lambda ans, *params: ( lambda a: [a[param] for param in params] )
-As = lambda ans, *params: ( lambda _: [ans[param] for param in params] )
+A = lambda ans, *params: ( lambda a: [a.get(param) for param in params] )
+As = lambda ans, *params: ( lambda _: [ans.get(param) for param in params] )
 
 def getPrepSequence(ans):
     seq = [ 
@@ -154,11 +154,11 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'iscsi-iface'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'net-iscsi-interface'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
-        Task(mkinitrd, A(ans, 'mounts', 'iscsi-iface'), []),
+        Task(mkinitrd, A(ans, 'mounts',  'net-iscsi-interface', 'net-iscsi-configuration', 'primary-disk'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), [], args_sensitive = True),
@@ -295,17 +295,6 @@ def performInstallation(answers, ui_package):
     else:
         primary_disk = answers['installation-to-overwrite'].primary_disk # UPGRADE CASE
         
-    if diskutil.is_iscsi(primary_disk):
-        answers['iscsi-target-ip'], \
-        answers['iscsi-target-port'], \
-        answers['iscsi-iface'] = \
-            diskutil.iscsi_address_port_netdev(primary_disk)
-    else:
-        answers['iscsi-target-ip'], \
-        answers['iscsi-target-port'], \
-        answers['iscsi-iface'] = \
-            (None,None,None)
-
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
     # haven't already recorded it as part of reading settings from an upgrade:
@@ -620,14 +609,18 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
 def createDom0DiskFilesystems(disk):
     assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, getRootPartName(disk)]) == 0
 
-def __mkinitrd(mounts, iscsi_iface, kernel_version):
+def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_version):
+
+    # find out whether we are using iscsi to access the primary disk
+    iscsi_primary_disk =  diskutil.is_iscsi(primary_disk)
+
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
         util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
 
-        if iscsi_iface:
-            # primary disk is iscsi via iscsi_iface.
+        if iscsi_primary_disk:
+            # primary disk is iscsi via iscsi_iface w/ iscsi_iface_cfg
             # mkinitrd uses iscsiadm to talk to iscsid.  However, at this
             # point iscsid is not running in the dom0 chroot.
 
@@ -643,28 +636,45 @@ def __mkinitrd(mounts, iscsi_iface, kernel_version):
             if util.runCmd2(cmd) != 0:
                 raise RuntimeError, "Failed to start iscsid in dom0 chroot"
 
+            # mkinitrd needs to know how to configure the interface used to access the iscsi disk
+            util.mount('none', os.path.join(mounts['root'], 'etc/sysconfig/network-scripts'), None, 'tmpfs')
+            fd = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/ifcfg-%s' % iscsi_iface), "w")
+            print >>fd, "DEVICE=%s" % iscsi_iface
+            print >>fd, "ONBOOT=yes"
+            print >>fd, "TYPE=Ethernet"
+            print >>fd, "HWADDR=%s" % iscsi_iface_cfg.hwaddr
+            if not iscsi_iface_cfg.isStatic():
+                print >>fd, "BOOTPROTO=dhcp"
+            else:
+                print >>fd, "BOOTPROTO=none"
+                print >>fd, "NETMASK=%s" % iscsi_iface_cfg.netmask
+                print >>fd, "IPADDR=%s" % iscsi_iface_cfg.ipaddr
+                if iscsi_iface_cfg.gateway:
+                    print >>fd, "GATEWAY=%s" % iscsi_iface_cfg.gateway
+            fd.close()
+
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
         cmd = ['chroot', mounts['root'], 'mkinitrd', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
-        if iscsi_iface:
-            cmd.append('--net-dev=%s' % iscsi_iface)
         cmd.extend([output_file, kernel_version])
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
     finally:
-        if iscsi_iface:
+        if iscsi_primary_disk:
             # stop the iscsi daemon
             util.runCmd2(['killall', '-9', 'iscsid'])
             # Clear up temporary copy of iscsi config in dom0 chroot
             util.umount(os.path.join(mounts['root'], 'etc/iscsi'))
+            # Clear up temporary iscsi interface config in dom0 chroot
+            util.umount(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts'))
 
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
         util.umount(os.path.join(mounts['root'], 'proc'))
 
-def mkinitrd(mounts, iscsi_iface):
-    __mkinitrd(mounts, iscsi_iface, version.KERNEL_VERSION)
-    __mkinitrd(mounts, iscsi_iface, version.KDUMP_VERSION)
+def mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk):
+    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, version.KERNEL_VERSION)
+    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, version.KDUMP_VERSION)
 
     # make the initrd-2.6-xen.img symlink:
     initrd_name = "initrd-%s.img" % version.KERNEL_VERSION

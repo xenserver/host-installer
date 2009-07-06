@@ -22,6 +22,7 @@ import constants
 import upgrade
 import product
 import snackutil
+import diskutil
 
 from snack import *
 
@@ -68,6 +69,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     def iscsi_disks_enabled(answers):
         return answers.has_key('enable-iscsi') and answers['enable-iscsi'] == True
+
+    def iscsi_primary_disk(answers):
+        return diskutil.is_iscsi(answers['primary-disk'])
 
     def preserve_timezone(answers):
         if not_preserve_settings(answers):
@@ -135,6 +139,10 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(tui.repo.verify_source, args=['installation']),
         Step(uis.get_root_password,
              predicates=[not_preserve_settings]),
+        Step(uis.get_iscsi_interface,
+             predicates=[iscsi_primary_disk]),
+        Step(uis.get_iscsi_interface_configuration,
+             predicates=[iscsi_primary_disk]),
         Step(uis.get_admin_interface,
              predicates=[has_multiple_nics, not_preserve_settings]),
         Step(uis.get_admin_interface_configuration,

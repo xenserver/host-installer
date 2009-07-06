@@ -72,8 +72,13 @@ def add_iscsi_disks(answers):
         return LEFT_BACKWARDS
     
     # iSCSI needs networking...
-    tui.network.requireNetworking(answers, msg="Please specify which network interface would you like to use to access the iSCSI target")
-
+    while True:
+        rc = tui.network.requireNetworking(answers, msg="Please specify which network interface would you like to use to access the iSCSI target")
+        if rc == RIGHT_FORWARDS:
+            break # networking succeeded
+        if rc == LEFT_BACKWARDS:
+            return rc
+        
     # configure iSCSI initiator name before starting daemon
     rv, iname = util.runCmd2([ '/sbin/iscsi-iname' ], with_stdout=True)
     if rv: raise RuntimeError, "/sbin/iscsi-iname failed"
@@ -191,6 +196,46 @@ Alternatively, please contact a Technical Support Representative for the recomme
     if button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
+def get_iscsi_interface(answers):
+    default = None
+    try:
+        if answers.has_key('net-iscsi-interface'):
+            default = answers['net-iscsi-interface']
+        else:
+            # default is netdev used to access primary disk during installation
+            _, _, default = diskutil.iscsi_address_port_netdev(answers['primary-disk'])
+    except:
+        pass
+
+    net_hw = answers['network-hardware']
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the iSCSI target from your host?", net_hw, default)
+    if direction == RIGHT_FORWARDS:
+        answers['net-iscsi-interface'] = iface
+    return direction
+
+def get_iscsi_interface_configuration(answers):
+    assert answers.has_key('net-iscsi-interface')
+    nic = answers['network-hardware'][answers['net-iscsi-interface']]
+
+    defaults = None
+    try:
+        if answers.has_key('net-iscsi-configuration'):
+            defaults = answers['net-iscsi-configuration']
+        elif answers.has_key('runtime-iface-configuration'):
+            all_dhcp, manual_config = answers['runtime-iface-configuration']
+            if not all_dhcp:
+                defaults = manual_config[answers['net-iscsi-interface']]
+    except:
+        pass
+
+    rc, conf = tui.network.get_iface_configuration(
+        nic, txt = "Please specify how networking should be configured for the management interface on this host.",
+        defaults = defaults
+        )
+    if rc == RIGHT_FORWARDS:
+        answers['net-iscsi-configuration'] = conf
+    return rc
+
 def get_admin_interface(answers):
     default = None
     try:
@@ -205,8 +250,7 @@ def get_admin_interface(answers):
     # used to connect to that disk, as this cannot also be used as an
     # admin interface
     if diskutil.is_iscsi(answers['primary-disk']):
-        _, _, iscsi_iface = diskutil.iscsi_address_port_netdev(answers['primary-disk'])
-        net_hw.pop(iscsi_iface, None)
+        net_hw.pop(answers['net-iscsi-configuration'], None)
 
     direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default)
     if direction == RIGHT_FORWARDS:
