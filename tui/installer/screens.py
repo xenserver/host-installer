@@ -250,7 +250,7 @@ def get_admin_interface(answers):
     # used to connect to that disk, as this cannot also be used as an
     # admin interface
     if diskutil.is_iscsi(answers['primary-disk']):
-        net_hw.pop(answers['net-iscsi-configuration'], None)
+        net_hw.pop(answers['net-iscsi-interface'], None)
 
     direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default)
     if direction == RIGHT_FORWARDS:
