@@ -73,7 +73,8 @@ def add_iscsi_disks(answers):
     
     # iSCSI needs networking...
     while True:
-        rc = tui.network.requireNetworking(answers, msg="Please specify which network interface would you like to use to access the iSCSI target")
+        rc = tui.network.requireNetworking(answers, msg="Please specify which network interface would you like to use to access the iSCSI target",
+                                           blacklist=[], keys=['net-iscsi-interface','net-iscsi-configuration'])
         if rc == RIGHT_FORWARDS:
             break # networking succeeded
         if rc == LEFT_BACKWARDS:
@@ -249,10 +250,11 @@ def get_admin_interface(answers):
     # if the primary disk is iSCSI we need to filter out the interface
     # used to connect to that disk, as this cannot also be used as an
     # admin interface
+    blacklist = []
     if diskutil.is_iscsi(answers['primary-disk']):
-        net_hw.pop(answers['net-iscsi-interface'], None)
+        blacklist.append(answers['net-iscsi-interface'])
 
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default)
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default, blacklist=blacklist)
     if direction == RIGHT_FORWARDS:
         answers['net-admin-interface'] = iface
     return direction
@@ -612,7 +614,16 @@ def setup_runtime_networking(answers):
     except:
         pass
 
-    return tui.network.requireNetworking(answers, defaults)
+    # Blacklist any interfaces currently used for accessing iSCSI disks
+    blacklist = []
+    try:
+        if answers.has_key('primary-disk') and answers.has_key('net-iscsi-interface') and diskutil.is_iscsi(answers['primary-disk']):
+            blacklist = [answers['net-iscsi-interface']]
+    except:
+        pass
+
+    # Get the answers from the user
+    return tui.network.requireNetworking(answers, defaults, blacklist=blacklist)
 
 def get_url_location(answers):
     text = "Please enter the URL for your HTTP or FTP repository and, optionally, a username and password"
