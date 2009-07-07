@@ -500,7 +500,8 @@ def is_iscsi(device):
 
     # find /sys/block node
     sysblockdir = None
-    sysblockdirs = [ "/sys/block/" + dev for dev in os.listdir("/sys/block") ]
+    sysblockdirs = [ "/sys/block/" + dev for dev in os.listdir("/sys/block")
+                     if (not dev.startswith('loop')) and (not dev.startswith('ram')) ]
     for d in sysblockdirs:
         if os.path.isfile(d + "/dev") and os.path.isfile(d + "/range"):
             __major, __minor = map(int, open(d + "/dev").read().split(':'))
