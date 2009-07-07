@@ -155,7 +155,7 @@ def getFinalisationSequence(ans):
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'net-iscsi-interface'), []),
-        Task(prepareSwapfile, A(ans, 'mounts'), []),
+        Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts',  'net-iscsi-interface', 'net-iscsi-configuration', 'primary-disk'), []),
@@ -908,17 +908,21 @@ def writeKeyboardConfiguration(mounts, keymap):
     kbdfile.write("KEYTABLE=%s\n" % keymap)
     kbdfile.close()
 
-def prepareSwapfile(mounts):
+def prepareSwapfile(mounts, primary_disk):
+    if diskutil.is_iscsi(primary_disk):
+        # Don't use swap over iscsi
+        return
     util.assertDir("%s/var/swap" % mounts['root'])
     util.runCmd2(['dd', 'if=/dev/zero',
                   'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
                   'bs=1024', 'count=%d' % (constants.swap_size * 1024)])
-    util.runCmd2(['chroot', mounts['root'], 'mkswap', '/var/swap/swap.001'])
+    util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_location])
 
 def writeFstab(mounts):
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
     fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
-    fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
+    if os.path.exists(os.path.join(mounts['root'], constants.swap_location.lstrip('/'))):
+        fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
     fstab.write("none        /dev/pts  devpts defaults   0  0\n")
     fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
     fstab.write("none        /proc     proc   defaults   0  0\n")
