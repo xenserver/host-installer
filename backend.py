@@ -289,12 +289,6 @@ def performInstallation(answers, ui_package):
     if not answers.has_key('bootloader'):
         answers['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
 
-    # work out whether primary disk is iscsi, and if so save the iface used to talk to it
-    if answers.has_key('primary-disk'):
-        primary_disk = answers['primary-disk'] # INSTALL CASE
-    else:
-        primary_disk = answers['installation-to-overwrite'].primary_disk # UPGRADE CASE
-        
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
     # haven't already recorded it as part of reading settings from an upgrade:

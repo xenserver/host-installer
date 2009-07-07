@@ -317,8 +317,9 @@ def get_installation_type(answers):
         answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
         answers['installation-to-overwrite'], preservable = entry
         answers['preserve-settings'] = preservable
+        answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
 
-        for k in ['guest-disks', 'primary-disk', 'default-sr-uuid']:
+        for k in ['guest-disks', 'default-sr-uuid']:
             if answers.has_key(k):
                 del answers[k]
     return RIGHT_FORWARDS
