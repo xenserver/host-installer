@@ -608,6 +608,9 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
     # find out whether we are using iscsi to access the primary disk
     iscsi_primary_disk =  diskutil.is_iscsi(primary_disk)
 
+    # the mkinitrd command line
+    cmd = ['chroot', mounts['root'], 'mkinitrd', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
+
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
@@ -619,15 +622,13 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
             # point iscsid is not running in the dom0 chroot.
 
             # Make temporary copy of iscsi config in dom0 chroot
-            util.mount('none', os.path.join(mounts['root'], 'etc/iscsi'), None, 'tmpfs')
-            cmd = [ 'cp', '-a', '/etc/iscsi', os.path.join(mounts['root'], 'etc/')]
-            if util.runCmd2(cmd) != 0:
+            util.mount('none', os.path.join(mounts['root'], 'etc/iscsi'), None, 'tmpfs')            
+            if util.runCmd2([ 'cp', '-a', '/etc/iscsi', os.path.join(mounts['root'], 'etc/')]) != 0:
                 raise RuntimeError, "Failed to initialise temporary /etc/iscsi"
         
             # Start iscsid inside dom0 chroot
-            util.runCmd2(['killall', '-9', 'iscsid']) # just in case one is running 
-            cmd = [ 'chroot', mounts['root'], '/sbin/iscsid' ]
-            if util.runCmd2(cmd) != 0:
+            util.runCmd2(['killall', '-9', 'iscsid']) # just in case one is running             
+            if util.runCmd2([ 'chroot', mounts['root'], '/sbin/iscsid' ]) != 0:
                 raise RuntimeError, "Failed to start iscsid in dom0 chroot"
 
             # mkinitrd needs to know how to configure the interface used to access the iscsi disk
@@ -646,10 +647,12 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
                 if iscsi_iface_cfg.gateway:
                     print >>fd, "GATEWAY=%s" % iscsi_iface_cfg.gateway
             fd.close()
+            # explicitly set the interface used for iscsi rather than letting mkinitrd probe for it, as user
+            # may have specified a different interface to the one used in the installer
+            cmd.append("--iscsi-iface=%s" % iscsi_iface)
 
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
-        cmd = ['chroot', mounts['root'], 'mkinitrd', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
         cmd.extend([output_file, kernel_version])
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
