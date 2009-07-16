@@ -691,7 +691,7 @@ def writeMenuItems(f, fn, s):
         entries += [{
             'label':      "xe-serial",
             'title':      "%s (Serial)" % PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz %s console=%s,tty dom0_mem=%dM " \
+            'hypervisor': "/boot/xen.gz %s console=%s,vga dom0_mem=%dM " \
                           % (s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
             'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
@@ -701,7 +701,7 @@ def writeMenuItems(f, fn, s):
             'label':      "safe",
             'title':      "%s in Safe Mode" % PRODUCT_BRAND,
             'hypervisor': "/boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic " \
-                          + "dom0_mem=%dM %s console=%s,tty" \
+                          + "dom0_mem=%dM %s console=%s,vga" \
                           % (constants.DOM0_MEM, s.xenFmt(), s.port),
             'kernel':     "/boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 " \
                           % constants.rootfs_label \
@@ -723,7 +723,7 @@ def writeMenuItems(f, fn, s):
             'label':      "fallback-serial",
             'title':      "%s (Serial, Xen %s / Linux %s)" \
                           % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
-            'hypervisor': "/boot/xen-%s.gz %s console=%s,tty dom0_mem=%dM " \
+            'hypervisor': "/boot/xen-%s.gz %s console=%s,vga dom0_mem=%dM " \
                           % (version.XEN_VERSION, s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
             'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
