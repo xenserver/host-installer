@@ -187,6 +187,9 @@ class SerialPort:
             if m.group(4): self.parity = m.group(4)
             if m.group(5): self.stop = m.group(5)
 
+    def __repr__(self):
+        return "<SerialPort: %s>" % self.xenFmt()
+
     def kernelFmt(self):
         return self.dev
 
