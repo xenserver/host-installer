@@ -55,8 +55,16 @@ start()
   udevsettle --timeout=180
   echo
 
-  /sbin/biosdevname -d >/dev/null
-  if [ $? -eq 0 ] ; then
+  # ensure we can determine BIOS order for all interfaces
+  rename_ifs=1
+  for i in /sys/class/net/eth* ; do
+    [ ! -d "$i" ] && rename_ifs=0 && break
+    eth_basename=$(basename $i)
+    out=$(/sbin/biosdevname -i ${eth_basename} 2>/dev/null)
+    [ -z "$out" ] && rename_ifs=0 && break
+  done
+
+  if [ $rename_ifs -eq 1 ] ; then
     # now re-order interfaces to BIOS order:
     for i in /sys/class/net/eth* ; do
       eth_basename=$(basename $i)
