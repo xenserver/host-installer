@@ -81,11 +81,14 @@ module_map = {
 
 def module_present(module):
     mtmp = module.replace('-', '_')
+    loaded_modules = []
     pm = open('/proc/modules', 'r')
-    loaded_modules = pm.readlines()
+    for line in pm:
+        fields = line.split()
+        loaded_modules.append(fields[0].replace('-', '_'))
     pm.close()
 
-    return mtmp in [x.replace('-', '_') for x in loaded_modules]
+    return mtmp in loaded_modules
 
 def modprobe(module, params = ""):
     xelogging.log("Loading module %s" % " ".join([module, params]))
