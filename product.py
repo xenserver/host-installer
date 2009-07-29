@@ -158,6 +158,9 @@ class ExistingInstallation(object):
         return "%s v%s on %s" % (
             self.brand, str(self.version), self.root_partition)
 
+    def __repr__(self):
+        return "<ExistingInstallation: %s>" % self
+
     def getInventoryValue(self, k):
         return self.inventory[k]
 

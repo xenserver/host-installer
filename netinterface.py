@@ -38,11 +38,11 @@ class NetInterface:
             self.gateway = gateway
             self.dns = dns
 
-    def __str__(self):
+    def __repr__(self):
         if self.mode == self.DHCP:
             return "<NetInterface: DHCP, hwaddr = '%s'>" % self.hwaddr
         else:
-            return "<NetInterface: Static, hwaddr = '%s', " % self.hwaddr  + \
+            return "<NetInterface: Static, hwaddr = '%s', " % self.hwaddr + \
                 "ipaddr = '%s', netmask = '%s', gateway = '%s', dns = '%s'>" % \
                 (self.ipaddr, self.netmask, self.gateway, self.dns)
 
