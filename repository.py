@@ -516,6 +516,9 @@ class DriverRPMPackage(RPMPackage):
                (self.name, self.size, self.md5sum, self.kernel_version, self.repository_filename)
 
     def load(self):
+        def module_present(module):
+            return hardware.module_present(os.path.splitext(os.path.basename(module))[0])
+
         # Skip drivers for kernels other than ours:
         if not self.is_loadable():
             xelogging.log("Skipping driver %s, version mismatch (%s != %s)" % 
@@ -537,7 +540,7 @@ class DriverRPMPackage(RPMPackage):
             modules = []
             rc, out = util.runCmd2(['/bin/rpm', '-qlp', temploc], with_stdout = True)
             if rc == 0:
-                modules += filter(lambda x: x.endswith('.ko') and x not in modules, out.split("\n"))
+                modules += filter(lambda x: x.endswith('.ko') and x not in modules and not module_present(x), out.split("\n"))
 
             # insmod the driver(s):
             for module in modules:
