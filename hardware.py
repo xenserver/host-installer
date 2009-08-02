@@ -140,28 +140,18 @@ def modprobe_file(module, params = "", name = None):
 ################################################################################
 # These functions assume we're running on Xen.
 
-_vt_support = None
-
 def VTSupportEnabled():
-    global _vt_support
-
-    # get the answer and cache it if necessary:
-    if _vt_support == None:
-        assert os.path.exists(constants.XENINFO)
-        rc, caps = util.runCmd2([constants.XENINFO, 'xen-caps'], with_stdout = True)
-        assert rc == 0
-        caps = caps.strip().split(" ")
-        _vt_support = "hvm-3.0-x86_32" in caps
-    return _vt_support
+    rc, caps = util.runCmd2([constants.XENINFO, 'xen-caps'], with_stdout = True)
+    assert rc == 0
+    caps = caps.strip().split(" ")
+    return "hvm-3.0-x86_32" in caps
 
 def getHostTotalMemoryKB():
-    assert os.path.exists(constants.XENINFO)
     rc, mem = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
     assert rc == 0
     return int(mem.strip())
 
 def getSerialConfig():
-    assert os.path.exists(constants.XENINFO)
     rc, cmdline = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
     assert rc == 0
     m = re.match(r'.*(com\d=\S+)', cmdline)
