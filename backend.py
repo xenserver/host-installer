@@ -666,15 +666,30 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
         util.umount(os.path.join(mounts['root'], 'dev'))
         util.umount(os.path.join(mounts['root'], 'proc'))
 
+class KernelNotFound(Exception):
+    pass
+def getKernelVersion(rootfs_mount, kextra):
+    """ Returns a list of installed kernel version of type kextra, e.g. 'xen'. """
+    chroot = ['chroot', rootfs_mount, 'rpm', '-q', 'kernel-%s' % kextra, '--qf', '%%{VERSION}-%%{RELEASE}%s\n' % kextra]
+    rc, out = util.runCmd2(chroot, with_stdout = True)
+    if rc != 0:
+        raise KernelNotFound, "Required package kernel-%s not found." % kextra
+
+    out = out.strip().split("\n")
+    assert len(out) == 1, "Installer only supports having a single kernel of each type installed.  Found %d of kernel-%s" % (len(out), kextra)
+    return out[0]
+
 def mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk):
-    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, version.KERNEL_VERSION)
-    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, version.KDUMP_VERSION)
-
+    xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+    kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
+    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, xen_kernel_version)
+    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kdump_kernel_version)
+ 
     # make the initrd-2.6-xen.img symlink:
-    initrd_name = "initrd-%s.img" % version.KERNEL_VERSION
-    util.runCmd2(["ln", "-sf", initrd_name, "%s/boot/initrd-2.6-xen.img" % mounts['root']])
+    os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
 
-def writeMenuItems(f, fn, s):
+def writeMenuItems(xen_kernel_version, f, fn, s):
+    # XXX assumes only one kernel version installed:
     entries = [
         {
             'label':      "xe",
@@ -708,24 +723,24 @@ def writeMenuItems(f, fn, s):
     entries += [{
             'label':      "fallback",
             'title':      "%s (Xen %s / Linux %s)" \
-                          % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
+                          % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
             'hypervisor': "/boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M" \
                           % (version.XEN_VERSION, constants.DOM0_MEM),
             'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0" \
-                          % (version.KERNEL_VERSION, constants.rootfs_label),
-            'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
+                          % (xen_kernel_version, constants.rootfs_label),
+            'initrd':     "/boot/initrd-%s.img" % xen_kernel_version,
         }]
     if s:
         entries += [{
             'label':      "fallback-serial",
             'title':      "%s (Serial, Xen %s / Linux %s)" \
-                          % (PRODUCT_BRAND,version.XEN_VERSION,version.KERNEL_VERSION),
+                          % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
             'hypervisor': "/boot/xen-%s.gz %s console=%s,vga dom0_mem=%dM " \
                           % (version.XEN_VERSION, s.xenFmt(), s.port, constants.DOM0_MEM) \
                           + "lowmem_emergency_pool=16M crashkernel=64M@32M",
             'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
-                          % (version.KERNEL_VERSION, constants.rootfs_label, s.dev),
-            'initrd':     "/boot/initrd-%s.img" % version.KERNEL_VERSION,
+                          % (xen_kernel_version, constants.rootfs_label, s.dev),
+            'initrd':     "/boot/initrd-%s.img" % xen_kernel_version,
         }]
 
     for entry in entries:
@@ -800,7 +815,8 @@ def installExtLinux(mounts, disk, serial, boot_serial):
     f.write("timeout 50\n")
     f.write("\n")
 
-    writeMenuItems(f, writeExtLinuxMenuItem, serial)
+    # XXX assumes only one kernel version installed:
+    writeMenuItems(getKernelVersion(mounts['root'], 'xen'), f, writeExtLinuxMenuItem, serial)
     
     f.close()
 
@@ -865,6 +881,7 @@ def installGrub(mounts, disk, serial, boot_serial):
     util.assertDir("%s/grub" % mounts['boot'])
     menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
     menulst_file.write(grubconf)
+    xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     writeMenuItems(menulst_file, writeGrubMenuItem, serial)
     menulst_file.close()
 
@@ -895,7 +912,7 @@ def umountVolumes(mounts, cleanup, force = False):
 # second stage install helpers:
     
 def doDepmod(mounts):
-    assert util.runCmd2(['chroot', mounts['root'], 'depmod', version.KERNEL_VERSION]) == 0
+    util.runCmd2(['chroot', mounts['root'], 'depmod', getKernelVersion(mounts['root'], 'xen')]) == 0
 
 def writeKeyboardConfiguration(mounts, keymap):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
@@ -1143,7 +1160,7 @@ def writeModprobeConf(mounts):
 
     util.bindMount("/proc", "%s/proc" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
-    assert util.runCmd2(['chroot', mounts['root'], 'kudzu', '-q', '-k', version.KERNEL_VERSION]) == 0
+    util.runCmd2(['chroot', mounts['root'], 'kudzu', '-q', '-k', getKernelVersion(mounts['root'], 'xen')]) == 0
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
