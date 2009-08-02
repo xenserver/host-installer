@@ -104,9 +104,6 @@ def go(ui, args, answerfile_address):
                 results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
             elif val == "extlinux":
                 results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
-        elif opt == "--install-xen64":
-            xelogging.log("Installing xen64 package")
-            results['install-xen64'] = True
         elif opt == "--onecd":
             suppress_extra_cd_dialog = True
         elif opt == "--enable-iscsi":

@@ -165,9 +165,6 @@ def getFinalisationSequence(ans):
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
 
-    if ans.has_key('install-xen64') and ans['install-xen64']:
-        seq.append(Task(installXen64, A(ans, 'mounts'), []))
-
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
@@ -1413,24 +1410,6 @@ def writei18n(mounts):
     fd.write('LANG="en_US.UTF-8"\n')
     fd.write('SYSFONT="drdos8x8"\n')
     fd.close()
-
-def installXen64(mounts):
-    rpmdir = os.path.join('opt', 'xensource', 'RPMS')
-    if not os.path.exists(os.path.join(mounts['root'], rpmdir)):
-        return
-
-    # currently only contains xen64 RPM but cope with others
-    rpmlist = ["/%s/%s" % (rpmdir, f) for f in os.listdir(os.path.join(mounts['root'], rpmdir)) if f.endswith('.rpm')]
-    if len(rpmlist) > 0:
-        util.bindMount("/proc", "%s/proc" % mounts['root'])
-        util.bindMount("/sys", "%s/sys" % mounts['root'])
-        # grubby needs to access disk device files
-        util.bindMount("/dev", "%s/dev" % mounts['root'])
-        util.runCmd2(['chroot', mounts['root'], 'new-kernel-pkg', '--package', 'kernel-xen', '--install', '--multiboot=/boot/xen.gz', version.KERNEL_VERSION])
-        util.runCmd2(['chroot', mounts['root'], '/bin/rpm', '-ihv'] + rpmlist)
-        util.umount("%s/proc" % mounts['root'])
-        util.umount("%s/sys" % mounts['root'])
-        util.umount("%s/dev" % mounts['root'])
 
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
