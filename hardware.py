@@ -18,64 +18,6 @@ import xelogging
 import util
 import re
 
-# More of the hardware tools will be moved into here in future.
-
-# module => module list
-# if we discover x, actually load module_map[x]:
-module_map = {
-    # general:
-    'mptscsih'     : ['mptspi', 'mptscsih'],
-    'i810-tco'     : [],
-    'usb-uhci'     : [],
-    'ide-scsi'     : ['ide-generic'],
-    'piix'         : ['ata-piix', 'piix', 'ide-generic'],
-
-    # blacklist firewire as we don't support it and it confuses our networking
-    # code:
-    "ohci1394"     : [],
-    "eth1394"      : [],
-
-    # blacklist framebuffer drivers (we don't need them):
-    "arcfb"        : [],
-    "aty128fb"     : [],
-    "atyfb"        : [],
-    "radeonfb"     : [],
-    "cirrusfb"     : [],
-    "cyber2000fb"  : [],
-    "cyblafb"      : [],
-    "gx1fb"        : [],
-    "hgafb"        : [],
-    "i810fb"       : [],
-    "intelfb"      : [],
-    "kyrofb"       : [],
-    "i2c-matroxfb" : [],
-    "neofb"        : [],
-    "nvidiafb"     : [],
-    "pm2fb"        : [],
-    "rivafb"       : [],
-    "s1d13xxxfb"   : [],
-    "savagefb"     : [],
-    "sisfb"        : [],
-    "sstfb"        : [],
-    "tdfxfb"       : [],
-    "tridentfb"    : [],
-    "vfb"          : [],
-    "vga16fb"      : [],
-
-    # blacklist agp modules (we don't need them and they can cause compatibility issues):
-    "ali-agp"      : [],
-    "amd64-agp"    : [],
-    "via-agp"      : [],
-    "intel-agp"    : [],
-    "sworks-agp"   : [],
-    "sis-agp"      : [],
-    "nvidia-agp"   : [],
-    "ati-agp"      : [],
-    "amd-k7-agp"   : [],
-    "efficeon-agp" : [],
-    }
-
-
 ###
 # Module loading
 
