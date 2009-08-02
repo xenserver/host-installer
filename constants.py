@@ -109,3 +109,5 @@ FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
 
 SYSLINUX_CFG = "syslinux.cfg"
+
+HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"

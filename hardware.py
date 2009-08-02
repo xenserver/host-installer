@@ -138,24 +138,57 @@ def modprobe_file(module, params = "", name = None):
     return rc
 
 ################################################################################
-# These functions assume we're running on Xen.
+# Functions to get characteristics of the host.  Can work in a VM too, to aid
+# with developer testing.
 
 def VTSupportEnabled():
-    rc, caps = util.runCmd2([constants.XENINFO, 'xen-caps'], with_stdout = True)
-    assert rc == 0
-    caps = caps.strip().split(" ")
-    return "hvm-3.0-x86_32" in caps
+    """ Checks if VT support is present.  Uses /sys/hypervisor to do so,
+    expecting a single line in this file with a space separated list of 
+    capabilities. """
+    f = open(constants.HYPERVISOR_CAPS_FILE, 'r')
+    caps = ""
+    try:
+        caps = f.readline()
+    finally:
+        f.close()
 
-def getHostTotalMemoryKB():
+    return "hvm-3.0-x86_32" in caps.strip().split(" ")
+
+def VM_getHostTotalMemoryKB():
+    # Use /proc/meminfo to get this.  It has a MemFree entry with the value we
+    # need.  The format is lines like this "XYZ:     123 kB".
+    meminfo = {}
+
+    f = open("/proc/meminfo", "r")
+    try:
+        for line in f:
+            k, v = line.split(":")
+            meminfo[k.strip()] = int(v.strip()[:-3])
+    finally:
+        f.close()
+
+    return meminfo['MemTotal']
+
+def PhysHost_getHostTotalMemoryKB():
     rc, mem = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
     assert rc == 0
     return int(mem.strip())
 
-def getSerialConfig():
+def VM_getSerialConfig():
+    return ''
+
+def PhysHost_getSerialConfig():
     rc, cmdline = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
     assert rc == 0
     m = re.match(r'.*(com\d=\S+)', cmdline)
     return m and m.group(1) or None
+
+getHostTotalMemoryKB = PhysHost_getHostTotalMemoryKB
+getSerialConfig = PhysHost_getSerialConfig
+def useVMHardwareFunctions():
+    global getHostTotalMemoryKB, getSerialConfig
+    getHostTotalMemoryKB = VM_getHostTotalMemoryKB
+    getSerialConfig = VM_getSerialConfig
 
 def is_serialConsole(console):
     return console.startswith('hvc') or console.startswith('ttyS')

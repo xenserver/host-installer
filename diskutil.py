@@ -37,6 +37,9 @@ disk_nodes += [ (69, x * 16) for x in range(16) ]
 disk_nodes += [ (70, x * 16) for x in range(16) ]
 disk_nodes += [ (71, x * 16) for x in range(16) ]
 
+# xvd* -> (blkfront has major 202: each device has 15 minors)
+disk_nodes += [ (202, x * 16) for x in range(16) ]
+
 # /dev/cciss : c[0-7]d[0-15]: Compaq Next Generation Drive Array
 # /dev/ida   : c[0-7]d[0-15]: Compaq Intelligent Drive Array
 for major in range(72, 80) + range(104, 112):

@@ -75,6 +75,9 @@ def go(ui, args, answerfile_address):
     boot_console = None
     boot_serial = False
 
+    if args.has_key('--virtual'):
+        hardware.useVMHardwareFunctions()
+
     for (opt, val) in args.items():
         if opt == "--boot-console":
             # takes precedence over --console
