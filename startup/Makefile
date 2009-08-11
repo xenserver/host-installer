@@ -12,4 +12,5 @@ install:
 	mkdir -p $(DESTDIR)/lib/firmware
 	install -D -m755 S01genesis $(DESTDIR)/etc/init.d/S01genesis
 	install -m755 S02hardware $(DESTDIR)/etc/init.d
+	install -m755 S03unplug-vcpus $(DESTDIR)/etc/init.d
 	install -m755 S11network $(DESTDIR)/etc/init.d
