@@ -71,7 +71,7 @@ class NetInterface:
             rc, output = util.runCmd2(['/bin/ipcalc', '-b', self.ipaddr, self.netmask],
                                       with_stdout=True)
             if rc == 0:
-                bcast = output[10:]
+                bcast = output[10:].strip()
             f.write("iface %s inet static\n" % iface)
             f.write("   address %s\n" % self.ipaddr)
             if bcast != None:
