@@ -694,7 +694,7 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
         {
             'label':      "xe",
             'title':      PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M console=comX vga=mode-0x0311" % constants.DOM0_MEM,
+            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=1M crashkernel=64M@32M console=comX vga=mode-0x0311" % constants.DOM0_MEM,
             'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0 quiet vga=785 splash" % constants.rootfs_label,
             'initrd':     "/boot/initrd-2.6-xen.img",
         }
@@ -705,7 +705,7 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
             'title':      "%s (Serial)" % PRODUCT_BRAND,
             'hypervisor': "/boot/xen.gz %s console=%s,vga dom0_mem=%dM " \
                           % (s.xenFmt(), s.port, constants.DOM0_MEM) \
-                          + "lowmem_emergency_pool=16M crashkernel=64M@32M",
+                          + "lowmem_emergency_pool=1M crashkernel=64M@32M",
             'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
                           % (constants.rootfs_label, s.dev),
             'initrd':     "/boot/initrd-2.6-xen.img",
@@ -724,7 +724,7 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
             'label':      "fallback",
             'title':      "%s (Xen %s / Linux %s)" \
                           % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
-            'hypervisor': "/boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=16M crashkernel=64M@32M" \
+            'hypervisor': "/boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=1M crashkernel=64M@32M" \
                           % (version.XEN_VERSION, constants.DOM0_MEM),
             'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0" \
                           % (xen_kernel_version, constants.rootfs_label),
@@ -737,7 +737,7 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
                           % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
             'hypervisor': "/boot/xen-%s.gz %s console=%s,vga dom0_mem=%dM " \
                           % (version.XEN_VERSION, s.xenFmt(), s.port, constants.DOM0_MEM) \
-                          + "lowmem_emergency_pool=16M crashkernel=64M@32M",
+                          + "lowmem_emergency_pool=1M crashkernel=64M@32M",
             'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
                           % (xen_kernel_version, constants.rootfs_label, s.dev),
             'initrd':     "/boot/initrd-%s.img" % xen_kernel_version,
