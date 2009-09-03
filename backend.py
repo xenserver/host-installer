@@ -606,7 +606,7 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
     iscsi_primary_disk =  diskutil.is_iscsi(primary_disk)
 
     # the mkinitrd command line
-    cmd = ['chroot', mounts['root'], 'mkinitrd', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
+    cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
 
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
