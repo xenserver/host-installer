@@ -33,7 +33,7 @@ set --
 for arg in $args; do
   copy=1
   case "$arg" in
-    answerfile=* | rt_answerfile=*)
+    answerfile=* | rt_answerfile=* | answerfile_generator=*)
       interactive=0;;
     console=*)
       console=${arg#console=};;

@@ -95,6 +95,8 @@ EULA_PATH = "/opt/xensource/installer/EULA"
 XENINFO = "/usr/bin/xeninfo"
 timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
+ANSWERFILE_PATH = '/tmp/answerfile'
+ANSWERFILE_GENERATOR_PATH = '/tmp/answerfile_generator'
 
 # host filesystem - always absolute paths from root of install
 # and never start with a '/', so they can be used safely with

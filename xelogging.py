@@ -16,6 +16,7 @@ import sys
 import util
 import datetime
 import traceback
+import constants
 
 continuous_logs = []
 __log__ = ""
@@ -80,8 +81,10 @@ def collectLogs(dst, tarball_dir = None):
         # /tmp:
         if os.path.exists("/tmp/startup-log"):
             os.system("cp /tmp/startup-log %s/" % dst)
-
-    logs = filter(lambda x: x.endswith('-log'), os.listdir(dst))
+    if dst != '/tmp':
+        if os.path.exists(constants.ANSWERFILE_GENERATOR_PATH):
+            os.system("cp "+constants.ANSWERFILE_GENERATOR_PATH+" %s/" % dst)
+    logs = filter(lambda x: x.endswith('-log') or x.startswith('answerfile'), os.listdir(dst))
     logs = " ".join(logs)
 
     if os.path.exists(tarball_dir):

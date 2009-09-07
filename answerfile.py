@@ -17,7 +17,8 @@ import xelogging
 import netutil
 import diskutil
 from netinterface import *
-
+import os
+import stat
 import xml.dom.minidom
 
 class AnswerfileError(Exception):
@@ -34,12 +35,49 @@ def getText(nodelist):
 
 class Answerfile:
 
-    def __init__(self, location):
-        xelogging.log("Fetching answerfile from %s" % location)
-        util.fetchFile(location, '/tmp/answerfile')
+    def __init__(self, location = None, xmldoc = None):
+        assert location != None or xmldoc != None
+        if location:
+            xelogging.log("Fetching answerfile from %s" % location)
+            util.fetchFile(location, constants.ANSWERFILE_PATH)
+            
+            try:
+                xmldoc = xml.dom.minidom.parse(constants.ANSWERFILE_PATH)
+            except:
+                raise AnswerfileError, "Answerfile is incorrectly formatted."
 
-        xmldoc = xml.dom.minidom.parse('/tmp/answerfile')
         self.nodelist = xmldoc.documentElement
+
+    @staticmethod
+    def generate(location):
+        xelogging.log("Fetching answerfile generator from %s" % location)
+        util.fetchFile(location, constants.ANSWERFILE_GENERATOR_PATH)
+        os.chmod(constants.ANSWERFILE_GENERATOR_PATH, stat.S_IRUSR | stat.S_IXUSR)
+
+        # check the interpreter
+        f = open(constants.ANSWERFILE_GENERATOR_PATH)
+        line = f.readline()
+        f.close()
+
+        if not line.startswith('#!'):
+            raise AnswerfileError, "Missing interpreter in generator script."
+        interp = line[2:].split()
+        if interp[0] == '/usr/bin/env':
+            if interp[1] not in ['python']:
+                raise AnswerfileError, "Invalid interpreter %s in generator script." % interp[1]
+        elif interp[0] not in ['/bin/sh', '/bin/bash', 'usr/bin/python']:
+            raise AnswerfileError, "Invalid interpreter %s in generator script." % interp[0]
+
+        ret, out, err = util.runCmd2(constants.ANSWERFILE_GENERATOR_PATH, with_stdout = True, with_stderr = True)
+        if ret != 0:
+            raise AnswerfileError, "Generator script failed:\n\n%s" % err
+
+        try:
+            xmldoc = xml.dom.minidom.parseString(out)
+        except:
+            raise AnswerfileError, "Generator script returned incorrectly formatted output."
+
+        return Answerfile(xmldoc = xmldoc)
 
     def processAnswerfile(self):
         """ Downloads an answerfile from 'location' -- this is in the URL format
@@ -76,7 +114,7 @@ class Answerfile:
         elif srtype_node in ['ext']:
             srtype = constants.SR_TYPE_EXT
         else:
-            raise RuntimeError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'"
+            raise AnswerfileError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'."
         results['sr-type'] = srtype
 
         # primary-disk:
@@ -149,7 +187,7 @@ class Answerfile:
         elif srtype_node in ['ext']:
             srtype = constants.SR_TYPE_EXT
         else:
-            raise RuntimeError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'"
+            raise AnswerfileError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'."
         results['sr-type'] = srtype
 
         # primary-disk:
@@ -299,7 +337,7 @@ class Answerfile:
             if nethw.has_key(requested_name):
                 requested_hwaddr = nethw[requested_name].hwaddr
             else:
-                raise RuntimeError, "Interface %s not found" % requested_name
+                raise AnswerfileError, "Interface %s not found." % requested_name
         elif netifnode.getAttribute('hwaddr'):
             requested_hwaddr = netifnode.getAttribute('hwaddr').lower()
             # work out which device corresponds to the hwaddr we were given:
@@ -307,7 +345,7 @@ class Answerfile:
             if len(matching_list) == 1:
                 requested_name = matching_list[0].name
             else:
-                raise RuntimeError, "%d interfaces matching the MAC specified for the management interface." % (len(matching_list))
+                raise AnswerfileError, "%d interfaces matching the MAC specified for the management interface." % (len(matching_list))
 
         assert requested_name and requested_hwaddr
         results['net-admin-interface'] = requested_name
@@ -321,7 +359,7 @@ class Answerfile:
         elif proto == 'dhcp':
             results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, requested_hwaddr)
         else:
-            raise AnswerfileError, "<admin-interface> tag must have attribute proto='static' or proto='dhcp'"
+            raise AnswerfileError, "<admin-interface> tag must have attribute proto='static' or proto='dhcp'."
         return results
 
     def parseSource(self):

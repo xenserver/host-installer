@@ -61,7 +61,7 @@ def handle_install_failure(answers):
         except Exception, e:
             print "Failed to run script: "+str(script) +': '+str(e)
 
-def go(ui, args, answerfile_address):
+def go(ui, args, answerfile_address, answerfile_script):
     extra_repo_defs = []
     results = {
         'keymap': None, 
@@ -124,10 +124,19 @@ def go(ui, args, answerfile_address):
 
     try:
         # loading an answerfile?
-        assert ui != None or answerfile_address != None
+        assert ui != None or answerfile_address != None or answerfile_script != None
 
+        if answerfile_address and answerfile_script:
+            raise RuntimeError, "Both answerfile and answerfile generator passed on command line."
+
+        using_answerfile = False
+        a = None
         if answerfile_address:
             a = answerfile.Answerfile(answerfile_address)
+        elif answerfile_script:
+            a = answerfile.Answerfile.generate(answerfile_script)
+        if a:
+            using_answerfile = True
             results.update(a.parseScripts())
             results.update(a.processAnswerfile())
             if results.has_key('extra-repos'):
@@ -175,7 +184,7 @@ def go(ui, args, answerfile_address):
         # be moved into the sequence definition and evaluated by the
         # UI dispatcher.
         aborted = False
-        if ui and not answerfile_address:
+        if ui and not using_answerfile:
             uiexit = ui.installer.runMainSequence(
                 results, ram_warning, vt_warning, suppress_extra_cd_dialog
                 )
@@ -186,7 +195,7 @@ def go(ui, args, answerfile_address):
             xelogging.log("Starting actual installation")       
             backend.performInstallation(results, ui)
 
-            if ui and not answerfile_address:
+            if ui and not using_answerfile:
                 ui.installer.screens.installation_complete()
             
             xelogging.log("The installation completed successfully.")

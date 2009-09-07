@@ -104,6 +104,7 @@ def main(args):
     oem_manufacturer = "OEM Manufacturer not found"
     oem_verify = False
     answerfile_address = None
+    answerfile_script = None
     flash_and_or_hdd = "all"
     custom = 'default'
     
@@ -132,6 +133,10 @@ def main(args):
             init_network = True
             ui = None
             xelogging.openLog(sys.stdout)
+        elif opt == "--answerfile_generator":
+            answerfile_script = val
+            interactive = False
+            init_network = True
         elif opt == '--answerfile_device':
             answer_device = val.lower()
         elif opt == "--reboot":
@@ -214,7 +219,7 @@ def main(args):
                 xelogging.log("Starting installation/upgrade")
 
                 args['--extrarepo'] = driver_repos
-                rc = install.go(ui, args, answerfile_address)
+                rc = install.go(ui, args, answerfile_address, answerfile_script)
 
             elif operation == init_constants.OPERATION_INSTALL_OEM_TO_FLASH:
                 xelogging.log("Starting default installation of OEM to flash")
