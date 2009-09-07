@@ -42,7 +42,7 @@ for arg in $args; do
     bash-shell)
       bash_shell=1
       copy=0;;
-    blacklist=* | extramodules=*)
+    blacklist=* | extramodules=* | make-ramdisk=*)
       copy=0;;
   esac
   [ $copy -eq 1 ] && set -- "$@" "--$arg"
