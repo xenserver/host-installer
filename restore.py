@@ -61,14 +61,14 @@ def interactiveRestore(ui):
 
 def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     """ Restore files from backup_partition to the root partition (as
-    determined by backend.getRootPartName(disk)) on disk.  Call progress
+    determined by diskutil.getRootPartName(disk)) on disk.  Call progress
     with a value between 0 and 100.  Re-install bootloader.  Fails if 
     backup is not same version as the CD in use."""
 
     assert backup_partition.startswith('/dev/')
     assert disk.startswith('/dev/')
 
-    restore_partition = backend.getRootPartName(disk)
+    restore_partition = diskutil.getRootPartName(disk)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
     # first, format the primary disk:

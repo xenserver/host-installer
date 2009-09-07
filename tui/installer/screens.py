@@ -431,7 +431,7 @@ def backup_existing_installation(answers):
         "Back-up Existing Installation?",
         """Would you like to back-up your existing installation before re-installing %s?
 
-The backup will be placed on the second partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, diskutil.determinePartitionName(answers['installation-to-overwrite'].primary_disk, RETAIL_BACKUP_PARTITION_NUMBER)),
+The backup will be placed on the backup partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, answers['installation-to-overwrite'].primary_disk),
         ['Yes', 'No', 'Back'], default = default
         )
 

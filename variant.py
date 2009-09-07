@@ -73,7 +73,7 @@ class VariantRetail(Variant):
     
     @classmethod
     def findInstallation(cls, disk):
-        p = diskutil.determinePartitionName(disk, constants.RETAIL_ROOT_PARTITION_NUMBER)
+        p = diskutil.determinePartitionName(disk, diskutil.getRootPartNumber(disk))
         ret = None
 
         build_map = {}

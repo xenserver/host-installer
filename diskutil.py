@@ -257,22 +257,42 @@ def clearDiskPartitions(disk):
     assert util.runCmd2(["dd", "if=/dev/zero", "of=%s" % disk, "bs=512", "count=1"]) == 0
 
 # partitions is a list of sizes in MB, currently we only make primary partitions.
-# this is a completely destructive process.
+# first_xensource_partition is the number of the first partition to create.  All
+# existing partitions with lower numbers will be preserved.
 #
 # The last size may be -1, which is a special value indicating that the rest
 # of the disk should be used.
-def writePartitionTable(disk, partitions):
+def writePartitionTable(disk, partitions, first_xensource_partition):
     xelogging.log("About to write partition table %s to disk %s" % (partitions, disk))
     
-    clearDiskPartitions(disk)
+    if first_xensource_partition == 1:
+        # we create a new table
+        pass
+    else:
+        # we preserve partitions with lower partnums: collect the numbers of partitions to delete
+        part_names = partitionsOnDisk(disk)
+        part_nums = map(partitionNumberFromPartition, part_names)
+        part_nums_to_delete = filter(lambda n: n >= first_xensource_partition, part_nums)
+        part_nums_to_delete.sort()
+        part_nums_to_delete.reverse()   # reverse order so logical partitions are deleted first
 
+    # start fdisk
     pipe = subprocess.Popen(['/sbin/fdisk', disk], stdin = subprocess.PIPE,
                             stdout = dev_null(), stderr = dev_null(), close_fds = True)
 
+    # delete existing partitions
+    if first_xensource_partition == 1:
+        pipe.stdin.write('o\n') # create new table
+    else:
+        for i in part_nums_to_delete:
+            pipe.stdin.write('d\n')  # delete partition
+            pipe.stdin.write('%d\n' % i) # ith partition
+            
+    # create new partitions
     for i in range(0, len(partitions)):
         pipe.stdin.write('n\n') # new partition
         pipe.stdin.write('p\n') # primary
-        pipe.stdin.write('%d\n' % (i + 1)) # ith partition
+        pipe.stdin.write('%d\n' % (i + first_xensource_partition)) # ith partition
         pipe.stdin.write('\n')  # default start cylinder
         if partitions[i] == -1:
             pipe.stdin.write('\n') # use rest of disk
@@ -609,4 +629,32 @@ def log_available_disks():
                            diskSizesGB)
         if len(dom0disks) == 0:
             xelogging.log("Unable to find a suitable disk (with a size between %dGB and %dGB) to install to." % (constants.min_primary_disk_size, constants.max_primary_disk_size))
+
+# Get partitions numbers to use for root, backup, localSR.
+#
+# These will normally be 1,2,3, but may be 2, 3, 4 for disks on which we wish to
+# the preserve contents of the 1st partition, e.g. for a revert-to-factory image.
+__rootPartNumbers = {}
+
+# Specify partition number used for root on this disk.  Installer must not touch earlier partitions
+def preservePart1(disk):
+    __rootPartNumbers[disk] = 2
+    
+def getRootPartNumber(disk):
+    return __rootPartNumbers.get(disk, 1)
+
+def getRootPartName(disk):
+    return determinePartitionName(disk, getRootPartNumber(disk))
+
+def getBackupPartNumber(disk):
+    return getRootPartNumber(disk) + 1
+
+def getBackupPartName(disk):
+    return determinePartitionName(disk, getBackupPartNumber(disk))
+
+def getSRPartNumber(disk):
+    return getBackupPartNumber(disk) + 1
+
+def getSRPartName(disk):
+    return determinePartitionName(disk, getSRPartNumber(disk))
 

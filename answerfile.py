@@ -120,6 +120,9 @@ class Answerfile:
         # primary-disk:
         results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
         pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
+        preserve_p1 = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
+        if preserve_p1:
+            diskutil.preservePart1(results['primary-disk'])
 
         # guest-disks:
         results['guest-disks'] = []
@@ -311,6 +314,11 @@ class Answerfile:
         if len(self.nodelist.getElementsByTagName('existing-installation')) == 0:
             raise AnswerfileError, "No existing installation specified."
         disk = "/dev/" + getText(self.nodelist.getElementsByTagName('existing-installation')[0].childNodes)
+
+        preserve_p1 = self.nodelist.getElementsByTagName('existing-installation')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
+        if preserve_p1:
+            diskutil.preservePart1(disk)
+
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
         if len(installations) != 1:

@@ -408,18 +408,6 @@ def removeBlockingVGs(disks):
         util.runCmd2(['lvremove', vg])
         util.runCmd2(['vgremove', vg])
 
-def getRootPartNumber(disk):
-    return RETAIL_ROOT_PARTITION_NUMBER
-
-def getRootPartName(disk):
-    return diskutil.determinePartitionName(disk, getRootPartNumber(disk))
-
-def getBackupPartNumber(disk):
-    return RETAIL_BACKUP_PARTITION_NUMBER
-
-def getBackupPartName(disk):
-    return diskutil.determinePartitionName(disk, getBackupPartNumber(disk))
-
 ###
 # Functions to write partition tables to disk
 
@@ -433,8 +421,8 @@ def writeDom0DiskPartitions(disk):
         raise RuntimeError, "The disk %s could not be found." % disk
 
     # partition the disk:
-    diskutil.writePartitionTable(disk, [root_size, root_size, -1])
-    diskutil.makeActivePartition(disk, constants.RETAIL_ROOT_PARTITION_NUMBER)
+    diskutil.writePartitionTable(disk, [root_size, root_size, -1], diskutil.getRootPartNumber(disk))
+    diskutil.makeActivePartition(disk, diskutil.getRootPartNumber(disk))
 
 def writeGuestDiskPartitions(disk):
     # we really don't want to screw this up...
@@ -447,7 +435,7 @@ def getSRPhysDevs(primary_disk, guest_disks, is_oem = False):
     if is_oem:
         pd_sr_part = constants.OEMHDD_SR_PARTITION_NUMBER
     else:
-        pd_sr_part = constants.RETAIL_SR_PARTITION_NUMBER
+        pd_sr_part = diskutil.getSRPartNumber(primary_disk)
 
     def sr_partition(disk):
         if disk == primary_disk:
@@ -598,7 +586,7 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk):
-    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, getRootPartName(disk)]) == 0
+    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, diskutil.getRootPartName(disk)]) == 0
 
 def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_version):
 
@@ -758,11 +746,11 @@ def installBootLoader(mounts, disk, bootloader, serial, boot_serial):
     # /proc/mounts with the correct data. If /etc/mtab is not a
     # symlink (to /proc/mounts) then we fake that out too.
     f = open("%s/proc/mounts" % mounts['root'], 'w')
-    f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
+    f.write("%s / %s rw 0 0\n" % (diskutil.getRootPartName(disk), constants.rootfs_type))
     f.close()
     if not os.path.islink("%s/etc/mtab" % mounts['root']):
         f = open("%s/etc/mtab" % mounts['root'], 'w')
-        f.write("%s / %s rw 0 0\n" % (getRootPartName(disk), constants.rootfs_type))
+        f.write("%s / %s rw 0 0\n" % (diskutil.getRootPartName(disk), constants.rootfs_type))
         f.close()
 
     try:
@@ -896,7 +884,7 @@ def mountVolumes(primary_disk, cleanup):
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
-    rootp = getRootPartName(primary_disk)
+    rootp = diskutil.getRootPartName(primary_disk)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
@@ -1179,7 +1167,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
-    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(getBackupPartName(primary_disk)) or getBackupPartName(primary_disk)))
+    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(diskutil.getBackupPartName(primary_disk)) or diskutil.getBackupPartName(primary_disk)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
@@ -1228,8 +1216,8 @@ def backupExisting(upgrader, existing):
         # This upgrader doesn't support a backup during the upgrade, so skip it
         xelogging.log("Skipping backup of existing installation: this upgrade does not support it" )
         return
-    primary_partition = getRootPartName(existing.primary_disk)
-    backup_partition  = getBackupPartName(existing.primary_disk)
+    primary_partition = diskutil.getRootPartName(existing.primary_disk)
+    backup_partition  = diskutil.getBackupPartName(existing.primary_disk)
 
     xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
 
@@ -1255,8 +1243,8 @@ def removeExcessOemPartitions(existing):
 
     # TODO - take into account service partitions
     # For now, assert the truth we require for this process to succeed:
-    assert getRootPartNumber(disk)   == 1
-    assert getBackupPartNumber(disk) == 2
+    assert diskutil.getRootPartNumber(disk)   == 1
+    assert diskutil.getBackupPartNumber(disk) == 2
 
     # Read the partition table in sector units
     cmd = ["/sbin/sfdisk", "-l", "-uS", disk]
@@ -1310,8 +1298,8 @@ unit: sectors
 def createRootPartitionTableEntry(disk):
     """Add the root partition using similar code to the default install"""
     try:
-        diskutil.addRootPartition(disk, RETAIL_ROOT_PARTITION_NUMBER, root_size)
-        diskutil.makeActivePartition(disk, RETAIL_ROOT_PARTITION_NUMBER)
+        diskutil.addRootPartition(disk, diskutil.getRootPartNumber(disk), root_size)
+        diskutil.makeActivePartition(disk, diskutil.getRootPartNumber(disk))
     except:
         xelogging.log("Repartitioning %s failed to add new root partition table entry" % disk)
         raise RuntimeError, "Repartitioning %s failed to add new root partition table entry" % disk
@@ -1322,19 +1310,19 @@ def transferFSfromBackupToRoot(disk):
        for the standard backup partition.
        IMPORTANT: after the partition table was rewritten, the state partition
                   has been renumbered to be that of the Retail backup partition."""
-    root_partition = getRootPartName(disk)
-    backup_partition = diskutil.partitionFromDisk(disk, RETAIL_BACKUP_PARTITION_NUMBER)
+    root_partition = diskutil.getRootPartName(disk)
+    backup_partition = diskutil.partitionFromDisk(disk, diskutil.getBackupPartNumber(disk))
 
     backupFileSystem(backup_partition, root_partition)
 
 def removeBackupPartition(disk):
-    diskutil.removePrimaryPartition(disk, RETAIL_BACKUP_PARTITION_NUMBER)
+    diskutil.removePrimaryPartition(disk, diskutil.getBackupPartNumber(disk))
 
 def createBackupPartition(disk):
     """Add the backup partition using similar code to the default install"""
-    diskutil.addRootPartition(disk, RETAIL_BACKUP_PARTITION_NUMBER, root_size)
+    diskutil.addRootPartition(disk, diskutil.getBackupPartNumber(disk), root_size)
 
-    backup_partition = getBackupPartName(disk)
+    backup_partition = diskutil.getBackupPartName(disk)
     if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
         xelogging.log("Repartitioning failed to format filesystem on %s" % backup_partition)
         raise RuntimeError, "Repartitioning failed to format filesystem on %s" % backup_partition
@@ -1342,8 +1330,8 @@ def createBackupPartition(disk):
 def extractOemStatefromRootToBackup(existing):
     disk = existing.primary_disk
 
-    root_partition = getRootPartName(disk)
-    backup_partition = getBackupPartName(disk)
+    root_partition = diskutil.getRootPartName(disk)
+    backup_partition = diskutil.getBackupPartName(disk)
 
     backupFileSystem(root_partition, backup_partition)
 
@@ -1402,7 +1390,7 @@ def getGrUBDevice(disk, mounts):
 # within the main exception handler.
 def writeLog(primary_disk):
     try: 
-        bootnode = getRootPartName(primary_disk)
+        bootnode = diskutil.getRootPartName(primary_disk)
         util.assertDir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
         log_location = "/tmp/mnt/var/log/installer"

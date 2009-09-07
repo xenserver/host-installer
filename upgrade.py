@@ -104,7 +104,7 @@ class ThirdGenUpgrader(Upgrader):
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite']
     def completeUpgrade(self, mounts, prev_install):
         xelogging.log("Restoring preserved files")
-        backup_volume = backend.getBackupPartName(self.source.primary_disk)
+        backup_volume = diskutil.getBackupPartName(self.source.primary_disk)
         tds = None
         regen_ifcfg = False
         try:
