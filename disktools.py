@@ -6,13 +6,13 @@
 
 import re, subprocess, sys, types
 from pprint import pprint
-from copy import copy
+from copy import copy, deepcopy
 import util
 
 class Chunk:
     """Chunks are the individual blocks that are moved or copied.  When a segment is moved
     the operation is divided into one or more chunks.  Source and destination chunks typically aren't 
-    allowed to overlap (depending on whtether what actually does the moving can handle overlap)"""
+    allowed to overlap (depending on whether what actually does the moving can handle overlap)"""
     def __init__(self, src, dest, size):
         self.src = src
         self.dest = dest
@@ -120,12 +120,19 @@ class LVMTool:
     VG_SR_PREFIX='VG_XenStorage'
     
     PVMOVE=['pvmove']
+    LVCHANGE=['lvchange']
     LVREMOVE=['lvremove']
     VGREMOVE=['vgremove']
     PVREMOVE=['pvremove']
     PVRESIZE=['pvresize']
     
-    
+    VGS_INFO = { # For one-per-VG records
+        'command' : ['/sbin/lvm', 'vgs'],
+        'arguments' : ['--noheadings', '--nosuffix', '--units', 'b', '--separator', SEP],
+        'string_options' : ['vg_name'],
+        'integer_options' : []
+    }
+
     LVS_SEG_INFO = { # For one-per-LV-segment records
         'command' : ['/sbin/lvm', 'lvs'],
         'arguments' : ['--noheadings', '--nosuffix', '--units', 'b', '--separator', SEP, '--segments'],
@@ -178,6 +185,7 @@ class LVMTool:
         return retVal
 
     def readAllInfo(self):
+        self.vgs = self.readInfo(self.VGS_INFO)
         self.lvs = self.readInfo(self.LVS_INFO)
         self.lvSegs = self.readInfo(self.LVS_SEG_INFO)
         self.pvs = self.readInfo(self.PVS_INFO)
@@ -221,12 +229,12 @@ class LVMTool:
 
     @classmethod
     def proposedSegmentList(cls, segList):
-        currentStart = 0 # FIXME: Leave room for metadata?
+        currentStart = 0
         newSegList = []
         for seg in segList:
             newSeg = copy(seg) # Shallow copy but OK for ints
             if seg.start < currentStart + cls.MOVE_THRESHOLD:
-                currentStart = seg.start # Avoid moves by tiny offset
+                currentStart = seg.start # Avoid moves by tiny offset - leave gap unclosed
             newSeg.start = currentStart
             newSegList.append(newSeg)
             currentStart += seg.size
@@ -272,10 +280,12 @@ class LVMTool:
         self.resizeList.append({'device' : device, 'bytechange' : byteChange})
 
     def defragmentDevice(self, device):
-        segList = self.segmentList('/dev/sdb3')
+        segList = self.segmentList(device)
         propSegList = self.proposedSegmentList(segList)
         segChunkList = self.segmentsChunkList(segList, propSegList)
+        self.deactivateAll()
         self.executeMoves(sevice, segChunkList) 
+        self.deactivateAll() # Keep volumes deactivated - pvmove can activate them
 
     def testPartition(self, devicePrefix, vgPrefix):
         """Returns the first partition where the device name starts with devicePrefix and
@@ -315,7 +325,12 @@ class LVMTool:
         self.vgsToDelete += vgsToDelete
         self.lvsToDelete += lvsToDelete
 
+    def deactivateAll(self):
+        for vg in self.vgs:
+            self.cmdWrap(self.LVCHANGE + ['-an', vg['vg_name']])
+
     def commit(self):
+        self.deactivateAll()
         for lv in self.lvsToDelete:
             self.cmdWrap(self.LVREMOVE + [lv])
         self.lvsToDelete = []
@@ -331,33 +346,55 @@ class LVMTool:
             newSize = pv['pv_size'] + resize['bytechange']
             self.cmdWrap(self.PVRESIZE + ['--setphysicalvolumesize', str(newSize/1024)+'k', resize['device']])
         self.resizeList = []
-        self.readAllInfo() # FIXME: ?
+        self.readAllInfo()
+        self.deactivateAll() # Stop active LVs preventing changes to the partition structure
 
     def dump(self):
         pprint(self.__dict__)
 
-
-# Only primary partitions are fully handled by PartitionTool
 class PartitionTool:
     SFDISK='/sbin/sfdisk'
     DD='/bin/dd'
+    
+    DISK_PREFIX = '/dev/'
+    P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel']
+    PART_STYLE_DISKS = [ 'disk/by-id' ]
+    
     def __init__(self, device):
         self.device = device
+        self.midfix = self.determineMidfix(device)
         self.readDiskDetails()
-        # Call partitionTable twice to get independent copies
         self.partitions = self.partitionTable()
-        self.origPartitions = self.partitionTable()
-        self.moves = []
-        
+        self.origPartitions = deepcopy(self.partitions)
+
+    # Private methods:
     def cmdWrap(self, params):
         rv, out, err = util.runCmd2(params, True, True)
         if rv != 0:
             raise Exception("\n".join(err))
         return out
+    
+    def determineMidfix(self, device):
+        for key in self.P_STYLE_DISKS:
+            if device.startswith(self.DISK_PREFIX + key):
+                return 'p'
+        for key in self.PART_STYLE_DISKS:
+            if device.startswith(self.DISK_PREFIX + key):
+                return '-part'
+        return ''
+
+    def partitionDevice(self, deviceNum):
+        return self.device + self.midfix + str(deviceNum)
         
+    def partitionNumber(self, partitionDevice):
+        matches = re.match(self.device + self.midfix + r'(\d+)$', partitionDevice)
+        if not matches:
+            raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
+        return int(matches.group(1))
+
     def readDiskDetails(self):
         # Read basic geometry
-        out = self.cmdWrap([self.SFDISK, '--no-reread', '-Lg', self.device])
+        out = self.cmdWrap([self.SFDISK, '-Lg', self.device])
         matches = re.match(r'^[^:]*:\s*(\d+)\s+cylinders,\s*(\d+)\s+heads,\s*(\d+)\s+sectors', out)
         if not matches:
             raise Exception("Couldn't decode sfdisk output: "+out)
@@ -366,7 +403,7 @@ class PartitionTool:
         self.sectors = int(matches.group(3))
         
         # Read sector size
-        out = self.cmdWrap([self.SFDISK, '--no-reread', '-LluS', self.device])
+        out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
         for line in out.split("\n"):
             matches = re.match(r'^\s*Units\s*=\s*sectors\s*of\s*(\d+)\s*bytes', line)
             if matches:
@@ -378,9 +415,9 @@ class PartitionTool:
         self.byteExtent = self.sectorExtent * self.sectorSize
     
     def partitionTable(self):
-        out = self.cmdWrap([self.SFDISK, '--no-reread', '-Ld', self.device])
+        out = self.cmdWrap([self.SFDISK, '-Ld', self.device])
         state = 0
-        partitions = []
+        partitions = {}
         for line in out.split("\n"):
             if line == '' or line[0] == '#':
                 pass # Skip comments and blank lines
@@ -389,130 +426,157 @@ class PartitionTool:
                     raise Exception("Expecting 'unit: sectors' but got '"+line+"'")
                 state += 1
             elif state == 1:
-                matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*', line)
+                matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*(,\s*bootable)?', line)
                 if not matches:
                     raise Exception("Could not decode partition line: '"+line+"'")
-                partitions.append({
-                    'device': matches.group(1),
-                    'start': int(matches.group(2)),
-                    'size': int(matches.group(3)),
-                    'id': matches.group(4)
-                    })
+                
+                size = int(matches.group(3))
+                if size != 0: # Treat partitions of size 0 as not present
+                    number = self.partitionNumber(matches.group(1))
+    
+                    partitions[number] = {
+                        'start': int(matches.group(2)),
+                        'size': size,
+                        'id': int(matches.group(4), 16), # Base 16
+                        'active': (matches.group(5) is not None)
+                        }
         return partitions
 
-    def writeThisPartitionTable(self, table):
+    def writeThisPartitionTable(self, table, dryrun = False):
         input = 'unit: sectors\n\n'
     
-        for partition in table:
-            line=partition['device']+' :'
+        # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
+        for number in range(1, 1+max(table.keys())):
+            partition = table.get(number, {
+                'start': 0,
+                'size': 0,
+                'id': 0,
+                'active': False
+            })
+            line = self.partitionDevice(number)+' :'
             line += ' start='+str(partition['start'])+','
             line += ' size='+str(partition['size'])+','
-            line += ' Id='+str(partition['id'])
+            line += ' Id=%x' % partition['id']
+            if partition['active']:
+                line += ', bootable'
+                
             input += line+'\n'
-
+        if dryrun:
+            print 'Input to sfdisk:\n'+input
         process = subprocess.Popen(
-            [self.SFDISK, '--no-reread', '-L', self.device],
+            [self.SFDISK, dryrun and '-LnuS' or '-LuS', self.device],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             )
         output=process.communicate(input)
+        if dryrun:
+            print 'Output from sfdisk:\n'+output[0]
         if process.returncode != 0:
-            raise Exception('Partition changes could not be applied: '+str(output))
+            raise Exception('Partition changes could not be applied: '+str(output[0]))
         # Verify the table - raises exception on failure
-        self.cmdWrap([self.SFDISK, '--no-reread', '-LVq', self.device])
+        self.cmdWrap([self.SFDISK, '-LVquS', self.device])
         
-    def writePartitionTable(self):
+    def writePartitionTable(self, dryrun = False):
         try:
-            self.writeThisPartitionTable(self.partitions)
+            self.writeThisPartitionTable(self.partitions, dryrun)
         except Exception, e:
             try:
                 # Revert to the original partition table
-                self.writeThisPartitionTable(self.origPartitions)
+                self.writeThisPartitionTable(self.origPartitions, dryrun)
             except Exception, e2:
                 raise Exception('The new partition table could not be written: '+str(e)+'\nReversion also failed: '+str(e2))
             raise Exception('The new partition table could not be written but was reverted successfully: '+str(e))
-            
-    def deletePartition(self, device):
-        partToDelete = None
-        for partition in self.partitions:
-            if partition['device'] == device:
-                partToDelete = partition
-        if partToDelete is None:
-            raise Exception("Cannot find partition to delete - '"+str(device)+"'")
-        partToDelete['start'] = 0
-        partToDelete['size'] = 0
-        partToDelete['id'] = '0'
 
-    def resizePartition(self, device, byteChange):
-        if byteChange % self.sectorSize != 0:
-            raise Exception("Partition resize amount "+str(byteChange)+" is not a multiple of the sector size "+str(self.sectorSize))
-        sectorChange = byteChange / self.sectorSize
-        if byteChange > 0:
-            # Implementing this just needs the same overlap check as movePartition, but we don't need it yet
-            raise Exception("Resizing to a larger size is not supported")
-        partToResize = None
-        for partition in self.partitions:
-            if partition['device'] == device:
-                partToResize = partition
-        if partToResize is None:
-            raise Exception("Cannot find partition to resize")
-        if partToResize['size'] + sectorChange <= 0:
-            raise Exception("Partition resize generates negative or zero partition size")
-        partToResize['size'] += sectorChange
-
-    def movePartition(self, device, byteOffset):
-        if byteOffset % self.sectorSize != 0:
-            raise Exception("Partition move offset "+str(byteOffset)+" is not a multiple of the sector size "+str(self.sectorSize))
-        sectorOffset = byteOffset / self.sectorSize
-        partToMove = None
-        otherParts = []
-        for partition in self.partitions:
-            if partition['device'] == device:
-                partToMove = partition
+    # Public methods from here onward:
+    def getPartition(self, number, default = None):
+        return deepcopy(self.partitions.get(number, default))
+    
+    def createPartition(self, id, sizeBytes = None, number = None, startBytes = None, active = False):
+        if number is None:
+            if len(self.partitions) == 0:
+                newNumber = 1
             else:
-                otherParts.append(partition)
-        if partToMove is None:
-            raise Exception("Cannot find partition to move")
-        newStart = partToMove['start'] + sectorOffset
-        newEnd = newStart + partToMove['size']
-        if newStart < 0 or newEnd > self.sectorExtent:
-            raise Exception("Moved partition would extend outside disk")
-            
-        for otherPart in otherParts:
-            otherStart = otherPart['start']
-            otherSize = otherPart['size']
-            otherEnd = otherStart+otherSize
-            if otherSize != 0: # Not an empty partition
-                if newStart < otherEnd and newEnd > otherStart:
-                    raise Exception("Moved partition would collide with partition "+otherPart['device'])
-        self.moves.append((
-            Segment(partToMove['start'], partToMove['size']),
-            Segment(partToMove['start']+sectorOffset, partToMove['size'])
-        ))
-        partToMove['start'] = newStart # This updates self.partitions, as partToMove is a reference into it
+                newNumber = 1+max(self.partitions.keys())
+        else:
+            newNumber = number
+        if newNumber in self.partitions:
+            raise Exception('Partition '+str(newNumber)+' already exists')
 
-    def executeMoves(self):
-        # In a move the source and destination blocks will usually overlap.
-        # Move parameters are in sectors
-        chunkList = ChunkList()
-        for srcSeg, destSeg in self.moves:
-            chunkList.append(MoveUtils.segmentMoveChunks(srcSeg, destSeg))
-
-        for chunk in chunkList:
-            out = self.cmdWrap([
-                    self.DD,
-                    'if='+self.device,
-                    'of='+self.device,
-                    'skip='+str(chunk.src),
-                    'seek='+str(chunk.dest),
-                    'bs='+str(self.sectorSize),
-                    'count='+str(chunk.size)
-                    ])
+        if startBytes is None:
+            # Get an array of previous partitions
+            previousPartitions = [part for num, part in reversed(sorted(self.partitions.iteritems())) if num < newNumber]
             
-    def commit(self):
-        self.writePartitionTable()
-        self.executeMoves()
+            if len(previousPartitions) == 0:
+                startSector = 1
+            else:
+                startSector =  previousPartitions[0]['start'] + previousPartitions[0]['size']
+        else:
+            if startBytes % self.sectorSize != 0:
+                raise Exception("Partition start ("+str(startBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
+            startSector = startBytes / self.sectorSize
+
+        if sizeBytes is None:
+            # Get an array of subsequent partitions
+            nextPartitions = [part for num, part in sorted(self.partitions.iteritems()) if num > newNumber]
+            if len(nextPartitions) == 0:
+                sizeSectors = self.sectorExtent - startSector
+            else:
+                sizeSectors =  nextPartitions[0]['start'] - startSector
+        else:
+            if sizeBytes % self.sectorSize != 0:
+                raise Exception("Partition size ("+str(sizeBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
+
+            sizeSectors = sizeBytes / self.sectorSize
+
+        self.partitions[newNumber] = {
+            'start': startSector,
+            'size': sizeSectors,
+            'id': id,
+            'active': active
+        }
+
+    def deletePartition(self, number):
+       del self.partitions[number]            
+
+    def deletePartitionIfPresent(self, number):
+        if number in self.partitions:
+            self.deletePartition(number)
+        
+    def deletePartitions(self, numbers):
+        for number in numbers:
+            self.deletePartition(number)
+            
+    def renamePartition(self, srcNumber, destNumber, overwrite = False):
+        if srcNumber not in self.partitions:
+            raise Exception('Source partition '+str(srcNumber)+' does not exists')
+        if not overwrite and destNumber in self.partitions:
+            raise Exception('Destination partition '+str(destNumber)+' already exists')
+
+        self.partitions[destNumber] = self.partitions[srcNumber]
+        self.deletePartition(srcNumber)
+    
+    def setActiveFlag(self, activeFlag, number):
+        assert isinstance(activeFlag, types.BooleanType) # Assert that params are the right way around
+        if not number in self.partitions:
+            raise Exception('Partition '+str(number)+' does not exist')
+        self.partitions[number]['active'] = activeFlag
+
+    def inactivateDisk(self):
+        for number, partition in self.partitions.iteritems():
+            if partition['active']:
+                self.setActiveFlag(False, number)
+
+    def iteritems(self):
+        # sorted() creates a new list, so you can delete partitions whilst iterating
+        for number, partition in sorted(self.partitions.iteritems()):
+            yield number, partition
+
+    def commit(self, dryrun = False):
+        self.writePartitionTable(dryrun)
+        if not dryrun:
+            # Update the revert point so this tool can be used repeatedly
+            self.origPartitions = deepcopy(self.partitions)
 
     def dump(self):
         print "Cylinders     : "+str(self.cylinders)
@@ -522,19 +586,15 @@ class PartitionTool:
         print "Sector extent : "+str(self.sectorExtent)+" sectors"
         print "Byte extent   : "+str(self.byteExtent)+" bytes"
         print "Partition size and start addresses in sectors:"
-        for partition in self.origPartitions:
-            output = "Old partition:"
-            for k, v in partition.iteritems():
-                output += ' '+k+'='+str(v)
+        for number, partition in sorted(self.origPartitions.iteritems()):
+            output = "Old partition "+str(number)+":"
+            for k, v in sorted(partition.iteritems()):
+                output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             print output
-        for partition in self.partitions:
-            output = "New partition:"
-            for k, v in partition.iteritems():
-                output += ' '+k+'='+str(v)
-            print output
-        for move in self.moves:
-            src, dest = move
-            output += 'Move from ' + str(src) + ' to ' + str(dest)
+        for number, partition in sorted(self.partitions.iteritems()):
+            output = "New partition "+str(number)+":"
+            for k, v in sorted(partition.iteritems()):
+                output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             print output
 
 class DiskFixer:
