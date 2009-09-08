@@ -360,6 +360,17 @@ class PartitionTool:
     P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel']
     PART_STYLE_DISKS = [ 'disk/by-id' ]
     
+    ID_EXTENDED = 0x5
+    ID_FAT16 = 0x6
+    ID_W95_EXTENDED = 0x0f
+    ID_LINUX_SWAP = 0x82
+    ID_LINUX = 0x83
+    ID_LINUX_EXTENDED = 0x85
+    ID_LINUX_LVM = 0x8e
+    ID_DELL_UTILITY = 0xde
+    
+    IDS_EXTENDED = [ID_EXTENDED, ID_W95_EXTENDED, ID_LINUX_EXTENDED]
+    
     def __init__(self, device):
         self.device = device
         self.midfix = self.determineMidfix(device)
