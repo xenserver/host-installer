@@ -266,6 +266,14 @@ class Answerfile:
                 results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
             else:
                 xelogging.log("Unknown bootloader %s specified in answer file" % bootloader)
+
+            location = keymap_nodes[0].getAttribute("location").lower()
+            if location == 'partition':
+                results['bootloader-location'] = 'partition'
+            elif location in [ 'mbr', '' ]:
+                results['bootloader-location'] = 'mbr'
+            else:
+                xelogging.log("Unknown bootloader location %s specified in answer file" % location)
         else:
             xelogging.log("No bootloader specified in answer file.")
 

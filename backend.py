@@ -149,7 +149,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console', 'boot-serial'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console', 'boot-serial', 'bootloader-location'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -285,6 +285,9 @@ def performInstallation(answers, ui_package):
 
     if not answers.has_key('bootloader'):
         answers['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
+
+    if not answers.has_key('bootloader-location'):
+        answers['bootloader-location'] = 'mbr'
 
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
@@ -734,7 +737,10 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
     for entry in entries:
         fn(f, entry)
 
-def installBootLoader(mounts, disk, bootloader, serial, boot_serial):
+def installBootLoader(mounts, disk, bootloader, serial, boot_serial, location = 'mbr'):
+    
+    assert(location == 'mbr' or location == 'partition')
+    
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
@@ -755,9 +761,9 @@ def installBootLoader(mounts, disk, bootloader, serial, boot_serial):
 
     try:
         if bootloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk, serial, boot_serial)
+            installGrub(mounts, disk, serial, boot_serial, location)
         elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
-            installExtLinux(mounts, disk, serial, boot_serial)
+            installExtLinux(mounts, disk, serial, boot_serial, location)
         else:
             raise RuntimeError, "Unknown bootloader."
 
@@ -789,7 +795,10 @@ def writeExtLinuxMenuItem(f, item):
     f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
     f.write("\n")
 
-def installExtLinux(mounts, disk, serial, boot_serial):
+def installExtLinux(mounts, disk, serial, boot_serial, location = 'mbr'):
+
+    assert(location == 'mbr' or location == 'partition')
+
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
 
     if serial:
@@ -814,8 +823,9 @@ def installExtLinux(mounts, disk, serial, boot_serial):
         assert util.runCmd2(["ln", "-f",
                              "%s/usr/lib/syslinux/%s.c32" % (mounts['root'], m),
                              "%s/%s.c32" % (mounts['boot'], m)]) == 0
-    assert util.runCmd2(["dd", "if=%s/usr/lib/syslinux/mbr.bin" % mounts['root'], \
-                         "of=%s" % disk, "bs=512", "count=1"]) == 0
+    if location == 'mbr':
+        assert util.runCmd2(["dd", "if=%s/usr/lib/syslinux/mbr.bin" % mounts['root'], \
+                                 "of=%s" % disk, "bs=512", "count=1"]) == 0
 
 def writeGrubMenuItem(f, item):
     f.write("title %s\n" % item['title'])
@@ -823,8 +833,14 @@ def writeGrubMenuItem(f, item):
     f.write("   module %s\n" % item['kernel'])
     f.write("   module %s\n\n" % item['initrd'])
 
-def installGrub(mounts, disk, serial, boot_serial):
-    grubroot = getGrUBDevice(disk, mounts)
+def installGrub(mounts, disk, serial, boot_serial, location = 'mbr'):
+
+    assert(location == 'mbr' or location == 'partition')
+
+    if location == 'mbr':
+        grubroot = disk
+    else:
+        grubroot = diskutil.getRootPartName(disk)
 
     # move the splash screen to a safe location so we don't delete it
     # when removing a previous installation of GRUB:
@@ -1363,28 +1379,6 @@ def extractOemStatefromRootToBackup(existing):
 
 ################################################################################
 # OTHER HELPERS
-
-def getGrUBDevice(disk, mounts):
-    devicemap_path = "/tmp/device.map"
-    outerpath = "%s%s" % (mounts['root'], devicemap_path)
-    
-    # if the device map doesn't exist, make one up:
-    if not os.path.isfile(devicemap_path):
-        runCmd("echo '' | chroot %s grub --no-floppy --device-map %s --batch" %
-               (mounts['root'], devicemap_path))
-
-    devmap = open(outerpath)
-    for line in devmap:
-        if line[0] != '#':
-            # (we get e.g. ['a','','','','','b'] due to multiple spaces unless
-            #  we perform the filter operation.)
-            (grubdev, unixdev) = filter(lambda x: x != '',
-                                        line.expandtabs().strip("\n").split(" "))
-            if unixdev == disk:
-                devmap.close()
-                return grubdev.strip("()")
-    devmap.close()
-    return None
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
