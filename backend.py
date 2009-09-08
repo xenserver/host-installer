@@ -870,7 +870,7 @@ def installGrub(mounts, disk, serial, boot_serial):
     menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
     menulst_file.write(grubconf)
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
-    writeMenuItems(menulst_file, writeGrubMenuItem, serial)
+    writeMenuItems(xen_kernel_version, menulst_file, writeGrubMenuItem, serial)
     menulst_file.close()
 
     # now perform our own installation, onto the MBR of the selected disk:
