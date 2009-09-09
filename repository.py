@@ -91,15 +91,16 @@ class Repository:
 
     def _parse_repofile(self, repofile):
         """ Parse repository data -- get repository identifier and name. """
+        
+        self._repofile_contents = repofile.read()
+        repofile.close()
 
         # update md5sum for repo
-        self._md5.update(repofile.read())
-        repofile.seek(0)
+        self._md5.update(self._repofile_contents)
 
         # build xml doc object
         try:
-            xmldoc = xml.dom.minidom.parse(repofile)
-            repofile.close()
+            xmldoc = xml.dom.minidom.parseString(self._repofile_contents)
         except:
             raise RepoFormatError, "%s not in XML" % self.REPOSITORY_FILENAME
 
@@ -142,15 +143,16 @@ class Repository:
             'rpm' : RPMPackage,
             'driver-rpm' : DriverRPMPackage,
             }
+
+        self._pkgfile_contents = pkgfile.read()
+        pkgfile.close()
         
         # update md5sum for repo
-        self._md5.update(pkgfile.read())
-        pkgfile.seek(0)
+        self._md5.update(self._pkgfile_contents)
 
         # build xml doc object
         try:
-            xmldoc = xml.dom.minidom.parse(pkgfile)
-            pkgfile.close()
+            xmldoc = xml.dom.minidom.parseString(self._pkgfile_contents)
         except:
             raise RepoFormatError, "%s not in XML" % self.PKGDATA_FILENAME
 
@@ -203,29 +205,23 @@ class Repository:
 
         # write the XS-REPOSITORY file:
         xsrep_fd = open(os.path.join(destination, self.REPOSITORY_FILENAME), 'w')
-        xsrep_fd.write(self._identifier + '\n')
-        xsrep_fd.write(self._name + '\n')
-        if self._product_brand:
-            xsrep_fd.write(self._product_brand + '\n')
-        if self._product_version:
-            xsrep_fd.write("%s\n" % self._product_version)
+        xsrep_fd.write(self._repofile_contents)
         xsrep_fd.close()
 
         # copy the packages and write an XS-PACKAGES file:
         xspkg_fd = open(os.path.join(destination, self.PKGDATA_FILENAME), 'w')
-        for pkg in self:
-            xspkg_fd.write(pkg.pkgLine() + '\n')
-
-            if copy_packages:
-                repo_dir = os.path.dirname(pkg.repository_filename)
-                target_dir = os.path.join(destination, repo_dir)
-                util.assertDir(target_dir)
-
-                # pkg.copy will use the full path for us, we just have to make sure
-                # the appropriate directory exists before using it (c.f. the
-                # the assertDir above).
-                pkg.copy(destination)
+        xspkg_fd.write(self._pkgfile_contents)
         xspkg_fd.close()
+
+        if copy_packages:
+            repo_dir = os.path.dirname(pkg.repository_filename)
+            target_dir = os.path.join(destination, repo_dir)
+            util.assertDir(target_dir)
+            
+            # pkg.copy will use the full path for us, we just have to make sure
+            # the appropriate directory exists before using it (c.f. the
+            # the assertDir above).
+            pkg.copy(destination)
 
     def accessor(self):
         return self._accessor
@@ -289,11 +285,6 @@ class DriverPackage(Package):
     def __repr__(self):
         return "<DriverPackage: %s>" % self.name
 
-    def pkgLine(self):
-        return "%s %d %s driver %s %s" % \
-               (self.name, self.size, self.md5sum, self.repository_filename,
-                self.destination)
-
     def install(self, base, progress = lambda x: ()):
         self.write(os.path.join(base, self.destination))
 
@@ -330,10 +321,6 @@ class FirmwarePackage(Package):
 
     def __repr__(self):
         return "<FirmwarePackage: %s>" % self.name
-
-    def pkgLine(self):
-        return "%s %d %s firmware %s" % \
-               (self.name, self.size, self.md5sum, self.repository_filename)
 
     def provision(self):
         # write to /lib/firmware for immediate access:
@@ -429,11 +416,6 @@ class BzippedPackage(Package):
             except Exception, e:
                 return False
 
-    def pkgLine(self):
-        return "%s %s %s tbz2 %s %s /%s" % (
-            self.name, self.size, self.md5sum, self.required and "required" or "optional", 
-            self.repository_filename, self.destination)
-
     def __repr__(self):
         return "<BzippedPackage: %s>" % self.name
 
@@ -450,10 +432,6 @@ class RPMPackage(Package):
 
     def __repr__(self):
         return "<RPMPackage: %s>" % self.name
-
-    def pkgLine(self):
-        return "%s %d %s rpm %s" % \
-               (self.name, self.size, self.md5sum, self.repository_filename)
 
     def install(self, base, progress = lambda x: ()):
         self.write(os.path.join(base, self.destination))
@@ -552,10 +530,6 @@ class DriverRPMPackage(RPMPackage):
 
     def __repr__(self):
         return "<DriverRPMPackage: %s>" % self.name
-
-    def pkgLine(self):
-        return "%s %d %s driver-rpm %s %s" % \
-               (self.name, self.size, self.md5sum, self.kernel_version, self.repository_filename)
 
     def load(self):
         def module_present(module):
