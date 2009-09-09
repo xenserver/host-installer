@@ -22,6 +22,7 @@ import datetime
 import random
 import string
 import tempfile
+import xelogging
 
 random.seed()
 
@@ -285,3 +286,18 @@ def dev_null():
     if not _dev_null_fh:
         _dev_null_fh = open("/dev/null", 'r+')
     return _dev_null_fh
+
+def runScripts(scripts, *args):
+    for script in scripts:
+        xelogging.log("Running script: %s %s" % (script," ".join(args)))
+        try:
+            cmd = ["/tmp/script"]
+            cmd.extend(args)
+            fetchFile(script, "/tmp/script")
+            runCmd2(["chmod", "a+x" ,"/tmp/script"])
+            runCmd2(cmd)
+            os.unlink("/tmp/script")
+        except Exception, e:
+            xelogging.log("Failed to run script: %s" % script)
+            xelogging.log(e)
+

@@ -174,14 +174,17 @@ def getFinalisationSequence(ans):
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
     elif ans['time-config-method'] == 'manual':
         seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
-    if ans.has_key('post-install-script'):
-        seq.append( Task(runScripts, lambda a: [a['mounts'], [a['post-install-script']]], []) )
     # complete upgrade if appropriate:
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
+    seq.append(Task(writei18n, A(ans, 'mounts'), []))
+    
+    # run the users's scripts
+    if ans.has_key('filesystem-populated-scripts'):
+        seq.append( Task(util.runScripts, lambda a: [a['filesystem-populated-scripts'] , a['mounts']['root']], []) )
+
     seq += [
-        Task(writei18n, A(ans, 'mounts'), []),
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
         Task(writeLog, A(ans, 'primary-disk'), [])
         ]
@@ -392,18 +395,6 @@ def configureTimeManually(mounts, ui_package):
     # chroot into the dom0 and set the time:
     assert util.runCmd2(['chroot', mounts['root'], 'timeutil', 'setLocalTime', '%s' % timestr]) == 0
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
-
-def runScripts(mounts, scripts):
-    for script in scripts:
-        try:
-            xelogging.log("Running script: %s" % script)
-            util.fetchFile(script, "/tmp/script")
-            util.runCmd2(["chmod", "a+x" ,"/tmp/script"])
-            util.runCmd2(["/tmp/script", mounts['root']])
-            os.unlink("/tmp/script")
-        except Exception, e:
-            xelogging.log("Failed to run script: %s" % script)
-            xelogging.log(e)
 
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):

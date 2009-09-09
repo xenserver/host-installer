@@ -48,19 +48,6 @@ def main(args):
     ui.end_ui()
     return status
 
-def handle_install_failure(answers):
-    if answers.has_key('install-failed-script'):
-        # XenRT - run failure script
-        script = answers['install-failed-script']
-        try:
-            xelogging.log("Running script: %s" % script)
-            util.fetchFile(script, "/tmp/script")
-            os.chmod("/tmp/script", 0555)
-            util.runCmd2(["/tmp/script"])
-            os.unlink("/tmp/script")
-        except Exception, e:
-            print "Failed to run script: "+str(script) +': '+str(e)
-
 def go(ui, args, answerfile_address, answerfile_script):
     extra_repo_defs = []
     results = {
@@ -211,6 +198,10 @@ def go(ui, args, answerfile_address, answerfile_script):
             xelogging.log("A fatal exception occurred:")
             xelogging.log(err)
 
+            # run the user's scripts - an arg of "1" indicates failure
+            if results.has_key('installation-complete-scripts'):
+                util.runScripts(results['installation-complete-scripts'], "1")
+
             # now write out logs where possible:
             xelogging.writeLog("/tmp/install-log")
     
@@ -233,12 +224,14 @@ def go(ui, args, answerfile_address, answerfile_script):
             # Don't let logging exceptions prevent subsequent actions
             print 'Logging failed: '+str(e)
             
-        handle_install_failure(results)
-
         # exit with failure status:
         status = constants.EXIT_ERROR
 
     else:
+        # run the user's scripts - an arg of "0" indicates success
+        if results.has_key('installation-complete-scripts'):
+            util.runScripts(results['installation-complete-scripts'], "0")
+
         # put the log in /tmp:
         xelogging.writeLog("/tmp/install-log")
         xelogging.collectLogs('/tmp')
@@ -248,7 +241,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             backend.writeLog(results['primary-disk'])
 
         assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
-
+        
     return status
 
 if __name__ == "__main__":

@@ -237,12 +237,39 @@ class Answerfile:
 
     def parseScripts(self):
         results = {}
+        
+        stages = ['filesystem-populated', 'installation-complete']
+        for stage in stages:
+            results['%s-scripts' % stage] = []
+
+        # new format
+        script_nodes = self.nodelist.getElementsByTagName('script')
+        for node in script_nodes:
+            stage = node.getAttribute("stage").lower()
+            assert stage in stages
+            script = getText(node.childNodes)
+            results['%s-scripts' % stage].append(script)
+
+        # old format - retained for backward compatability - REMOVE AFTER XENRT MOVED TO NEW FORMAT
         pis_nodes = self.nodelist.getElementsByTagName('post-install-script')
         if len(pis_nodes) == 1:
-            results['post-install-script'] = getText(pis_nodes[0].childNodes)
+            script = getText(pis_nodes[0].childNodes)
+            results['filesystem-populated-scripts'].append(script) 
         ifs_nodes = self.nodelist.getElementsByTagName('install-failed-script')
         if len(ifs_nodes) == 1:
-            results['install-failed-script'] = getText(ifs_nodes[0].childNodes)
+            script = getText(ifs_nodes[0].childNodes)
+            # create wrapper script so this is only called on installation-complete if there was a failure
+            open('/tmp/install-failed-wrapper-script' ,'w').write( \
+                "#!/usr/bin/env python\n" \
+                "import sys\n" \
+                "sys.path.append('%s')\n" % constants.INSTALLER_DIR +\
+                "import util\n" \
+                "if sys.argv[1] == '1':\n" \
+                "    util.fetchFile('%s', '/tmp/install-failed-script')\n" % script +\
+                "    util.runCmd2(['chmod','a+x','/tmp/install-failed-script'])\n" \
+                "    util.runCmd2(['/tmp/install-failed-script'])\n")
+            results['installation-complete-scripts'].append('file:///tmp/install-failed-wrapper-script')
+
         return results
 
     def parseKeymap(self):
