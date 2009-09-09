@@ -28,8 +28,20 @@ from util import dev_null
 import product
 import cpiofile
 from constants import *
+import xml.dom.minidom
+
+# get text from a node:
+def getText(nodelist):
+    rc = ""
+    for node in nodelist:
+        if node.nodeType == node.TEXT_NODE:
+            rc = rc + node.data
+    return rc.encode()
 
 class NoRepository(Exception):
+    pass
+
+class RepoFormatError(Exception):
     pass
 
 class UnknownPackageType(Exception):
@@ -79,22 +91,35 @@ class Repository:
 
     def _parse_repofile(self, repofile):
         """ Parse repository data -- get repository identifier and name. """
-        lines = []
-        for line in repofile:
-            self._md5.update(line)
-            lines.append(line.strip())
 
-        self._identifier = lines[0]
-        self._name = lines[1]
-        if len(lines) >= 4:
-            self._product_brand = lines[2]
-            try:
-                self._product_version = product.Version.from_string(lines[3])
-            except:
-                self._product_version = None
-        else:
-            self._product_brand = None
-            self._product_version = None
+        # update md5sum for repo
+        self._md5.update(repofile.read())
+        repofile.seek(0)
+
+        # build xml doc object
+        try:
+            xmldoc = xml.dom.minidom.parse(repofile)
+            repofile.close()
+        except:
+            raise RepoFormatError, "%s not in XML" % self.REPOSITORY_FILENAME
+
+        try:
+            repo_node = xmldoc.getElementsByTagName('repository')[0]
+            desc_node = xmldoc.getElementsByTagName('description')[0]
+            _originator = repo_node.getAttribute("originator")
+            _name = repo_node.getAttribute("name")
+            _product = repo_node.getAttribute("product")
+            _version = repo_node.getAttribute("version")
+            _build = repo_node.getAttribute("build")
+            _description = getText(desc_node.childNodes)
+        except:
+            raise RepoFormatError, "%s format error" % self.REPOSITORY_FILENAME
+
+        # map info gleaned from XML to data expected by other Repository methods
+        self._identifier = "%s:%s" % (_originator,_name)
+        self._name = _description
+        self._product_brand = _product
+        self._product_version = product.Version.from_string("%s-%s" % (_version,_build))
 
     def compatible_with(self, brand, version):
         return self._product_brand in [brand, None] and \
@@ -118,14 +143,31 @@ class Repository:
             'driver-rpm' : DriverRPMPackage,
             }
         
-        lines = pkgfile.readlines()
+        # update md5sum for repo
+        self._md5.update(pkgfile.read())
+        pkgfile.seek(0)
+
+        # build xml doc object
+        try:
+            xmldoc = xml.dom.minidom.parse(pkgfile)
+            pkgfile.close()
+        except:
+            raise RepoFormatError, "%s not in XML" % self.PKGDATA_FILENAME
+
         self._packages = []
-        for line in lines:
-            self._md5.update(line)
-            pkgdata_raw = line.strip().split(" ")
-            (_name, _size, _md5sum, _type) = pkgdata_raw[:4]
+        for pkg_node in xmldoc.getElementsByTagName('package'):
+            try:
+                _label = pkg_node.getAttribute("label")
+                _type = pkg_node.getAttribute("type")
+                _size = pkg_node.getAttribute("size")
+                _md5sum = pkg_node.getAttribute("md5")
+                _root = pkg_node.getAttribute("root")
+                _fname = getText(pkg_node.childNodes)
+            except:
+                raise RepoFormatError, "%s format error" % self.PKGDATA_FILENAME
+
             if pkgtype_mapping.has_key(_type):
-                pkg = pkgtype_mapping[_type](self, _name, _size, _md5sum, *pkgdata_raw[4:])
+                pkg = pkgtype_mapping[_type](self, _label, _size, _md5sum, "required", _fname, _root)
                 pkg.type = _type
             else:
                 raise UnknownPackageType, _type
