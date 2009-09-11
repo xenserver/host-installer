@@ -27,13 +27,9 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(RECOVERY_IMG) $(UPDATE_INITRD) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(UPDATE_INITRD) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
-# Note: recovery.img behaves the same as install.img booted with "oem_edition" on kernel command line
-# Todo: ditch recovery.img (requires CD and all PXE configs to put "oem_edition" on kernel command line)
-	$(call mkdir_clean,$(MY_RECOVERY_CDFILES))
-	cp -l $(RECOVERY_IMG) $(MY_RECOVERY_CDFILES)
 
 $(BUILDROOT_ENV_STAMP): $(BUILDROOT_ENVIRONMENT)
 	@echo "Extracting $(BUILDROOT_ENVIRONMENT)..."
