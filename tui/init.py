@@ -63,7 +63,7 @@ def driver_disk_sequence(answers):
     uic = uicontroller
     seq = [
         uic.Step(tui.repo.select_repo_source, 
-                 args = ["Select Driver Source", "Please select where you would like to load a driver from:", 
+                 args = ["Select Driver Source", "Please select where you would like to load the Supplemental Pack containing the driver from:", 
                          False]),
         uic.Step(require_networking,
                  predicates = [lambda a: a['source-media'] != 'local' and 
@@ -72,7 +72,7 @@ def driver_disk_sequence(answers):
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
         uic.Step(confirm_load_drivers),
-        uic.Step(tui.repo.verify_source, args=['driver disk']),
+        uic.Step(tui.repo.verify_source, args=['driver']),
         uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
@@ -89,7 +89,7 @@ def get_driver_source(answers):
         ]
     result, entry = ListboxChoiceWindow(
         tui.screen,
-        "Load driver",
+        "Load Driver",
         "Please select where you would like to load a driver from:",
         entries, ['Ok', 'Back'])
 
@@ -111,7 +111,7 @@ def require_networking(answers):
 def confirm_load_drivers(answers):
     # find drivers:
     try:
-        tui.progress.showMessageDialog("Please wait", "Searching for driver disks...")
+        tui.progress.showMessageDialog("Please wait", "Searching for drivers...")
         repos = repository.repositoriesFromDefinition(
             answers['source-media'], answers['source-address'])
         tui.progress.clearModelessDialog()
@@ -134,7 +134,7 @@ def confirm_load_drivers(answers):
 
     if len(drivers) == 0:
         ButtonChoiceWindow(
-            tui.screen, "No drivers found",
+            tui.screen, "No Drivers Found",
             """No compatible drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
 
 Note that this driver-loading mechanism is only compatible with media/locations containing %s repositories.  Check the installation guide for more information.""" % PRODUCT_BRAND,

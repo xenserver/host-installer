@@ -359,15 +359,8 @@ class ExistingInstallation(object):
             
             try:
                 for repo_id in os.listdir(os.path.join(mntpoint, constants.INSTALLED_REPOS_DIR)):
-                    has_driver = False
-
                     repo = repository.Repository(repository.FilesystemAccessor(os.path.join(mntpoint, constants.INSTALLED_REPOS_DIR, repo_id)))
-                    for pkg in repo:
-                        if isinstance(pkg, repository.DriverRPMPackage) or isinstance(pkg, repository.DriverPackage):
-                            has_driver = True
-                            break
-
-                    repo_list.append((repo.identifier(), repo.name(), has_driver))
+                    repo_list.append((repo.identifier(), repo.name(), (repo_id != 'xs:main')))
             except Exception, e:
                 xelogging.log('Scan for driver disks failed:')
                 xelogging.log_exception(e)

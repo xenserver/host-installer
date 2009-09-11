@@ -358,8 +358,8 @@ def remind_driver_repos(answers):
     driver_list = []
     settings = answers['installation-to-overwrite'].readSettings()
     for repo in settings['repo-list']:
-        id, name, has_drivers = repo
-        if has_drivers and name not in driver_list:
+        id, name, is_supp = repo
+        if is_supp and name not in driver_list:
             driver_list.append(name)
 
     if len(driver_list) == 0:
@@ -367,17 +367,17 @@ def remind_driver_repos(answers):
 
     text = ''
     for driver in driver_list:
-        text += " * %s" % driver
+        text += " * %s\n" % driver
 
     button = ButtonChoiceWindow(
         tui.screen,
-        "Installed Driver Disks",
-        """The following driver disks are present in the current installation:
+        "Installed Supplemental Packs",
+        """The following Supplemental Packs are present in the current installation:
 
 %s
-
-Please ensure that the functionality they provide is either included in the version of %s being installed or by a driver disk you have just loaded.""" % (text, PRODUCT_BRAND),
-        ['Ok', 'Back']
+Please ensure that the functionality they provide is either included in the version of %s being installed or by a Supplemental Pack for this release.""" % (text, PRODUCT_BRAND),
+        ['Ok', 'Back'],
+        width = 60
         )
 
     if button == 'back': return LEFT_BACKWARDS

@@ -218,7 +218,8 @@ def main(args):
             elif operation == init_constants.OPERATION_INSTALL:
                 xelogging.log("Starting installation/upgrade")
 
-                args['--extrarepo'] = driver_repos
+                if len(driver_repos) > 0:
+                    args['--extrarepo'] = driver_repos
                 rc = install.go(ui, args, answerfile_address, answerfile_script)
 
             elif operation == init_constants.OPERATION_INSTALL_OEM_TO_FLASH:

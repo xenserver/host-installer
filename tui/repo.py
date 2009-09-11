@@ -45,7 +45,8 @@ def check_repo_def(definition, require_base_repo):
     repositories. """
     try:
         repos = repository.repositoriesFromDefinition(*definition)
-    except:
+    except Exception, e:
+        xelogging.log("Exception trying to access repository: %s" % e)
         return REPOCHK_NO_ACCESS
     else:
         if len(repos) == 0:
@@ -260,7 +261,7 @@ def interactive_source_verification(media, address, label):
         xelogging.log("Received exception %s whilst attempting to verify %s source." % (str(e), label))
         ButtonChoiceWindow(
             tui.screen,
-            "Problem accessing media",
+            "Problem Accessing Media",
             "Setup was unable to access the %s source you specified." % label,
             ['Ok']
             )
@@ -269,7 +270,7 @@ def interactive_source_verification(media, address, label):
         if len(repos) == 0:
             ButtonChoiceWindow(
                 tui.screen,
-                "Problem accessing media",
+                "Problem Accessing Media",
                 "No setup files were found at the location you specified.",
                 ['Ok']
                 )
@@ -294,7 +295,7 @@ def interactive_source_verification(media, address, label):
                 errtxt = generalui.makeHumanList([x.name for x in errors])
                 ButtonChoiceWindow(
                     tui.screen,
-                    "Problems found",
+                    "Problems Found",
                     "Some packages appeared damaged.  These were: %s" % errtxt,
                     ['Ok']
                     )

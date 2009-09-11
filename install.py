@@ -80,11 +80,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             results["keymap"] = val
             xelogging.log("Keymap specified on command-line: %s" % val)
         elif opt == "--extrarepo":
-            for v in val:
-                if not os.path.isdir(v):
-                    raise RuntimeError, "Repository %s did not exist." % v
-                else:
-                    extra_repo_defs.append(('filesystem', v))
+            extra_repo_defs.append(val)
         elif opt == "--bootloader":
             xelogging.log("Bootloader specified on command-line: %s" % val)
             if val == "grub":

@@ -86,15 +86,8 @@ def doInteractiveLoadDriver(ui, answers):
             if repo_has_drivers:
                 driver_repos.append(r)
 
-    # stash the repositories we used for pickup later:
-    dr_copies = []
-    text = "The following driver disks were successfully loaded:\n\n"
+    text = "The following drivers were successfully loaded:\n\n"
     for dr in driver_repos:
-        loc = tempfile.mkdtemp(prefix="stashed-repo-", dir="/tmp")
-        dr.accessor().start()
-        dr.copyTo(loc)
-        dr.accessor().finish()
-        dr_copies.append(loc)
         text += " * %s\n" % dr.name()
 
     if len(incompat_drivers) > 0:
@@ -109,7 +102,7 @@ def doInteractiveLoadDriver(ui, answers):
             text,
             ['Ok'])
 
-    return dr_copies
+    return (media, address)
 
 def main(args):
     if len(doInteractiveLoadDriver(tui, {})) > 0:
