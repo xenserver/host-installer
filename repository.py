@@ -112,6 +112,7 @@ class Repository:
             _product = repo_node.getAttribute("product")
             _version = repo_node.getAttribute("version")
             _build = repo_node.getAttribute("build")
+            if _build == '': _build = None
             _description = getText(desc_node.childNodes)
         except:
             raise RepoFormatError, "%s format error" % self.REPOSITORY_FILENAME
@@ -120,7 +121,9 @@ class Repository:
         self._identifier = "%s:%s" % (_originator,_name)
         self._name = _description
         self._product_brand = _product
-        self._product_version = product.Version.from_string("%s-%s" % (_version,_build))
+        ver_str = _version
+        if _build: ver_str += '-'+_build
+        self._product_version = product.Version.from_string(ver_str)
 
     def compatible_with(self, brand, version):
         return self._product_brand in [brand, None] and \
@@ -164,15 +167,24 @@ class Repository:
                 _size = pkg_node.getAttribute("size")
                 _md5sum = pkg_node.getAttribute("md5")
                 _root = pkg_node.getAttribute("root")
+                _kernel = pkg_node.getAttribute("kernel")
                 _fname = getText(pkg_node.childNodes)
             except:
                 raise RepoFormatError, "%s format error" % self.PKGDATA_FILENAME
 
-            if pkgtype_mapping.has_key(_type):
-                pkg = pkgtype_mapping[_type](self, _label, _size, _md5sum, "required", _fname, _root)
-                pkg.type = _type
+            if (_type == 'tbz2'):
+                pkg = BzippedPackage(self, _label, _size, _md5sum, 'required', _fname, _root)
+            elif (_type == 'driver'):
+                pkg = DriverPackage(self, _label, _size, _md5sum, _fname, _root)
+            elif (_type == 'firmware'):
+                pkg = FirmwarePackage(self, _label, _size, _md5sum, _fname)
+            elif (_type == 'rpm'):
+                pkg = RPMPackage(self, _label, _size, _md5sum, _fname)
+            elif (_type == 'driver-rpm'):
+                pkg = DriverRPMPackage(self, _label, _size, _md5sum, _kernel, _fname)
             else:
                 raise UnknownPackageType, _type
+            pkg.type = _type
 
             self._packages.append(pkg)
 
@@ -316,7 +328,7 @@ class FirmwarePackage(Package):
             self.size,
             self.md5sum,
             self.repository_filename,
-        ) = ( repository, name, long(size), md5sum, src, )
+        ) = ( repository, name, long(size), md5sum, src )
         self.destination = 'lib/firmware/%s' % os.path.basename(src)
 
     def __repr__(self):
@@ -427,7 +439,7 @@ class RPMPackage(Package):
             self.size,
             self.md5sum,
             self.repository_filename,
-        ) = ( repository, name, long(size), md5sum, src, )
+        ) = ( repository, name, long(size), md5sum, src )
         self.destination = 'tmp/%s' % os.path.basename(src)
 
     def __repr__(self):
@@ -525,7 +537,7 @@ class DriverRPMPackage(RPMPackage):
             self.md5sum,
             self.kernel_version,
             self.repository_filename,
-        ) = ( repository, name, long(size), md5sum, kernel, src, )
+        ) = ( repository, name, long(size), md5sum, kernel, src )
         self.destination = 'tmp/%s' % os.path.basename(src)
 
     def __repr__(self):
