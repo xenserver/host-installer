@@ -161,7 +161,7 @@ def getFinalisationSequence(ans):
         Task(mkinitrd, A(ans, 'mounts',  'net-iscsi-interface', 'net-iscsi-configuration', 'primary-disk'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
-        Task(setRootPassword, A(ans, 'mounts', 'root-password', 'root-password-type'), [], args_sensitive = True),
+        Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         ]
 
@@ -194,7 +194,7 @@ def getFinalisationSequence(ans):
 def prettyLogAnswers(answers):
     for a in answers:
         if a == 'root-password':
-            val = '< not printed >'
+            val = (answers[a][0], '< not printed >')
         else:
             val = answers[a]
         xelogging.log("%s := %s %s" % (a, val, type(val)))
@@ -987,12 +987,13 @@ def setTimeZone(mounts, tz):
     assert util.runCmd2(['ln', '-sf', '/usr/share/zoneinfo/%s' % tz, 
                          '%s/etc/localtime' % mounts['root']]) == 0
 
-def setRootPassword(mounts, root_password, pwdtype):
+def setRootPassword(mounts, root_pwd):
     # avoid using shell here to get around potential security issues.  Also
     # note that chpasswd needs -m to allow longer passwords to work correctly
     # but due to a bug in the RHEL5 version of this tool it segfaults when this
     # option is specified, so we have to use passwd instead if we need to 
     # encrypt the password.  Ugh.
+    (pwdtype, root_password) = root_pwd
     if pwdtype == 'pwdhash':
         cmd = ["/usr/sbin/chroot", mounts["root"], "chpasswd", "-e"]
         pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,

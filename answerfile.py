@@ -340,8 +340,18 @@ class Answerfile:
 
     def parseRootPassword(self):
         results = {}
-        results['root-password'] = getText(self.nodelist.getElementsByTagName('root-password')[0].childNodes)
-        results['root-password-type'] = 'plaintext'
+        rp = self.nodelist.getElementsByTagName('root-password')
+        if len(rp) == 0:
+            # set up at first boot
+            results['root-password'] = ('pwdhash', '!!')
+        else:
+            pw_type = rp[0].getAttribute("type")
+            if pw_type in ['', 'plaintext']:
+                results['root-password'] = ('plaintext', getText(rp[0].childNodes))
+            elif pw_type == 'hash':
+                results['root-password'] = ('pwdhash', getText(rp[0].childNodes))
+            else:
+                raise AnswerfileError, "Invalid type for root-password specified."
         return results
 
     def parseExistingInstallation(self):
