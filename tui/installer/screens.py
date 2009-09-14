@@ -579,19 +579,14 @@ def select_installation_source(answers):
     return RIGHT_FORWARDS
 
 def use_extra_media(answers, vt_warning):
-    if vt_warning:
-        extra_text = "\n\nThis is strongly recommended as your system does not appear to support Windows guests.  If your system has hardware assist support, you may need to enable it in the BIOS to activate this capability."
-    else:
-        extra_text = ""
-
     default = 0
     if answers.has_key('more-media') and not answers['more-media']:
         default = 1
 
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,
-        "Linux Pack",
-        "Would you like to install the Linux Pack from a second CD?" + extra_text,
+        "Supplemental Packs",
+        "Would you like to install any Supplemental Packs?",
         ['Yes', 'No', 'Back'],
         default = default
         )

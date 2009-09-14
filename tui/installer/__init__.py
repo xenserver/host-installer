@@ -14,7 +14,7 @@ import tui.installer.screens
 import tui.progress
 import tui.repo
 import uicontroller
-from uicontroller import LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
+from uicontroller import EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
 import netutil
 import repository
@@ -172,10 +172,10 @@ def more_media_sequence(installed_repo_ids):
         """ 'Please insert disk' dialog. """
         done = False
         while not done:
-            more = tui.progress.OKDialog("New Media", "Please insert your extra disc now.", True)
+            more = tui.progress.OKDialog("New Media", "Please insert your Supplemental Pack now.", True)
             if more == "cancel":
                 # they hit cancel:
-                rv = LEFT_BACKWARDS
+                rv = EXIT
                 done = True
             else:
                 # they hit OK - check there is a disc
@@ -226,4 +226,4 @@ def more_media_sequence(installed_repo_ids):
 
     seq = [ uicontroller.Step(get_more_media), uicontroller.Step(confirm_more_media) ]
     direction = uicontroller.runSequence(seq, {})
-    return (direction == RIGHT_FORWARDS, False)
+    return (direction == RIGHT_FORWARDS, direction != EXIT)
