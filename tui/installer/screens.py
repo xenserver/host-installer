@@ -874,8 +874,7 @@ def get_root_password(answers):
 
     # if they didn't select OK we should have returned already
     assert button in ['ok', None]
-    answers['root-password'] = pw
-    answers['root-password-type'] = 'plaintext'
+    answers['root-password'] = ('plaintext', pw)
     return RIGHT_FORWARDS
 
 def get_name_service_configuration(answers):
