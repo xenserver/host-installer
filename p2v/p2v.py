@@ -23,6 +23,7 @@ import os
 import generalui
 import constants
 import traceback
+import time
 
 from snack import *
 from version import *
@@ -36,6 +37,7 @@ def main(args):
 
 def go(args, use_ui):
     ui = None
+    is_rt = False
     if use_ui != None:
         ui = p2v_tui
 
@@ -43,7 +45,8 @@ def go(args, use_ui):
     for (opt, val) in args.items():
         if opt in ["--answerfile", "--rt_answerfile"]:
             answerfile = val
- 
+            if opt == "--rt_answerfile":
+                is_rt = True
     try:
         if answerfile:
             results = p2v_answerfile.processAnswerfile(answerfile)
@@ -81,6 +84,12 @@ def go(args, use_ui):
             tui.exn_error_dialog("p2v-log", False)
 
         xelogging.collectLogs('/tmp')
+
+        if is_rt:
+            # Running under automated test control, wait sufficiently
+            # long to allow the serial output to be interpretted
+            xelogging.log("Sleeping for 2 hours for RT")
+            time.sleep(7200)
 
         return constants.EXIT_ERROR
 
