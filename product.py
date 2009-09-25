@@ -80,7 +80,8 @@ class Version(object):
         return ( self.major < v.major or
                  (self.major == v.major and self.minor < v.minor) or
                  (self.major == v.major and self.minor == v.minor and self.release < v.release) or
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_suffix(self.suffix,v.suffix) == -1) )
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == -1) or
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and slef.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix,v.suffix) == -1) )
 
     def __eq__(self, v):
         if not type(v) == type(self): return False
@@ -104,7 +105,8 @@ class Version(object):
         return ( self.major > v.major or
                  (self.major == v.major and self.minor > v.minor) or
                  (self.major == v.major and self.minor == v.minor and self.release > v.release) or
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_suffix(self.suffix, v.suffix) == 1) )
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == 1) or
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix, v.suffix) == 1) )
 
     def __str__(self):
         if self.build == self.ANY:
