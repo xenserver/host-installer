@@ -9,10 +9,22 @@ from pprint import pprint
 from copy import copy, deepcopy
 import util
 
-class Chunk:
-    """Chunks are the individual blocks that are moved or copied.  When a segment is moved
-    the operation is divided into one or more chunks.  Source and destination chunks typically aren't 
-    allowed to overlap (depending on whether what actually does the moving can handle overlap)"""
+class Segment:
+    """Segments are areas, e.g. disk partitions or LVM segments, defined by start address and size"""
+    def __init__(self, start, size):
+        self.start = start
+        self.size = size
+        
+    def end(self):
+        return self.start + self.size
+        
+    def __repr__(self):
+        repr = { 'end' : self.end() }
+        repr.update(self.__dict__)
+        return str(repr)
+
+class MoveChunk:
+    """MoveChunks represent a move.  They contain source and destination addresses"""
     def __init__(self, src, dest, size):
         self.src = src
         self.dest = dest
@@ -20,99 +32,59 @@ class Chunk:
 
     def __repr__(self):
         return str(self.__dict__)
-        
-class ChunkList:
-    """A list of chunks that can be saved/restored from disk"""
-    def __init__(self):
-        self.chunks = []
-        
-    def __iter__(self, *params): 
-        return self.chunks.__iter__(*params)
-        
-    def append(self, toAppend):
-        if isinstance(toAppend, ChunkList):
-            self.chunks += toAppend.chunks
-        elif isinstance(toAppend, Chunk):
-            self.chunks.append(toAppend)
-        else:
-            raise Exception("ChunkList can only contain chunks")
+
+class FreePool:
+    """FreePool manages the allotment of segments a pool of free segments, and
+    divides segments as necessary to fill the requested size exactly"""
+    def __init__(self, freeSegments, usedThreshold = 0):
+        self.freeSegments = freeSegments
+        # Instead of altering the free segment list as free space is consumed by takeSegments,
+        # this class maintains a usedThreshold address.  Addresses lower than the threshold
+        # have already been used, and those at or above it are still available
+        self.usedThreshold = usedThreshold
     
-    def top(self):
-        if len(self.chunks) < 1:
-            return None            
-        return self.chunks[0]
+    def freeSpace(self):
+        sizeLeft = 0
+        for seg in self.freeSegments:
+            freeSize = min(seg.size, seg.end() - self.usedThreshold)
+            if freeSize > 0:
+                sizeLeft += freeSize
+        
+        return sizeLeft
     
-    def pop(self):
-        self.chunks.pop(0)
+    def takeSegments(self, size):
+        """Returns a LIST of segments that fill the requested size, and effectively removes
+        those segments from the free pool by increasing usedThreshold"""
+        initialFreeSpace= self.freeSpace()
+        segsToTake = []
+        sizeLeft = size
+        for seg in self.freeSegments:
+            availableStart = max(seg.start, self.usedThreshold)
+            sizeToTake = min(seg.end() - availableStart, sizeLeft)
+            if sizeToTake> 0:
+                takenSegment = Segment(availableStart, sizeToTake)
+                segsToTake.append(takenSegment)
+                self.usedThreshold = takenSegment.end()
+                sizeLeft -= takenSegment.size
+            assert sizeLeft >= 0 # Underflow implies a logic error
+
+        if sizeLeft > 0:
+            raise Exception("Disk allocation failed - out of space")
+
+        assert size == sum([seg.size for seg in segsToTake]) # Check we've allocated the size required
+        assert size == initialFreeSpace - self.freeSpace() # Check that free space has shrunk by the right amount
+
+        return segsToTake
 
     def __repr__(self):
         return str(self.__dict__)
-
-class Segment:
-    """Segments are potentially large extents, e.g. disk partitions or LVM segments.  Source and
-    destination segments can overlap."""
-    def __init__(self, start, size):
-        self.start = start
-        self.size = size
-        
-    def __repr__(self):
-        return str(self.__dict__)
-
-class MoveUtils:
-    @classmethod
-    def segmentMoveChunks(cls, srcSeg, destSeg):
-        chunkList = ChunkList()
-        offset = destSeg.start - srcSeg.start
-        if offset != 0: # offset = 0 requires no action, and would cause infinite loop below
-
-            # Segments can move to an overlapping position on the same media.  The thing that
-            # does the moving wants a guarantee that the chunks it gets don't overlap.  If the source
-            # and destination segments overlap we must start at the right end of the segment (so we
-            # don't overwrite source data before we've copied it) and move in chunks smaller in size
-            # than the offset amount (so chunks don't overlap).
-            if offset > 0:
-                # Moving to higher address, currently unused space is at the end of the destination segment,
-                # so begin at the ends of segments.  Assume a predecrement of chunk size before move - see (1)
-                srcSegChunkStart = srcSeg.start+srcSeg.size
-                destSegChunkStart = destSeg.start+destSeg.size
-            else:
-                # Moving to a lower address, currently unused space is at the start of the destination segment,
-                # so begin at starts of segments.  Assume a postincrement of chunk size after move - see (2)
-                srcSegChunkStart = srcSeg.start
-                destSegChunkStart = destSeg.start
-            
-            remaining = min(srcSeg.size, destSeg.size)
-            while remaining > 0:
-                chunkSize = min(remaining, abs(offset))
-                
-                if offset > 0:
-                    # (1) Predecrement
-                    srcSegChunkStart -= chunkSize
-                    destSegChunkStart -= chunkSize
-                
-                chunkList.append(Chunk(
-                    src = srcSegChunkStart,
-                    dest = destSegChunkStart,
-                    size = chunkSize
-                ))
-                
-                if offset < 0:
-                    # (2) Postincrement
-                    srcSegChunkStart += chunkSize
-                    destSegChunkStart += chunkSize
-                remaining -= chunkSize
-        return chunkList
-
-    @classmethod
-    def compareDeviceNames(cls, device1, device2):
-        # Maybe this needs to resolve symlinks
-        return device1 == device2
         
 class LVMTool:
-    # If moving a block would reclaim less than this number of extents, don't bother
-    MOVE_THRESHOLD = 16
     # Separation character - mustn't appear in anything we expect back from pvs/vgs/lvs
     SEP='#'
+    
+    # Evacuate this many more extents than pvresize theoretically requires
+    PVRESIZE_EXTENT_MARGIN=0
     
     # Volume group prefixes
     VG_SWAP_PREFIX='VG_XenSwap'
@@ -149,13 +121,16 @@ class LVMTool:
         'command' : ['/sbin/lvm', 'pvs'],
         'arguments' : ['--noheadings', '--nosuffix', '--units', 'b', '--separator', SEP],
         'string_options' : ['pv_name', 'vg_name'],
-        'integer_options' : ['pv_size']
+        'integer_options' : ['pe_start', 'pv_size', 'pv_free', 'pv_pe_count', 'dev_size']
     }
+    
     def __init__(self):
         self.readAllInfo()
         self.pvsToDelete = []
         self.vgsToDelete = []
         self.lvsToDelete = []
+        # moveLists are per device, so self.moveLists might be{ '/dev/sda3': [MoveChunk, MoveChunk, ...], '/dev/sdb3' : ... }
+        self.moveLists = {}
         self.resizeList = []
  
     @classmethod
@@ -163,9 +138,9 @@ class LVMTool:
         rv, out, err = util.runCmd2(params, True, True)
         if rv != 0:
             if isinstance(err, (types.ListType, types.TupleType)):
-                raise Exception("\n".join(err))
+                raise Exception("\n".join(err)+"\nError="+str(rv))
             else:
-                raise Exception(str(err))
+                raise Exception(str(err)+"\nError="+str(rv))
         return out
         
     def readInfo(self, info):
@@ -189,11 +164,6 @@ class LVMTool:
         self.lvs = self.readInfo(self.LVS_INFO)
         self.lvSegs = self.readInfo(self.LVS_SEG_INFO)
         self.pvs = self.readInfo(self.PVS_INFO)
-
-    @classmethod
-    def trimDeviceName(cls, deviceName):
-        matches = re.match(r'([^:(]*)', deviceName)
-        return matches.group(1)
 
     @classmethod
     def decodeSegmentRange(cls, segRange):
@@ -222,70 +192,116 @@ class LVMTool:
         segments = []
         for lvSeg in self.lvSegs:
             segRange = self.decodeSegmentRange(lvSeg['seg_pe_ranges'])
-            if MoveUtils.compareDeviceNames(segRange['device'], device):
+            if segRange['device'] == device:
                 segments.append(Segment(segRange['start'], segRange['size']))
         segments.sort(lambda x, y : cmp(x.start, y.start))
         return segments
 
-    @classmethod
-    def proposedSegmentList(cls, segList):
-        currentStart = 0
-        newSegList = []
-        for seg in segList:
-            newSeg = copy(seg) # Shallow copy but OK for ints
-            if seg.start < currentStart + cls.MOVE_THRESHOLD:
-                currentStart = seg.start # Avoid moves by tiny offset - leave gap unclosed
-            newSeg.start = currentStart
-            newSegList.append(newSeg)
-            currentStart += seg.size
+    def freeSegmentList(self, device):
+        pv = self.deviceToPV(device)
+        usedSegs = self.segmentList(device)
+        # Add a fake zero-sized end segment to the list, so the unallocated space at the end
+        # of the volume is a gap between two segments and not a special case
+        fakeEndSeg = Segment(pv['pv_pe_count'], 0)
+        usedSegs.append(fakeEndSeg)
+        freeSegs = []
+        # Iterate over pairs of consecutive segments
+        for seg, nextSeg in zip(usedSegs[:-1], usedSegs[1:]):
+            # ... work out the gap between them ...
+            gapSize = nextSeg.start - seg.end()
+            if gapSize > 0:
+                # ... and add that to the free segment list
+                freeSegs.append(Segment(seg.end(), gapSize))
         
-        return newSegList
-            
-    @classmethod
-    def segmentsChunkList(cls, srcSegList, destSegList):
-        chunkList = []
-        for srcSeg, destSeg in zip(srcSegList, destSegList):
-            chunkList.append(MoveUtils.segmentMoveChunks(srcSeg, destSeg))
-        return chunkList
+        return freeSegs
 
-    @classmethod
-    def executeMoves(cls, device, segmentsChunkList):
-        for chunkList in segmentsChunkList:
-            for chunk in chunkList:
-                srcRange = cls.encodeSegmentRange(device, chunk.src, chunk.size)
-                destRange = cls.encodeSegmentRange(device, chunk.dest, chunk.size)
-                
-                out = cls.cmdWrap(cls.PVMOVE +
-                    [
-                    '--alloc',
-                    'anywhere',
-                    srcRange,
-                    destRange
-                ])
-                 
-                print out
+    def segmentsToMove(self, device, threshold):
+        """Given a device, i.e. a partition containing an LVM volume, and a threshold in extents,
+        returns the segments that would need to be moved so that all non-free segments are
+        below that address.  Can add just part of a segment if the original straddles the threshold"""
+        segsToMove = []
+        for seg in self.segmentList(device):
+            if seg.end() > threshold:
+                start = max(seg.start, threshold)
+                segsToMove.append(Segment(start, seg.end() - start))
+        return segsToMove
 
-    def deviceToPV(self, device):
+    def makeSpaceAfterThreshold(self, device, thresholdExtent):
+        """Queues up a set of MoveChunks that will free up space at the end of a PV so that
+        a pvresize cammand can succeed, and these will lead to pvmove commands at
+        commit time.  Doesn't queue up the pvresize command itself - resizeDevice will do that..
+        Also safe to call if no pvmoves are necessary"""
+        pv = self.deviceToPV(device)
+        # Extents >= thresholdExtent must be freed.
+        segsToMove = self.segmentsToMove(device, thresholdExtent)
+        
+        # Calculate the free pool if we haven't already.  If we have done it already, we've been
+        # here before for this device, so use the existing FreePool object as it knows how much
+        # free space is already used by reallocation
+        if 'free-pool' not in pv:
+            pv['free-pool'] =  FreePool(self.freeSegmentList(device))
+
+        # Take a copy.  We'll only commit our modified copy back to pv['free-pool']  if our transaction succeeds
+        freePool = deepcopy(pv['free-pool'])
+        moveList = []
+        
+        for srcSeg in segsToMove:
+            srcOffset = 0
+            destSegs = freePool.takeSegments(srcSeg.size)
+            # destSegs are a tailor-made set of segments to consume srcSeg exactly, and the loop
+            # beow relies on that
+            for destSeg in destSegs:
+                # Divide up the source segments into the destination segments
+                srcStart = srcSeg.start + srcOffset
+                destStart = destSeg.start
+                moveList.append(MoveChunk(srcStart, destStart, destSeg.size))
+                srcOffset += destSeg.size
+            assert srcOffset == srcSeg.size # Logic error if not
+        
+        # Add our moves to the current MoveChunk list for this device, creating the
+        # dict element if necessary
+        self.moveLists[device] = self.moveLists.get(device, []) + moveList
+        pv['free-pool'] = freePool
+
+    def deviceToPVOrNone(self, device):
+        """ Returns the PV record for a given device (partition), or None if there is no PV
+        for that device."""
         for pv in self.pvs:
             if pv['pv_name'] == device:
                 return pv
-        raise Exception("PV for device '"+device+"' not found")
-
-    def resizeDevice(self, device, byteChange):
-        """byteChange is a signed delta to apply to the size.  To shrink by 8GiB
-        byteChange would be -8589934592."""
-        if byteChange % 16384 != 0: # Use an estimated 'big enough' power of 2 for sector size
-            raise Exception("PV resize value not a multiple of sector size")
+        return None
         
-        self.resizeList.append({'device' : device, 'bytechange' : byteChange})
+    def deviceToPV(self, device):
+        pv = self.deviceToPVOrNone(device)
+        if pv is None:
+            raise Exception("PV for device '"+device+"' not found")
+        return pv
 
-    def defragmentDevice(self, device):
-        segList = self.segmentList(device)
-        propSegList = self.proposedSegmentList(segList)
-        segChunkList = self.segmentsChunkList(segList, propSegList)
-        self.deactivateAll()
-        self.executeMoves(sevice, segChunkList) 
-        self.deactivateAll() # Keep volumes deactivated - pvmove can activate them
+    def deviceSize(self, device):
+        pv = self.deviceToPV(device)
+        return pv['pv_size'] # in bytes
+
+    def deviceFreeSpace(self, device):
+        pv = self.deviceToPV(device)
+        return pv['pv_free'] # in bytes
+
+    def resizeDevice(self, device, byteSize):
+        """ Resizes the PV on a device, moving extents around if necessary
+        """
+        pv = self.deviceToPV(device)
+        if byteSize > pv['dev_size']:
+            raise Exception("Size requested for "+str(device)+" ("+str(byteSize)+
+                ") is greater than device size ("+str(pv['dev_size'])+")")
+
+        extentBytes = pv['pv_size'] / pv['pv_pe_count'] # Typically 4MiB
+        # Calculate the threshold in extents beyond which segments must be moved elsewhere.
+        # Round down, so enough space is freed for pvresize to complete, and allow
+        # PVRESIZE_EXTENT_MARGIN for extents consumed by LVM metadata
+        metadataExtents = (pv['pe_start'] + extentBytes - 1) / extentBytes # Round up
+        
+        thresholdExtent = byteSize / extentBytes - metadataExtents - self.PVRESIZE_EXTENT_MARGIN
+        self.makeSpaceAfterThreshold(device, thresholdExtent)
+        self.resizeList.append({'device' : device, 'bytesize' : byteSize})
 
     def testPartition(self, devicePrefix, vgPrefix):
         """Returns the first partition where the device name starts with devicePrefix and
@@ -298,6 +314,8 @@ class LVMTool:
         return retVal
 
     def configPartition(self, devicePrefix):
+        """Returns the PV name for a config partition on the specified WHOLE DEVICE, e.g. '/dev/sda',
+        or None if none present"""
         return self.testPartition(devicePrefix, self.VG_CONFIG_PREFIX)
         
     def swapPartition(self, devicePrefix):
@@ -306,7 +324,22 @@ class LVMTool:
     def srPartition(self, devicePrefix):
         return self.testPartition(devicePrefix, self.VG_SR_PREFIX)
 
+    def isPartitionConfig(self, device):
+        """Returns True if there is a config partition on the specified PARTITION, e.g. '/dev/sda2',
+        or False if none present"""
+        pv = self.deviceToPVOrNone(device)
+        return pv is not None and pv['vg_name'].startswith(self.VG_CONFIG_PREFIX)
+
+    def isPartitionSwap(self, device):
+        pv = self.deviceToPVOrNone(device)
+        return pv is not None and pv['vg_name'].startswith(self.VG_SWAP_PREFIX)
+
+    def isPartitionSR(self, device):
+        pv = self.deviceToPVOrNone(device)
+        return pv is not None and pv['vg_name'].startswith(self.VG_SR_PREFIX)
+
     def deleteDevice(self, device):
+        """Deletes PVs, VGs and LVs associated with a device (partition)"""
         pvsToDelete = []
         vgsToDelete = []
         lvsToDelete = []
@@ -326,29 +359,83 @@ class LVMTool:
         self.lvsToDelete += lvsToDelete
 
     def deactivateAll(self):
+        """Makes sure that LVM has unmounted everything so that, e.g. sfdisk can succeed"""
         for vg in self.vgs:
+            # Passing VG names to LVchange is intentional
             self.cmdWrap(self.LVCHANGE + ['-an', vg['vg_name']])
 
-    def commit(self):
+    @classmethod
+    def executeMoves(cls, progress_callback, device, moveList):
+        # Call commit instead this method unless you have special requirements
+        """Issues pvmove commands to move MoveChunks specified by the MoveList.  Doesn't
+        handle overlapping source and destination segments in a single MoveChunk, but in
+        a makeSpaceAtEnd scenario those aren't generated"""
+        sizeStep = 16 # Moving 16 extents takes only slightly more time than moving 1
+        totalExtents = sum(move.size for move in moveList)
+        extentsSoFar = 0
+        for move in moveList:
+            offset = 0
+            while offset < move.size:
+                progress_callback((100 * extentsSoFar) / totalExtents)
+                chunkSize = min(sizeStep, move.size - offset)
+                srcRange = cls.encodeSegmentRange(device, move.src + offset, chunkSize)
+                destRange = cls.encodeSegmentRange(device, move.dest + offset, chunkSize)
+                out = cls.cmdWrap(cls.PVMOVE +
+                    [
+                    '--alloc',
+                    'anywhere',
+                    srcRange,
+                    destRange
+                ])
+                offset += chunkSize
+                extentsSoFar += chunkSize
+
+    def commit(self, progress_callback = lambda _ : ()):
+        """Commit the changes queued up by issuing LVM commands, delete our queues as they
+        succeed, and then reread the new configuration from LVM"""
+        progress_callback(0)
         self.deactivateAll()
+        progress_callback(1)
+        
+        # Process delete lists
         for lv in self.lvsToDelete:
             self.cmdWrap(self.LVREMOVE + [lv])
         self.lvsToDelete = []
+        progress_callback(2)
         for vg in self.vgsToDelete:
             self.cmdWrap(self.VGREMOVE + [vg])
         self.vgsToDelete = []
+        progress_callback(3)
         for pv in self.pvsToDelete:
             self.cmdWrap(self.PVREMOVE + ['--force', '--yes', pv])
         self.pvsToDelete = []
+        progress_callback(4)
+        
+        # Process move lists.  Most of the code here is for calculating smoothly 
+        # increasing progress values
+        totalExtents = 0
+        for moveList in self.moveLists.values():
+            totalExtents += sum([ move.size for move in moveList ])
+        extentsSoFar = 0
+        
+        for device, moveList in sorted(self.moveLists.iteritems()):
+            thisSize = sum([ move.size for move in moveList ])
+            callback = lambda percent : (progress_callback( 5 + (98 - 5) * (extentsSoFar + thisSize * percent / 100) / totalExtents) )
+            self.executeMoves(callback, device, moveList)
+            extentsSoFar +=  thisSize
+        self.moveLists = {}
+        
+        # Process resize list
+        progress_callback(98)
         for resize in self.resizeList:
-            pv = self.deviceToPV(resize['device'])
-            # pv_size is not necessarily the size of the underlying device - that would be dev_size
-            newSize = pv['pv_size'] + resize['bytechange']
-            self.cmdWrap(self.PVRESIZE + ['--setphysicalvolumesize', str(newSize/1024)+'k', resize['device']])
+            self.cmdWrap(self.PVRESIZE + ['--setphysicalvolumesize', str(resize['bytesize']/1024)+'k', resize['device']])
         self.resizeList = []
-        self.readAllInfo()
-        self.deactivateAll() # Stop active LVs preventing changes to the partition structure
 
+        self.readAllInfo() # Reread the new LVM configuration
+        progress_callback(99)
+        self.deactivateAll() # Stop active LVs preventing changes to the partition structure
+        progress_callback(100)
+        
     def dump(self):
         pprint(self.__dict__)
 
@@ -567,6 +654,19 @@ class PartitionTool:
         self.partitions[destNumber] = self.partitions[srcNumber]
         self.deletePartition(srcNumber)
     
+    def partitionSize(self, number):
+        if number not in self.partitions:
+            raise Exception('Partition '+str(number)+' does not exists')
+        return self.getPartition(number)['size'] * self.sectorSize
+    
+    def resizePartition(self, number, sizeBytes):
+        if number not in self.partitions:
+            raise Exception('Partition for resize '+str(number)+' does not exists')
+        if sizeBytes % self.sectorSize != 0:
+            raise Exception("Partition size ("+str(sizeBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
+        
+        self.partitions[number]['size'] = sizeBytes / self.sectorSize
+    
     def setActiveFlag(self, activeFlag, number):
         assert isinstance(activeFlag, types.BooleanType) # Assert that params are the right way around
         if not number in self.partitions:
@@ -607,68 +707,4 @@ class PartitionTool:
             for k, v in sorted(partition.iteritems()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             print output
-
-class DiskFixer:
-    SR_RESIZE_BYTES = -8*2**30 # Shrink by 8GB
-    SR_MOVE_BYTES = 8*2**30 # Move by 8GB
-    
-    def __init__(self, device):
-        self.device = device
-    
-    def execResumeIfRequired(self):
-        # Resume any dead operations
-        self.cmdWrap(self.PVMOVE)
-    
-    def execFix(self):
-        partTool = PartitionTool(self.device)
-        lvmTool = LVMTool()
-        partBase = 0
-        oemPartNum = None
-        # TODO: if we_have_an_oem_partition
-        # TODO:    partBase = 1
-        # TODO:    oemPartNum = 1
-        
-        # xxxPartNum methods return either a partition number, or None if none is present
-        self.configPartition = lvmTool.configPartition(self.device)
-        self.swapPartition = lvmTool.swapPartition(self.device)
-        self.srPartition= lvmTool.srPartition(self.device)
-        
-        # Resize the current SR - defragments if necessary and raises exception if not possible
-        try:
-            lvmTool.resizePartition(self.srPartition, self.SR_RESIZE_BYTES)
-            lvmTool.commit()
-        except Exception, e:
-            # Get a fresh lvmTool after failure
-            lvmTool = LVMTool()
-            # Resize failed - try defragmenting
-            segList = lvmTool.segmentList(self.srPartition)
-            propSegList = lvmTool.proposedSegmentList(segList)
-            segChunkList = lvmTool.segmentsChunkList(segList, propSegList)
-            
-            lvmTool.executeMoves(self.srPartition, segChunkList)
-            # Try resize again, but an exception this time propagates to the caller, i.e. we give up
-            lvmTool.resizeDevice(self.srPartition, self.SR_RESIZE_BYTES)
-            lvmTool.commit()
-        
-        
-        # Resize and move the SR partition
-        partTool.resizePartition(self.srPartition, self.SR_RESIZE_BYTES)
-        partTool.movePartition(self.srPartition, self.SR_MOVE_BYTES)
-        
-        # Delete config and swap PVs and VGs
-        if self.configPartition is not None:
-            lvmTool.deleteDevice(self.configPartition)
-        if self.swapPartition is not None:
-            lvmTool.deleteDevice(self.swapPartition)
-        lvmTool.commit()
-        
-        # Delete config and swap partitions
-        if self.configPartition is not None:
-            partTool.deletePartition(self.configPartition)
-        if self.swapPartition is not None:
-            partTool.deletePartition(self.swapPartition)
-        partTool.commit()
-        
-        # TODO: Make SR partition oemBase+3
-
 
