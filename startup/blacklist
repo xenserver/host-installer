@@ -41,5 +41,5 @@ blacklist ati-agp
 blacklist amd-k7-agp
 blacklist efficeon-agp
 
-CA-30550 can hang on some hardware
+# CA-30550 can hang on some hardware
 blacklist ipmi_si
