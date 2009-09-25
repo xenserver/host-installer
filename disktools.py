@@ -7,7 +7,7 @@
 import re, subprocess, sys, types
 from pprint import pprint
 from copy import copy, deepcopy
-import util
+import util, xelogging
 
 class Segment:
     """Segments are areas, e.g. disk partitions or LVM segments, defined by start address and size"""
@@ -150,12 +150,19 @@ class LVMTool:
         out = self.cmdWrap(cmd)
 
         for line in out.strip().split('\n'):
-            # Create a dict of the form 'option_name':value
-            data = dict(zip(allOptions, line.lstrip().split(self.SEP)))
-            for name in info['integer_options']:
-                # Convert integer options to integer type
-                data[name] = int(data[name])
-            retVal.append(data)
+            try:
+                # Create a dict of the form 'option_name':value
+                data = dict(zip(allOptions, line.lstrip().split(self.SEP)))
+                if len(data) != len(allOptions):
+                    raise Exception("Wrong number of options in reply")
+                for name in info['integer_options']:
+                    # Convert integer options to integer type
+                    data[name] = int(data[name])
+                retVal.append(data)
+            except Exception, e:
+                xelogging.log("Discarding corrupt LVM output line '"+str(line)+"'")
+                xelogging.log("  Command was '"+str(cmd)+"'")
+                xelogging.log("  Error was '"+str(e)+"'")
             
         return retVal
 
@@ -394,6 +401,8 @@ class LVMTool:
         """Commit the changes queued up by issuing LVM commands, delete our queues as they
         succeed, and then reread the new configuration from LVM"""
         progress_callback(0)
+        # Abort pvmoves if any have been left partiially completed by e.g. a crash
+        self.cmdWrap(self.PVMOVE + ['--abort'])
         self.deactivateAll()
         progress_callback(1)
         
