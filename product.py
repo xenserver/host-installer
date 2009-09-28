@@ -288,21 +288,18 @@ class ExistingInstallation(object):
                 xelogging.log('No existing keymap configuration found.')
 
             # root password:
-            rc, out = util.runCmd2(['chroot', mntpoint, 'getent', 'passwd'],
-                                   with_stdout = True)
+            fd = open(self.join_state_path('etc/passwd'), 'r')
+            root_pwd = None
+            for line in fd:
+                pwent = line.split(':')
+                if pwent[0] == 'root':
+                    root_pwd = pwent[1]
+                    break
+            fd.close()
 
-            if rc != 0:
-                raise SettingsNotAvailable, "error retrieving root password"
-            else:
-                root_pwd = None
-                for line in out.split('\n'):
-                    pwent = line.split(':')
-                    if pwent[0] == 'root':
-                        root_pwd = pwent[1]
-                        break
-                if not root_pwd:
-                    raise SettingsNotAvailable, "no root password found"
-                results['root-password'] = ('pwdhash', root_pwd)
+            if not root_pwd:
+                raise SettingsNotAvailable, "no root password found"
+            results['root-password'] = ('pwdhash', root_pwd)
 
             # don't care about this too much.
             results['time-config-method'] = 'ntp'
