@@ -14,7 +14,7 @@ import tui.installer.screens
 import tui.progress
 import tui.repo
 import uicontroller
-from uicontroller import EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
+from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
 import netutil
 import repository
@@ -23,6 +23,7 @@ import upgrade
 import product
 import snackutil
 import diskutil
+import version
 
 from snack import *
 
@@ -161,9 +162,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         ]
     return uicontroller.runSequence(seq, results)
 
-def more_media_sequence(installed_repo_ids):
+def more_media_sequence(installed_repos):
     """ Displays the sequence of screens required to load additional
-    media to install from.  installed_repo_ids is a list of repository
+    media to install from.  installed_repos is a dictionary of repository
     IDs of repositories we already installed from, to help avoid
     issues where multiple CD drives are present.
 
@@ -191,6 +192,36 @@ def more_media_sequence(installed_repo_ids):
                     done = True
         return rv
 
+    def check_requires(_):
+        """ Check prerequisites and report if any are missing. """
+        missing_repos = []
+        main_repo_missing = False
+        repos = repository.repositoriesFromDefinition('local', '')
+        for r in repos:
+            missing_repos += r.check_requires(installed_repos)
+
+        if len(missing_repos) == 0:
+            return SKIP_SCREEN
+
+        text2 = ''
+        for r in missing_repos:
+            if r.startswith(constants.MAIN_REPOSITORY_NAME):
+                main_repo_missing = True
+            text2 += " * %s\n" % r
+
+        if main_repo_missing:
+            text = "This Supplemental Pack is not compatible with this version of %s." % version.PRODUCT_BRAND
+        else:
+            text = "The following dependencies have not yet been installed:\n\n" + text2 + \
+                   "\nPlease install them first and try again."
+
+        ButtonChoiceWindow(
+            tui.screen, "Error",
+            text,
+            ['Back'])
+
+        return LEFT_BACKWARDS
+
     def confirm_more_media(_):
         """ 'Really use this disc?' screen. """
         repos = repository.repositoriesFromDefinition('local', '')
@@ -200,7 +231,7 @@ def more_media_sequence(installed_repo_ids):
         default_button = VERIFY
         media_contents = []
         for r in repos:
-            if r.identifier() in installed_repo_ids:
+            if r.identifier() in installed_repos:
                 media_contents.append(" * %s (already installed)" % r.name())
                 default_button = BACK
             else:
@@ -224,6 +255,6 @@ def more_media_sequence(installed_repo_ids):
 
         return rc
 
-    seq = [ uicontroller.Step(get_more_media), uicontroller.Step(confirm_more_media) ]
+    seq = [ uicontroller.Step(get_more_media), uicontroller.Step(check_requires), uicontroller.Step(confirm_more_media) ]
     direction = uicontroller.runSequence(seq, {})
     return (direction == RIGHT_FORWARDS, direction != EXIT)

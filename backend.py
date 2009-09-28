@@ -134,6 +134,7 @@ def getPrepSequence(ans):
 def getRepoSequence(ans, repos):
     seq = []
     for repo in repos:
+        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos']])(repo), []))
         seq.append(Task(repo.accessor().start, lambda x: [], []))
         for package in repo:
             seq += [
@@ -143,7 +144,7 @@ def getRepoSequence(ans, repos):
                      pass_progress_callback = True,
                      progress_text = "Installing from %s..." % repo.name())
                 ]
-        seq.append(Task(repo.record_install, A(ans, 'mounts'), []))
+        seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
 
@@ -311,24 +312,24 @@ def performInstallation(answers, ui_package):
             seq_name = "Reading package information..."
         repo_seq = getRepoSequence(ans, repos)
         new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
+        xelogging.log(new_ans['installed-repos'])
         return new_ans
 
     done = False
-    installed_repo_ids = []
+    new_ans['installed-repos'] = {}
     while not done:
         all_repositories = repository.repositoriesFromDefinition(
             answers['source-media'], answers['source-address']
             )
-        if len(installed_repo_ids) == 0 and len(all_repositories) == 0:
+        if len(new_ans['installed-repos']) == 0 and len(all_repositories) == 0:
             # CA-29016: main repository has vanished
             raise RuntimeError, "No repository found at the specified location."
 
         # only install repositories we've not already installed:
-        repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
+        repositories = filter(lambda r: r.identifier() not in new_ans['installed-repos'],
                               all_repositories)
         if len(repositories) > 0:
             new_ans = handleRepos(repositories, new_ans)
-            installed_repo_ids.extend([ r.identifier() for r in repositories] )
 
         # get more media?
         done = not (answers.has_key('more-media') and answers['more-media'] and answers['source-media'] == 'local')
@@ -337,7 +338,7 @@ def performInstallation(answers, ui_package):
             for r in repositories:
                 if r.accessor().canEject():
                     r.accessor().eject()
-            accept_media, ask_again = ui_package.installer.more_media_sequence(installed_repo_ids)
+            accept_media, ask_again = ui_package.installer.more_media_sequence(new_ans['installed-repos'])
             done = not accept_media
             answers['more-media'] = ask_again
 
@@ -347,7 +348,6 @@ def performInstallation(answers, ui_package):
         rtype, rloc = driver_repo_def
         all_repos = repository.repositoriesFromDefinition(rtype, rloc)
         new_ans = handleRepos(all_repos, new_ans)
-        installed_repo_ids.extend([ r.identifier() for r in repositories])
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
@@ -357,6 +357,12 @@ def performInstallation(answers, ui_package):
         for r in repositories:
             if r.accessor().canEject():
                 r.accessor().eject()
+
+def checkRepoDeps(repo, installed_repos):
+    xelogging.log("Checking for dependencies of %s" % repo.identifier())
+    missing_repos = repo.check_requires(installed_repos)
+    if len(missing_repos) > 0:
+        raise RuntimeError, "Repository dependency error: %s" % ', '.join(missing_repos)
 
 def installPackage(progress_callback, mounts, package):
     package.install(mounts['root'], progress_callback)

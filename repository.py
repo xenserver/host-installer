@@ -56,12 +56,15 @@ class Repository:
     REPOSITORY_FILENAME = "XS-REPOSITORY"
     PKGDATA_FILENAME = "XS-PACKAGES"
 
+    OPER_MAP = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
+
     def __init__(self, accessor, base = ""):
         self._accessor = accessor
         self._base = base
         self._product_brand = None
         self._product_version = None
         self._md5 = md5.new()
+        self.requires = []
 
         accessor.start()
 
@@ -114,6 +117,14 @@ class Repository:
             _build = repo_node.getAttribute("build")
             if _build == '': _build = None
             _description = getText(desc_node.childNodes)
+
+            for req_node in xmldoc.getElementsByTagName('requires'):
+                req = {}
+                for attr in ['originator', 'name', 'test', 'version', 'build']:
+                    req[attr] = req_node.getAttribute(attr)
+                if req['build'] == '': del req['build']
+                assert req['test'] in self.OPER_MAP
+                self.requires.append(req)
         except:
             raise RepoFormatError, "%s format error" % self.REPOSITORY_FILENAME
 
@@ -212,6 +223,34 @@ class Repository:
             self._accessor.finish()
         return problems
 
+    def check_requires(self, installed_repos):
+        """ Return a list the prerequisites that are not yet installed. """
+        problems = []
+
+        def fmt_missing(d):
+            opers = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
+            text = "%s:%s" % (d['originator'], d['name'])
+            if d['test'] in self.OPER_MAP:
+                text += self.OPER_MAP[d['test']]
+            else:
+                return text
+            text += 'build' in d and "%s-%s" % (d['version'], d['build']) or d['version']
+            
+            return text
+
+        for dep in self.requires:
+            ident = "%s:%s" % (dep['originator'], dep['name'])
+            if ident not in installed_repos:
+                xelogging.log("Dependency failure: not installed %s" % fmt_missing(dep))
+                problems.append(fmt_missing(dep))
+            else:
+                want_ver = product.Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
+                if not eval("installed_repos[ident]._product_version.__%s__(want_ver)" % dep['test']):
+                    xelogging.log("Dependency failure: %s %s installed but failed test %s" % (ident, installed_repos[ident]._product_version, fmt_missing(dep)))
+                    problems.append(fmt_missing(dep))
+                
+        return problems
+
     def copyTo(self, destination, copy_packages = True):
         util.assertDir(destination)
 
@@ -241,8 +280,10 @@ class Repository:
     def __iter__(self):
         return self._packages.__iter__()
 
-    def record_install(self, answers):
+    def record_install(self, answers, installed_repos):
         self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier), False)
+        installed_repos[self._identifier] = self
+        return installed_repos
 
     def md5sum(self):
         return self._md5.hexdigest()
