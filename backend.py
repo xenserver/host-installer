@@ -109,7 +109,7 @@ def getPrepSequence(ans):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, As(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum'), []),
             ]
         for gd in ans['guest-disks']:
             if gd != ans['primary-disk']:
