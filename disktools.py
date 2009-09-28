@@ -569,7 +569,7 @@ class PartitionTool:
                 
             input += line+'\n'
         if dryrun:
-            print 'Input to sfdisk:\n'+input
+            xelogging.log('Input to sfdisk:\n'+input)
         process = subprocess.Popen(
             [self.SFDISK, dryrun and '-LnuS' or '-LuS', self.device],
             stdin=subprocess.PIPE,
@@ -578,7 +578,7 @@ class PartitionTool:
             )
         output=process.communicate(input)
         if dryrun:
-            print 'Output from sfdisk:\n'+output[0]
+            xelogging.log('Output from sfdisk:\n'+output[0])
         if process.returncode != 0:
             raise Exception('Partition changes could not be applied: '+str(output[0]))
         # Verify the table - raises exception on failure
@@ -699,21 +699,22 @@ class PartitionTool:
             self.origPartitions = deepcopy(self.partitions)
 
     def dump(self):
-        print "Cylinders     : "+str(self.cylinders)
-        print "Heads         : "+str(self.heads)
-        print "Sectors       : "+str(self.sectors)
-        print "Sector size   : "+str(self.sectorSize)
-        print "Sector extent : "+str(self.sectorExtent)+" sectors"
-        print "Byte extent   : "+str(self.byteExtent)+" bytes"
-        print "Partition size and start addresses in sectors:"
+        output = "Cylinders     : "+str(self.cylinders) + "\n"
+        output += "Heads         : "+str(self.heads) + "\n"
+        output += "Sectors       : "+str(self.sectors) + "\n"
+        output += "Sector size   : "+str(self.sectorSize) + "\n"
+        output += "Sector extent : "+str(self.sectorExtent)+" sectors\n"
+        output += "Byte extent   : "+str(self.byteExtent)+" bytes\n"
+        output += "Partition size and start addresses in sectors:\n"
         for number, partition in sorted(self.origPartitions.iteritems()):
-            output = "Old partition "+str(number)+":"
+            output += "Old partition "+str(number)+":"
             for k, v in sorted(partition.iteritems()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
-            print output
+            output += "\n"
         for number, partition in sorted(self.partitions.iteritems()):
             output = "New partition "+str(number)+":"
             for k, v in sorted(partition.iteritems()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
-            print output
+            output += "\n"
+        xelogging.log(output)
 
