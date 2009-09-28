@@ -288,7 +288,7 @@ class ExistingInstallation(object):
                 xelogging.log('No existing keymap configuration found.')
 
             # root password:
-            fd = open(self.join_state_path('etc/passwd'), 'r')
+            fd = open(os.path.join(mntpoint, 'etc/passwd'), 'r')
             root_pwd = None
             for line in fd:
                 pwent = line.split(':')
