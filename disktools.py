@@ -474,6 +474,10 @@ class PartitionTool:
         self.partitions = self.partitionTable()
         self.origPartitions = deepcopy(self.partitions)
 
+    @staticmethod                                                                                        
+    def partitionDevice(device, deviceNum):                                                              
+        return device + PartitionTool.determineMidfix(device) + str(deviceNum) 
+
     # Private methods:
     def cmdWrap(self, params):
         rv, out, err = util.runCmd2(params, True, True)
@@ -481,16 +485,17 @@ class PartitionTool:
             raise Exception("\n".join(err))
         return out
     
-    def determineMidfix(self, device):
-        for key in self.P_STYLE_DISKS:
-            if device.startswith(self.DISK_PREFIX + key):
+    @staticmethod
+    def determineMidfix(device):
+        for key in PartitionTool.P_STYLE_DISKS:
+            if device.startswith(PartitionTool.DISK_PREFIX + key):
                 return 'p'
-        for key in self.PART_STYLE_DISKS:
-            if device.startswith(self.DISK_PREFIX + key):
+        for key in PartitionTool.PART_STYLE_DISKS:
+            if device.startswith(PartitionTool.DISK_PREFIX + key):
                 return '-part'
         return ''
 
-    def partitionDevice(self, deviceNum):
+    def _partitionDevice(self, deviceNum):
         return self.device + self.midfix + str(deviceNum)
         
     def partitionNumber(self, partitionDevice):
@@ -560,7 +565,7 @@ class PartitionTool:
                 'id': 0,
                 'active': False
             })
-            line = self.partitionDevice(number)+' :'
+            line = self._partitionDevice(number)+' :'
             line += ' start='+str(partition['start'])+','
             line += ' size='+str(partition['size'])+','
             line += ' Id=%x' % partition['id']
