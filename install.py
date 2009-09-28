@@ -176,7 +176,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         if not aborted:
             xelogging.log("Starting actual installation")       
-            backend.performInstallation(results, ui)
+            results = backend.performInstallation(results, ui)
 
             if ui and not using_answerfile:
                 ui.installer.screens.installation_complete()
@@ -212,8 +212,8 @@ def go(ui, args, answerfile_address, answerfile_script):
                 xelogging.log(txt)
     
             # and now on the disk if possible:
-            if results.has_key('primary-disk'):
-                backend.writeLog(results['primary-disk'])
+            if 'primary-disk' in results and 'primary-partnum' in results:
+                backend.writeLog(results['primary-disk'], results['primary-partnum'])
     
             xelogging.log(results)
         except Exception, e:
@@ -233,8 +233,8 @@ def go(ui, args, answerfile_address, answerfile_script):
         xelogging.collectLogs('/tmp')
 
         # and now on the disk if possible:
-        if results.has_key('primary-disk'):
-            backend.writeLog(results['primary-disk'])
+        if 'primary-disk' in results and 'primary-partnum' in results:
+            backend.writeLog(results['primary-disk'], results['primary-partnum'])
 
         assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
         

@@ -23,6 +23,7 @@ import generalui
 import xelogging
 import util
 import diskutil
+from disktools import *
 import netutil
 from util import runCmd
 import shutil
@@ -103,11 +104,12 @@ def getPrepSequence(ans):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, As(ans, 'primary-disk'), []),
+            Task(writeDom0DiskPartitions, As(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum'), []),
             ]
         for gd in ans['guest-disks']:
             if gd != ans['primary-disk']:
@@ -117,7 +119,7 @@ def getPrepSequence(ans):
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
             seq.append(Task(backupExisting,
-                            A(ans, 'upgrader','installation-to-overwrite'), [],
+                            A(ans, 'upgrader','installation-to-overwrite', 'primary-disk', 'backup-partnum'), [],
                             progress_text = "Backing up existing installation..."))
         seq.append(Task(prepareUpgrade,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ],
@@ -126,8 +128,8 @@ def getPrepSequence(ans):
                         progress_scale = 80,
                         pass_progress_callback = True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
-        Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'primary-partnum'), []),
+        Task(mountVolumes, A(ans, 'primary-disk', 'primary-partnum', 'cleanup'), ['mounts', 'cleanup']),
         ]
     return seq
 
@@ -150,7 +152,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console', 'boot-serial', 'bootloader-location'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'bootloader', 'serial-console', 'boot-serial', 'bootloader-location'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -160,7 +162,7 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts',  'net-iscsi-interface', 'net-iscsi-configuration', 'primary-disk'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -169,7 +171,7 @@ def getFinalisationSequence(ans):
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(prepareStorageRepositories, A(ans, 'operation', 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
+            Task(prepareStorageRepositories, A(ans, 'operation', 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -187,7 +189,7 @@ def getFinalisationSequence(ans):
 
     seq += [
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
-        Task(writeLog, A(ans, 'primary-disk'), [])
+        Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), [])
         ]
 
     return seq
@@ -312,7 +314,6 @@ def performInstallation(answers, ui_package):
             seq_name = "Reading package information..."
         repo_seq = getRepoSequence(ans, repos)
         new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
-        xelogging.log(new_ans['installed-repos'])
         return new_ans
 
     done = False
@@ -358,6 +359,8 @@ def performInstallation(answers, ui_package):
             if r.accessor().canEject():
                 r.accessor().eject()
 
+    return new_ans
+
 def checkRepoDeps(repo, installed_repos):
     xelogging.log("Checking for dependencies of %s" % repo.identifier())
     missing_repos = repo.check_requires(installed_repos)
@@ -402,6 +405,20 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['chroot', mounts['root'], 'timeutil', 'setLocalTime', '%s' % timestr]) == 0
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
+
+def inspectTargetDisk(disk):
+    preserved_partitions = [PartitionTool.ID_DELL_UTILITY]
+    primary_part = 1
+    
+    tool = PartitionTool(disk)
+    for num, part in tool.iteritems():
+        if part['id'] in preserved_partitions:
+            primary_part += 1
+
+    if primary_part > 2:
+        raise RuntimeError, "Target disk contains more than one Utility Partition."
+    return (primary_part, primary_part+1, primary_part+2)
+
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
         util.runCmd2(['vgreduce', '--removemissing', vg])
@@ -411,8 +428,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-# TODO - take into account service partitions
-def writeDom0DiskPartitions(disk):
+def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -420,26 +436,31 @@ def writeDom0DiskPartitions(disk):
     if not os.path.exists(disk):
         raise RuntimeError, "The disk %s could not be found." % disk
 
-    # partition the disk:
-    diskutil.writePartitionTable(disk, [root_size, root_size, -1], diskutil.getRootPartNumber(disk))
-    diskutil.makeActivePartition(disk, diskutil.getRootPartNumber(disk))
+    tool = PartitionTool(disk)
+    for num, part in tool.iteritems():
+        if num >= primary_partnum:
+            tool.deletePartition(num)
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, active = True)
+    if backup_partnum > 0:
+        tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
+    if storage_partnum > 0:
+        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+    tool.commit()
 
 def writeGuestDiskPartitions(disk):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    diskutil.clearDiskPartitions(disk)
+    tool = PartitionTool(disk)
+    for num, part in tool.iteritems():
+        tool.deletePartition(num)
+    tool.commit()
 
-def getSRPhysDevs(primary_disk, guest_disks, is_oem = False):
-    if is_oem:
-        pd_sr_part = constants.OEMHDD_SR_PARTITION_NUMBER
-    else:
-        pd_sr_part = diskutil.getSRPartNumber(primary_disk)
-
+def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
         if disk == primary_disk:
-            return diskutil.determinePartitionName(disk, pd_sr_part)
+            return PartitionTool.partitionDevice(disk, storage_partnum)
         else:
             return disk
 
@@ -552,9 +573,7 @@ def preparePassword(operation, mounts, password_hash):
     xelogging.log('Writing firstboot password configuration '+', '.join(content))
     writeFirstbootFile(operation, mounts, 'password.conf', content)
     
-def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_type):
-    
-    is_oem = init_constants.operationIsOEMInstall(operation)
+def prepareStorageRepositories(operation, mounts, primary_disk, storage_partnum, guest_disks, sr_type):
     
     if len(guest_disks) == 0:
         xelogging.log("No storage repository requested.")
@@ -562,7 +581,7 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
 
     xelogging.log("Arranging for storage repositories to be created at first boot...")
 
-    partitions = getSRPhysDevs(primary_disk, guest_disks, is_oem)
+    partitions = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
 
     sr_type_strings = { constants.SR_TYPE_EXT: 'ext', 
                         constants.SR_TYPE_LVM: 'lvm' }
@@ -585,8 +604,8 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(disk):
-    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, diskutil.getRootPartName(disk)]) == 0
+def createDom0DiskFilesystems(disk, primary_partnum):
+    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, PartitionTool.partitionDevice(disk, primary_partnum)]) == 0
 
 def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_version):
 
@@ -734,7 +753,7 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
     for entry in entries:
         fn(f, entry)
 
-def installBootLoader(mounts, disk, bootloader, serial, boot_serial, location = 'mbr'):
+def installBootLoader(mounts, disk, primary_partnum, bootloader, serial, boot_serial, location = 'mbr'):
     
     assert(location == 'mbr' or location == 'partition')
     
@@ -749,16 +768,16 @@ def installBootLoader(mounts, disk, bootloader, serial, boot_serial, location = 
     # /proc/mounts with the correct data. If /etc/mtab is not a
     # symlink (to /proc/mounts) then we fake that out too.
     f = open("%s/proc/mounts" % mounts['root'], 'w')
-    f.write("%s / %s rw 0 0\n" % (diskutil.getRootPartName(disk), constants.rootfs_type))
+    f.write("%s / %s rw 0 0\n" % (PartitionTool.partitionDevice(disk, primary_partnum), constants.rootfs_type))
     f.close()
     if not os.path.islink("%s/etc/mtab" % mounts['root']):
         f = open("%s/etc/mtab" % mounts['root'], 'w')
-        f.write("%s / %s rw 0 0\n" % (diskutil.getRootPartName(disk), constants.rootfs_type))
+        f.write("%s / %s rw 0 0\n" % (PartitionTool.partitionDevice(disk, primary_partnum), constants.rootfs_type))
         f.close()
 
     try:
         if bootloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk, serial, boot_serial, location)
+            installGrub(mounts, disk, primary_partnum, serial, boot_serial, location)
         elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
             installExtLinux(mounts, disk, serial, boot_serial, location)
         else:
@@ -830,14 +849,14 @@ def writeGrubMenuItem(f, item):
     f.write("   module %s\n" % item['kernel'])
     f.write("   module %s\n\n" % item['initrd'])
 
-def installGrub(mounts, disk, serial, boot_serial, location = 'mbr'):
+def installGrub(mounts, disk, primary_partnum, serial, boot_serial, location = 'mbr'):
 
     assert(location == 'mbr' or location == 'partition')
 
     if location == 'mbr':
         grubroot = disk
     else:
-        grubroot = diskutil.getRootPartName(disk)
+        grubroot = PartitionTool.partitionDevice(disk, primary_partnum)
 
     # move the splash screen to a safe location so we don't delete it
     # when removing a previous installation of GRUB:
@@ -893,11 +912,11 @@ def installGrub(mounts, disk, serial, boot_serial, location = 'mbr'):
 ##########
 # mounting and unmounting of various volumes
 
-def mountVolumes(primary_disk, cleanup):
+def mountVolumes(primary_disk, primary_partnum, cleanup):
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
-    rootp = diskutil.getRootPartName(primary_disk)
+    rootp = PartitionTool.partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
@@ -1170,9 +1189,9 @@ def writeModprobeConf(mounts):
     os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
               "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
-def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_bridge):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
-    default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
+    default_sr_physdevs = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
@@ -1181,7 +1200,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
-    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(diskutil.getBackupPartName(primary_disk)) or diskutil.getBackupPartName(primary_disk)))
+    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(PartitionTool.partitionDevice(primary_disk, backup_partnum)) or PartitionTool.partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
@@ -1225,13 +1244,13 @@ def stampBackupPartition(backup_partition):
     finally:
         util.umount(backup_partition)
 
-def backupExisting(upgrader, existing):
+def backupExisting(upgrader, existing, primary_disk, backup_partnum):
     if not upgrader.requires_backup and not upgrader.optional_backup:
         # This upgrader doesn't support a backup during the upgrade, so skip it
         xelogging.log("Skipping backup of existing installation: this upgrade does not support it" )
         return
-    primary_partition = diskutil.getRootPartName(existing.primary_disk)
-    backup_partition  = diskutil.getBackupPartName(existing.primary_disk)
+    primary_partition = existing.root_partition
+    backup_partition  = PartitionTool.partitionDevice(primary_disk, backup_partnum)
 
     xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
 
@@ -1380,9 +1399,9 @@ def extractOemStatefromRootToBackup(existing):
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
-def writeLog(primary_disk):
+def writeLog(primary_disk, primary_partnum):
     try: 
-        bootnode = diskutil.getRootPartName(primary_disk)
+        bootnode = PartitionTool.partitionDevice(primary_disk, primary_partnum)
         util.assertDir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
         log_location = "/tmp/mnt/var/log/installer"
