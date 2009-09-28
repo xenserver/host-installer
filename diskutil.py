@@ -249,6 +249,15 @@ def readFATPartitionLabel(partition):
         raise Exception("%s is not FAT partition" % partition)
     return label
 
+def readExtPartitionLabel(partition):
+    """Read the ext partition label."""
+    rc, out = util.runCmd2(['/sbin/e2label', partition], with_stdout = True)
+    if rc == 0:
+        label = out.strip()
+    else:
+        raise Exception("%s is not ext partition" % partition)
+    return label
+
 ################################################################################
 # TOOLS FOR PARTITIONING DISKS
 
