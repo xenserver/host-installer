@@ -284,6 +284,12 @@ class LVMTool:
             raise Exception("PV for device '"+device+"' not found")
         return pv
 
+    def vGContainingLV(self, lvol):
+        for lv in self.lvs:
+            if lv['lv_name'] == lvol:
+                return lv['vg_name']
+        raise Exception("VG for LV '"+lvol+"' not found")
+
     def deviceSize(self, device):
         pv = self.deviceToPV(device)
         return pv['pv_size'] # in bytes
@@ -364,6 +370,12 @@ class LVMTool:
         self.pvsToDelete += pvsToDelete
         self.vgsToDelete += vgsToDelete
         self.lvsToDelete += lvsToDelete
+
+    def activateVG(self, vg):
+        self.cmdWrap(self.VGCHANGE + ['-ay', vg])
+
+    def deactivateVG(self, vg):
+        self.cmdWrap(self.VGCHANGE + ['-an', vg])
 
     def deactivateAll(self):
         """Makes sure that LVM has unmounted everything so that, e.g. sfdisk can succeed"""
