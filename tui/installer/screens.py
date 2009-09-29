@@ -319,7 +319,8 @@ def get_installation_type(answers):
         answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
         answers['installation-to-overwrite'], preservable = entry
         answers['preserve-settings'] = preservable
-        answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
+        if 'primary-disk' not in answers:
+            answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
 
         for k in ['guest-disks', 'default-sr-uuid']:
             if answers.has_key(k):
@@ -716,7 +717,15 @@ def select_primary_disk(answers):
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size) <= constants.max_primary_disk_size:
-            stringEntry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
+            # determine current usage                                                                    
+            usage = 'unknown'                                                                            
+            (boot, state, storage) = diskutil.probeDisk(de)                                              
+            if boot[0]:                                                                                  
+                usage = PRODUCT_BRAND                                                                    
+            elif storage[0]:                                                                             
+                usage = 'SR'                                                                             
+                # FIXME report space available?                                                          
+            stringEntry = "%s - %s [%s]" % (de, diskutil.getHumanDiskSize(size), usage)
             e = (stringEntry, de)
             entries.append(e)
 
@@ -834,8 +843,11 @@ def confirm_installation(answers):
         disks_used = generalui.makeHumanList(disks)
         text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
     elif answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        text2 = "The installation will be performed over %s, preserving existing %s in your storage repository." % (str(answers['installation-to-overwrite']), BRAND_GUESTS)
-
+        if answers['primary-disk'] == answers['installation-to-overwrite'].primary_disk:
+            text2 = "The installation will be performed over %s" % str(answers['installation-to-overwrite'])
+        else:
+            text2 = "The installation will migrate the installation from %s" % str(answers['installation-to-overwrite'])
+        text2 += ", preserving existing %s in your storage repository." % BRAND_GUESTS
     text = text1 + "\n\n" + text2
     ok = 'Install %s' % PRODUCT_BRAND
     button = snackutil.ButtonChoiceWindowEx(
