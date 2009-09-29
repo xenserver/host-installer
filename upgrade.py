@@ -20,23 +20,23 @@ import tempfile
 
 import product
 import diskutil
+from disktools import *
 import util
 import constants
 import xelogging
 import backend
-from variant import VariantRetail, VariantOEMDisk, VariantOEMFlash
 
 class UpgraderNotAvailable(Exception):
     pass
 
 def upgradeAvailable(src):
-    return __upgraders__.hasUpgrader(src.name, src.variant_class, src.version)
+    return __upgraders__.hasUpgrader(src.name, src.version, src.variant)
 
 def getUpgrader(src):
     """ Returns an upgrader instance suitable for src. Propogates a KeyError
     exception if no suitable upgrader is available (caller should have checked
     first by calling upgradeAvailable). """
-    return __upgraders__.getUpgrader(src.name, src.variant_class, src.version)(src)
+    return __upgraders__.getUpgrader(src.name, src.version, src.variant)(src)
 
 class Upgrader(object):
     """ Base class for upgraders.  Superclasses should define an
@@ -47,18 +47,30 @@ class Upgrader(object):
 
     requires_backup = False
     optional_backup = True
-    repartition     = False
+    prompt_for_target = False
 
     def __init__(self, source):
         """ source is the ExistingInstallation object we're to upgrade. """
         self.source = source
 
-    def upgrades(cls, product, variant_class, version):
+    def upgrades(cls, product, version, variant):
         return (cls.upgrades_product == product and
-                variant_class in cls.upgrades_variants and
+                variant in cls.upgrades_variants and
                 True in [ _min <= version <= _max for (_min, _max) in cls.upgrades_versions ])
 
     upgrades = classmethod(upgrades)
+
+    prepTargetStateChanges = []
+    prepTargetArgs = []
+    def prepareTarget(self, progress_callback):
+        """ Modify partition layout prior to installation. """
+        return
+
+    doBackupStateChanges = []
+    doBackupArgs = []
+    def doBackup(self, progress_callback):
+        """ Collect configuration etc from installation. """
+        return
 
     prepStateChanges = []
     prepUpgradeArgs = []
@@ -67,8 +79,8 @@ class Upgrader(object):
         tranformation on the answers dict. """
         return
 
-    completeUpgradeArgs = ['mounts', 'installation-to-overwrite']
-    def completeUpgrade(self, mounts, prev_install):
+    completeUpgradeArgs = ['mounts']
+    def completeUpgrade(self, mounts):
         """ Write any data back into the new filesystem as needed to follow
         through the upgrade. """
         pass
@@ -76,13 +88,43 @@ class Upgrader(object):
 class ThirdGenUpgrader(Upgrader):
     """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.Version(5, 0, 0), product.THIS_PRODUCT_VERSION) ]
-    upgrades_variants = [ VariantRetail ]
+    upgrades_versions = [ (product.Version(5, 5, 0), product.THIS_PRODUCT_VERSION) ]
+    upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
+
+    doBackupArgs = ['primary-disk', 'backup-partnum']
+    doBackupStateChanges = []
+    def doBackup(self, progress_callback, target_disk, backup_partnum):
+
+        progress_callback(10)
+
+        # format the backup partition:
+        backup_partition = PartitionTool.partitionDevice(target_disk, backup_partnum)
+        if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
+            raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
+
+        progress_callback(20)
+
+        # copy the files across:
+        primary_mount = '/tmp/backup/primary'
+        backup_mount  = '/tmp/backup/backup'
+        for mnt in [primary_mount, backup_mount]:
+            util.assertDir(mnt)
+        try:
+            util.mount(self.source.root_device, primary_mount, options = ['ro'])
+            util.mount(backup_partition, backup_mount)
+            cmd = ['cp', '-a'] + \
+                  [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
+                  ['%s/' % backup_mount]
+            assert util.runCmd2(cmd) == 0
+        
+        finally:
+            for mnt in [primary_mount, backup_mount]:
+                util.umount(mnt)
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid']
     prepStateChanges = ['installation-uuid', 'control-domain-uuid', 'primary-disk']
@@ -101,10 +143,10 @@ class ThirdGenUpgrader(Upgrader):
 
         return installID, controlID, pd
 
-    completeUpgradeArgs = ['mounts', 'installation-to-overwrite']
-    def completeUpgrade(self, mounts, prev_install):
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
+    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
         xelogging.log("Restoring preserved files")
-        backup_volume = diskutil.getBackupPartName(self.source.primary_disk)
+        backup_volume = PartitionTool.partitionDevice(target_disk, backup_partnum)
         tds = None
         regen_ifcfg = False
         try:
@@ -225,12 +267,22 @@ class ThirdGenUpgrader(Upgrader):
                     util.umount(tds)
                 os.rmdir(tds)
 
+class ThirdGenOEMUpgrader(ThirdGenUpgrader):
+    """ Upgrader class for series 5 OEM products. """
+    requires_backup = True
+    optional_backup = False
+    prompt_for_target = True
+    upgrades_variants = [ 'OEM' ]
+
+    def __init__(self, source):
+        ThirdGenUpgrader.__init__(self, source)
+
 class ThirdGenOEMDiskUpgrader(ThirdGenUpgrader):
     """ Upgrader class for series 5 OEM Disk products. """
     requires_backup = False
     optional_backup = False
     repartition     = True
-    upgrades_variants = [ VariantOEMDisk ]
+    upgrades_variants = [ 'OEM' ]
 
     def __init__(self, source):
         ThirdGenUpgrader.__init__(self, source)
@@ -264,7 +316,7 @@ class ThirdGenOEMDiskUpgrader(ThirdGenUpgrader):
 ################################################################################
 
 # Upgraders provided here, in preference order:
-class UpgraderList(list):
+class XUpgraderList(list):
     def getUpgrader(self, product, variant_class, version):
         for x in self:
             if x.upgrades(product, variant_class, version):
@@ -276,8 +328,21 @@ class UpgraderList(list):
             if x.upgrades(product, variant_class, version):
                 return True
         return False
+
+class UpgraderList(list):
+    def getUpgrader(self, product, version, variant):
+        for x in self:
+            if x.upgrades(product, version, variant):
+                return x
+        raise KeyError, "No upgrader found for %s" % version
+
+    def hasUpgrader(self, product, version, variant):
+        for x in self:
+            if x.upgrades(product, version, variant):
+                return True
+        return False
     
-__upgraders__ = UpgraderList([ ThirdGenUpgrader, ThirdGenOEMDiskUpgrader ])
+__upgraders__ = UpgraderList([ ThirdGenUpgrader, ThirdGenOEMUpgrader ])
 
 def filter_for_upgradeable_products(installed_products):
     upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),

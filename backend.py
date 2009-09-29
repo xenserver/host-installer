@@ -117,10 +117,19 @@ def getPrepSequence(ans):
                                 (lambda mygd: (lambda _: [mygd]))(gd), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
+        seq.append(Task(prepareTarget,
+                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
+                        lambda progress_callback, upgrader, *a: upgrader.prepTargetStateChanges,
+                        progress_text = "Preparing target disk...",
+                        progress_scale = 100,
+                        pass_progress_callback = True))
         if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
-            seq.append(Task(backupExisting,
-                            A(ans, 'upgrader','installation-to-overwrite', 'primary-disk', 'backup-partnum'), [],
-                            progress_text = "Backing up existing installation..."))
+            seq.append(Task(doBackup,
+                            lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].doBackupArgs ],
+                            lambda progress_callback, upgrader, *a: upgrader.doBackupStateChanges,
+                            progress_text = "Backing up existing installation...",
+                            progress_scale = 100,
+                            pass_progress_callback = True))
         seq.append(Task(prepareUpgrade,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ],
                         lambda progress_callback, upgrader, *a: upgrader.prepStateChanges,
@@ -1430,6 +1439,12 @@ def writei18n(mounts):
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
     return upgrade.getUpgrader(source)
+
+def prepareTarget(progress_callback, upgrader, *args):
+    return upgrader.prepareTarget(progress_callback, *args)
+
+def doBackup(progress_callback, upgrader, *args):
+    return upgrader.doBackup(progress_callback, *args)
 
 def prepareUpgrade(progress_callback, upgrader, *args):
     """ Gets required state from existing installation. """
