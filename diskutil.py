@@ -19,6 +19,7 @@ import constants
 import util
 from util import dev_null
 import xelogging
+from disktools import *
 
 # hd* -> (ide has majors 3, 22, 33, 34, 56, 57, 88, 89, 90, 91, each major has
 # two disks, with minors 0... and 64...)
@@ -667,3 +668,77 @@ def getSRPartNumber(disk):
 def getSRPartName(disk):
     return determinePartitionName(disk, getSRPartNumber(disk))
 
+INSTALL_RETAIL = 1
+INSTALL_OEM = 2
+STORAGE_LVM = 1
+STORAGE_EXT3 = 2
+
+def probeDisk(device, justInstall = False):
+    """Examines device and reports the apparent presence of a XenServer installation and/or related usage
+    Returns a tuple (boot, state, storage)
+    
+    Where:
+    
+    	boot is a tuple of None, INSTALL_RETAIL or INSTALL_OEM and the partition device
+        state is a tuple of True or False and the partition device
+        storage is a tuple of None, STORAGE_LVM or STORAGE_EXT3 and the partition device
+    """
+
+    boot = (None, None)
+    state = (False, None)
+    storage = (None, None)
+    possible_srs = []
+        
+    tool = PartitionTool(device)
+    for num, part in tool.iteritems():
+        label = None
+        part_device = tool._partitionDevice(num)
+
+        if part['id'] == tool.ID_LINUX:
+            try:
+                label = readExtPartitionLabel(part_device)
+            except:
+                pass
+
+        if part['active']:
+            if part['id'] == tool.ID_LINUX:
+                # probe for retail
+                if label and label.startswith('root-'):
+                    boot = (INSTALL_RETAIL, part_device)
+                    state = (True, part_device)
+                    if tool.partitions.has_key(num+2):
+                        # George Retail and earlier didn't use the correct id for SRs
+                        possible_srs = [num+2]
+            elif part['id'] == tool.ID_FAT16:
+                # probe for OEM
+                try:
+                    label = readFATPartitionLabel(part_device).strip()
+                except:
+                    pass
+                if label == 'IHVCONFIG':
+                    boot = (INSTALL_OEM, part_device)
+        else:
+            if part['id'] == tool.ID_LINUX_LVM:
+                if num not in possible_srs:
+                    possible_srs.append(num)
+            elif part['id'] == tool.ID_LINUX:
+                if num not in possible_srs:
+                    if label == 'xe-state':
+                        state = (True, part_device)
+
+    if not justInstall:
+        lv_tool = len(possible_srs) and LVMTool()
+        for num in possible_srs:
+            part_device = tool._partitionDevice(num)
+
+            if lv_tool.isPartitionConfig(part_device):
+                state = (True, part_device)
+            elif lv_tool.isPartitionSR(part_device):
+                storage = (STORAGE_LVM, part_device)
+            else:
+                pv = lv_tool.deviceToPVOrNone(part_device)
+                if pv is not None and pv['vg_name'].startswith('XSLocalEXT'):
+                    # odd 'ext3 in an LV' SR
+                    storage = (STORAGE_EXT3, part_device)
+
+    return (boot, state, storage)
