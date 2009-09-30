@@ -92,7 +92,8 @@ class ThirdGenUpgrader(Upgrader):
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
-
+    prompt_for_target = True
+    
     def __init__(self, source):
         Upgrader.__init__(self, source)
 
