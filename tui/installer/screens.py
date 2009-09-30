@@ -846,7 +846,7 @@ def confirm_installation(answers):
         if answers['primary-disk'] == answers['installation-to-overwrite'].primary_disk:
             text2 = "The installation will be performed over %s" % str(answers['installation-to-overwrite'])
         else:
-            text2 = "The installation will migrate the installation from %s" % str(answers['installation-to-overwrite'])
+            text2 = "The installation will migrate the installation from %s to %s" % (str(answers['installation-to-overwrite']), answers['primary-disk'])
         text2 += ", preserving existing %s in your storage repository." % BRAND_GUESTS
     text = text1 + "\n\n" + text2
     ok = 'Install %s' % PRODUCT_BRAND
