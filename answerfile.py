@@ -473,5 +473,5 @@ class Answerfile:
                 address = getText(source.childNodes)
             else:
                 raise AnswerfileError, "Invalid type for driver-source media specified."
-            results['extra-repos'].append((source.getAttribute('type'), address))
+            results['extra-repos'].append((source.getAttribute('type'), address, []))
         return results

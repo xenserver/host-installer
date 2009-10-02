@@ -125,7 +125,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             if results.has_key('extra-repos'):
                 # load drivers now
                 for d in results['extra-repos']:
-                    for r in repository.repositoriesFromDefinition(*d):
+                    media, address, _ = d
+                    for r in repository.repositoriesFromDefinition(media, address):
                         for p in r:
                             if p.type.startswith('driver'):
                                 if p.load() != 0:

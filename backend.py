@@ -325,39 +325,44 @@ def performInstallation(answers, ui_package):
         new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
         return new_ans
 
-    done = False
     new_ans['installed-repos'] = {}
-    while not done:
-        all_repositories = repository.repositoriesFromDefinition(
-            answers['source-media'], answers['source-address']
-            )
-        if len(new_ans['installed-repos']) == 0 and len(all_repositories) == 0:
-            # CA-29016: main repository has vanished
-            raise RuntimeError, "No repository found at the specified location."
+    master_required_list = []
+    all_repositories = repository.repositoriesFromDefinition(
+        answers['source-media'], answers['source-address']
+        )
+    if len(new_ans['installed-repos']) == 0 and len(all_repositories) == 0:
+        # CA-29016: main repository has vanished
+        raise RuntimeError, "No repository found at the specified location."
 
+    for driver_repo_def in answers['extra-repos']:
+        rtype, rloc, required_list = driver_repo_def
+        if rtype == 'local':
+            answers['more-media'] = True
+        else:
+            all_repositories += repository.repositoriesFromDefinition(rtype, rloc)
+        master_required_list += filter(lambda r: r not in master_required_list, required_list)
+
+    repeat = True
+    while repeat:
         # only install repositories we've not already installed:
-        repositories = filter(lambda r: r.identifier() not in new_ans['installed-repos'],
+        repositories = filter(lambda r: str(r) not in new_ans['installed-repos'],
                               all_repositories)
         if len(repositories) > 0:
             new_ans = handleRepos(repositories, new_ans)
 
         # get more media?
-        done = not (answers.has_key('more-media') and answers['more-media'] and answers['source-media'] == 'local')
-        if not done:
+        repeat = answers.has_key('more-media') and answers['more-media']
+        if repeat:
             # find repositories that we installed from removable media:
             for r in repositories:
                 if r.accessor().canEject():
                     r.accessor().eject()
-            accept_media, ask_again = ui_package.installer.more_media_sequence(new_ans['installed-repos'])
-            done = not accept_media
+            still_need = filter(lambda r: str(r) not in new_ans['installed-repos'], master_required_list)
+            xelogging.log(still_need)
+            accept_media, ask_again = ui_package.installer.more_media_sequence(new_ans['installed-repos'], still_need)
+            repeat = accept_media
             answers['more-media'] = ask_again
-
-    # install from driver repositories, if any:
-    for driver_repo_def in answers['extra-repos']:
-        xelogging.log("(Now installing from driver repositories that were previously stashed.)")
-        rtype, rloc = driver_repo_def
-        all_repos = repository.repositoriesFromDefinition(rtype, rloc)
-        new_ans = handleRepos(all_repos, new_ans)
+            all_repositories += repository.repositoriesFromDefinition('local', '')
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)

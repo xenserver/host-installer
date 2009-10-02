@@ -45,10 +45,11 @@ import util
 def doInteractiveLoadDriver(ui, answers):
     driver_repos = []
     incompat_drivers = []
+    required_list = []
 
     rc = ui.init.driver_disk_sequence(answers)
     if rc:
-        media, address = rc
+        media, address, _ = rc
         repos = repository.repositoriesFromDefinition(media, address)
 
         # put firmware in place:
@@ -89,6 +90,7 @@ def doInteractiveLoadDriver(ui, answers):
     text = "The following drivers were successfully loaded:\n\n"
     for dr in driver_repos:
         text += " * %s\n" % dr.name()
+        required_list.append(str(dr))
 
     if len(incompat_drivers) > 0:
         text += "\nThe following drivers are not compatible with this release but will be installed anyway:\n\n"
@@ -102,7 +104,7 @@ def doInteractiveLoadDriver(ui, answers):
             text,
             ['Ok'])
 
-    return (media, address)
+    return (media, address, required_list)
 
 def main(args):
     if len(doInteractiveLoadDriver(tui, {})) > 0:

@@ -167,7 +167,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         ]
     return uicontroller.runSequence(seq, results)
 
-def more_media_sequence(installed_repos):
+def more_media_sequence(installed_repos, still_need):
     """ Displays the sequence of screens required to load additional
     media to install from.  installed_repos is a dictionary of repository
     IDs of repositories we already installed from, to help avoid
@@ -178,7 +178,13 @@ def more_media_sequence(installed_repos):
         """ 'Please insert disk' dialog. """
         done = False
         while not done:
-            more = tui.progress.OKDialog("New Media", "Please insert your Supplemental Pack now.", True)
+            text = ''
+            for need in still_need:
+                if text == '':
+                    text = "The following Supplemental Packs should be supplied to complete installation:\n\n"
+                text += " * %s\n" % need
+            text += "\nWhen there are no more Supplemental Packs to install press Cancel."
+            more = tui.progress.OKDialog("New Media", "Please insert your Supplemental Pack now.\n" + text, True)
             if more == "cancel":
                 # they hit cancel:
                 rv = EXIT

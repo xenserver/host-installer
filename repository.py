@@ -140,6 +140,9 @@ class Repository:
         return self._product_brand in [brand, None] and \
                self._product_version in [version, None]
 
+    def __str__(self):
+        return self._identifier + ' ' + str(self._product_version)
+
     def name(self):
         return self._name
 
@@ -227,7 +230,7 @@ class Repository:
         """ Return a list the prerequisites that are not yet installed. """
         problems = []
 
-        def fmt_missing(d):
+        def fmt_dep(d):
             opers = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
             text = "%s:%s" % (d['originator'], d['name'])
             if d['test'] in self.OPER_MAP:
@@ -239,16 +242,18 @@ class Repository:
             return text
 
         for dep in self.requires:
-            ident = "%s:%s" % (dep['originator'], dep['name'])
-            if ident not in installed_repos:
-                xelogging.log("Dependency failure: not installed %s" % fmt_missing(dep))
-                problems.append(fmt_missing(dep))
-            else:
-                want_ver = product.Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
-                if not eval("installed_repos[ident]._product_version.__%s__(want_ver)" % dep['test']):
-                    xelogging.log("Dependency failure: %s %s installed but failed test %s" % (ident, installed_repos[ident]._product_version, fmt_missing(dep)))
-                    problems.append(fmt_missing(dep))
-                
+            want_id = "%s:%s" % (dep['originator'], dep['name'])
+            want_ver = product.Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
+            found = False
+            for repo in installed_repos.values():
+                if repo.identifier() == want_id and eval("repo._product_version.__%s__(want_ver)" % dep['test']):
+                    xelogging.log("Dependency match: %s satisfies test %s" % (str(repo), fmt_dep(dep)))
+                    found = True
+                    break
+            if not found:
+                xelogging.log("Dependency failure: failed test %s" % fmt_dep(dep))
+                problems.append(fmt_dep(dep))
+
         return problems
 
     def copyTo(self, destination, copy_packages = True):
@@ -282,7 +287,7 @@ class Repository:
 
     def record_install(self, answers, installed_repos):
         self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier), False)
-        installed_repos[self._identifier] = self
+        installed_repos[str(self)] = self
         return installed_repos
 
     def md5sum(self):

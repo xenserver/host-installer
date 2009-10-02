@@ -79,7 +79,7 @@ def driver_disk_sequence(answers):
 
     if rc == LEFT_BACKWARDS:
         return None
-    return (answers['source-media'], answers['source-address'])
+    return (answers['source-media'], answers['source-address'], answers['id-list'])
 
 def get_driver_source(answers):
     entries = [
@@ -98,6 +98,7 @@ def get_driver_source(answers):
     answers['source-media'] = entry
     if entry == 'local':
         answers['source-address'] = ''
+    answers['id-list'] = None
     return RIGHT_FORWARDS
 
 def require_networking(answers):
@@ -123,6 +124,7 @@ def confirm_load_drivers(answers):
         return LEFT_BACKWARDS
         
     drivers = []
+    id_list = []
 
     for r in repos:
         has_drivers = False
@@ -131,6 +133,7 @@ def confirm_load_drivers(answers):
                 has_drivers = True
         if has_drivers:
            drivers.append(p)
+           id_list.append(r.identifier())
 
     if len(drivers) == 0:
         ButtonChoiceWindow(
@@ -162,6 +165,7 @@ Note that this driver-loading mechanism is only compatible with media/locations 
             if rc == 'back': return LEFT_BACKWARDS
             if rc in [None, 'load drivers']:
                 answers['repos'] = repos
+                answers['id-list'] = id_list
                 return RIGHT_FORWARDS
 
             if rc == 'info':
