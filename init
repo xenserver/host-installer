@@ -126,17 +126,17 @@ def main(args):
         elif opt == "--answerfile":
             answerfile_address = val
             interactive = False
-            init_network = True
+            init_network = not val.startswith('file://')
         elif opt == "--rt_answerfile":
             answerfile_address = val
             interactive = False
-            init_network = True
+            init_network = not val.startswith('file://')
             ui = None
             xelogging.openLog(sys.stdout)
         elif opt == "--answerfile_generator":
             answerfile_script = val
             interactive = False
-            init_network = True
+            init_network = not val.startswith('file://')
         elif opt == '--answerfile_device':
             answer_device = val.lower()
         elif opt == "--reboot":
