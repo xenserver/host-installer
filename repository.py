@@ -808,7 +808,7 @@ class URLFileWrapper:
                 raise IOError('Seek beyond end of file')
 
 class URLAccessor(Accessor):
-    url_prefixes = ['http://', 'https://', 'ftp://']
+    url_prefixes = ['http://', 'https://', 'ftp://', 'file://']
 
     def __init__(self, baseAddress):
         if not True in [ baseAddress.startswith(prefix) for prefix in self.url_prefixes ] :
