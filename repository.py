@@ -55,6 +55,7 @@ class Repository:
     meta data. """
     REPOSITORY_FILENAME = "XS-REPOSITORY"
     PKGDATA_FILENAME = "XS-PACKAGES"
+    REPOLIST_FILENAME = "XS-REPOSITORY-LIST"
 
     OPER_MAP = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
 
@@ -678,7 +679,7 @@ class Accessor:
 
         self.start()
         try:
-            extra = self.openAddress('XS-REPOSITORY-LIST')
+            extra = self.openAddress(self.REPOLIST_FILENAME)
             if extra:
                 for line in extra:
                     package_list.append(line.strip())
