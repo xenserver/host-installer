@@ -169,7 +169,7 @@ def determine_size(mntpnt, dev_name):
 
     return str(used_size * 1024), str(total_size * 1024)
 
-def rio_handle_root(xapi_host, p2v_vm_uuid, mntpnt, dev_name, session, pd = None):
+def rio_handle_root(xapi_host, p2v_vm_uuid, mntpnt, dev_name, session, p2v_vm_ref, pd = None):
     """ Returns a boolean indicating whether we had to mount /boot separately or not. """
     fstab = load_fstab(os.path.join(mntpnt, 'etc', 'fstab'))
 
@@ -190,8 +190,9 @@ def rio_handle_root(xapi_host, p2v_vm_uuid, mntpnt, dev_name, session, pd = None
 
     hostname = findHostName(mntpnt)
     pipe = popen2.Popen3("tar -C '%s' -cjSf - . 2>/dev/null" % mntpnt)
-    path = "http://" + p2v_vm_uuid + ":81/unpack-tar?" + urllib.urlencode({'volume': 'xvda1', 'compression': 'bzip2', 'session_id': session})
-    httpput.put(xapi_host, 443, path, pipe.fromchild, https = True)
+    port = 443
+    path = "http://" + p2v_vm_uuid + ":81/unpack-tar?" + urllib.urlencode({'volume': 'xvda1', 'compression': 'bzip2', 'session_id': session, 'host': xapi_host, 'port': str(port), 'vm_id': p2v_vm_ref})
+    httpput.put(xapi_host, port, path, pipe.fromchild, https = True)
     pipe.tochild.close()
     pipe.fromchild.close()
     rc = pipe.wait()

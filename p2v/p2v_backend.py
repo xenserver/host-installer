@@ -176,6 +176,7 @@ def rio_p2v(answers, use_tui = True):
     if rc['Status'] != 'Success':
         raise RuntimeError, "Unable to get UUID of our new P2V guest."
     p2v_server_uuid = rc['Value']
+    p2v_server_ref = guest_ref
 
     rc = xapi.VM.get_resident_on(session, guest_ref)
     if rc['Status'] != 'Success':
@@ -190,19 +191,28 @@ def rio_p2v(answers, use_tui = True):
     # wait for it to get an IP address:
     xelogging.log("Waiting for P2V server to signal ready state")
     p2v_server_ready = False
+    dom0_ip = ""
     for i in range(5):
-        rc = xapi.VM.get_other_config(session, guest_ref)
+        rc = xapi.VM.get_guest_metrics(session, guest_ref)
         if rc['Status'] != 'Success':
-            raise RuntimeError, "Unable to get other config field for ref %s" % guest_ref
-        value = rc['Value']
-        if value.has_key('ip') or value.has_key('ready'):
-            p2v_server_ready = True
-            break
+            raise RuntimeError, "Unable to get guest metrics for ref %s" % guest_ref
+        vgm = rc['Value']
+        rc = xapi.VM_guest_metrics.get_networks(session, vgm)
+        if rc['Status'] == 'Success':
+            value = rc['Value']
+            if value.has_key('0/ip'):
+                dom0_ip = value["0/ip"]
+                xelogging.log("Got Dom0 ip %s from P2V server internal network" % dom0_ip)
+                p2v_server_ready = True
+                break
+            else:
+                time.sleep(10)
         else:
             time.sleep(10)
 
     if not p2v_server_ready:
         raise RuntimeError, "P2V server did not signify ready state"
+
 
     def p2v_server_call(cmd, args):
         """ This function makes HTTP GET calls to the server via the xapi proxy
@@ -211,6 +221,11 @@ def rio_p2v(answers, use_tui = True):
         'guest-installer' network. """
         conn = httplib.HTTPSConnection(host_address)
 
+        port = 443
+        args['session_id']= session
+        args['host'] = dom0_ip
+        args['port'] = str(port)
+        args['vm_id'] = p2v_server_ref
         query_string = urllib.urlencode(args)
         address = "http://" + p2v_server_uuid + ":81/" + cmd + "?" + query_string
         xelogging.log("About to call p2v server: %s" % address)
@@ -229,16 +244,16 @@ def rio_p2v(answers, use_tui = True):
 
     # add a disk, partition it with a big partition, format the partition:
     p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
-        'sr': answers['target-sr'], 'bootable': 'true', 'session_id': session})
-    p2v_server_call('partition-disk', {'volume': 'xvda', 'part1': '-1', 'session_id': session})
+        'sr': answers['target-sr'], 'bootable': 'true'})
+    p2v_server_call('partition-disk', {'volume': 'xvda', 'part1': '-1'})
 
     # if RHEL 3 we need to use a more limited set of ext3 options than the default set:
     if answers['osinstall']['osname'] == "Red Hat" and answers['osinstall']['osversion'].startswith("3."):
-        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'fsopts': 'none,has_journal,filetype,sparse_super', 'session_id': session})
+        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'fsopts': 'none,has_journal,filetype,sparse_super'})
     else:
-        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'session_id': session})
+        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3'})
 
-    p2v_server_call('set-fs-metadata', {'volume': 'xvda1', 'mntpoint': '/', 'session_id': session})
+    p2v_server_call('set-fs-metadata', {'volume': 'xvda1', 'mntpoint': '/'})
 
     # transfer filesystem(s):
     if use_tui:
@@ -253,7 +268,7 @@ def rio_p2v(answers, use_tui = True):
     try:
         util.mount(os_root_device, mntpoint, options = ['ro'])
         xelogging.log("Starting to transfer filesystems")
-        boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device, session)
+        boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device, session, p2v_server_ref)
     finally:
         while os.path.ismount(mntpoint):
             util.umount(mntpoint)
@@ -263,9 +278,9 @@ def rio_p2v(answers, use_tui = True):
         tui.progress.clearModelessDialog()
         tui.progress.showMessageDialog("Working", "Completing transformation...")
 
-    p2v_server_call('update-fstab', {'root-vol': 'xvda1', 'session_id': session})
-    p2v_server_call('paravirtualise', {'root-vol': 'xvda1', 'boot-merged': str(boot_merged).lower(), 'session_id': session})
-    p2v_server_call('completed', {'session_id': session})
+    p2v_server_call('update-fstab', {'root-vol': 'xvda1'})
+    p2v_server_call('paravirtualise', {'root-vol': 'xvda1', 'boot-merged': str(boot_merged).lower()})
+    p2v_server_call('completed', {})
 
     xelogging.log("Destroying the guest's vifs")
 
