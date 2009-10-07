@@ -229,16 +229,16 @@ def rio_p2v(answers, use_tui = True):
 
     # add a disk, partition it with a big partition, format the partition:
     p2v_server_call('make-disk', {'volume': 'xvda', 'size': str(answers['target-vm-disksize-mb'] * 1024 * 1024),
-        'sr': answers['target-sr'], 'bootable': 'true'})
-    p2v_server_call('partition-disk', {'volume': 'xvda', 'part1': '-1'})
+        'sr': answers['target-sr'], 'bootable': 'true', 'session_id': session})
+    p2v_server_call('partition-disk', {'volume': 'xvda', 'part1': '-1', 'session_id': session})
 
     # if RHEL 3 we need to use a more limited set of ext3 options than the default set:
     if answers['osinstall']['osname'] == "Red Hat" and answers['osinstall']['osversion'].startswith("3."):
-        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'fsopts': 'none,has_journal,filetype,sparse_super'})
+        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'fsopts': 'none,has_journal,filetype,sparse_super', 'session_id': session})
     else:
-        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3'})
+        p2v_server_call('mkfs', {'volume': 'xvda1', 'fs': 'ext3', 'session_id': session})
 
-    p2v_server_call('set-fs-metadata', {'volume': 'xvda1', 'mntpoint': '/'})
+    p2v_server_call('set-fs-metadata', {'volume': 'xvda1', 'mntpoint': '/', 'session_id': session})
 
     # transfer filesystem(s):
     if use_tui:
@@ -253,7 +253,7 @@ def rio_p2v(answers, use_tui = True):
     try:
         util.mount(os_root_device, mntpoint, options = ['ro'])
         xelogging.log("Starting to transfer filesystems")
-        boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device)
+        boot_merged = findroot.rio_handle_root(host_address, p2v_server_uuid, mntpoint, os_root_device, session)
     finally:
         while os.path.ismount(mntpoint):
             util.umount(mntpoint)
@@ -263,9 +263,9 @@ def rio_p2v(answers, use_tui = True):
         tui.progress.clearModelessDialog()
         tui.progress.showMessageDialog("Working", "Completing transformation...")
 
-    p2v_server_call('update-fstab', {'root-vol': 'xvda1'})
-    p2v_server_call('paravirtualise', {'root-vol': 'xvda1', 'boot-merged': str(boot_merged).lower()})
-    p2v_server_call('completed', {})
+    p2v_server_call('update-fstab', {'root-vol': 'xvda1', 'session_id': session})
+    p2v_server_call('paravirtualise', {'root-vol': 'xvda1', 'boot-merged': str(boot_merged).lower(), 'session_id': session})
+    p2v_server_call('completed', {'session_id': session})
 
     xelogging.log("Destroying the guest's vifs")
 
