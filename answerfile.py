@@ -172,6 +172,10 @@ class Answerfile:
         results['preserve-settings'] = True
         results['backup-existing-installation'] = True
 
+        target_nodes = self.nodelist.getElementsByTagName('primary-disk')
+        if len(target_nodes) == 1:
+            results['primary-disk'] = "/dev/%s" % getText(target_nodes[0].childNodes)
+
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
         results.update(self.parseScripts())
