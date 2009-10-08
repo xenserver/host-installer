@@ -117,6 +117,19 @@ class Answerfile:
             raise AnswerfileError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'."
         results['sr-type'] = srtype
 
+        # initial-partitions:
+        results['initial-partitions'] = []
+        init_part_nodes = self.nodelist.getElementsByTagName('initial-partitions')
+        if len(init_part_nodes) == 1:
+            for part_node in init_part_nodes[0].getElementsByTagName('partition'):
+                try:
+                    part = {}
+                    for k in ('number', 'size', 'id'):
+                        part[k] = int(part_node.getAttribute(k), 0)
+                    results['initial-partitions'].append(part)
+                except:
+                    pass
+
         # primary-disk:
         results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
         pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]

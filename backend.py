@@ -104,7 +104,7 @@ def getPrepSequence(ans):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
@@ -419,11 +419,18 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 
-def inspectTargetDisk(disk):
+def inspectTargetDisk(disk, initial_partitions):
     preserved_partitions = [PartitionTool.ID_DELL_UTILITY]
     primary_part = 1
     
     tool = PartitionTool(disk)
+
+    if len(initial_partitions) > 0:
+        for part in initial_partitions:
+            tool.deletePartition(part['number'])
+            tool.createPartition(part['id'], part['size'], part['number'])
+        tool.commit()
+
     for num, part in tool.iteritems():
         if part['id'] in preserved_partitions:
             primary_part += 1
