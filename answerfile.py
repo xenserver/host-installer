@@ -123,6 +123,7 @@ class Answerfile:
         preserve_p1 = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
         if preserve_p1:
             diskutil.preservePart1(results['primary-disk'])
+        results['sr-at-end'] = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
 
         # guest-disks:
         results['guest-disks'] = []

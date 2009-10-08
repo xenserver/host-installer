@@ -109,7 +109,7 @@ def getPrepSequence(ans):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end'), []),
             ]
         for gd in ans['guest-disks']:
             if gd != ans['primary-disk']:
@@ -358,7 +358,6 @@ def performInstallation(answers, ui_package):
                 if r.accessor().canEject():
                     r.accessor().eject()
             still_need = filter(lambda r: str(r) not in new_ans['installed-repos'], master_required_list)
-            xelogging.log(still_need)
             accept_media, ask_again = ui_package.installer.more_media_sequence(new_ans['installed-repos'], still_need)
             repeat = accept_media
             answers['more-media'] = ask_again
@@ -442,7 +441,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum):
+def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum, sr_at_end):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -459,6 +458,29 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
         tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
     if storage_partnum > 0:
         tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+
+    if not sr_at_end:
+        # For upgrade testing, out-of-order partition layout
+        new_parts = {}
+
+        new_parts[primary_partnum] = {'start': (tool.partitions[storage_partnum]['size']+1) * tool.sectorSize,
+                                      'size': tool.partitions[primary_partnum]['size'] * tool.sectorSize,
+                                      'id': tool.partitions[primary_partnum]['id'],
+                                      'active': tool.partitions[primary_partnum]['active']}
+        new_parts[backup_partnum] = {'start': new_parts[primary_partnum]['start'] + new_parts[primary_partnum]['size'],
+                                     'size': tool.partitions[backup_partnum]['size'] * tool.sectorSize,
+                                     'id': tool.partitions[backup_partnum]['id'],
+                                     'active': tool.partitions[backup_partnum]['active']}
+        new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'] * tool.sectorSize,
+                                      'size': tool.partitions[storage_partnum]['size'] * tool.sectorSize,
+                                      'id': tool.partitions[storage_partnum]['id'],
+                                      'active': tool.partitions[storage_partnum]['active']}
+
+        for part in (primary_partnum, backup_partnum, storage_partnum):
+            tool.deletePartition(part)
+            tool.createPartition(new_parts[part]['id'], new_parts[part]['size'], part,
+                                 new_parts[part]['start'], new_parts[part]['active'])
+
     tool.commit()
 
 def writeGuestDiskPartitions(disk):
