@@ -673,18 +673,32 @@ class PartitionTool:
             
     def renamePartition(self, srcNumber, destNumber, overwrite = False):
         if srcNumber not in self.partitions:
-            raise Exception('Source partition '+str(srcNumber)+' does not exists')
-        if not overwrite and destNumber in self.partitions:
-            raise Exception('Destination partition '+str(destNumber)+' already exists')
-
-        self.partitions[destNumber] = self.partitions[srcNumber]
-        self.deletePartition(srcNumber)
+            raise Exception('Source partition '+str(srcNumber)+' does not exist')
+        if srcNumber != destNumber:
+            if not overwrite and destNumber in self.partitions:
+                raise Exception('Destination partition '+str(destNumber)+' already exists')
+    
+            self.partitions[destNumber] = self.partitions[srcNumber]
+            self.deletePartition(srcNumber)
     
     def partitionSize(self, number):
         if number not in self.partitions:
-            raise Exception('Partition '+str(number)+' does not exists')
+            raise Exception('Partition '+str(number)+' does not exist')
         return self.getPartition(number)['size'] * self.sectorSize
     
+    def partitionStart(self, number):
+        if number not in self.partitions:
+            raise Exception('Partition '+str(number)+' does not exist')
+        return self.getPartition(number)['start'] * self.sectorSize
+    
+    def partitionEnd(self, number):
+        return self.partitionStart(number) + self.partitionSize(number)
+    
+    def partitionID(self, number):
+        if number not in self.partitions:
+            raise Exception('Partition '+str(number)+' does not exist')
+        return self.getPartition(number)['id']
+
     def resizePartition(self, number, sizeBytes):
         if number not in self.partitions:
             raise Exception('Partition for resize '+str(number)+' does not exists')
@@ -729,7 +743,7 @@ class PartitionTool:
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
         for number, partition in sorted(self.partitions.iteritems()):
-            output = "New partition "+str(number)+":"
+            output += "New partition "+str(number)+":"
             for k, v in sorted(partition.iteritems()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"

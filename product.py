@@ -203,6 +203,9 @@ class ExisitingInstallation:
         else:
             return True
 
+    def partitionWasRenamed(self, srcDevice, destDevice):
+        pass # Only from-OEM upgrades care about this
+
     def _readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
         
@@ -448,17 +451,26 @@ class ExistingOEMInstallation(ExisitingInstallation):
         try:
             util.mount(boot_device, mountpoint, ['ro'], 'vfat')
             root_part = -1
+            arm_for_root = False
+            fd = None
             try:
                 fd = open(os.path.join(mountpoint, constants.SYSLINUX_CFG))
                 for line in fd:
                     tokens = line.split()
+                    if len(tokens) < 1: continue # Blank line
                     if tokens[0] == 'DEFAULT':
-                        root_part = int(tokens[1])
+                        default_label = tokens[1]
+                    elif tokens[0] == 'LABEL' and tokens[1] == default_label:
+                        arm_for_root = True
+                    if arm_for_root and tokens[0] == 'append':
+                        root_part = int(tokens[2])
                         break
-                fd.close()
-            except:
-                raise Exception, "Failed to locate root device from %s" % boot_device
+
+            except Exception, e:
+                raise Exception, "Failed to locate root device from %s: %s" % (boot_device, str(e))
         finally:
+            if fd is not None:
+                fd.close()
             util.umount(mountpoint)
             os.rmdir(mountpoint)
 
@@ -615,6 +627,21 @@ class ExistingOEMInstallation(ExisitingInstallation):
             for mnt in [primary_mount, backup_mount]:
                 util.umount(mnt)
 
+    def partitionWasRenamed(self, srcDevice, destDevice):
+        # Update self.auxiliary_state_devices to reflect the new partition name
+        for dev in self.auxiliary_state_devices:
+            if dev['device'] == srcDevice:
+                dev['device'] = destDevice
+                xelogging.log("Existing installation noted that auxiliary state partition '" +
+                    srcDevice + "' was renamed as '" + destDevice+"'")
+        if  srcDevice == self.root_device:
+            self.root_device = destDevice
+            xelogging.log("Existing installation noted that root partition '" +
+                srcDevice + "' was renamed as '" + destDevice+"'")
+        if  srcDevice == self.state_device:
+            self.state_device = destDevice
+            xelogging.log("Existing installation noted that state partition '" +
+                srcDevice + "' was renamed as '" + destDevice+"'")
 
 def findXenSourceBackups():
     """Scans the host and find partitions containing backups of XenSource
