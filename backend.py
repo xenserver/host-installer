@@ -348,6 +348,16 @@ def performInstallation(answers, ui_package):
             all_repositories += repository.repositoriesFromDefinition(rtype, rloc)
         master_required_list += filter(lambda r: r not in master_required_list, required_list)
 
+    if answers['preserve-settings']:
+        # mount backup and advertise mountpoint for Supplemental Packs
+        backup_dir = '/tmp/backup/backup'
+        chroot_dir = 'tmp/backup'
+        util.assertDir(backup_dir)
+        util.mount(PartitionTool.partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum']), backup_dir, options = ['ro'])
+        util.assertDir(os.path.join(new_ans['mounts']['root'], chroot_dir))
+        util.bindMount(backup_dir, os.path.join(new_ans['mounts']['root'], chroot_dir))
+        os.environ['XS_PREVIOUS_INSTALLATION'] = '/'+chroot_dir
+        
     repeat = True
     while repeat:
         # only install repositories we've not already installed:
@@ -368,6 +378,11 @@ def performInstallation(answers, ui_package):
             repeat = accept_media
             answers['more-media'] = ask_again
             all_repositories += repository.repositoriesFromDefinition('local', '')
+
+    if answers['preserve-settings']:
+        util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
+        os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
+        util.umount(backup_dir)
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
