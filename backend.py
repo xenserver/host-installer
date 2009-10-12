@@ -314,7 +314,7 @@ def performInstallation(answers, ui_package):
     if 'initial-partitions' not in answers:
         answers['initial-partitions'] = []
 
-    if 'sr-at-end' not in in answers:
+    if 'sr-at-end' not in answers:
         answers['sr-at-end'] = False
  
     # perform installation:
