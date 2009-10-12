@@ -679,7 +679,7 @@ class Accessor:
 
         self.start()
         try:
-            extra = self.openAddress(self.REPOLIST_FILENAME)
+            extra = self.openAddress(Repository.REPOLIST_FILENAME)
             if extra:
                 for line in extra:
                     package_list.append(line.strip())
