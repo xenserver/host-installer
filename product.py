@@ -452,22 +452,25 @@ class ExistingOEMInstallation(ExisitingInstallation):
             util.mount(boot_device, mountpoint, ['ro'], 'vfat')
             root_part = -1
             arm_for_root = False
+            default_label = None
             fd = None
             try:
                 fd = open(os.path.join(mountpoint, constants.SYSLINUX_CFG))
                 for line in fd:
-                    tokens = line.split()
-                    if len(tokens) < 1: continue # Blank line
+                    tokens = line.upper().split()
+                    if len(tokens) <= 1: continue
                     if tokens[0] == 'DEFAULT':
                         default_label = tokens[1]
-                    elif tokens[0] == 'LABEL' and tokens[1] == default_label:
-                        arm_for_root = True
-                    if arm_for_root and tokens[0] == 'append':
+                    elif tokens[0] == 'LABEL':
+                        arm_for_root = (tokens[1] == default_label)
+                    if arm_for_root and tokens[0] == 'APPEND':
                         root_part = int(tokens[2])
                         break
 
             except Exception, e:
                 raise Exception, "Failed to locate root device from %s: %s" % (boot_device, str(e))
+            if root_part == -1:
+                raise Exception, "Failed to locate root device from %s" % boot_device
         finally:
             if fd is not None:
                 fd.close()
