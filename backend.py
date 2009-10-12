@@ -310,6 +310,9 @@ def performInstallation(answers, ui_package):
     if not answers.has_key('net-admin-bridge'):
         assert answers['net-admin-interface'].startswith("eth")
         answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
+
+    if 'initial-partitions' not in answers:
+        answers['initial-partitions'] = []
  
     # perform installation:
     prep_seq = getPrepSequence(answers)
