@@ -566,7 +566,7 @@ class PartitionTool:
                         }
         return partitions
 
-    def writeThisPartitionTable(self, table, dryrun = False):
+    def writeThisPartitionTable(self, table, dryrun = False, log = False):
         input = 'unit: sectors\n\n'
     
         # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
@@ -585,7 +585,7 @@ class PartitionTool:
                 line += ', bootable'
                 
             input += line+'\n'
-        if dryrun:
+        if log:
             xelogging.log('Input to sfdisk:\n'+input)
         process = subprocess.Popen(
             [self.SFDISK, dryrun and '-LnuS' or '-LuS', self.device],
@@ -594,16 +594,16 @@ class PartitionTool:
             stderr=subprocess.STDOUT,
             )
         output=process.communicate(input)
-        if dryrun:
+        if log:
             xelogging.log('Output from sfdisk:\n'+output[0])
         if process.returncode != 0:
             raise Exception('Partition changes could not be applied: '+str(output[0]))
         # Verify the table - raises exception on failure
         self.cmdWrap([self.SFDISK, '-LVquS', self.device])
         
-    def writePartitionTable(self, dryrun = False):
+    def writePartitionTable(self, dryrun = False, log = False):
         try:
-            self.writeThisPartitionTable(self.partitions, dryrun)
+            self.writeThisPartitionTable(self.partitions, dryrun, log)
         except Exception, e:
             try:
                 # Revert to the original partition table
@@ -723,8 +723,8 @@ class PartitionTool:
         for number, partition in sorted(self.partitions.iteritems()):
             yield number, partition
 
-    def commit(self, dryrun = False):
-        self.writePartitionTable(dryrun)
+    def commit(self, dryrun = False, log = False):
+        self.writePartitionTable(dryrun, log)
         if not dryrun:
             # Update the revert point so this tool can be used repeatedly
             self.origPartitions = deepcopy(self.partitions)
