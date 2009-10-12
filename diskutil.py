@@ -723,7 +723,9 @@ def probeDisk(device, justInstall = False):
                     possible_srs.append(num)
             elif part['id'] == tool.ID_LINUX:
                 if num not in possible_srs:
-                    if label == 'xe-state':
+                    # OEM Flash state partitions are named xe-state, and OEM HDD state partitions have generated
+                    # names of the form xc+dddddddd-dddd where d is any hex digit
+                    if label == 'xe-state' or label.startswith('xc+'):
                         state = (True, part_device)
 
     if not justInstall:
@@ -740,5 +742,7 @@ def probeDisk(device, justInstall = False):
                 if pv is not None and pv['vg_name'].startswith('XSLocalEXT'):
                     # odd 'ext3 in an LV' SR
                     storage = (STORAGE_EXT3, part_device)
+    
+    xelogging.log('Probe of '+device+' found boot='+str(boot)+' state='+str(state)+' storage='+str(storage))
 
     return (boot, state, storage)

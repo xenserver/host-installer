@@ -81,7 +81,7 @@ def main(args):
 
     # log to tty3
     xelogging.openLog('/dev/tty3')
-
+            
     tty = None
     signal.signal(signal.SIGTERM, sig_term)
     try:

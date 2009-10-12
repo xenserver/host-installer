@@ -449,11 +449,11 @@ class ExistingOEMInstallation(ExisitingInstallation):
         # determine active root partition
         mountpoint = tempfile.mkdtemp('-oem-boot')
         try:
+            fd = None
             util.mount(boot_device, mountpoint, ['ro'], 'vfat')
             root_part = -1
             arm_for_root = False
             default_label = None
-            fd = None
             try:
                 fd = open(os.path.join(mountpoint, constants.SYSLINUX_CFG))
                 for line in fd:
@@ -515,7 +515,7 @@ class ExistingOEMInstallation(ExisitingInstallation):
                 assert part
                 self.auxiliary_state_devices.append({'device': part, 'vg': vg, 'lv': lv})
 
-        xelogging.log(self.auxiliary_state_devices)
+        xelogging.log('Found auxiliary state devices: '+str(self.auxiliary_state_devices))
 
     def __repr__(self):
         return "<ExistingOEMInstallation: %s>" % self
@@ -589,7 +589,7 @@ class ExistingOEMInstallation(ExisitingInstallation):
             root_dir = os.path.join(primary_mount, self.state_prefix)
             gen = readDbGen(root_dir)
 
-            xelogging,log("Copying state from %s" % root_dir)
+            xelogging.log("Copying state from %s" % root_dir)
             cmd = ['cp', '-a'] + \
                   [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
                   ['%s/' % backup_mount]
@@ -598,12 +598,14 @@ class ExistingOEMInstallation(ExisitingInstallation):
                 db_generation = (gen, self.state_device, self.state_prefix)
             
             util.umount(primary_mount)
-            cmd = ['cp', '-a', os.path.join(root_dir, 'etc/freq-etc/etc'), '%s/' % backup_mount]
-            assert util.runCmd2(cmd) == 0
+            freqPath = os.path.join(root_dir, 'etc/freq-etc/etc')
+            if os.path.isdir(freqPath): # Present on OEM Flash only
+                cmd = ['cp', '-a', freqPath, '%s/' % backup_mount]
+                assert util.runCmd2(cmd) == 0
 
             # copy from auxiliary state partitions:
-            for state_device in self.auxiliary_state_devices:
-                util.mount(state_device, primary_mount, options = ['ro'])
+            for state_info in self.auxiliary_state_devices:
+                util.mount(state_info['device'], primary_mount, options = ['ro'])
                 root_dir = os.path.join(primary_mount, self.inventory['XAPI_DB_COMPAT_VERSION'])
                 gen = readDbGen(root_dir)
                 
@@ -613,7 +615,7 @@ class ExistingOEMInstallation(ExisitingInstallation):
                       ['%s/' % backup_mount]
                 assert util.runCmd2(cmd) == 0
                 if gen > db_generation[0]:
-                    db_generation = (gen, state_device, self.inventory['XAPI_DB_COMPAT_VERSION'])
+                    db_generation = (gen, state_info['device'], self.inventory['XAPI_DB_COMPAT_VERSION'])
                 util.umount(primary_mount)
 
             # always keep the state with the highest db generation count

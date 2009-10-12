@@ -279,7 +279,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         ThirdGenUpgrader.__init__(self, source)
 
     prepTargetArgs = ['installation-to-overwrite', 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum']
-    prepTargetStateChanges = ['installation-to-overwrite']
+    prepTargetStateChanges = ['installation-to-overwrite', 'post-backup-delete', 'root-start']
     def prepareTarget(self, progress_callback, existing, primaryDisk, primaryPartnum, backupPartnum, storagePartnum):
         """Modify partition layout prior to installation.  This method must make space on the target disk,
         resizing the SR already present if necessary, and create root and backup partitions."""
@@ -351,7 +351,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
                 existing.partitionWasRenamed(partTool._partitionDevice(foundConfigNumber),
                     partTool._partitionDevice(firstXSPartition))
             foundConfigNumber = firstXSPartition
-            
+
         if foundSRDevice is not None and not isOEMHDD:
             # There is an SR partition on this disk that we need to preserve, as as this is not OEM HDD
             # we need to resize it
@@ -388,26 +388,66 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             if isOEMHDD and foundConfigNumber is not None:
                 # Fit the partition between where the new root partition will end and the start
                 # of the current config partition
-                backupStart = availStart + rootByteSize
+                rootStart = availStart
+                backupStart = rootStart + rootByteSize
                 backupSize = partTool.partitionStart(foundConfigNumber) - backupStart
             elif partTool.partitionStart(foundSRNumber) - availStart > 2 * rootByteSize:
                 # Root and backup partitions will fit before the SR...
-                backupStart = availStart + rootByteSize
+                rootStart = availStart
                 backupSize = rootByteSize
             else:
                 # Won't fit - put at the end.  We know there's space because of the resize above
-                backupStart = partTool.partitionEnd(foundSRNumber) + rootByteSize
+                rootStart = partTool.partitionEnd(foundSRNumber)
                 backupSize = rootByteSize
         else:
             # No SR present - just leave space for the root partition
-            backupStart = availStart + rootByteSize
+            rootStart = availStart
 
+        backupStart = rootStart + rootByteSize
         partTool.createPartition(number = backupPartnum, id = partTool.ID_LINUX,
             startBytes = backupStart, sizeBytes = backupSize)
         
         lvmTool.commit(progress_callback) # progress_callback gets values 0..100
         partTool.commit()
-        return existing
+
+        # Store the number of the state partition so that we can delete it later
+        postBackupDelete = [ foundConfigNumber ]
+
+        return existing, postBackupDelete, rootStart
+
+    doBackupArgs = ['installation-to-overwrite', 'primary-disk', 'backup-partnum']
+    doBackupStateChanges = []
+    def doBackup(self, progress_callback, existing, primaryDisk, backupPartnum):
+        backupDevice = PartitionTool.partitionDevice(primaryDisk, backupPartnum)
+        existing.backupFileSystem(backupDevice)
+
+    prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid', 'primary-disk', 'primary-partnum', 
+        'backup-partnum', 'root-start', 'post-backup-delete']
+    # Leave prepStateChanges as per superclass
+    def prepareUpgrade(self, progress_callback, installID, controlID, primaryDisk, primaryPartnum, backupPartnum,
+        rootStart, postBackupDelete):
+        # Call the superclass method and store its return value.  This does the backup
+        retVal = ThirdGenUpgrader.prepareUpgrade(self, progress_callback, installID, controlID)
+        
+        rootByteSize = constants.root_size * 2 ** 20
+        # Delete partitions after backup
+        partTool = PartitionTool(primaryDisk)
+        xelogging.log('Backup complete - deleting partitions: '+','.join([str(x) for x in postBackupDelete]))
+        partTool.deletePartitions(postBackupDelete)
+        
+        xelogging.log('Creating new primary partition as primary partition '+str(primaryPartnum))
+        partTool.createPartition(number = primaryPartnum, id = partTool.ID_LINUX,
+            startBytes = rootStart, sizeBytes = rootByteSize)
+        
+        # Set primary partition as bootable
+        partTool.inactivateDisk()
+        partTool.setActiveFlag(True, primaryPartnum)
+        
+        # Grow the backup partition to its full size, now that the state partition has gone
+        partTool.resizePartition(backupPartnum, rootByteSize)
+        partTool.commit()
+        
+        return retVal
 
 class ThirdGenOEMDiskUpgrader(ThirdGenUpgrader):
     """ Upgrader class for series 5 OEM Disk products. """
