@@ -94,6 +94,7 @@ class LVMTool:
     PVMOVE=['pvmove']
     LVCHANGE=['lvchange']
     LVREMOVE=['lvremove']
+    VGCHANGE=['vgchange']
     VGREMOVE=['vgremove']
     PVREMOVE=['pvremove']
     PVRESIZE=['pvresize']

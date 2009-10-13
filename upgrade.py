@@ -418,8 +418,83 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     doBackupArgs = ['installation-to-overwrite', 'primary-disk', 'backup-partnum']
     doBackupStateChanges = []
     def doBackup(self, progress_callback, existing, primaryDisk, backupPartnum):
-        backupDevice = PartitionTool.partitionDevice(primaryDisk, backupPartnum)
-        existing.backupFileSystem(backupDevice)
+        backup_partition = PartitionTool.partitionDevice(primaryDisk, backupPartnum)
+        def readDbGen(root_dir):
+            gen = -1
+            try:
+                genfd = open(os.path.join(root_dir, 'var/xapi/state.db.generation'), 'r')
+                gen = int(genfd.readline())
+                genfd.close()
+            except:
+                pass
+            return gen
+
+        # format the backup partition:
+        if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
+            raise Exception,  "Backup: Failed to format filesystem on %s" % backup_partition
+
+        primary_mount = '/tmp/backup/primary'
+        backup_mount  = '/tmp/backup/backup'
+        for mnt in [primary_mount, backup_mount]:
+            util.assertDir(mnt)
+
+        util.mount(backup_partition, backup_mount)
+
+        db_generation = (-1, None, None)
+        lvmTool = LVMTool()
+        try:
+            # copy from primary state partition:
+            util.mount(existing.state_device, primary_mount, options = ['ro'])
+            root_dir = os.path.join(primary_mount, existing.state_prefix)
+            gen = readDbGen(root_dir)
+
+            xelogging.log("Copying state from %s" % root_dir)
+            cmd = ['cp', '-a'] + \
+                  [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
+                  ['%s/' % backup_mount]
+            assert util.runCmd2(cmd) == 0
+            if gen > db_generation[0]:
+                db_generation = (gen, existing.state_device, existing.state_prefix)
+            
+            util.umount(primary_mount)
+            freqPath = os.path.join(root_dir, 'etc/freq-etc/etc')
+            if os.path.isdir(freqPath): # Present on OEM Flash only
+                cmd = ['cp', '-a', freqPath, '%s/' % backup_mount]
+                assert util.runCmd2(cmd) == 0
+
+            # copy from auxiliary state partitions:
+            for state_info in existing.auxiliary_state_devices:
+                lvmTool.activateVG(state_info['vg'])
+                mountPath = os.path.join('/dev', state_info['vg'], state_info['lv'])
+                util.mount(mountPath, primary_mount, options = ['ro'])
+                root_dir = os.path.join(primary_mount, existing.inventory['XAPI_DB_COMPAT_VERSION'])
+                gen = readDbGen(root_dir)
+                
+                xelogging.log("Copying state from %s" % root_dir)
+                cmd = ['cp', '-a'] + \
+                      [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
+                      ['%s/' % backup_mount]
+                assert util.runCmd2(cmd) == 0
+                if gen > db_generation[0]:
+                    db_generation = (gen, state_info, existing.inventory['XAPI_DB_COMPAT_VERSION'])
+                util.umount(primary_mount)
+
+            # always keep the state with the highest db generation count
+            if db_generation[0] > gen:
+                state_info = db_generation[1]
+                mountPath = os.path.join('/dev', state_info['vg'], state_info['lv'])
+                util.mount(mountPath, primary_mount, options = ['ro'])
+                root_dir = os.path.join(primary_mount, db_generation[2])
+                
+                xelogging.log("Copying state from %s" % root_dir)
+                cmd = ['cp', '-a'] + \
+                    [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
+                    ['%s/' % backup_mount]
+                assert util.runCmd2(cmd) == 0
+        finally:
+            for mnt in [primary_mount, backup_mount]:
+                util.umount(mnt)
+            lvmTool.deactivateAll()
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid', 'primary-disk', 'primary-partnum', 
         'backup-partnum', 'root-start', 'post-backup-delete']
