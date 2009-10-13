@@ -232,7 +232,6 @@ class Repository:
         problems = []
 
         def fmt_dep(d):
-            opers = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
             text = "%s:%s" % (d['originator'], d['name'])
             if d['test'] in self.OPER_MAP:
                 text += self.OPER_MAP[d['test']]
@@ -509,6 +508,7 @@ class RPMPackage(Package):
             return
 
         rc, msg = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-U', self.destination], with_stderr = True)
+        os.unlink(os.path.join(base, self.destination))
         if rc != 0:
             raise ErrorInstallingPackage, "Installation of %s failed.\n%s" % (self.destination, msg.rstrip())
 
