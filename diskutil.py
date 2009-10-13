@@ -725,7 +725,7 @@ def probeDisk(device, justInstall = False):
                 if num not in possible_srs:
                     # OEM Flash state partitions are named xe-state, and OEM HDD state partitions have generated
                     # names of the form xc+dddddddd-dddd where d is any hex digit
-                    if label == 'xe-state' or label.startswith('xc+'):
+                    if label and (label == 'xe-state' or label.startswith('xc+')):
                         state = (True, part_device)
 
     if not justInstall:
