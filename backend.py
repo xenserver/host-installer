@@ -450,7 +450,7 @@ def inspectTargetDisk(disk, initial_partitions):
         for part in initial_partitions:
             tool.deletePartition(part['number'])
             tool.createPartition(part['id'], part['size'], part['number'])
-        tool.commit()
+        tool.commit(log = True)
 
     for num, part in tool.iteritems():
         if part['id'] in preserved_partitions:
@@ -491,25 +491,25 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
         # For upgrade testing, out-of-order partition layout
         new_parts = {}
 
-        new_parts[primary_partnum] = {'start': (tool.partitions[storage_partnum]['size']+1) * tool.sectorSize,
-                                      'size': tool.partitions[primary_partnum]['size'] * tool.sectorSize,
+        new_parts[primary_partnum] = {'start': tool.partitions[primary_partnum]['start'] + tool.partitions[storage_partnum]['size'],
+                                      'size': tool.partitions[primary_partnum]['size'],
                                       'id': tool.partitions[primary_partnum]['id'],
                                       'active': tool.partitions[primary_partnum]['active']}
         new_parts[backup_partnum] = {'start': new_parts[primary_partnum]['start'] + new_parts[primary_partnum]['size'],
-                                     'size': tool.partitions[backup_partnum]['size'] * tool.sectorSize,
+                                     'size': tool.partitions[backup_partnum]['size'],
                                      'id': tool.partitions[backup_partnum]['id'],
                                      'active': tool.partitions[backup_partnum]['active']}
-        new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'] * tool.sectorSize,
-                                      'size': tool.partitions[storage_partnum]['size'] * tool.sectorSize,
+        new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'],
+                                      'size': tool.partitions[storage_partnum]['size'],
                                       'id': tool.partitions[storage_partnum]['id'],
                                       'active': tool.partitions[storage_partnum]['active']}
 
         for part in (primary_partnum, backup_partnum, storage_partnum):
             tool.deletePartition(part)
-            tool.createPartition(new_parts[part]['id'], new_parts[part]['size'], part,
-                                 new_parts[part]['start'], new_parts[part]['active'])
+            tool.createPartition(new_parts[part]['id'], new_parts[part]['size'] * tool.sectorSize, part,
+                                 new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
 
-    tool.commit()
+    tool.commit(log = True)
 
 def writeGuestDiskPartitions(disk):
     # we really don't want to screw this up...
@@ -519,7 +519,7 @@ def writeGuestDiskPartitions(disk):
     tool = PartitionTool(disk)
     for num, part in tool.iteritems():
         tool.deletePartition(num)
-    tool.commit()
+    tool.commit(log = True)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
