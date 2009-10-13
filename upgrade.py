@@ -128,7 +128,7 @@ class ThirdGenUpgrader(Upgrader):
                 util.umount(mnt)
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid']
-    prepStateChanges = ['installation-uuid', 'control-domain-uuid', 'primary-disk']
+    prepStateChanges = ['installation-uuid', 'control-domain-uuid']
     def prepareUpgrade(self, progress_callback, installID, controlID):
         """ Try to preserve the installation and control-domain UUIDs from
         xensource-inventory."""
@@ -142,7 +142,7 @@ class ThirdGenUpgrader(Upgrader):
         except KeyError:
             raise RuntimeError, "Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-inventory file.  Aborting installation; please replace these keys and try again."
 
-        return installID, controlID, pd
+        return installID, controlID
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
