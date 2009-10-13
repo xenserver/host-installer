@@ -183,7 +183,7 @@ class ThirdGenUpgrader(Upgrader):
                 finally:
                     l.close()
 
-            restore += ['etc/xensource/db.conf', 'var/xapi/state.db']
+            restore += ['var/xapi/state.db'] # FIXME: Check that removal of db.conf from this array is OK for all circumstances
             restore += [os.path.join(constants.FIRSTBOOT_DATA_DIR, f) for f in 
                         os.listdir(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR))
                         if f.endswith('.conf')]
