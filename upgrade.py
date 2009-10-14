@@ -178,7 +178,7 @@ class ThirdGenUpgrader(Upgrader):
                 finally:
                     l.close()
 
-            restore += ['var/xapi/state.db'] # FIXME: Check that removal of db.conf from this array is OK for all circumstances
+            restore += ['var/xapi/state.db']
             restore += [os.path.join(constants.FIRSTBOOT_DATA_DIR, f) for f in 
                         os.listdir(os.path.join(tds, constants.FIRSTBOOT_DATA_DIR))
                         if f.endswith('.conf')]
