@@ -10,6 +10,7 @@ INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
 RECOVERY_IMG = $(MY_OUTPUT_DIR)/recovery.img
 UPDATE_INITRD = $(MY_OUTPUT_DIR)/update-initrd
 MBOOTPACK = $(MY_OUTPUT_DIR)/mbootpack
+BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 
 # intermediate:
 BUILDROOT_ENV_STAMP = $(MY_OBJ_DIR)/.buildroot-env.stamp
@@ -28,7 +29,7 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(UPDATE_INITRD) $(MBOOTPACK) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(UPDATE_INITRD) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 
@@ -103,5 +104,10 @@ $(UPDATE_INITRD):
 
 # Dell factory installation
 $(MBOOTPACK):
-	$(MAKE) -C $(call hg_loc,host-installer)/mbootpack
-	cp -fp $(call hg_loc,host-installer)/mbootpack/mbootpack $@
+	$(call mkdir_clean,$(MY_OBJ_DIR)/mbootpack)
+	( cd $(call hg_loc,host-installer)/mbootpack && find . -type f | cpio -dp $(MY_OBJ_DIR)/mbootpack )
+	$(MAKE) -C $(MY_OBJ_DIR)/mbootpack
+	cp -fp $(MY_OBJ_DIR)/mbootpack/mbootpack $@
+
+$(BUILD_FI_IMAGE):
+	$(MAKE) -C $(call hg_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
