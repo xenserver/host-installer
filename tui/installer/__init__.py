@@ -64,6 +64,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                answers.has_key("installation-to-overwrite") and \
                upgrade.getUpgrader(answers['installation-to-overwrite']).prompt_for_target
 
+    def target_is_sr(answers):
+        return 'target-is-sr' in answers and answers['target-is-sr']
+
     def preserve_settings(answers):
         return answers.has_key('preserve-settings') and \
                answers['preserve-settings']
@@ -131,6 +134,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 #             predicates=[is_reinstall_fn, requires_repartition]),
         Step(uis.select_primary_disk,
              predicates=[requires_target]),
+        Step(uis.check_sr_space,
+             predicates=[target_is_sr]),
         Step(uis.select_guest_disks,
              predicates=[is_clean_install_fn]),
         Step(uis.confirm_erase_volume_groups,

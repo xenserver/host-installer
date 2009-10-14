@@ -18,6 +18,7 @@ import uicontroller
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import constants
 import diskutil
+from disktools import *
 import xelogging
 from version import *
 import snackutil
@@ -713,18 +714,20 @@ def select_primary_disk(answers):
     diskEntries = diskutil.getQualifiedDiskList()
 
     entries = []
+    target_is_sr = {}
     
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size) <= constants.max_primary_disk_size:
-            # determine current usage                                                                    
-            usage = 'unknown'                                                                            
-            (boot, state, storage) = diskutil.probeDisk(de)                                              
-            if boot[0]:                                                                                  
-                usage = PRODUCT_BRAND                                                                    
-            elif storage[0]:                                                                             
-                usage = 'SR'                                                                             
-                # FIXME report space available?                                                          
+            # determine current usage
+            usage = 'unknown'
+            target_is_sr[de] = False
+            (boot, state, storage) = diskutil.probeDisk(de)
+            if boot[0]:
+                usage = PRODUCT_BRAND
+            elif storage[0]:
+                usage = 'SR'
+                target_is_sr[de] = True
             stringEntry = "%s - %s [%s]" % (de, diskutil.getHumanDiskSize(size), usage)
             e = (stringEntry, de)
             entries.append(e)
@@ -738,8 +741,9 @@ def select_primary_disk(answers):
         return EXIT
 
     # if only one disk, set default and skip this screen:
-    if len(diskEntries) == 1:
-        answers['primary-disk'] = diskEntries[0]
+    if len(entries) == 1:
+        answers['primary-disk'] = entries[0][1]
+        answers['target-is-sr'] = target_is_sr[entries[0][1]]
         return SKIP_SCREEN
 
     # default value:
@@ -758,10 +762,29 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
+    answers['target-is-sr'] = target_is_sr[entry]
 
     if button == 'back': return LEFT_BACKWARDS
 
     return RIGHT_FORWARDS
+
+def check_sr_space(answers):
+    tool = LVMTool()
+    sr = tool.srPartition(answers['primary-disk'])
+    assert sr
+
+    if tool.deviceFreeSpace(sr) >= 2 * constants.root_size * 2 ** 20:
+        return SKIP_SCREEN
+    
+    button = ButtonChoiceWindow(tui.screen,
+                                "Insufficient Space",
+                                """The disk selected contains a storage repository which does not have enough space to also install %s on.
+
+Either return to the previous screen and select a different disk or cancel the installation, restart the %s and use %s to free up %dMB of space in the local storage repository.""" % (PRODUCT_BRAND, BRAND_SERVER, BRAND_CONSOLE, 2 * constants.root_size),
+                                ['Back', 'Cancel'], width = 60)
+    if button == 'back': return LEFT_BACKWARDS
+
+    return EXIT
 
 def select_guest_disks(answers):
     # if only one disk, set default and skip this screen:
