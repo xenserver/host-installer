@@ -92,7 +92,6 @@ class ThirdGenUpgrader(Upgrader):
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
-    prompt_for_target = True
     
     def __init__(self, source):
         Upgrader.__init__(self, source)
@@ -135,10 +134,6 @@ class ThirdGenUpgrader(Upgrader):
         try:
             installID = self.source.getInventoryValue("INSTALLATION_UUID")
             controlID = self.source.getInventoryValue("CONTROL_DOMAIN_UUID")
-            # test for presence:
-            _ = self.source.getInventoryValue("BACKUP_PARTITION")
-
-            pd = self.source.primary_disk
         except KeyError:
             raise RuntimeError, "Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-inventory file.  Aborting installation; please replace these keys and try again."
 
