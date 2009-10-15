@@ -94,8 +94,7 @@ if ! [ -r $workdir/xen -a -r $workdir/vmlinux -a -r $workdir/install.img ]; then
 fi
 
 echo "Creating boot image..."
-# FIXME correct path
-/scratch/mbootpack -o $workdir/bzimage $workdir/xen -m $workdir/vmlinux -m $workdir/install.img
+./mbootpack -o $workdir/bzimage $workdir/xen -m $workdir/vmlinux -m $workdir/install.img
 rm -f $workdir/xen $workdir/vmlinux $workdir/install.img
 
 cat >$workdir/xscli <<EOF
