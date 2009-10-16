@@ -81,7 +81,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             results["keymap"] = val
             xelogging.log("Keymap specified on command-line: %s" % val)
         elif opt == "--extrarepo":
-            extra_repo_defs.append(val)
+            extra_repo_defs += val
         elif opt == "--bootloader":
             xelogging.log("Bootloader specified on command-line: %s" % val)
             if val == "grub":

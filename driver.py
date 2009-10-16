@@ -104,7 +104,7 @@ def doInteractiveLoadDriver(ui, answers):
             text,
             ['Ok'])
 
-    return (media, address, required_list)
+    return media, address, required_list
 
 def main(args):
     if len(doInteractiveLoadDriver(tui, {})) > 0:
