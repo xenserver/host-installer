@@ -38,6 +38,7 @@ import upgrade
 # general
 import repository
 import xelogging
+import scripts
 
 def main(args):
     ui = tui
@@ -196,8 +197,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             xelogging.log(err)
 
             # run the user's scripts - an arg of "1" indicates failure
-            if results.has_key('installation-complete-scripts'):
-                util.runScripts(results['installation-complete-scripts'], "1")
+            scripts.run_scripts('installation-complete', '1')
 
             # now write out logs where possible:
             xelogging.writeLog("/tmp/install-log")
@@ -226,8 +226,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
     else:
         # run the user's scripts - an arg of "0" indicates success
-        if results.has_key('installation-complete-scripts'):
-            util.runScripts(results['installation-complete-scripts'], "0")
+        scripts.run_scripts('installation-complete', '1')
 
         # put the log in /tmp:
         xelogging.writeLog("/tmp/install-log")

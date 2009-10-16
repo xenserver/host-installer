@@ -20,6 +20,7 @@ from netinterface import *
 import os
 import stat
 import xml.dom.minidom
+import scripts
 
 class AnswerfileError(Exception):
     pass
@@ -50,25 +51,7 @@ class Answerfile:
 
     @staticmethod
     def generate(location):
-        xelogging.log("Fetching answerfile generator from %s" % location)
-        util.fetchFile(location, constants.ANSWERFILE_GENERATOR_PATH)
-        os.chmod(constants.ANSWERFILE_GENERATOR_PATH, stat.S_IRUSR | stat.S_IXUSR)
-
-        # check the interpreter
-        f = open(constants.ANSWERFILE_GENERATOR_PATH)
-        line = f.readline()
-        f.close()
-
-        if not line.startswith('#!'):
-            raise AnswerfileError, "Missing interpreter in generator script."
-        interp = line[2:].split()
-        if interp[0] == '/usr/bin/env':
-            if interp[1] not in ['python']:
-                raise AnswerfileError, "Invalid interpreter %s in generator script." % interp[1]
-        elif interp[0] not in ['/bin/sh', '/bin/bash', 'usr/bin/python']:
-            raise AnswerfileError, "Invalid interpreter %s in generator script." % interp[0]
-
-        ret, out, err = util.runCmd2(constants.ANSWERFILE_GENERATOR_PATH, with_stdout = True, with_stderr = True)
+        ret, out, err = scripts.run_script(location, 'answerfile')
         if ret != 0:
             raise AnswerfileError, "Generator script failed:\n\n%s" % err
 
@@ -152,7 +135,7 @@ class Answerfile:
         results.update(self.parseNSConfig())
         results.update(self.parseTimeConfig())
         results.update(self.parseKeymap())
-        results.update(self.parseScripts())
+#        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -172,7 +155,7 @@ class Answerfile:
         results.update(self.parseNSConfig())
         results.update(self.parseTimeConfig())
         results.update(self.parseKeymap())
-        results.update(self.parseScripts())
+#        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -191,7 +174,7 @@ class Answerfile:
 
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
-        results.update(self.parseScripts())
+#        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -256,23 +239,18 @@ class Answerfile:
     def parseScripts(self):
         results = {}
         
-        stages = ['filesystem-populated', 'installation-complete']
-        for stage in stages:
-            results['%s-scripts' % stage] = []
-
         # new format
         script_nodes = self.nodelist.getElementsByTagName('script')
         for node in script_nodes:
             stage = node.getAttribute("stage").lower()
-            assert stage in stages
             script = getText(node.childNodes)
-            results['%s-scripts' % stage].append(script)
+            scripts.add_script(stage, script)
 
         # old format - retained for backward compatability - REMOVE AFTER XENRT MOVED TO NEW FORMAT
         pis_nodes = self.nodelist.getElementsByTagName('post-install-script')
         if len(pis_nodes) == 1:
             script = getText(pis_nodes[0].childNodes)
-            results['filesystem-populated-scripts'].append(script) 
+            scripts.add_script('filesystem-populated', script)
         ifs_nodes = self.nodelist.getElementsByTagName('install-failed-script')
         if len(ifs_nodes) == 1:
             script = getText(ifs_nodes[0].childNodes)
@@ -286,7 +264,7 @@ class Answerfile:
                 "    util.fetchFile('%s', '/tmp/install-failed-script')\n" % script +\
                 "    util.runCmd2(['chmod','a+x','/tmp/install-failed-script'])\n" \
                 "    util.runCmd2(['/tmp/install-failed-script'])\n")
-            results['installation-complete-scripts'].append('file:///tmp/install-failed-wrapper-script')
+            scripts.add_script('installation-complete', 'file:///tmp/install-failed-wrapper-script')
 
         return results
 

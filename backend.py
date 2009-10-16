@@ -31,6 +31,7 @@ import constants
 import hardware
 import upgrade
 import init_constants
+import scripts
 
 # Product version and constants:
 import version
@@ -193,8 +194,9 @@ def getFinalisationSequence(ans):
     seq.append(Task(writei18n, A(ans, 'mounts'), []))
     
     # run the users's scripts
-    if ans.has_key('filesystem-populated-scripts'):
-        seq.append( Task(util.runScripts, lambda a: [a['filesystem-populated-scripts'] , a['mounts']['root']], []) )
+    seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
+#    if ans.has_key('filesystem-populated-scripts'):
+#        seq.append( Task(util.runScripts, lambda a: [a['filesystem-populated-scripts'] , a['mounts']['root']], []) )
 
     seq += [
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
@@ -277,6 +279,8 @@ class UnkownInstallMediaType(Exception):
 def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
+    xelogging.log("SCRIPTS DICTIONARY:")
+    prettyLogAnswers(scripts.script_dict)
 
     # update the settings:
     if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:

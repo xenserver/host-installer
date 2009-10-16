@@ -82,9 +82,10 @@ def collectLogs(dst, tarball_dir = None):
         if os.path.exists("/tmp/startup-log"):
             os.system("cp /tmp/startup-log %s/" % dst)
     if dst != '/tmp':
-        if os.path.exists(constants.ANSWERFILE_GENERATOR_PATH):
-            os.system("cp "+constants.ANSWERFILE_GENERATOR_PATH+" %s/" % dst)
-    logs = filter(lambda x: x.endswith('-log') or x.startswith('answerfile'), os.listdir(dst))
+        if os.path.exists(constants.SCRIPTS_DIR):
+            os.system("cp -r "+constants.SCRIPTS_DIR+" %s/" % dst)
+    logs = filter(lambda x: x.endswith('-log') or x == 'answerfile' or
+                  x.startswith(os.path.basename(constants.SCRIPTS_DIR)), os.listdir(dst))
     logs = " ".join(logs)
 
     if os.path.exists(tarball_dir):
