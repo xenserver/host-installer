@@ -289,18 +289,17 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         # Build a list of partition numbers to preserve at least for now.
         partNumsToPreserve = []
         
-        # First add the utility partition
-        foundUtilityNumber = None
-        firstXSPartition= 1
-        try:
-            if partTool.partitionID(1) == partTool.ID_DELL_UTILITY :
-                # Preserve the first partition if it is a utility partition
-                partNumsToPreserve.append(1)
-                foundUtilityNumber = 1
-                firstXSPartition = 2
-        except:
-            pass # Catch and ignore 'Partition does not exist'
-        
+        # First add the utility partition if present
+        if primaryPartnum == 1 :
+            # No utility partition - start at 1
+            foundUtilityNumber = None
+        else:
+            # First partition is a utility partition so preserve it
+            partNumsToPreserve.append(1)
+            foundUtilityNumber = 1
+
+        firstXSPartition = primaryPartnum
+
         # Config partitions are found on XenServer-claimed disks in both OEM Flash and HDD installations
         # They must be preserved for now in case we are copying state information from them, but will be
         # deleted later in the upgrade process
