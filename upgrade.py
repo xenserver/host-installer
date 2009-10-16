@@ -408,7 +408,9 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         partTool.commit()
 
         # Store the number of the state partition so that we can delete it later
-        postBackupDelete = [ foundConfigNumber ]
+        postBackupDelete = []
+        if foundConfigNumber is not None:
+            postBackupDelete.append(foundConfigNumber)
 
         return existing, postBackupDelete, rootStart
 
