@@ -274,6 +274,6 @@ def more_media_sequence(installed_repos, still_need):
 
         return rc
 
-    seq = [ uicontroller.Step(get_more_media), uicontroller.Step(check_requires), uicontroller.Step(confirm_more_media) ]
+    seq = [ uicontroller.Step(get_more_media), uicontroller.Step(check_requires), uicontroller.Step(tui.repo.confirm_load_repo, args = ['Supplemental Pack', installed_repos]) ]
     direction = uicontroller.runSequence(seq, {})
     return (direction == RIGHT_FORWARDS, direction != EXIT)

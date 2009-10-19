@@ -47,9 +47,9 @@ def doInteractiveLoadDriver(ui, answers):
     incompat_drivers = []
     required_list = []
 
-    rc = ui.init.driver_disk_sequence(answers)
+    rc = ui.init.driver_disk_sequence(answers, driver_repos)
     if rc:
-        media, address, _ = rc
+        media, address = rc
         repos = repository.repositoriesFromDefinition(media, address)
 
         # put firmware in place:

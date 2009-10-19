@@ -59,7 +59,7 @@ def choose_operation(display_restore):
     else:
         return init_constants.OPERATION_REBOOT
 
-def driver_disk_sequence(answers):
+def driver_disk_sequence(answers, driver_repos):
     uic = uicontroller
     seq = [
         uic.Step(tui.repo.select_repo_source, 
@@ -71,15 +71,16 @@ def driver_disk_sequence(answers):
         uic.Step(tui.repo.get_source_location, 
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
-        uic.Step(confirm_load_drivers),
-        uic.Step(tui.repo.verify_source, args=['driver']),
+#        uic.Step(confirm_load_drivers),
+        uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
+#        uic.Step(tui.repo.verify_source, args=['driver']),
         uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
 
     if rc == LEFT_BACKWARDS:
         return None
-    return (answers['source-media'], answers['source-address'], answers['id-list'])
+    return (answers['source-media'], answers['source-address'])
 
 def get_driver_source(answers):
     entries = [

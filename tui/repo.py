@@ -17,6 +17,7 @@ import product
 import tui
 import tui.progress
 from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
+import snackutil
 import repository
 import generalui
 import urlparse
@@ -215,6 +216,74 @@ def get_source_location(answers, require_base_rep):
     else:
         return get_nfs_location(answers, require_base_rep)
 
+def confirm_load_repo(answers, label, installed_repos):
+    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    if 'source-media' in answers and 'source-address' in answers:
+        media = answers['source-media']
+        address = answers['source-address']
+    else:
+        media = 'local'
+        address = ''
+
+    try:
+        tui.progress.showMessageDialog("Please wait", "Searching for repository...")
+        repos = repository.repositoriesFromDefinition(media, address)
+        tui.progress.clearModelessDialog()
+    except:
+        ButtonChoiceWindow(
+            tui.screen, "Error",
+            """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
+            ['Back'])
+        return LEFT_BACKWARDS
+
+    repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
+        
+    if len(repos) == 0:
+        ButtonChoiceWindow(
+            tui.screen, "No %s Found" % cap_label,
+            """No compatible %ss were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""" % (label, PRODUCT_BRAND),
+            ['Back'])
+        return LEFT_BACKWARDS
+
+    USE, VERIFY, BACK = range(3)
+    default_button = VERIFY
+    if len(repos) == 1:
+        text = "The following %s was found:\n\n" % label
+    else:
+        text = "The following %ss were found:\n\n" % label
+    for r in repos:
+        if str(r) in installed_repos:
+            text += " * %s (already installed)\n" % r.name()
+            default_button = BACK
+        else:
+            text += " * %s\n" % r.name()
+
+    done = False
+    while not done:
+        rc = snackutil.ButtonChoiceWindowEx(
+            tui.screen, "Load Repository", text, ['Use', 'Verify', 'Back'], width = 50, default = default_button)
+
+        if rc in [None, 'use']:
+            done = True
+        elif rc == 'back': return LEFT_BACKWARDS
+        elif rc == 'verify':
+            hashes = [" %s %s" % (r.md5sum(), r.name()) for r in repos]
+            text2 = "The following MD5 hashes have been calculated. Please check them against those provided by the supplier:\n\n"
+            text2 += "\n".join(hashes)
+
+            if media == 'local':
+                text2 += "\n\nWould you like to test your media?"
+            else:
+                text2 += "\n\nWould you like to test your %s repository?  This may cause significant network traffic." % label
+
+            rc2 = ButtonChoiceWindow(
+                tui.screen, "Repository Information", text2, ['Ok', 'Back'], width = 60)
+            if rc2 == 'ok' and interactive_source_verification(repos, label):
+                default_button = USE
+
+    answers['repos'] = repos
+    return RIGHT_FORWARDS
+
 # verify the installation source?
 def verify_source(answers, label):
     cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
@@ -239,73 +308,56 @@ def verify_source(answers, label):
 
         if entry == VERIFY:
             # we need to do the verification:
-            done = interactive_source_verification(
-                answers['source-media'], answers['source-address'], label
-                )
+            try:
+                tui.progress.showMessageDialog("Please wait", "Searching for repository...")
+                repos = repository.repositoriesFromDefinition(media, address)
+                tui.progress.clearModelessDialog()
+
+                done = interactive_source_verification(
+                    repos, label
+                    )
+            except:
+                ButtonChoiceWindow(
+                    tui.screen, "Error",
+                    """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
+                    ['Back'])
         else:
             done = True
 
     return RIGHT_FORWARDS
 
-def interactive_source_verification(media, address, label):
-    xelogging.log("Checking media %s: %s" % (media, address))
+def interactive_source_verification(repos, label):
     cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    errors = []
+    pd = tui.progress.initProgressDialog(
+        "Verifying %s Source" % cap_label, "Initializing...",
+        len(repos) * 100
+        )
+    tui.progress.displayProgressDialog(0, pd)
+    for i in range(len(repos)):
+        r = repos[i]
+        def progress(x):
+            #print i * 100 + x
+            tui.progress.displayProgressDialog(i*100 + x, pd, "Checking %s..." % r._name)
+        errors.extend(r.check(progress))
 
-    try:
-        tui.progress.showMessageDialog("Please wait", "Verifying %s..." % label)
-        repos = repository.repositoriesFromDefinition(
-            media, address
-            )
-        tui.progress.clearModelessDialog()
-    except Exception, e:
-        xelogging.log("Received exception %s whilst attempting to verify %s source." % (str(e), label))
+    tui.progress.clearModelessDialog()
+
+    if len(errors) != 0:
+        errtxt = generalui.makeHumanList([x.name for x in errors])
         ButtonChoiceWindow(
             tui.screen,
-            "Problem Accessing Media",
-            "Setup was unable to access the %s source you specified." % label,
+            "Problems Found",
+            "Some packages appeared damaged.  These were: %s" % errtxt,
             ['Ok']
             )
         return False
     else:
-        if len(repos) == 0:
-            ButtonChoiceWindow(
-                tui.screen,
-                "Problem Accessing Media",
-                "No setup files were found at the location you specified.",
-                ['Ok']
-                )
-            return False
-        else:
-            errors = []
-            pd = tui.progress.initProgressDialog(
-                "Verifying %s Source" % cap_label, "Initializing...",
-                len(repos) * 100
-                )
-            tui.progress.displayProgressDialog(0, pd)
-            for i in range(len(repos)):
-                r = repos[i]
-                def progress(x):
-                    #print i * 100 + x
-                    tui.progress.displayProgressDialog(i*100 + x, pd, "Checking %s..." % r._name)
-                errors.extend(r.check(progress))
-
-            tui.progress.clearModelessDialog()
-
-            if len(errors) != 0:
-                errtxt = generalui.makeHumanList([x.name for x in errors])
-                ButtonChoiceWindow(
-                    tui.screen,
-                    "Problems Found",
-                    "Some packages appeared damaged.  These were: %s" % errtxt,
-                    ['Ok']
-                    )
-                return False
-            else:
-                repo_names = generalui.makeHumanList( ['"%s"' %x.name() for x in repos])
-                ButtonChoiceWindow(
-                    tui.screen,
-                    "Verification Successful",
-                    "Verification of your %s pack(s) %s completed successfully: no problems were found." % (label, repo_names),
-                    ['Ok']
-                    )
-                return True
+        repo_names = generalui.makeHumanList( ['"%s"' %x.name() for x in repos])
+        ButtonChoiceWindow(
+            tui.screen,
+            "Verification Successful",
+            "Verification of your %s(s) %s completed successfully: no problems were found." % (label, repo_names),
+            ['Ok']
+            )
+    return True
