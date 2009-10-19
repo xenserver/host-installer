@@ -399,6 +399,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         else:
             # No SR present - just leave space for the root partition
             rootStart = availStart
+            backupSize = rootByteSize
 
         backupStart = rootStart + rootByteSize
         partTool.createPartition(number = backupPartnum, id = partTool.ID_LINUX,

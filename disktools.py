@@ -469,6 +469,8 @@ class PartitionTool:
     P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel']
     PART_STYLE_DISKS = [ 'disk/by-id' ]
     
+    DEFAULT_SECTOR_SIZE = 512 # Used if sfdisk won't print its (hardcoded) value
+    
     ID_EXTENDED = 0x5
     ID_FAT16 = 0x6
     ID_W95_EXTENDED = 0x0f
@@ -526,19 +528,25 @@ class PartitionTool:
         self.cylinders = int(matches.group(1))
         self.heads = int(matches.group(2))
         self.sectors = int(matches.group(3))
+        self.sectorExtent = self.cylinders * self.heads * self.sectors
+    
+        # Read sector size.  This will fail if the disk has no partition table at all
+        self.sectorSize = None
         
-        # Read sector size
         out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
         for line in out.split("\n"):
             matches = re.match(r'^\s*Units\s*=\s*sectors\s*of\s*(\d+)\s*bytes', line)
             if matches:
                 self.sectorSize = int(matches.group(1))
                 break
+        
         if self.sectorSize is None:
-            raise Exception("Couldn't determine sector size from sfdisk output: "+out)
-        self.sectorExtent = self.cylinders * self.heads * self.sectors
+            self.sectorSize = self.DEFAULT_SECTOR_SIZE
+            xelogging.log("Couldn't determine sector size from sfdisk output - no partition table?\n"+
+                "Using default value: "+str(self.sectorSize)+"\nsfdisk output:"+out)
+                
         self.byteExtent = self.sectorExtent * self.sectorSize
-    
+
     def partitionTable(self):
         out = self.cmdWrap([self.SFDISK, '-Ld', self.device])
         state = 0
