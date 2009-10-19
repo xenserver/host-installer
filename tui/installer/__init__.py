@@ -73,6 +73,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     not_preserve_settings = lambda a: not preserve_settings(a)
 
     def local_media_predicate(answers):
+        if 'extra-repos' in answers:
+            if True in map(lambda r: r[0] == 'local', answers['extra-repos']):
+                return False
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
