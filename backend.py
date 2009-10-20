@@ -352,7 +352,7 @@ def performInstallation(answers, ui_package):
             all_repositories += repository.repositoriesFromDefinition(rtype, rloc)
         master_required_list += filter(lambda r: r not in master_required_list, required_list)
 
-    if answers['preserve-settings']:
+    if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         # mount backup and advertise mountpoint for Supplemental Packs
         backup_dir = '/tmp/backup/backup'
         chroot_dir = 'tmp/backup'
@@ -383,7 +383,7 @@ def performInstallation(answers, ui_package):
             answers['more-media'] = ask_again
             all_repositories += repository.repositoriesFromDefinition('local', '')
 
-    if answers['preserve-settings']:
+    if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
         os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
         util.umount(backup_dir)
