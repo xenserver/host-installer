@@ -45,6 +45,8 @@ import util
 def doInteractiveLoadDriver(ui, answers):
     driver_repos = []
     incompat_drivers = []
+    media = None
+    address = None
     required_list = []
 
     rc = ui.init.driver_disk_sequence(answers, driver_repos)

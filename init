@@ -244,7 +244,9 @@ def main(args):
 
             # load a driver:
             elif operation == init_constants.OPERATION_LOAD_DRIVER:
-                driver_repos.append(driver.doInteractiveLoadDriver(ui, driver_answers))
+                drivers = driver.doInteractiveLoadDriver(ui, driver_answers)
+                if drivers[0]:
+                    driver_repos.append(drivers)
                 rc = None
 
             # restore:
