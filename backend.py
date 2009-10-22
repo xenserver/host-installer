@@ -1037,7 +1037,7 @@ def writeFstab(mounts):
 
 def enableAgent(mounts):
     util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--del', 'xend'])
-    for service in ['xenservices', 'squeezed', 'xapi', 'xapi-domains', 'perfmon', 'snapwatchd']:
+    for service in ['xenservices', 'squeezed', 'xapi', 'xapi-domains', 'perfmon', 'snapwatchd', 'v6d']:
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
