@@ -1032,7 +1032,7 @@ def writeFstab(mounts):
     fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
     fstab.write("none        /proc     proc   defaults   0  0\n")
     fstab.write("none        /sys      sysfs  defaults   0  0\n")
-    fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  2\n")
+    fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
 def enableAgent(mounts):
