@@ -47,6 +47,7 @@ class Upgrader(object):
 
     requires_backup = False
     optional_backup = True
+    repartition = False
     prompt_for_target = False
 
     def __init__(self, source):
@@ -268,8 +269,9 @@ class ThirdGenUpgrader(Upgrader):
 
 class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     """ Upgrader class for series 5 OEM products. """
-    requires_backup = True
+    requires_backup = False
     optional_backup = False
+    repartition = True
     prompt_for_target = True
     upgrades_variants = [ 'OEM' ]
 
