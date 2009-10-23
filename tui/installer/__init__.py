@@ -57,8 +57,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     def requires_repartition(answers):
         return 'installation-to-overwrite' in answers and \
-           upgrade.getUpgrader(answers['installation-to-overwrite']).repartition and \
-           answers['installation-to-overwrite'].primary_disk == answers['primary-disk']
+           upgrade.getUpgrader(answers['installation-to-overwrite']).repartition
 
     def requires_target(answers):
         return answers['install-type'] == constants.INSTALL_TYPE_FRESH or \

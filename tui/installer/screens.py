@@ -398,6 +398,7 @@ Continue with installation?""" % (COMPANY_NAME_SHORT, PRODUCT_BRAND),
         )
     if button == 'back': return LEFT_BACKWARDS
 
+    answers['backup-existing-installation'] = True
     return RIGHT_FORWARDS
 
 def force_backup_screen(answers):
