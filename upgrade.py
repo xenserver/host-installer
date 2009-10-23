@@ -500,7 +500,6 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid', 'primary-disk', 'primary-partnum', 
         'backup-partnum', 'root-start', 'post-backup-delete']
-    prepStateChanges = ['installation-uuid', 'control-domain-uuid']
     # Leave prepStateChanges as per superclass
     def prepareUpgrade(self, progress_callback, installID, controlID, primaryDisk, primaryPartnum, backupPartnum,
         rootStart, postBackupDelete):
