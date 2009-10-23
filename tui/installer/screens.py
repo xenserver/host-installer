@@ -573,7 +573,7 @@ def select_installation_source(answers):
     # if local, check that the media is correct:
     if entry == 'local':
         answers['source-address'] = ""
-        if not interactive_check_repo_def(('local', ''), True):
+        if not tui.repo.interactive_check_repo_def(('local', ''), True):
             return REPEAT_STEP
 
     return RIGHT_FORWARDS
@@ -672,7 +672,7 @@ def get_url_location(answers):
                 answers['source-address'] = url_field.value().replace('//', '//%s@' % user_field.value(), 1)
         else:
             answers['source-address'] = url_field.value()
-        done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
+        done = tui.repo.interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
             
     return RIGHT_FORWARDS
 
@@ -697,7 +697,7 @@ def get_nfs_location(answers):
 
         if button == 'back': return LEFT_BACKWARDS
 
-        done = interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
+        done = tui.repo.interactive_check_repo_def((answers['source-media'], answers['source-address']), True)
             
     return RIGHT_FORWARDS
 
