@@ -45,9 +45,12 @@ def check_repo_def(definition, require_base_repo):
     """ Check that the repository source definition gives access to suitable
     repositories. """
     try:
+        tui.progress.showMessageDialog("Please wait", "Searching for repository...")
         repos = repository.repositoriesFromDefinition(*definition)
+        tui.progress.clearModelessDialog()
     except Exception, e:
         xelogging.log("Exception trying to access repository: %s" % e)
+        tui.progress.clearModelessDialog()
         return REPOCHK_NO_ACCESS
     else:
         if len(repos) == 0:
