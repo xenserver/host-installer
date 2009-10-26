@@ -166,7 +166,11 @@ class ThirdGenUpgrader(Upgrader):
                   [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
                   ['%s/' % backup_mount]
             assert util.runCmd2(cmd) == 0
-        
+
+            util.umount(backup_mount)
+            util.mount(backup_partition, backup_mount)
+            fh = open(os.path.join(backup_mount, '.xen-backup-partition'), 'w')
+            fh.close()
         finally:
             for mnt in [primary_mount, backup_mount]:
                 util.umount(mnt)
