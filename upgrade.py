@@ -93,13 +93,17 @@ class Upgrader(object):
 
         self.tds = None
 
-        def restore_file(f):
+        def restore_file(f, d = None):
+            if not d: d = f
             src = os.path.join(self.tds, f)
-            dst = os.path.join(mounts['root'], f)
+            dst = os.path.join(mounts['root'], d)
             if os.path.exists(src):
                 xelogging.log("Restoring /%s" % f)
-                util.assertDir(os.path.dirname(dst))
-                util.runCmd2(['cp', '-p', src, dst])
+                if os.path.isdir(src):
+                    util.runCmd2(['cp', '-rp', src, os.path.dirname(dst)])
+                else:
+                    util.assertDir(os.path.dirname(dst))
+                    util.runCmd2(['cp', '-p', src, dst])
             else:
                 xelogging.log("WARNING: /%s did not exist in the backup image." % f)
 
@@ -115,14 +119,17 @@ class Upgrader(object):
                 if isinstance(f, str):
                     restore_file(f)
                 elif isinstance(f, dict):
-                    assert 'dir' in f
-                    pat = 're' in f and f['re'] or None
-                    src_dir = os.path.join(self.tds, f['dir'])
-                    if os.path.exists(src_dir):
-                        for ff in os.listdir(src_dir):
-                            fn = os.path.join(src_dir, ff)
-                            if not pat or pat.match(fn):
-                                restore_file(fn[len(self.tds)+1:])
+                    if 'src' in f:
+                        assert 'dst' in f
+                        restore_file(f['src'], f['dst'])
+                    elif 'dir' in f:
+                        pat = 're' in f and f['re'] or None
+                        src_dir = os.path.join(self.tds, f['dir'])
+                        if os.path.exists(src_dir):
+                            for ff in os.listdir(src_dir):
+                                fn = os.path.join(f['dir'], ff)
+                                if not pat or pat.match(fn):
+                                    restore_file(fn)
         finally:
             if self.tds:
                 if os.path.ismount(self.tds):
@@ -190,10 +197,8 @@ class ThirdGenUpgrader(Upgrader):
 
     def buildRestoreList(self):
         self.restore_list += ['etc/xensource/ptoken', 'etc/xensource/pool.conf', 
-                              'etc/xensource/xapi-ssl.pem',
-                              'etc/ssh/ssh_host_dsa_key', 'etc/ssh/ssh_host_dsa_key.pub',
-                              'etc/ssh/ssh_host_key', 'etc/ssh/ssh_host_key.pub',
-                              'etc/ssh/ssh_host_rsa_key', 'etc/ssh/ssh_host_rsa_key.pub']
+                              'etc/xensource/xapi-ssl.pem']
+        self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
         self.restore_list += [ 'etc/sysconfig/network' ]
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
@@ -204,6 +209,7 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'dir': os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg'),
                                   're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
+        self.restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
