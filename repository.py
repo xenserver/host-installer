@@ -138,8 +138,7 @@ class Repository:
         self._product_version = product.Version.from_string(ver_str)
 
     def compatible_with(self, brand, version):
-        return self._product_brand in [brand, None] and \
-               self._product_version in [version, None]
+        return self._product_brand in [brand, None]
 
     def __str__(self):
         return self._identifier + ' ' + str(self._product_version)
