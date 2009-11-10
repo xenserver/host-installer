@@ -516,6 +516,10 @@ class PartitionTool:
     def partitionNumber(self, partitionDevice):
         matches = re.match(self.device + self.midfix + r'(\d+)$', partitionDevice)
         if not matches:
+            # sfdisk mangles partition devices if a by-id device is used.
+            if self.device.startswith('/dev/disk/by-id/'):
+                matches = re.match(self.device + r'(\d+)$', partitionDevice)
+        if not matches:
             raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
         return int(matches.group(1))
 
