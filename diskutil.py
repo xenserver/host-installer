@@ -237,10 +237,10 @@ def getExtendedDiskInfo(disk, inMb = 0):
 def readFATPartitionLabel(partition):
     """Read the FAT partition label directly, including whitespace."""
     fd = open(partition)
-    bytes = fd.read(82)
+    bytes = fd.read(90)
     fd.close()
 
-    if bytes[83:87] == "FAT32":
+    if bytes[82:87] == "FAT32":
         label = bytes[71:82]
     elif bytes[54:59] == "FAT16":
         label = bytes[43:54]
