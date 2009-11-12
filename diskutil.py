@@ -259,6 +259,13 @@ def readExtPartitionLabel(partition):
         raise Exception("%s is not ext partition" % partition)
     return label
 
+def getHumanDiskName(disk):
+    if disk.startswith('/dev/disk/by-id/'):
+        return disk[16:]
+    if disk.startswith('/dev/'):
+        return disk[5:]
+    return disk
+
 ################################################################################
 # TOOLS FOR PARTITIONING DISKS
 
