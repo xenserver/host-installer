@@ -6,7 +6,6 @@ BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.$(DOMAIN0_
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
-UPDATE_INITRD = $(MY_OUTPUT_DIR)/update-initrd
 MBOOTPACK = $(MY_OUTPUT_DIR)/mbootpack
 BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 
@@ -25,7 +24,7 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(UPDATE_INITRD) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 
