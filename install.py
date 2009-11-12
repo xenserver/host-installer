@@ -226,7 +226,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
     else:
         # run the user's scripts - an arg of "0" indicates success
-        scripts.run_scripts('installation-complete', '1')
+        scripts.run_scripts('installation-complete', '0')
 
         # put the log in /tmp:
         xelogging.writeLog("/tmp/install-log")
