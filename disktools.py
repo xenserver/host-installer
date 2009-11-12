@@ -493,6 +493,16 @@ class PartitionTool:
     def partitionDevice(device, deviceNum):                                                              
         return device + PartitionTool.determineMidfix(device) + str(deviceNum) 
 
+    @staticmethod
+    def diskDevice(partitionDevice):
+        matches = re.match(r'(.+)(p|(-part))\d+$', partitionDevice)
+        if matches:
+            return matches.group(1)
+        matches = re.match(r'(.+\D)\d+$', partitionDevice)
+        if not matches:
+            raise Exception("Could not determine disk device for device '"+partitionDevice+"'")
+        return matches.group(1)
+
     # Private methods:
     def cmdWrap(self, params):
         rv, out, err = util.runCmd2(params, True, True)
