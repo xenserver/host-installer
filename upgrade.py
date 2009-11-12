@@ -26,9 +26,6 @@ import constants
 import xelogging
 import backend
 
-class UpgraderNotAvailable(Exception):
-    pass
-
 def upgradeAvailable(src):
     return __upgraders__.hasUpgrader(src.name, src.version, src.variant)
 
@@ -536,58 +533,10 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         
         return retVal
 
-class ThirdGenOEMDiskUpgrader(ThirdGenUpgrader):
-    """ Upgrader class for series 5 OEM Disk products. """
-    requires_backup = False
-    optional_backup = False
-    repartition     = True
-    upgrades_variants = [ 'OEM' ]
-
-    def __init__(self, source):
-        ThirdGenUpgrader.__init__(self, source)
-
-    prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid', 'installation-to-overwrite']
-    prepStateChanges = ['installation-uuid', 'control-domain-uuid', 'primary-disk']
-    def prepareUpgrade(self, progress_callback, installID, controlID, existing):
-        """ Prepare the disk for a Retail XenServer installation. """
-
-        inst_ctrl_pd = ThirdGenUpgrader.prepareUpgrade(self, progress_callback, installID, controlID)
-        disk = existing.primary_disk
-
-        progress_callback(10)
-        backend.removeExcessOemPartitions(existing)
-        progress_callback(20)
-        backend.createRootPartitionTableEntry(disk)
-        progress_callback(30)
-        backend.createDom0DiskFilesystems(disk)
-        progress_callback(40)
-        backend.transferFSfromBackupToRoot(disk)
-        progress_callback(50)
-        backend.removeBackupPartition(disk)
-        progress_callback(60)
-        backend.createBackupPartition(disk)
-        progress_callback(70)
-        backend.extractOemStatefromRootToBackup(existing)
-        progress_callback(80)
-
-        return inst_ctrl_pd
 
 ################################################################################
 
 # Upgraders provided here, in preference order:
-class XUpgraderList(list):
-    def getUpgrader(self, product, variant_class, version):
-        for x in self:
-            if x.upgrades(product, variant_class, version):
-                return x
-        raise KeyError, "No upgrader found for %s" % version
-
-    def hasUpgrader(self, product, variant_class, version):
-        for x in self:
-            if x.upgrades(product, variant_class, version):
-                return True
-        return False
-
 class UpgraderList(list):
     def getUpgrader(self, product, version, variant):
         for x in self:

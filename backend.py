@@ -14,7 +14,6 @@ import os
 import os.path
 import subprocess
 import datetime
-import pickle
 import re
 import tempfile
 
@@ -25,7 +24,6 @@ import util
 import diskutil
 from disktools import *
 import netutil
-from util import runCmd
 import shutil
 import constants
 import hardware
@@ -181,7 +179,7 @@ def getFinalisationSequence(ans):
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(prepareStorageRepositories, A(ans, 'operation', 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
+            Task(prepareStorageRepositories, A(ans, 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -195,8 +193,6 @@ def getFinalisationSequence(ans):
     
     # run the users's scripts
     seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
-#    if ans.has_key('filesystem-populated-scripts'):
-#        seq.append( Task(util.runScripts, lambda a: [a['filesystem-populated-scripts'] , a['mounts']['root']], []) )
 
     seq += [
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
@@ -272,9 +268,6 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
             del answers['cleanup']
 
     return answers
-
-class UnkownInstallMediaType(Exception):
-    pass
 
 def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
@@ -534,114 +527,7 @@ def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def writeFirstbootFile(operation, mounts, filename, content):
-
-    if init_constants.operationIsOEMInstall(operation):
-        directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
-    else:
-        directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
-
-    util.assertDir(directory) # Creates the directory if not present
-    fd = open(os.path.join(directory, filename), 'w')
-    for line in content:
-        print >>fd, line
-    fd.close()
-
-def disableFirstbootScript(operation, mounts, filename):
-    xelogging.log('Disabling firstboot script '+filename)
-
-    if init_constants.operationIsOEMInstall(operation):
-        directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
-    else:
-        directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
-    log_directory = directory + '/../log'
-    state_directory = directory + '/../state'
-    
-    util.assertDir(log_directory) # Creates the directory if not present
-    fd = open(os.path.join(log_directory, filename), 'w')
-    print >>fd, '# This firstboot script was disabled by the installer and did not run'
-    fd.close()
-    
-    util.assertDir(state_directory) # Creates the directory if not present
-    fd = open(os.path.join(state_directory, filename), 'w')
-    print >>fd, 'success'
-    print >>fd, '# This firstboot script was disabled by the installer and did not run'
-    fd.close()
-
-def prepareNetworking(operation, mounts, interface, config, nameservers, nethw):
-    if config is None:
-        admin_mac = ''
-        network_content = [
-            "ADMIN_INTERFACE=''",
-            "INTERFACES='%s'" % ' '.join( [ x.hwaddr for x in nethw.values() ] )
-        ]
-    else:
-        admin_mac = config.get('hwaddr', '')
-        network_content = [
-            "ADMIN_INTERFACE='%s'" % admin_mac,
-            "INTERFACES='%s'" % ' '.join( [ x.hwaddr for x in nethw.values() ] )
-        ]
-    xelogging.log('Writing firstboot network.conf '+', '.join(network_content))
-    writeFirstbootFile(operation, mounts, 'network.conf', network_content)
-        
-    for label, net_instance in nethw.iteritems():
-        mac = net_instance.hwaddr
-        content = [ '# Installer-generated configuration for '+label ]
-        if mac.lower() != admin_mac.lower():
-            # This is not the management interface so leave unconfigured
-            content += [
-                "LABEL='%s'" % label,
-                "MODE='none'"
-            ]
-        else:
-            # This is the management interface
-            if config.isStatic():
-                content += [
-                    "LABEL='%s'" % label,
-                    "MODE='static'",
-                    "IP='%s'" % config.get('ipaddr', ''),
-                    "NETMASK='%s'" % config.get('netmask', ''),
-                    "GATEWAY='%s'" % config.get('gateway', '')
-                ]
-            else:
-                content += [
-                    "LABEL='%s'" % label,
-                    "MODE='dhcp'"
-                ]
-            # Nameservers can be specified for both DHCP and static configurations
-            for i, nameserver in enumerate(nameservers):
-                content.append('DNS'+str(i+1)+"='"+nameserver.strip()+"'")
-        writeFirstbootFile(operation, mounts, 'interface-'+mac.lower()+'.conf', content)
-    disableFirstbootScript(operation, mounts, '27-detect-nics')
-
-def prepareHostname(operation, mounts, hostname):
-    content=[ "XSHOSTNAME='%s'" % hostname ]
-    xelogging.log('Writing firstboot hostname configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'hostname.conf', content)
-
-def prepareNTP(operation, mounts, method, ntp_servers):
-    content=[
-        "XSTIMEMETHOD='%s'" % method,
-        "XSNTPSERVERS='%s'" % ' '.join(ntp_servers)
-    ]
-    xelogging.log('Writing firstboot NTP configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'ntp.conf', content)
-
-def prepareTimezone(operation, mounts, timezone):
-    content=[
-        "XSTIMEZONE='%s'" % timezone
-    ]
-    xelogging.log('Writing firstboot timezone configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'timezone.conf', content)
-    
-def preparePassword(operation, mounts, password_hash):
-    content=[
-        "XSPASSWORD='%s'" % password_hash
-    ]
-    xelogging.log('Writing firstboot password configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'password.conf', content)
-    
-def prepareStorageRepositories(operation, mounts, primary_disk, storage_partnum, guest_disks, sr_type):
+def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disks, sr_type):
     
     if len(guest_disks) == 0:
         xelogging.log("No storage repository requested.")
@@ -658,16 +544,13 @@ def prepareStorageRepositories(operation, mounts, primary_disk, storage_partnum,
     # write a config file for the prepare-storage firstboot script:
     
     links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
-    content = [
-        "XSPARTITIONS='%s'" % str.join(" ", links),
-        "XSTYPE='%s'" % sr_type_string,
-        # Legacy names
-        "PARTITIONS='%s'" % str.join(" ", links),
-        "TYPE='%s'" % sr_type_string
-    ]
-    
-    xelogging.log('Writing firstboot storage configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'default-storage.conf', content)
+    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
+    print >>fd, "XSPARTITIONS='%s'" % str.join(" ", links)
+    print >>fd, "XSTYPE='%s'" % sr_type_string
+    # Legacy names
+    print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
+    print >>fd, "TYPE='%s'" % sr_type_string
+    fd.close()
     
 ###
 # Create dom0 disk file-systems:
@@ -1280,186 +1163,6 @@ def touchSshAuthorizedKeys(mounts):
     util.assertDir("%s/root/.ssh/" % mounts['root'])
     fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
     fh.close()
-
-def backupFileSystem(primary_partition, backup_partition):
-    # format the backup partition:
-    if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-        raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
-
-    # copy the files across:
-    primary_mount = '/tmp/backup/primary'
-    backup_mount  = '/tmp/backup/backup'
-    for mnt in [primary_mount, backup_mount]:
-        util.assertDir(mnt)
-    try:
-        util.mount(primary_partition, primary_mount, options = ['ro'])
-        util.mount(backup_partition,  backup_mount)
-        cmd = ['cp', '-a'] + \
-              [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
-              ['%s/' % backup_mount]
-        assert util.runCmd2(cmd) == 0
-        
-    finally:
-        for mnt in [primary_mount, backup_mount]:
-            util.umount(mnt)
-
-def stampBackupPartition(backup_partition):
-    backup_mount  = '/tmp/backup/backup'
-    util.assertDir(backup_mount)
-    try:
-        util.mount(backup_partition,  backup_mount)
-        util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
-    finally:
-        util.umount(backup_partition)
-
-def backupExisting(upgrader, existing, primary_disk, backup_partnum):
-    if not upgrader.requires_backup and not upgrader.optional_backup:
-        # This upgrader doesn't support a backup during the upgrade, so skip it
-        xelogging.log("Skipping backup of existing installation: this upgrade does not support it" )
-        return
-    primary_partition = existing.root_partition
-    backup_partition  = PartitionTool.partitionDevice(primary_disk, backup_partnum)
-
-    xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
-
-    backupFileSystem(primary_partition, backup_partition)
-    stampBackupPartition(backup_partition)
-
-
-################################################################################
-# Functions to convert disk format from OEM to Retail
-
-def removeExcessOemPartitions(existing):
-    """Remove all OEM disk partitions except state and SR partitions,
-       to enable conversion to Retail disk format. Converts state and SR
-       partitions from logical to primary partitions. The SR will have
-       the same partition number as the Retail SR and the state partition
-       will have the Retail backup partition number."""
-
-    disk = existing.primary_disk
-    xelogging.log("Repartitioning %s to convert from OEM to Retail format" % disk)
-
-    if not os.path.exists(disk):
-        raise RuntimeError, "The disk %s could not be found." % disk
-
-    # TODO - take into account service partitions
-    # For now, assert the truth we require for this process to succeed:
-    assert diskutil.getRootPartNumber(disk)   == 1
-    assert diskutil.getBackupPartNumber(disk) == 2
-
-    # Read the partition table in sector units
-    cmd = ["/sbin/sfdisk", "-l", "-uS", disk]
-    rc, ptn_table = util.runCmd2(cmd, with_stdout = True)
-    if rc != 0:
-        xelogging.log("Repartitioning %s failed when reading existing partition table" % disk)
-        raise RuntimeError, "Repartition of %s failed" % disk
-
-    state_p = diskutil.partitionFromDisk(disk, OEMHDD_STATE_PARTITION_NUMBER)
-    SR_p    = diskutil.partitionFromDisk(disk, OEMHDD_SR_PARTITION_NUMBER)
-
-    state_expr = re.compile('^%s\s+\*?\s+(\d+)\s+\d+\s+(\d+)\s+' % state_p, re.MULTILINE)
-    SR_expr    = re.compile('^%s\s+\*?\s+(\d+)\s+\d+\s+(\d+)\s+' % SR_p, re.MULTILINE)
-    try:
-        (state_start, state_size) = map(int, state_expr.search(ptn_table).groups())
-        (SR_start,       SR_size) = map(int,    SR_expr.search(ptn_table).groups())
-    except:
-        xelogging.log("Repartitioning %s failed when parsing partition table entries" % disk)
-        raise RuntimeError, "Repartition of %s failed parsing partition table entries" % disk
-
-    # Rewrite the partition table to renumber the SR and the state partition
-    # and remove everything else. We number so as to allow a later partition number 1.
-    first_partition  = diskutil.partitionFromDisk(disk, 1)
-    second_partition = diskutil.partitionFromDisk(disk, 2)
-    third_partition  = diskutil.partitionFromDisk(disk, 3)
-
-    new_ptn_table = """# partition table of %s
-unit: sectors
-%s : start=  0, size=  0, Id=0
-%s : start= %d, size= %d, Id=83
-%s : start= %d, size= %d, Id=8e
-""" % \
-    (disk, first_partition, second_partition, state_start, state_size, third_partition, SR_start, SR_size)
-
-    xelogging.log("Repartitioning %s\n%s\n" % (disk, new_ptn_table))
-
-    # sfdisk --force : sfdisk doesn't much like the sector layout that results
-    #                  when logical partitions become primary; hence '--force'.
-    cmd = ["/sbin/sfdisk", "--force", disk]
-    try:
-        pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
-                                     stdout = util.dev_null(),
-                                     stderr = util.dev_null(), close_fds = True)
-        pipe.stdin.write(new_ptn_table)
-        pipe.stdin.close()
-        assert pipe.wait() == 0
-    except:
-        xelogging.log("Repartitioning %s failed when reducing partition table entries" % disk)
-        raise RuntimeError, "Repartition of %s failed when reducing partition table entries" % disk
-
-def createRootPartitionTableEntry(disk):
-    """Add the root partition using similar code to the default install"""
-    try:
-        diskutil.addRootPartition(disk, diskutil.getRootPartNumber(disk), root_size)
-        diskutil.makeActivePartition(disk, diskutil.getRootPartNumber(disk))
-    except:
-        xelogging.log("Repartitioning %s failed to add new root partition table entry" % disk)
-        raise RuntimeError, "Repartitioning %s failed to add new root partition table entry" % disk
-
-def transferFSfromBackupToRoot(disk):
-    """Transfer the contents of the backup filesytem to the new root.
-       We do this so that the state partition can be erased to make room
-       for the standard backup partition.
-       IMPORTANT: after the partition table was rewritten, the state partition
-                  has been renumbered to be that of the Retail backup partition."""
-    root_partition = diskutil.getRootPartName(disk)
-    backup_partition = diskutil.partitionFromDisk(disk, diskutil.getBackupPartNumber(disk))
-
-    backupFileSystem(backup_partition, root_partition)
-
-def removeBackupPartition(disk):
-    diskutil.removePrimaryPartition(disk, diskutil.getBackupPartNumber(disk))
-
-def createBackupPartition(disk):
-    """Add the backup partition using similar code to the default install"""
-    diskutil.addRootPartition(disk, diskutil.getBackupPartNumber(disk), root_size)
-
-    backup_partition = diskutil.getBackupPartName(disk)
-    if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-        xelogging.log("Repartitioning failed to format filesystem on %s" % backup_partition)
-        raise RuntimeError, "Repartitioning failed to format filesystem on %s" % backup_partition
-
-def extractOemStatefromRootToBackup(existing):
-    disk = existing.primary_disk
-
-    root_partition = diskutil.getRootPartName(disk)
-    backup_partition = diskutil.getBackupPartName(disk)
-
-    backupFileSystem(root_partition, backup_partition)
-
-    # Move state up out of the "xe-" directory and everything else out of the way
-    def rearrangeOEMState(partition, build):
-        state_mount = "/tmp/rearrange-state"
-        util.assertDir(state_mount)
-        try:
-            util.mount(partition, state_mount)
-
-            top_contents = os.listdir(state_mount)
-            retired = tempfile.mkdtemp(prefix='retired-', dir=state_mount)
-
-            for f in top_contents:
-                assert util.runCmd2(['mv', '-f', os.path.join(state_mount, f), retired]) == 0
-
-            state_dirname = "xe-%s" % build
-            state_path = os.path.join(retired, state_dirname)
-            if os.path.isdir(state_path):
-                contents = os.listdir(state_path)
-                for f in contents:
-                    assert util.runCmd2(['mv', '-f', os.path.join(state_path, f), state_mount]) == 0
-
-        finally:
-            util.umount(state_mount)
-
-    rearrangeOEMState(backup_partition, existing.build)
 
 
 ################################################################################

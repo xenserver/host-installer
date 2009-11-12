@@ -22,7 +22,6 @@ import re
 import stat
 import tempfile
 import xelogging
-from variant import *
 import repository
 from disktools import *
 
@@ -581,7 +580,6 @@ def findXenSourceBackups():
     """Scans the host and find partitions containing backups of XenSource
     products.  Returns a list of device node paths to partitions containing
     said backups. """
-    Variant.inst().raiseIfOEM('findXenSourceBackups')
     partitions = diskutil.getQualifiedPartitionList()
     backups = []
     try:
@@ -631,14 +629,6 @@ def findXenSourceProducts():
 
 def readInventoryFile(filename):
     return util.readKeyValueFile(filename, strip_quotes = True)
-
-def readNetworkScriptFile(filename):
-    netkeys = [
-        'BOOTPROTO', 'ONBOOT', 'DEVICE', 'TYPE', 'HWADDR', 'BRIDGE', 'LINEDELAY',
-        'DELAY', 'STP', 'NETMASK', 'IPADDR', 'NETMASK', 'GATEWAY', 'PEERDNS',
-        'NETWORK', 'BROADCAST', 'NAME'
-        ]
-    return util.readKeyValueFile(filename, allowed_keys = netkeys, strip_quotes = True)
 
 def find_installed_products():
     try:

@@ -77,10 +77,6 @@ class Answerfile:
             results = self.parseReinstall()
         elif install_type == "upgrade":
                 results = self.parseUpgrade()
-        elif install_type == "oemhdd":
-            results = self.parseOemHdd()
-        elif install_type == "oemflash":
-            results = self.parseOemFlash()
             
         return results
 
@@ -116,9 +112,6 @@ class Answerfile:
         # primary-disk:
         results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
         pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
-        preserve_p1 = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
-        if preserve_p1:
-            diskutil.preservePart1(results['primary-disk'])
         results['sr-at-end'] = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
 
         # guest-disks:
@@ -135,7 +128,6 @@ class Answerfile:
         results.update(self.parseNSConfig())
         results.update(self.parseTimeConfig())
         results.update(self.parseKeymap())
-#        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -155,7 +147,6 @@ class Answerfile:
         results.update(self.parseNSConfig())
         results.update(self.parseTimeConfig())
         results.update(self.parseKeymap())
-#        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -174,63 +165,8 @@ class Answerfile:
 
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
-#        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
-        return results
-
-    def parseOemHdd(self):
-        results = {}
-
-        results['install-type'] = constants.INSTALL_TYPE_FRESH
-
-        # storage type (lvm or ext):
-        srtype_node = self.nodelist.getAttribute("srtype")
-        if srtype_node in ['', 'lvm']:
-            srtype = constants.SR_TYPE_LVM
-        elif srtype_node in ['ext']:
-            srtype = constants.SR_TYPE_EXT
-        else:
-            raise AnswerfileError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'."
-        results['sr-type'] = srtype
-
-        # primary-disk:
-        results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
-        pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
-
-        # guest-disks:
-        results['guest-disks'] = []
-        if pd_has_guest_storage:
-            results['guest-disks'].append(results['primary-disk'])
-        for disk in self.nodelist.getElementsByTagName('guest-disk'):
-            results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
-
-        results.update(self.parseSource())
-        try:
-            results.update(self.parseInterfaces())
-        except IndexError:
-            # Don't configure the admin interface if not specified in answerfile
-            pass
-        results.update(self.parseOemSource())
-        results.update(self.parseScripts())
-
-        rw = self.nodelist.getElementsByTagName('rootfs-writable')
-        if len(rw) == 1:
-            results['rootfs-writable'] = True
-
-        return results
-
-    def parseOemFlash(self):
-        results = {}
-
-        # primary-disk:
-        results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
-        results.update(self.parseOemSource())
-        results.update(self.parseScripts())
-
-        # guest-disks:
-        results['guest-disks'] = []
-        results['sr-type'] = constants.SR_TYPE_LVM
         return results
 
 
@@ -427,34 +363,6 @@ class Answerfile:
             results['source-address'] = getText(source.childNodes)
         else:
             raise AnswerfileError, "No source media specified."
-        return results
-
-    def parseOemSource(self):
-        results = {}
-        if len(self.nodelist.getElementsByTagName('source')) == 0:
-            raise AnswerfileError, "No OEM image specified."
-        source = self.nodelist.getElementsByTagName('source')[0]
-        if source.getAttribute('type') == 'local':
-            results['source-media'] = 'local'
-            results['source-address'] = getText(source.childNodes)
-        elif source.getAttribute('type') == 'url':
-            results['source-media'] = 'url'
-            results['source-address'] = getText(source.childNodes)
-        elif source.getAttribute('type') == 'nfs':
-            results['source-media'] = 'nfs'
-            results['source-address'] = getText(source.childNodes)
-        else:
-            raise AnswerfileError, "No media for OEM image specified."
-
-        if len(self.nodelist.getElementsByTagName('xenrt')) != 0:
-            xenrt = self.nodelist.getElementsByTagName('xenrt')[0]
-            if xenrt.getAttribute('scorch').lower() != 'false':
-                results['xenrt-scorch'] = True
-            serport = xenrt.getAttribute('serial')
-            if serport:
-                results['xenrt-serial'] = str(serport)
-            results['xenrt'] = getText(xenrt.childNodes)
-
         return results
 
     def parseDriverSource(self):

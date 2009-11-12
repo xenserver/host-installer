@@ -24,7 +24,6 @@ import tui.progress
 import generalui
 
 import install
-import oem
 import product
 import init_constants
 import xelogging
@@ -37,7 +36,6 @@ from netinterface import *
 
 from version import *
 from constants import EXIT_OK, EXIT_ERROR, EXIT_USER_CANCEL
-from variant import *
 
 # Attempt to configure the network:
 def configureNetworking(ui, device):
@@ -100,27 +98,12 @@ def main(args):
     driver_repos = []
     init_network = False
     reboot = False
-    oem_edition = False
-    oem_manufacturer = "OEM Manufacturer not found"
-    oem_verify = False
     answerfile_address = None
     answerfile_script = None
-    flash_and_or_hdd = "all"
-    custom = 'default'
     
     for (opt, val) in args.items():
         if opt == "--install":
             operation = init_constants.OPERATION_INSTALL
-        elif opt == "--oem_edition":
-            oem_edition = True
-        elif opt == "--OEM_VERIFY":
-            oem_verify = (val == "on")
-        elif opt == "--OEM_MANUFACTURER":
-            oem_manufacturer = val
-        elif opt == "--install_oem_to_flash":
-            operation = init_constants.OPERATION_INSTALL_OEM_TO_FLASH
-        elif opt == "--install_oem_to_disk":
-            operation = init_constants.OPERATION_INSTALL_OEM_TO_DISK
         elif opt == "--p2v":
             operation = init_constants.OPERATION_P2V
         elif opt == "--answerfile":
@@ -141,16 +124,6 @@ def main(args):
             answer_device = val.lower()
         elif opt == "--reboot":
             reboot = True
-        elif opt == "--rootmedia":
-            flash_and_or_hdd = val
-        elif opt == "--custom":
-            custom = val
-
-    # Set up the variant object
-    if oem_edition:
-        Variant.setInstance(VariantOEM())
-    else:
-        Variant.setInstance(VariantRetail())
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -162,14 +135,6 @@ def main(args):
     if ui:
         xelogging.log("Starting 'init' user interface on %s" % tty)
         ui.init_ui()
-
-    # if oem_manufacturer=$md5sum appears on cmdline then this
-    # CD is only to be run on machines built by a that manufacturer
-    if oem_verify:
-        is_oem_machine = oem.OemManufacturerTest(ui, oem_manufacturer)
-        if not is_oem_machine:
-            xelogging.log("OemManufacturerTest failed.  This installation is not licenced for this machine.")
-            return reboot
 
     # let the user choose what they would like to do:
     if interactive:
@@ -198,18 +163,13 @@ def main(args):
     if init_network:
         configureNetworking(ui, answer_device)
 
-    if not oem_edition:
-        backups = product.findXenSourceBackups()
+    backups = product.findXenSourceBackups()
 
     try:
         while True:
             # if interactive, set the operation:
             if interactive and not operation:
-                if oem_edition:
-                    operation = ui.init_oem.choose_operation(flash_and_or_hdd, custom)
-                else:
-                    operation = ui.init.choose_operation(len(backups) > 0)
-                    
+                operation = ui.init.choose_operation(len(backups) > 0)
 
             if operation == init_constants.OPERATION_REBOOT:
                 break
@@ -221,26 +181,6 @@ def main(args):
                 if len(driver_repos) > 0:
                     args['--extrarepo'] = driver_repos
                 rc = install.go(ui, args, answerfile_address, answerfile_script)
-
-            elif operation == init_constants.OPERATION_INSTALL_OEM_TO_FLASH:
-                xelogging.log("Starting default installation of OEM to flash")
-
-                rc = oem.go_flash(ui, args, answerfile_address, 'default')
-
-            elif operation == init_constants.OPERATION_INSTALL_OEM_TO_FLASH_CUSTOM:
-                xelogging.log("Starting custom installation of OEM to flash")
-
-                rc = oem.go_flash(ui, args, answerfile_address, 'custom')
-                
-            elif operation == init_constants.OPERATION_INSTALL_OEM_TO_DISK:
-                xelogging.log("Starting default installation of OEM to disk")
-
-                rc = oem.go_disk(ui, args, answerfile_address, 'default')
-
-            elif operation == init_constants.OPERATION_INSTALL_OEM_TO_DISK_CUSTOM:
-                xelogging.log("Starting custom installation of OEM to disk")
-
-                rc = oem.go_disk(ui, args, answerfile_address, 'custom')
 
             # load a driver:
             elif operation == init_constants.OPERATION_LOAD_DRIVER:
@@ -258,16 +198,6 @@ def main(args):
             elif operation == init_constants.OPERATION_P2V:
                 xelogging.log("Starting P2V")
                 rc = p2v.go(args, ui)
-
-            # reset password
-            elif operation == init_constants.OPERATION_RESET_PASSWORD:
-                xelogging.log("Resetting password")
-                rc = oem.reset_password(ui, args, answerfile_address)
-
-            # reset OEM state partition
-            elif operation == init_constants.OPERATION_RESET_STATE_PARTITION:
-                xelogging.log("Resetting password")
-                rc = oem.reset_state_partition(ui, args, answerfile_address)
 
             operation = None
             # if we're non-interactive, or weren't canceled, force us to exit:
