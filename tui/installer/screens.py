@@ -62,104 +62,6 @@ Please make sure you have backed up any data you wish to preserve before proceed
     else:
         return RIGHT_FORWARDS
 
-def add_iscsi_disks(answers):
-    button = ButtonChoiceWindow(tui.screen,
-                                "iSCSI",
-                                "Locate additional iSCSI disks",
-                                ['Skip', 'Ok', 'Back'], width = 60)
-    if button in ['skip', None]:
-        return RIGHT_FORWARDS
-    if button == 'back':
-        return LEFT_BACKWARDS
-    
-    # iSCSI needs networking...
-    while True:
-        rc = tui.network.requireNetworking(answers, msg="Please specify which network interface would you like to use to access the iSCSI target",
-                                           blacklist=[], keys=['net-iscsi-interface','net-iscsi-configuration'])
-        if rc == RIGHT_FORWARDS:
-            break # networking succeeded
-        if rc == LEFT_BACKWARDS:
-            return rc
-        
-    # configure iSCSI initiator name before starting daemon
-    rv, iname = util.runCmd2([ '/sbin/iscsi-iname' ], with_stdout=True)
-    if rv: raise RuntimeError, "/sbin/iscsi-iname failed"
-    open("/etc/iscsi/initiatorname.iscsi","w").write("InitiatorName=%s" % iname)
-
-    try:
-        # start iSCSI daemon
-        rv = util.runCmd2([ '/sbin/modprobe', 'iscsi_tcp' ])
-        if rv: raise RuntimeError, "/sbin/modprobe iscsi_tcp failed"
-        rv = util.runCmd2([ '/sbin/iscsid' ])
-        if rv: raise RuntimeError, "/sbin/iscsid failed"
-       
-        # ask for location of iSCSI server
-        text = "Enter the IP address of the iSCSI target"
-        if answers.has_key('iscsi-target-address'):
-            default = answers['iscsi-target-address']
-        else:
-            default = ""
-        (button, result) = EntryWindow(
-            tui.screen,
-            "iSCSI target IP",
-            text,
-            [("IP Address[:Port]:", default)], entryWidth = 50, width = 50,
-            buttons = ['Ok', 'Back'])
-            
-        answers['iscsi-target-address'] = result[0]
-
-        if button == 'back':
-            return REPEAT_STEP
-
-        # discover IQNs offered by iSCSI server
-        rv, out = util.runCmd2([ '/sbin/iscsiadm', '-m', 'discovery', '-t', 'sendtargets', '-p', answers['iscsi-target-address']], with_stdout=True)
-        if rv: raise RuntimeError, "/sbin/iscsiadm -m discovery failed"
-        out = out.strip()
-        iqns = map(lambda x : x.split()[-1], out.split('\n'))
-
-        # ask user to select an IQN
-        entries = [ (x,x) for x in iqns ]
-        if answers.has_key('iscsi-iqn'):
-            default = selectDefault(answers['iscsi-iqn'], entries)
-        else:
-            default = None
-        
-        (button, entry) = ListboxChoiceWindow(
-            tui.screen,
-            "IQN",
-            "Select iSCSI IQN containing disks to be attached",
-            entries,
-            ['Ok', 'Back'], width=60, default = default)
-
-        if button == 'back':
-            return REPEAT_STEP
-
-        answers['iscsi-iqn'] = entry
-
-        # Just in case we've been here before... unattach all IQNs now
-        util.runCmd2([ '/sbin/iscsiadm' ,'-m', 'node', '-u' ])
-
-        # attach IQN's disks
-        rv = util.runCmd2([ '/sbin/iscsiadm', '-m', 'node', '-T', answers['iscsi-iqn'], '-p', answers['iscsi-target-address'], '-l'])
-        if rv: raise RuntimeError, "/sbin/iscsiadm -m node -l failed"
-
-        # debug: print out what disks we have now available
-        diskutil.log_available_disks()
-
-    finally:
-        # Kill this iscsid as we don't need it anymore running in the installer root filesystem
-        util.runCmd2([ '/sbin/iscsiadm' ,'-k', '0' ])
-        util.runCmd2([ '/sbin/udevsettle' ])
-
-    # update the list of installed/upgradeable products as this may have
-    # changed as a result of adding a disk
-    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-    answers['installed-products'] = product.find_installed_products()
-    answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
-    tui.progress.clearModelessDialog()
-
-    return RIGHT_FORWARDS
-
 def hardware_warnings(answers, ram_warning, vt_warning):
     vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
     not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
@@ -198,46 +100,6 @@ Alternatively, please contact a Technical Support Representative for the recomme
     if button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
-def get_iscsi_interface(answers):
-    default = None
-    try:
-        if answers.has_key('net-iscsi-interface'):
-            default = answers['net-iscsi-interface']
-        else:
-            # default is netdev used to access primary disk during installation
-            _, _, default = diskutil.iscsi_address_port_netdev(answers['primary-disk'])
-    except:
-        pass
-
-    net_hw = answers['network-hardware']
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the iSCSI target from your host?", net_hw, default)
-    if direction == RIGHT_FORWARDS:
-        answers['net-iscsi-interface'] = iface
-    return direction
-
-def get_iscsi_interface_configuration(answers):
-    assert answers.has_key('net-iscsi-interface')
-    nic = answers['network-hardware'][answers['net-iscsi-interface']]
-
-    defaults = None
-    try:
-        if answers.has_key('net-iscsi-configuration'):
-            defaults = answers['net-iscsi-configuration']
-        elif answers.has_key('runtime-iface-configuration'):
-            all_dhcp, manual_config = answers['runtime-iface-configuration']
-            if not all_dhcp:
-                defaults = manual_config[answers['net-iscsi-interface']]
-    except:
-        pass
-
-    rc, conf = tui.network.get_iface_configuration(
-        nic, txt = "Please specify how networking should be configured for the management interface on this host.",
-        defaults = defaults
-        )
-    if rc == RIGHT_FORWARDS:
-        answers['net-iscsi-configuration'] = conf
-    return rc
-
 def get_admin_interface(answers):
     default = None
     try:
@@ -248,14 +110,7 @@ def get_admin_interface(answers):
 
     net_hw = answers['network-hardware']
     
-    # if the primary disk is iSCSI we need to filter out the interface
-    # used to connect to that disk, as this cannot also be used as an
-    # admin interface
-    blacklist = []
-    if diskutil.is_iscsi(answers['primary-disk']):
-        blacklist.append(answers['net-iscsi-interface'])
-
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default, blacklist=blacklist)
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default)
     if direction == RIGHT_FORWARDS:
         answers['net-admin-interface'] = iface
     return direction
@@ -516,16 +371,8 @@ def setup_runtime_networking(answers):
     except:
         pass
 
-    # Blacklist any interfaces currently used for accessing iSCSI disks
-    blacklist = []
-    try:
-        if answers.has_key('primary-disk') and answers.has_key('net-iscsi-interface') and diskutil.is_iscsi(answers['primary-disk']):
-            blacklist = [answers['net-iscsi-interface']]
-    except:
-        pass
-
     # Get the answers from the user
-    return tui.network.requireNetworking(answers, defaults, blacklist=blacklist)
+    return tui.network.requireNetworking(answers, defaults)
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
@@ -607,14 +454,6 @@ Either return to the previous screen and select a different disk or cancel the i
 def select_guest_disks(answers):
     # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
-
-    # filter out non-primary iscsi disks as only the primary disk
-    # may be an iscsi disk
-    def test(disk):
-        if disk != answers['primary-disk'] and diskutil.is_iscsi(disk):
-            return False
-        return True
-    diskEntries = filter(test, diskEntries)
 
     if len(diskEntries) == 0:
         answers['guest-disks'] = []

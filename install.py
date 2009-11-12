@@ -90,9 +90,6 @@ def go(ui, args, answerfile_address, answerfile_script):
                 results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
         elif opt == "--onecd":
             suppress_extra_cd_dialog = True
-        elif opt == "--enable-iscsi":
-            results['enable-iscsi'] = True
-        
 
     if boot_console and not serial_console:
         serial_console = boot_console
@@ -146,9 +143,6 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         if len(nethw.keys()) == 0:
             raise RuntimeError, "No network interfaces found on this host."
-        if len(nethw.keys()) == 1:
-            if results.has_key('enable-iscsi') and results['enable-iscsi'] == True:
-                raise RuntimeError, "--enable-iscsi not supported on hosts with only one network interface as an extra interface is required for iSCSI target access"
 
         # record the network configuration at startup so it remains consistent
         # in the face of kudzu:
