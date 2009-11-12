@@ -165,11 +165,11 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'net-iscsi-interface'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
-        Task(mkinitrd, A(ans, 'mounts',  'net-iscsi-interface', 'net-iscsi-configuration', 'primary-disk'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
@@ -558,10 +558,7 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 def createDom0DiskFilesystems(disk, primary_partnum):
     assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, PartitionTool.partitionDevice(disk, primary_partnum)]) == 0
 
-def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_version):
-
-    # find out whether we are using iscsi to access the primary disk
-    iscsi_primary_disk =  diskutil.is_iscsi(primary_disk)
+def __mkinitrd(mounts, primary_disk, kernel_version):
 
     # the mkinitrd command line
     cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
@@ -571,55 +568,12 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
         util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
 
-        if iscsi_primary_disk:
-            # primary disk is iscsi via iscsi_iface w/ iscsi_iface_cfg
-            # mkinitrd uses iscsiadm to talk to iscsid.  However, at this
-            # point iscsid is not running in the dom0 chroot.
-
-            # Make temporary copy of iscsi config in dom0 chroot
-            util.mount('none', os.path.join(mounts['root'], 'etc/iscsi'), None, 'tmpfs')            
-            if util.runCmd2([ 'cp', '-a', '/etc/iscsi', os.path.join(mounts['root'], 'etc/')]) != 0:
-                raise RuntimeError, "Failed to initialise temporary /etc/iscsi"
-        
-            # Start iscsid inside dom0 chroot
-            util.runCmd2(['killall', '-9', 'iscsid']) # just in case one is running             
-            if util.runCmd2([ 'chroot', mounts['root'], '/sbin/iscsid' ]) != 0:
-                raise RuntimeError, "Failed to start iscsid in dom0 chroot"
-
-            # mkinitrd needs to know how to configure the interface used to access the iscsi disk
-            util.mount('none', os.path.join(mounts['root'], 'etc/sysconfig/network-scripts'), None, 'tmpfs')
-            fd = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/ifcfg-%s' % iscsi_iface), "w")
-            print >>fd, "DEVICE=%s" % iscsi_iface
-            print >>fd, "ONBOOT=yes"
-            print >>fd, "TYPE=Ethernet"
-            print >>fd, "HWADDR=%s" % iscsi_iface_cfg.hwaddr
-            if not iscsi_iface_cfg.isStatic():
-                print >>fd, "BOOTPROTO=dhcp"
-            else:
-                print >>fd, "BOOTPROTO=none"
-                print >>fd, "NETMASK=%s" % iscsi_iface_cfg.netmask
-                print >>fd, "IPADDR=%s" % iscsi_iface_cfg.ipaddr
-                if iscsi_iface_cfg.gateway:
-                    print >>fd, "GATEWAY=%s" % iscsi_iface_cfg.gateway
-            fd.close()
-            # explicitly set the interface used for iscsi rather than letting mkinitrd probe for it, as user
-            # may have specified a different interface to the one used in the installer
-            cmd.append("--iscsi-iface=%s" % iscsi_iface)
-
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
         cmd.extend([output_file, kernel_version])
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
     finally:
-        if iscsi_primary_disk:
-            # stop the iscsi daemon
-            util.runCmd2(['killall', '-9', 'iscsid'])
-            # Clear up temporary copy of iscsi config in dom0 chroot
-            util.umount(os.path.join(mounts['root'], 'etc/iscsi'))
-            # Clear up temporary iscsi interface config in dom0 chroot
-            util.umount(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts'))
-
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
         util.umount(os.path.join(mounts['root'], 'proc'))
@@ -637,11 +591,11 @@ def getKernelVersion(rootfs_mount, kextra):
     assert len(out) == 1, "Installer only supports having a single kernel of each type installed.  Found %d of kernel-%s" % (len(out), kextra)
     return out[0]
 
-def mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk):
+def mkinitrd(mounts, primary_disk):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
-    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, xen_kernel_version)
-    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kdump_kernel_version)
+    __mkinitrd(mounts, primary_disk, xen_kernel_version)
+    __mkinitrd(mounts, primary_disk, kdump_kernel_version)
  
     # make the initrd-2.6-xen.img symlink:
     os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
@@ -897,9 +851,6 @@ def writeKeyboardConfiguration(mounts, keymap):
     kbdfile.close()
 
 def prepareSwapfile(mounts, primary_disk):
-    if diskutil.is_iscsi(primary_disk):
-        # Don't use swap over iscsi
-        return
     util.assertDir("%s/var/swap" % mounts['root'])
     util.runCmd2(['dd', 'if=/dev/zero',
                   'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
@@ -985,7 +936,7 @@ def setRootPassword(mounts, root_pwd):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings, iscsi_iface):
+def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -1031,8 +982,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
     if not preserve_settings:
         # This tells /etc/firstboot.d/30-prepare-networking to pif-introduce all the network devices we've discovered
-        # (although if we are using one for access to an iSCSI root disk then we omit that as it is reserved).
-        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys() if x != iscsi_iface ])
+        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys() ])
     else:
         print >>nc, "INTERFACES='%s'" % admin_config.hwaddr
     nc.close()
@@ -1046,8 +996,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     ###
     if not preserve_settings:
         # Write a firstboot config file for every interface we know about
-        # (unless we are using one for access to the iSCSI root device, in which case that must be ommited)
-        for intf in [ x for x in nethw.keys() if x != iscsi_iface ]:
+        for intf in [ x for x in nethw.keys() ]:
             hwaddr = nethw[intf].hwaddr
             conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
             ac = open(conf_file, 'w')
