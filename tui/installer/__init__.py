@@ -21,7 +21,6 @@ import repository
 import constants
 import upgrade
 import product
-import snackutil
 import diskutil
 import version
 
@@ -241,39 +240,6 @@ def more_media_sequence(installed_repos, still_need):
             ['Back'])
 
         return LEFT_BACKWARDS
-
-    def confirm_more_media(_):
-        """ 'Really use this disc?' screen. """
-        repos = repository.repositoriesFromDefinition('local', '')
-        assert len(repos) > 0
-
-        USE, VERIFY, BACK = range(3)
-        default_button = VERIFY
-        media_contents = []
-        for r in repos:
-            if r.identifier() in installed_repos:
-                media_contents.append(" * %s (already installed)" % r.name())
-                default_button = BACK
-            else:
-                media_contents.append(" * %s" % r.name())
-        text = "The media you have inserted contains:\n\n" + "\n".join(media_contents)
-
-        done = False
-        while not done:
-            ans = snackutil.ButtonChoiceWindowEx(tui.screen, "New Media", text, 
-                                                 ['Use media', 'Verify media', 'Back'], 
-                                                 width=50, default=default_button)
-            
-            if ans == 'verify media':
-                tui.repo.interactive_source_verification('local', '', 'installation')
-            elif ans == 'back':
-                rc = LEFT_BACKWARDS
-                done = True
-            else:
-                rc = RIGHT_FORWARDS
-                done = True
-
-        return rc
 
     seq = [ uicontroller.Step(get_more_media), uicontroller.Step(check_requires), uicontroller.Step(tui.repo.confirm_load_repo, args = ['Supplemental Pack', installed_repos]) ]
     direction = uicontroller.runSequence(seq, {})
