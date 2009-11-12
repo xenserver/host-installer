@@ -78,12 +78,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
-    def iscsi_disks_enabled(answers):
-        return answers.has_key('enable-iscsi') and answers['enable-iscsi'] == True
-
-    def iscsi_primary_disk(answers):
-        return diskutil.is_iscsi(answers['primary-disk'])
-
     def preserve_timezone(answers):
         if not_preserve_settings(answers):
             return False
@@ -100,7 +94,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         return settings.has_key('ha-armed') and settings['ha-armed']
 
     # initialise the list of installed/upgradeable products.
-    # This may change if we later add an iscsi disk
     tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
     results['installed-products'] = product.find_installed_products()
     results['upgradeable-products'] = upgrade.filter_for_upgradeable_products(results['installed-products'])
@@ -116,8 +109,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],
              predicates=[lambda _:(ram_warning or vt_warning)]),
-        Step(uis.add_iscsi_disks,
-             predicates=[iscsi_disks_enabled]),
         Step(uis.overwrite_warning,
              predicates=[lambda _:len(results['installed-products']) > 0 and len(results['upgradeable-products']) == 0]),
         Step(uis.get_installation_type, 
@@ -153,10 +144,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(tui.repo.verify_source, args=['installation']),
         Step(uis.get_root_password,
              predicates=[not_preserve_settings]),
-        Step(uis.get_iscsi_interface,
-             predicates=[iscsi_primary_disk]),
-        Step(uis.get_iscsi_interface_configuration,
-             predicates=[iscsi_primary_disk]),
         Step(uis.get_admin_interface,
              predicates=[has_multiple_nics, not_preserve_settings]),
         Step(uis.get_admin_interface_configuration,
