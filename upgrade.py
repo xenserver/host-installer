@@ -335,7 +335,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             foundSRNumber = None
         
         # Detect the OEM HDD state partition as a special case
-        isOEMHDD = ( foundSRNumber == constants.OEMHDD_SR_PARTITION_NUMBER )
+        isOEMHDD = ( foundSRNumber > 4 )
         if isOEMHDD:
             foundConfigNumber = foundSRNumber - 1
             partNumsToPreserve.append(foundConfigNumber)
