@@ -280,7 +280,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     optional_backup = False
     repartition = True
     prompt_for_target = True
-    upgrades_variants = [ 'OEM' ]
+    upgrades_variants = [ 'OEM-hd', 'OEM-flash' ]
 
     def __init__(self, source):
         ThirdGenUpgrader.__init__(self, source)
@@ -335,7 +335,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             foundSRNumber = None
         
         # Detect the OEM HDD state partition as a special case
-        isOEMHDD = ( foundSRNumber > 4 )
+        isOEMHDD = ( existing.variant == 'OEM-hd' )
         if isOEMHDD:
             foundConfigNumber = foundSRNumber - 1
             partNumsToPreserve.append(foundConfigNumber)
@@ -532,6 +532,15 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         partTool.commit()
         
         return retVal
+
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
+    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
+        ThirdGenUpgrader.completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum)
+        if prev_install.variant == 'OEM-flash':
+            xelogging.log("Deactivating all partitions on %s" % prev_install.primary_disk)
+            partTool = PartitionTool(prev_install.primary_disk)
+            partTool.inactivateDisk()
+            partTool.commit()
 
 
 ################################################################################

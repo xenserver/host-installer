@@ -483,7 +483,11 @@ class ExistingOEMInstallation(ExisitingInstallation):
             os.rmdir(mountpoint)
 
         assert root_part > 0
-        self.root_device = diskutil.partitionFromDisk(diskutil.diskFromPartition(boot_device), root_part)
+        self.root_device = PartitionTool.partitionDevice(PartitionTool.diskDevice(boot_device), root_part)
+        if root_part > 4:
+            self.variant += '-hd'
+        else:
+            self.variant += '-flash'
         self.readInventory()
 
         self.auxiliary_state_devices = []
