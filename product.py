@@ -47,9 +47,9 @@ class Version(object):
         """ Create a Version object given an input string vstr.  vstr should be
         of one of the following forms:
 
-            a.b.cs   a.b.cs-bt
+            a.b   a.b.cs   a.b.cs-bt
 
-        for integers a, b, c, and b representing the major, minor, relase, and
+        for integers a, b, c, and b representing the major, minor, release, and
         build number elements of the version.  s and t are alphanumeric strings
         that begin with an alphabetic character to distinguish them from c and
         b respectively.  s and t should NOT contain the hyphen character. """
@@ -61,9 +61,15 @@ class Version(object):
             vbuild = cls.ANY
             vbuildsuffix = ""
 
-        vmaj_s, vmin_s, vrelsuf_s = vs.split(".")
-        match = re.match("([0-9]+)(.*)", vrelsuf_s)
-        vrel_s, vsuf_s = match.group(1), match.group(2)
+        elements = vs.split(".")
+        if len(elements) == 3:
+            vmaj_s, vmin_s, vrelsuf_s = elements
+            match = re.match("([0-9]+)(.*)", vrelsuf_s)
+            vrel_s, vsuf_s = match.group(1), match.group(2)
+        else:
+            vmaj_s, vmin_s = elements
+            vrel_s = 0
+            vsuf_s = ''
 
         if bs:
             match = re.match("([0-9]+)(.*)", bs)
