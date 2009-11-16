@@ -502,6 +502,12 @@ class PartitionTool:
         if not matches:
             raise Exception("Could not determine disk device for device '"+partitionDevice+"'")
         return matches.group(1)
+        
+    def partitionNumber(self, partitionDevice):
+        matches = re.match(self.device + self.midfix + r'(\d+)$', partitionDevice)
+        if not matches:
+            raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
+        return int(matches.group(1))
 
     # Private methods:
     def cmdWrap(self, params):
@@ -522,13 +528,10 @@ class PartitionTool:
 
     def _partitionDevice(self, deviceNum):
         return self.device + self.midfix + str(deviceNum)
-        
-    def partitionNumber(self, partitionDevice):
-        matches = re.match(self.device + self.midfix + r'(\d+)$', partitionDevice)
-        if not matches:
-            # sfdisk mangles partition devices if a by-id device is used.
-            if self.device.startswith('/dev/disk/by-id/'):
-                matches = re.match(self.device + r'(\d+)$', partitionDevice)
+
+    def _partitionNumber(self, partitionDevice):
+        # sfdisk is inconsistent in naming partitions of by-id devices
+        matches = re.match(self.device + r'\D*(\d+)$', partitionDevice)
         if not matches:
             raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
         return int(matches.group(1))
@@ -579,7 +582,7 @@ class PartitionTool:
                 
                 size = int(matches.group(3))
                 if size != 0: # Treat partitions of size 0 as not present
-                    number = self.partitionNumber(matches.group(1))
+                    number = self._partitionNumber(matches.group(1))
     
                     partitions[number] = {
                         'start': int(matches.group(2)),
