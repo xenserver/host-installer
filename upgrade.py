@@ -149,14 +149,11 @@ class ThirdGenUpgrader(Upgrader):
     doBackupStateChanges = []
     def doBackup(self, progress_callback, target_disk, backup_partnum):
 
-        progress_callback(10)
-
         # format the backup partition:
         backup_partition = PartitionTool.partitionDevice(target_disk, backup_partnum)
         if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
             raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
-
-        progress_callback(20)
+        progress_callback(10)
 
         # copy the files across:
         primary_mount = '/tmp/backup/primary'
@@ -166,10 +163,16 @@ class ThirdGenUpgrader(Upgrader):
         try:
             util.mount(self.source.root_device, primary_mount, options = ['ro'])
             util.mount(backup_partition, backup_mount)
-            cmd = ['cp', '-a'] + \
-                  [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
-                  ['%s/' % backup_mount]
-            assert util.runCmd2(cmd) == 0
+
+            top_dirs = os.listdir(primary_mount)
+            val = 10
+            for x in top_dirs:
+                cmd = ['cp', '-a'] + \
+                      [ os.path.join(primary_mount, x) ] + \
+                      ['%s/' % backup_mount]
+                assert util.runCmd2(cmd) == 0
+                val += 90 / len(top_dirs)
+                progress_callback(val)
 
             util.umount(backup_mount)
             util.mount(backup_partition, backup_mount)
@@ -441,6 +444,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         # format the backup partition:
         if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
             raise Exception,  "Backup: Failed to format filesystem on %s" % backup_partition
+        progress_callback(10)
 
         primary_mount = '/tmp/backup/primary'
         backup_mount  = '/tmp/backup/backup'
@@ -464,7 +468,8 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             assert util.runCmd2(cmd) == 0
             if gen > db_generation[0]:
                 db_generation = (gen, existing.state_device, existing.state_prefix)
-            
+            progress_callback(30)
+
             util.umount(primary_mount)
             freqPath = os.path.join(root_dir, 'etc/freq-etc/etc')
             if os.path.isdir(freqPath): # Present on OEM Flash only
@@ -472,6 +477,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
                 assert util.runCmd2(cmd) == 0
 
             # copy from auxiliary state partitions:
+            val = 30
             for state_info in existing.auxiliary_state_devices:
                 lvmTool.activateVG(state_info['vg'])
                 mountPath = os.path.join('/dev', state_info['vg'], state_info['lv'])
@@ -487,6 +493,8 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
                 if gen > db_generation[0]:
                     db_generation = (gen, state_info, existing.inventory['XAPI_DB_COMPAT_VERSION'])
                 util.umount(primary_mount)
+                val += 10
+                progress_callback(val)
 
             # always keep the state with the highest db generation count
             if db_generation[0] > gen:
