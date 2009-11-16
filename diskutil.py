@@ -127,44 +127,6 @@ def removable(device):
 def getQualifiedDeviceName(disk):
     return "/dev/%s" % disk
 
-# Given a partition (e.g. /dev/sda1), get a disk name:
-def diskFromPartition(partition):
-    numlen = 1
-    while 1:
-        try:
-            partnum = int(partition[len(partition) - numlen:])
-        except:
-            # move back one as this value failed.
-            numlen -= 1 
-            break
-        else:
-            numlen += 1
-
-    # is it a cciss?
-    if True in [partition.startswith(x) for x in ['/dev/cciss', '/dev/ida', '/dev/rd']]:
-        numlen += 1 # need to get rid of trailing 'p'
-
-    # is it /dev/disk/by-id/XYZ-part<k>?
-    if partition.startswith("/dev/disk/by-id"):
-        return partition[:partition.rfind("-part")]
-
-    return partition[:len(partition) - numlen]
-
-def partitionNumberFromPartition(partition):
-    match = re.search(r'([0-9]+)$',partition)
-    if not match:
-        raise Exception('Cannot extract partition number from '+partition)
-    return int(match.group(1))
-
-# Given a disk (eg. /dev/sda) and a partition number, get a partition name:
-def partitionFromDisk(disk, pnum):
-    midfix = ""
-    if re.search("/cciss/", disk):
-        midfix = "p"
-    elif re.search("/disk/by-id/", disk):
-        midfix = "-part"
-    return disk + midfix + str(pnum)
-
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
     symlink = None
@@ -266,41 +228,26 @@ def getHumanDiskName(disk):
         return disk[5:]
     return disk
 
-# get a mapping of partitions to the volume group they are part of:
-def getVGPVMap():
-    rv = {}
-    pipe = subprocess.Popen(['pvscan'], bufsize = 1, stdout = subprocess.PIPE,
-                            stderr = dev_null(), close_fds = True)
-    for line in pipe.stdout:
-        a = line.split()
-        if a[0] == 'PV' and a[2] == 'VG':
-            if rv.has_key(a[3]):
-                rv[a[3]].append(a[1])
-            else:
-                rv[a[3]] = [a[1]]
-    pipe.wait()
-
-    return rv
-
 # given a list of disks, work out which ones are part of volume
 # groups that will cause a problem if we install XE to those disks:
 def findProblematicVGs(disks):
-    # which partitions are the volue groups on?
-    vgpvmap = getVGPVMap()
+    real_disks = map(lambda d: os.path.realpath(d), disks)
 
     # which disks are the volume groups on?
     vgdiskmap = {}
-    for vg in vgpvmap:
-        vgdiskmap[vg] = [diskFromPartition(x) for x in vgpvmap[vg]]
+    tool = LVMTool()
+    for pv in tool.pvs:
+        if pv['vg_name'] not in vgdiskmap: vgdiskmap[pv['vg_name']] = []
+        vgdiskmap[pv['vg_name']].append(PartitionTool.diskDevice(pv['pv_name']))
 
     # for each VG, map the disk list to a boolean list saying whether that
     # disk is in the set we're installing to:
     vgusedmap = {}
     for vg in vgdiskmap:
-        vgusedmap[vg] = [disk in disks for disk in vgdiskmap[vg]]
+        vgusedmap[vg] = [disk in real_disks for disk in vgdiskmap[vg]]
 
     # now, a VG is problematic if it its vgusedmap entry contains a mixture
-    # of Trua and False.  If it's entirely True or entirely False, that's OK:
+    # of True and False.  If it's entirely True or entirely False, that's OK:
     problems = []
     for vg in vgusedmap:
         p = False
