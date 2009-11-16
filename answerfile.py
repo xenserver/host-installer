@@ -182,7 +182,6 @@ class Answerfile:
             script = getText(node.childNodes)
             scripts.add_script(stage, script)
 
-        # old format - retained for backward compatability - REMOVE AFTER XENRT MOVED TO NEW FORMAT
         pis_nodes = self.nodelist.getElementsByTagName('post-install-script')
         if len(pis_nodes) == 1:
             script = getText(pis_nodes[0].childNodes)
@@ -190,17 +189,7 @@ class Answerfile:
         ifs_nodes = self.nodelist.getElementsByTagName('install-failed-script')
         if len(ifs_nodes) == 1:
             script = getText(ifs_nodes[0].childNodes)
-            # create wrapper script so this is only called on installation-complete if there was a failure
-            open('/tmp/install-failed-wrapper-script' ,'w').write( \
-                "#!/usr/bin/env python\n" \
-                "import sys\n" \
-                "sys.path.append('%s')\n" % constants.INSTALLER_DIR +\
-                "import util\n" \
-                "if sys.argv[1] == '1':\n" \
-                "    util.fetchFile('%s', '/tmp/install-failed-script')\n" % script +\
-                "    util.runCmd2(['chmod','a+x','/tmp/install-failed-script'])\n" \
-                "    util.runCmd2(['/tmp/install-failed-script'])\n")
-            scripts.add_script('installation-complete', 'file:///tmp/install-failed-wrapper-script')
+            scripts.add_script('installation-complete', script)
 
         return results
 
