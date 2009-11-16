@@ -25,7 +25,7 @@ def run_scripts(stage, *args):
         run_script(script, stage, *args)
 
 def run_script(script, stage, *args):
-    xelogging.log("Running script for stage %s: %s %s %s" % (stage, script, stage, ' '.join(args)))
+    xelogging.log("Running script for stage %s: %s %s" % (stage, script, ' '.join(args)))
 
     util.assertDir(constants.SCRIPTS_DIR)
     fd, local_name = tempfile.mkstemp(prefix = stage, dir = constants.SCRIPTS_DIR)
@@ -49,9 +49,10 @@ def run_script(script, stage, *args):
     elif interp[0] not in ['/bin/sh', '/bin/bash', 'usr/bin/python']:
         raise RuntimeError, "Invalid interpreter %s in %s." % (interp[0], script)
         
-    cmd = [local_name, stage]
+    cmd = [local_name]
     cmd.extend(args)
     os.chmod(local_name, stat.S_IRUSR | stat.S_IXUSR)
+    os.environ['XS_STAGE'] = stage
     rc, out, err = util.runCmd2(cmd, with_stdout = True, with_stderr = True)
     xelogging.log("Script returned %d" % rc)
     # keep script, will be collected in support tarball
