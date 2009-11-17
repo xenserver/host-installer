@@ -280,10 +280,7 @@ class Answerfile:
         if len(self.nodelist.getElementsByTagName('existing-installation')) == 0:
             raise AnswerfileError, "No existing installation specified."
         disk = "/dev/" + getText(self.nodelist.getElementsByTagName('existing-installation')[0].childNodes)
-
-        preserve_p1 = self.nodelist.getElementsByTagName('existing-installation')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
-        if preserve_p1:
-            diskutil.preservePart1(disk)
+        results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
