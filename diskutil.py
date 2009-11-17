@@ -238,7 +238,12 @@ def findProblematicVGs(disks):
     tool = LVMTool()
     for pv in tool.pvs:
         if pv['vg_name'] not in vgdiskmap: vgdiskmap[pv['vg_name']] = []
-        vgdiskmap[pv['vg_name']].append(PartitionTool.diskDevice(pv['pv_name']))
+        try:
+            device = PartitionTool.diskDevice(pv['pv_name'])
+        except:
+            # CA-35020: whole disk
+            device = pv['pv_name']
+        vgdiskmap[pv['vg_name']].append(device)
 
     # for each VG, map the disk list to a boolean list saying whether that
     # disk is in the set we're installing to:
