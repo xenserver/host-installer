@@ -135,9 +135,9 @@ class LVMTool:
         self.resizeList = []
  
     @classmethod
-    def cmdWrap(cls, params):
+    def cmdWrap(cls, params, exceptOnFail = True):
         rv, out, err = util.runCmd2(params, True, True)
-        if rv != 0:
+        if exceptOnFail and rv != 0:
             if isinstance(err, (types.ListType, types.TupleType)):
                 raise Exception("\n".join(err)+"\nError="+str(rv))
             else:
@@ -148,7 +148,7 @@ class LVMTool:
         retVal = []
         allOptions = info['string_options'] + info['integer_options']
         cmd = info['command'] + info['arguments'] + ['--options', ','.join(allOptions)]
-        out = self.cmdWrap(cmd)
+        out = self.cmdWrap(cmd, False)
 
         for line in out.strip().split('\n'):
             try:
