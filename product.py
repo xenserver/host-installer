@@ -626,10 +626,15 @@ def findXenSourceProducts():
         (boot, state, storage) = diskutil.probeDisk(disk)
 
         inst = None
-        if boot[0] == diskutil.INSTALL_RETAIL:
-            inst = ExistingRetailInstallation(disk, boot[1], state[1], storage)
-        elif boot[0] == diskutil.INSTALL_OEM:
-            inst = ExistingOEMInstallation(disk, boot[1], state[1])
+        try:
+            if boot[0] == diskutil.INSTALL_RETAIL:
+                inst = ExistingRetailInstallation(disk, boot[1], state[1], storage)
+            elif boot[0] == diskutil.INSTALL_OEM:
+                inst = ExistingOEMInstallation(disk, boot[1], state[1])
+        except Exception, e:
+            xelogging.log("A problem occurred whilst scanning for existing installations:")
+            xelogging.log_exception(e)
+            xelogging.log("This is not fatal.  Continuing anyway.")
 
         if inst:
             xelogging.log("Found an installation: %s" % str(inst))
