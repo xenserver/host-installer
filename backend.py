@@ -14,7 +14,6 @@ import os
 import os.path
 import subprocess
 import datetime
-import pickle
 import re
 import tempfile
 
@@ -23,13 +22,14 @@ import generalui
 import xelogging
 import util
 import diskutil
+from disktools import *
 import netutil
-from util import runCmd
 import shutil
 import constants
 import hardware
 import upgrade
 import init_constants
+import scripts
 
 # Product version and constants:
 import version
@@ -103,11 +103,12 @@ def getPrepSequence(ans):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, As(ans, 'primary-disk'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end'), []),
             ]
         for gd in ans['guest-disks']:
             if gd != ans['primary-disk']:
@@ -115,25 +116,35 @@ def getPrepSequence(ans):
                                 (lambda mygd: (lambda _: [mygd]))(gd), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
+        seq.append(Task(prepareTarget,
+                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
+                        lambda progress_callback, upgrader, *a: upgrader.prepTargetStateChanges,
+                        progress_text = "Preparing target disk...",
+                        progress_scale = 100,
+                        pass_progress_callback = True))
         if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
-            seq.append(Task(backupExisting,
-                            A(ans, 'upgrader','installation-to-overwrite'), [],
-                            progress_text = "Backing up existing installation..."))
+            seq.append(Task(doBackup,
+                            lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].doBackupArgs ],
+                            lambda progress_callback, upgrader, *a: upgrader.doBackupStateChanges,
+                            progress_text = "Backing up existing installation...",
+                            progress_scale = 100,
+                            pass_progress_callback = True))
         seq.append(Task(prepareUpgrade,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ],
                         lambda progress_callback, upgrader, *a: upgrader.prepStateChanges,
                         progress_text = "Preparing for upgrade...",
-                        progress_scale = 80,
+                        progress_scale = 100,
                         pass_progress_callback = True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'primary-disk'), []),
-        Task(mountVolumes, A(ans, 'primary-disk', 'cleanup'), ['mounts', 'cleanup']),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'primary-partnum'), []),
+        Task(mountVolumes, A(ans, 'primary-disk', 'primary-partnum', 'cleanup'), ['mounts', 'cleanup']),
         ]
     return seq
 
 def getRepoSequence(ans, repos):
     seq = []
     for repo in repos:
+        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos']])(repo), []))
         seq.append(Task(repo.accessor().start, lambda x: [], []))
         for package in repo:
             seq += [
@@ -143,23 +154,23 @@ def getRepoSequence(ans, repos):
                      pass_progress_callback = True,
                      progress_text = "Installing from %s..." % repo.name())
                 ]
-        seq.append(Task(repo.record_install, A(ans, 'mounts'), []))
+        seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'bootloader', 'serial-console', 'boot-serial', 'bootloader-location'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'bootloader', 'serial-console', 'boot-serial', 'bootloader-location'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'net-iscsi-interface'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts'), []),
-        Task(mkinitrd, A(ans, 'mounts',  'net-iscsi-interface', 'net-iscsi-configuration', 'primary-disk'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'guest-disks', 'net-admin-bridge'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -168,7 +179,7 @@ def getFinalisationSequence(ans):
     # on fresh installs, prepare the storage repository as required:
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(prepareStorageRepositories, A(ans, 'operation', 'mounts', 'primary-disk', 'guest-disks', 'sr-type'), []),
+            Task(prepareStorageRepositories, A(ans, 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -181,12 +192,11 @@ def getFinalisationSequence(ans):
     seq.append(Task(writei18n, A(ans, 'mounts'), []))
     
     # run the users's scripts
-    if ans.has_key('filesystem-populated-scripts'):
-        seq.append( Task(util.runScripts, lambda a: [a['filesystem-populated-scripts'] , a['mounts']['root']], []) )
+    seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
 
     seq += [
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
-        Task(writeLog, A(ans, 'primary-disk'), [])
+        Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), [])
         ]
 
     return seq
@@ -259,12 +269,11 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     return answers
 
-class UnkownInstallMediaType(Exception):
-    pass
-
 def performInstallation(answers, ui_package):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
+    xelogging.log("SCRIPTS DICTIONARY:")
+    prettyLogAnswers(scripts.script_dict)
 
     # update the settings:
     if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
@@ -298,6 +307,12 @@ def performInstallation(answers, ui_package):
     if not answers.has_key('net-admin-bridge'):
         assert answers['net-admin-interface'].startswith("eth")
         answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
+
+    if 'initial-partitions' not in answers:
+        answers['initial-partitions'] = []
+
+    if 'sr-at-end' not in answers:
+        answers['sr-at-end'] = True
  
     # perform installation:
     prep_seq = getPrepSequence(answers)
@@ -313,41 +328,58 @@ def performInstallation(answers, ui_package):
         new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
         return new_ans
 
-    done = False
-    installed_repo_ids = []
-    while not done:
-        all_repositories = repository.repositoriesFromDefinition(
-            answers['source-media'], answers['source-address']
-            )
-        if len(installed_repo_ids) == 0 and len(all_repositories) == 0:
-            # CA-29016: main repository has vanished
-            raise RuntimeError, "No repository found at the specified location."
+    new_ans['installed-repos'] = {}
+    master_required_list = []
+    all_repositories = repository.repositoriesFromDefinition(
+        answers['source-media'], answers['source-address']
+        )
+    if len(new_ans['installed-repos']) == 0 and len(all_repositories) == 0:
+        # CA-29016: main repository has vanished
+        raise RuntimeError, "No repository found at the specified location."
 
+    for driver_repo_def in answers['extra-repos']:
+        rtype, rloc, required_list = driver_repo_def
+        if rtype == 'local':
+            answers['more-media'] = True
+        else:
+            all_repositories += repository.repositoriesFromDefinition(rtype, rloc)
+        master_required_list += filter(lambda r: r not in master_required_list, required_list)
+
+    if answers['preserve-settings'] and 'backup-partnum' in new_ans:
+        # mount backup and advertise mountpoint for Supplemental Packs
+        backup_dir = '/tmp/backup/backup'
+        chroot_dir = 'tmp/backup'
+        util.assertDir(backup_dir)
+        util.mount(PartitionTool.partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum']), backup_dir, options = ['ro'])
+        util.assertDir(os.path.join(new_ans['mounts']['root'], chroot_dir))
+        util.bindMount(backup_dir, os.path.join(new_ans['mounts']['root'], chroot_dir))
+        os.environ['XS_PREVIOUS_INSTALLATION'] = '/'+chroot_dir
+        
+    repeat = True
+    while repeat:
         # only install repositories we've not already installed:
-        repositories = filter(lambda r: r.identifier() not in installed_repo_ids,
+        repositories = filter(lambda r: str(r) not in new_ans['installed-repos'],
                               all_repositories)
         if len(repositories) > 0:
             new_ans = handleRepos(repositories, new_ans)
-            installed_repo_ids.extend([ r.identifier() for r in repositories] )
 
         # get more media?
-        done = not (answers.has_key('more-media') and answers['more-media'] and answers['source-media'] == 'local')
-        if not done:
+        repeat = answers.has_key('more-media') and answers['more-media']
+        if repeat:
             # find repositories that we installed from removable media:
             for r in repositories:
                 if r.accessor().canEject():
                     r.accessor().eject()
-            accept_media, ask_again = ui_package.installer.more_media_sequence(installed_repo_ids)
-            done = not accept_media
+            still_need = filter(lambda r: str(r) not in new_ans['installed-repos'], master_required_list)
+            accept_media, ask_again = ui_package.installer.more_media_sequence(new_ans['installed-repos'], still_need)
+            repeat = accept_media
             answers['more-media'] = ask_again
+            all_repositories += repository.repositoriesFromDefinition('local', '')
 
-    # install from driver repositories, if any:
-    for driver_repo_def in answers['extra-repos']:
-        xelogging.log("(Now installing from driver repositories that were previously stashed.)")
-        rtype, rloc = driver_repo_def
-        all_repos = repository.repositoriesFromDefinition(rtype, rloc)
-        new_ans = handleRepos(all_repos, new_ans)
-        installed_repo_ids.extend([ r.identifier() for r in repositories])
+    if answers['preserve-settings'] and 'backup-partnum' in new_ans:
+        util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
+        os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
+        util.umount(backup_dir)
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
@@ -357,6 +389,14 @@ def performInstallation(answers, ui_package):
         for r in repositories:
             if r.accessor().canEject():
                 r.accessor().eject()
+
+    return new_ans
+
+def checkRepoDeps(repo, installed_repos):
+    xelogging.log("Checking for dependencies of %s" % repo.identifier())
+    missing_repos = repo.check_requires(installed_repos)
+    if len(missing_repos) > 0:
+        raise RuntimeError, "Repository dependency error: %s" % ', '.join(missing_repos)
 
 def installPackage(progress_callback, mounts, package):
     package.install(mounts['root'], progress_callback)
@@ -396,6 +436,27 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['chroot', mounts['root'], 'timeutil', 'setLocalTime', '%s' % timestr]) == 0
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
+
+def inspectTargetDisk(disk, initial_partitions):
+    preserved_partitions = [PartitionTool.ID_DELL_UTILITY]
+    primary_part = 1
+    
+    tool = PartitionTool(disk)
+
+    if len(initial_partitions) > 0:
+        for part in initial_partitions:
+            tool.deletePartition(part['number'])
+            tool.createPartition(part['id'], part['size'], part['number'])
+        tool.commit(log = True)
+
+    for num, part in tool.iteritems():
+        if part['id'] in preserved_partitions:
+            primary_part += 1
+
+    if primary_part > 2:
+        raise RuntimeError, "Target disk contains more than one Utility Partition."
+    return (primary_part, primary_part+1, primary_part+2)
+
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
         util.runCmd2(['vgreduce', '--removemissing', vg])
@@ -405,8 +466,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-# TODO - take into account service partitions
-def writeDom0DiskPartitions(disk):
+def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum, sr_at_end):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -414,141 +474,60 @@ def writeDom0DiskPartitions(disk):
     if not os.path.exists(disk):
         raise RuntimeError, "The disk %s could not be found." % disk
 
-    # partition the disk:
-    diskutil.writePartitionTable(disk, [root_size, root_size, -1], diskutil.getRootPartNumber(disk))
-    diskutil.makeActivePartition(disk, diskutil.getRootPartNumber(disk))
+    tool = PartitionTool(disk)
+    for num, part in tool.iteritems():
+        if num >= primary_partnum:
+            tool.deletePartition(num)
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, active = True)
+    if backup_partnum > 0:
+        tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
+    if storage_partnum > 0:
+        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+
+    if not sr_at_end:
+        # For upgrade testing, out-of-order partition layout
+        new_parts = {}
+
+        new_parts[primary_partnum] = {'start': tool.partitions[primary_partnum]['start'] + tool.partitions[storage_partnum]['size'],
+                                      'size': tool.partitions[primary_partnum]['size'],
+                                      'id': tool.partitions[primary_partnum]['id'],
+                                      'active': tool.partitions[primary_partnum]['active']}
+        new_parts[backup_partnum] = {'start': new_parts[primary_partnum]['start'] + new_parts[primary_partnum]['size'],
+                                     'size': tool.partitions[backup_partnum]['size'],
+                                     'id': tool.partitions[backup_partnum]['id'],
+                                     'active': tool.partitions[backup_partnum]['active']}
+        new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'],
+                                      'size': tool.partitions[storage_partnum]['size'],
+                                      'id': tool.partitions[storage_partnum]['id'],
+                                      'active': tool.partitions[storage_partnum]['active']}
+
+        for part in (primary_partnum, backup_partnum, storage_partnum):
+            tool.deletePartition(part)
+            tool.createPartition(new_parts[part]['id'], new_parts[part]['size'] * tool.sectorSize, part,
+                                 new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
+
+    tool.commit(log = True)
 
 def writeGuestDiskPartitions(disk):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
 
-    diskutil.clearDiskPartitions(disk)
+    tool = PartitionTool(disk)
+    for num, part in tool.iteritems():
+        tool.deletePartition(num)
+    tool.commit(log = True)
 
-def getSRPhysDevs(primary_disk, guest_disks, is_oem = False):
-    if is_oem:
-        pd_sr_part = constants.OEMHDD_SR_PARTITION_NUMBER
-    else:
-        pd_sr_part = diskutil.getSRPartNumber(primary_disk)
-
+def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
         if disk == primary_disk:
-            return diskutil.determinePartitionName(disk, pd_sr_part)
+            return PartitionTool.partitionDevice(disk, storage_partnum)
         else:
             return disk
 
     return [sr_partition(disk) for disk in guest_disks]
 
-def writeFirstbootFile(operation, mounts, filename, content):
-
-    if init_constants.operationIsOEMInstall(operation):
-        directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
-    else:
-        directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
-
-    util.assertDir(directory) # Creates the directory if not present
-    fd = open(os.path.join(directory, filename), 'w')
-    for line in content:
-        print >>fd, line
-    fd.close()
-
-def disableFirstbootScript(operation, mounts, filename):
-    xelogging.log('Disabling firstboot script '+filename)
-
-    if init_constants.operationIsOEMInstall(operation):
-        directory = os.path.join(mounts['state'], "installer", constants.FIRSTBOOT_DATA_DIR)
-    else:
-        directory = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR)
-    log_directory = directory + '/../log'
-    state_directory = directory + '/../state'
-    
-    util.assertDir(log_directory) # Creates the directory if not present
-    fd = open(os.path.join(log_directory, filename), 'w')
-    print >>fd, '# This firstboot script was disabled by the installer and did not run'
-    fd.close()
-    
-    util.assertDir(state_directory) # Creates the directory if not present
-    fd = open(os.path.join(state_directory, filename), 'w')
-    print >>fd, 'success'
-    print >>fd, '# This firstboot script was disabled by the installer and did not run'
-    fd.close()
-
-def prepareNetworking(operation, mounts, interface, config, nameservers, nethw):
-    if config is None:
-        admin_mac = ''
-        network_content = [
-            "ADMIN_INTERFACE=''",
-            "INTERFACES='%s'" % ' '.join( [ x.hwaddr for x in nethw.values() ] )
-        ]
-    else:
-        admin_mac = config.get('hwaddr', '')
-        network_content = [
-            "ADMIN_INTERFACE='%s'" % admin_mac,
-            "INTERFACES='%s'" % ' '.join( [ x.hwaddr for x in nethw.values() ] )
-        ]
-    xelogging.log('Writing firstboot network.conf '+', '.join(network_content))
-    writeFirstbootFile(operation, mounts, 'network.conf', network_content)
-        
-    for label, net_instance in nethw.iteritems():
-        mac = net_instance.hwaddr
-        content = [ '# Installer-generated configuration for '+label ]
-        if mac.lower() != admin_mac.lower():
-            # This is not the management interface so leave unconfigured
-            content += [
-                "LABEL='%s'" % label,
-                "MODE='none'"
-            ]
-        else:
-            # This is the management interface
-            if config.isStatic():
-                content += [
-                    "LABEL='%s'" % label,
-                    "MODE='static'",
-                    "IP='%s'" % config.get('ipaddr', ''),
-                    "NETMASK='%s'" % config.get('netmask', ''),
-                    "GATEWAY='%s'" % config.get('gateway', '')
-                ]
-            else:
-                content += [
-                    "LABEL='%s'" % label,
-                    "MODE='dhcp'"
-                ]
-            # Nameservers can be specified for both DHCP and static configurations
-            for i, nameserver in enumerate(nameservers):
-                content.append('DNS'+str(i+1)+"='"+nameserver.strip()+"'")
-        writeFirstbootFile(operation, mounts, 'interface-'+mac.lower()+'.conf', content)
-    disableFirstbootScript(operation, mounts, '27-detect-nics')
-
-def prepareHostname(operation, mounts, hostname):
-    content=[ "XSHOSTNAME='%s'" % hostname ]
-    xelogging.log('Writing firstboot hostname configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'hostname.conf', content)
-
-def prepareNTP(operation, mounts, method, ntp_servers):
-    content=[
-        "XSTIMEMETHOD='%s'" % method,
-        "XSNTPSERVERS='%s'" % ' '.join(ntp_servers)
-    ]
-    xelogging.log('Writing firstboot NTP configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'ntp.conf', content)
-
-def prepareTimezone(operation, mounts, timezone):
-    content=[
-        "XSTIMEZONE='%s'" % timezone
-    ]
-    xelogging.log('Writing firstboot timezone configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'timezone.conf', content)
-    
-def preparePassword(operation, mounts, password_hash):
-    content=[
-        "XSPASSWORD='%s'" % password_hash
-    ]
-    xelogging.log('Writing firstboot password configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'password.conf', content)
-    
-def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_type):
-    
-    is_oem = init_constants.operationIsOEMInstall(operation)
+def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disks, sr_type):
     
     if len(guest_disks) == 0:
         xelogging.log("No storage repository requested.")
@@ -556,7 +535,7 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
 
     xelogging.log("Arranging for storage repositories to be created at first boot...")
 
-    partitions = getSRPhysDevs(primary_disk, guest_disks, is_oem)
+    partitions = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
 
     sr_type_strings = { constants.SR_TYPE_EXT: 'ext', 
                         constants.SR_TYPE_LVM: 'lvm' }
@@ -565,27 +544,21 @@ def prepareStorageRepositories(operation, mounts, primary_disk, guest_disks, sr_
     # write a config file for the prepare-storage firstboot script:
     
     links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
-    content = [
-        "XSPARTITIONS='%s'" % str.join(" ", links),
-        "XSTYPE='%s'" % sr_type_string,
-        # Legacy names
-        "PARTITIONS='%s'" % str.join(" ", links),
-        "TYPE='%s'" % sr_type_string
-    ]
-    
-    xelogging.log('Writing firstboot storage configuration '+', '.join(content))
-    writeFirstbootFile(operation, mounts, 'default-storage.conf', content)
+    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
+    print >>fd, "XSPARTITIONS='%s'" % str.join(" ", links)
+    print >>fd, "XSTYPE='%s'" % sr_type_string
+    # Legacy names
+    print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
+    print >>fd, "TYPE='%s'" % sr_type_string
+    fd.close()
     
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(disk):
-    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, diskutil.getRootPartName(disk)]) == 0
+def createDom0DiskFilesystems(disk, primary_partnum):
+    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, PartitionTool.partitionDevice(disk, primary_partnum)]) == 0
 
-def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_version):
-
-    # find out whether we are using iscsi to access the primary disk
-    iscsi_primary_disk =  diskutil.is_iscsi(primary_disk)
+def __mkinitrd(mounts, primary_disk, kernel_version):
 
     # the mkinitrd command line
     cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
@@ -595,55 +568,12 @@ def __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kernel_versio
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
         util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
 
-        if iscsi_primary_disk:
-            # primary disk is iscsi via iscsi_iface w/ iscsi_iface_cfg
-            # mkinitrd uses iscsiadm to talk to iscsid.  However, at this
-            # point iscsid is not running in the dom0 chroot.
-
-            # Make temporary copy of iscsi config in dom0 chroot
-            util.mount('none', os.path.join(mounts['root'], 'etc/iscsi'), None, 'tmpfs')            
-            if util.runCmd2([ 'cp', '-a', '/etc/iscsi', os.path.join(mounts['root'], 'etc/')]) != 0:
-                raise RuntimeError, "Failed to initialise temporary /etc/iscsi"
-        
-            # Start iscsid inside dom0 chroot
-            util.runCmd2(['killall', '-9', 'iscsid']) # just in case one is running             
-            if util.runCmd2([ 'chroot', mounts['root'], '/sbin/iscsid' ]) != 0:
-                raise RuntimeError, "Failed to start iscsid in dom0 chroot"
-
-            # mkinitrd needs to know how to configure the interface used to access the iscsi disk
-            util.mount('none', os.path.join(mounts['root'], 'etc/sysconfig/network-scripts'), None, 'tmpfs')
-            fd = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/ifcfg-%s' % iscsi_iface), "w")
-            print >>fd, "DEVICE=%s" % iscsi_iface
-            print >>fd, "ONBOOT=yes"
-            print >>fd, "TYPE=Ethernet"
-            print >>fd, "HWADDR=%s" % iscsi_iface_cfg.hwaddr
-            if not iscsi_iface_cfg.isStatic():
-                print >>fd, "BOOTPROTO=dhcp"
-            else:
-                print >>fd, "BOOTPROTO=none"
-                print >>fd, "NETMASK=%s" % iscsi_iface_cfg.netmask
-                print >>fd, "IPADDR=%s" % iscsi_iface_cfg.ipaddr
-                if iscsi_iface_cfg.gateway:
-                    print >>fd, "GATEWAY=%s" % iscsi_iface_cfg.gateway
-            fd.close()
-            # explicitly set the interface used for iscsi rather than letting mkinitrd probe for it, as user
-            # may have specified a different interface to the one used in the installer
-            cmd.append("--iscsi-iface=%s" % iscsi_iface)
-
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
         cmd.extend([output_file, kernel_version])
         if util.runCmd2(cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
     finally:
-        if iscsi_primary_disk:
-            # stop the iscsi daemon
-            util.runCmd2(['killall', '-9', 'iscsid'])
-            # Clear up temporary copy of iscsi config in dom0 chroot
-            util.umount(os.path.join(mounts['root'], 'etc/iscsi'))
-            # Clear up temporary iscsi interface config in dom0 chroot
-            util.umount(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts'))
-
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
         util.umount(os.path.join(mounts['root'], 'proc'))
@@ -661,11 +591,11 @@ def getKernelVersion(rootfs_mount, kextra):
     assert len(out) == 1, "Installer only supports having a single kernel of each type installed.  Found %d of kernel-%s" % (len(out), kextra)
     return out[0]
 
-def mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk):
+def mkinitrd(mounts, primary_disk):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
-    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, xen_kernel_version)
-    __mkinitrd(mounts, iscsi_iface, iscsi_iface_cfg, primary_disk, kdump_kernel_version)
+    __mkinitrd(mounts, primary_disk, xen_kernel_version)
+    __mkinitrd(mounts, primary_disk, kdump_kernel_version)
  
     # make the initrd-2.6-xen.img symlink:
     os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
@@ -728,7 +658,7 @@ def writeMenuItems(xen_kernel_version, f, fn, s):
     for entry in entries:
         fn(f, entry)
 
-def installBootLoader(mounts, disk, bootloader, serial, boot_serial, location = 'mbr'):
+def installBootLoader(mounts, disk, primary_partnum, bootloader, serial, boot_serial, location = 'mbr'):
     
     assert(location == 'mbr' or location == 'partition')
     
@@ -743,16 +673,16 @@ def installBootLoader(mounts, disk, bootloader, serial, boot_serial, location = 
     # /proc/mounts with the correct data. If /etc/mtab is not a
     # symlink (to /proc/mounts) then we fake that out too.
     f = open("%s/proc/mounts" % mounts['root'], 'w')
-    f.write("%s / %s rw 0 0\n" % (diskutil.getRootPartName(disk), constants.rootfs_type))
+    f.write("%s / %s rw 0 0\n" % (PartitionTool.partitionDevice(disk, primary_partnum), constants.rootfs_type))
     f.close()
     if not os.path.islink("%s/etc/mtab" % mounts['root']):
         f = open("%s/etc/mtab" % mounts['root'], 'w')
-        f.write("%s / %s rw 0 0\n" % (diskutil.getRootPartName(disk), constants.rootfs_type))
+        f.write("%s / %s rw 0 0\n" % (PartitionTool.partitionDevice(disk, primary_partnum), constants.rootfs_type))
         f.close()
 
     try:
         if bootloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk, serial, boot_serial, location)
+            installGrub(mounts, disk, primary_partnum, serial, boot_serial, location)
         elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
             installExtLinux(mounts, disk, serial, boot_serial, location)
         else:
@@ -824,14 +754,14 @@ def writeGrubMenuItem(f, item):
     f.write("   module %s\n" % item['kernel'])
     f.write("   module %s\n\n" % item['initrd'])
 
-def installGrub(mounts, disk, serial, boot_serial, location = 'mbr'):
+def installGrub(mounts, disk, primary_partnum, serial, boot_serial, location = 'mbr'):
 
     assert(location == 'mbr' or location == 'partition')
 
     if location == 'mbr':
         grubroot = disk
     else:
-        grubroot = diskutil.getRootPartName(disk)
+        grubroot = PartitionTool.partitionDevice(disk, primary_partnum)
 
     # move the splash screen to a safe location so we don't delete it
     # when removing a previous installation of GRUB:
@@ -887,11 +817,11 @@ def installGrub(mounts, disk, serial, boot_serial, location = 'mbr'):
 ##########
 # mounting and unmounting of various volumes
 
-def mountVolumes(primary_disk, cleanup):
+def mountVolumes(primary_disk, primary_partnum, cleanup):
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
-    rootp = diskutil.getRootPartName(primary_disk)
+    rootp = PartitionTool.partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
@@ -921,9 +851,6 @@ def writeKeyboardConfiguration(mounts, keymap):
     kbdfile.close()
 
 def prepareSwapfile(mounts, primary_disk):
-    if diskutil.is_iscsi(primary_disk):
-        # Don't use swap over iscsi
-        return
     util.assertDir("%s/var/swap" % mounts['root'])
     util.runCmd2(['dd', 'if=/dev/zero',
                   'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
@@ -939,7 +866,7 @@ def writeFstab(mounts):
     fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
     fstab.write("none        /proc     proc   defaults   0  0\n")
     fstab.write("none        /sys      sysfs  defaults   0  0\n")
-    fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  2\n")
+    fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
 def enableAgent(mounts):
@@ -1009,7 +936,7 @@ def setRootPassword(mounts, root_pwd):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings, iscsi_iface):
+def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -1020,7 +947,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
-    network_scripts_dir = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts')
+    network_scripts_dir = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts')
 
     (manual_hostname, hostname) = hn_conf
     (manual_nameservers, nameservers) = ns_conf
@@ -1055,8 +982,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
     if not preserve_settings:
         # This tells /etc/firstboot.d/30-prepare-networking to pif-introduce all the network devices we've discovered
-        # (although if we are using one for access to an iSCSI root disk then we omit that as it is reserved).
-        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys() if x != iscsi_iface ])
+        print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys() ])
     else:
         print >>nc, "INTERFACES='%s'" % admin_config.hwaddr
     nc.close()
@@ -1070,8 +996,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     ###
     if not preserve_settings:
         # Write a firstboot config file for every interface we know about
-        # (unless we are using one for access to the iSCSI root device, in which case that must be ommited)
-        for intf in [ x for x in nethw.keys() if x != iscsi_iface ]:
+        for intf in [ x for x in nethw.keys() ]:
             hwaddr = nethw[intf].hwaddr
             conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
             ac = open(conf_file, 'w')
@@ -1098,7 +1023,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     util.assertDir(save_dir)
 
     # Write out initial network configuration file for management interface:
-    sysconf_admin_iface_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_iface)
+    sysconf_admin_iface_file = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/ifcfg-%s' % admin_iface)
     sysconf_admin_iface_fd = open(sysconf_admin_iface_file, 'w')
     print >>sysconf_admin_iface_fd, "# DO NOT EDIT: This file generated by the installer"
     print >>sysconf_admin_iface_fd, "XEMANAGED=yes"
@@ -1110,7 +1035,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     sysconf_admin_iface_fd.close()
     util.runCmd2(['cp', '-p', sysconf_admin_iface_file, save_dir])
 
-    sysconf_bridge_file = os.path.join(mounts['root'], 'etc', 'sysconfig', 'network-scripts', 'ifcfg-%s' % admin_bridge)
+    sysconf_bridge_file = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/ifcfg-%s' % admin_bridge)
     sysconf_bridge_fd = open(sysconf_bridge_file, "w")
     print >>sysconf_bridge_fd, "# DO NOT EDIT: This file generated by the installer"
     print >>sysconf_bridge_fd, "XEMANAGED=yes"
@@ -1164,9 +1089,9 @@ def writeModprobeConf(mounts):
     os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
               "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
-def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admin_bridge):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
-    default_sr_physdevs = getSRPhysDevs(primary_disk, guest_disks)
+    default_sr_physdevs = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
     inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
     inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
@@ -1175,7 +1100,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, guest_disks, admi
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
-    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(diskutil.getBackupPartName(primary_disk)) or diskutil.getBackupPartName(primary_disk)))
+    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(PartitionTool.partitionDevice(primary_disk, backup_partnum)) or PartitionTool.partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
@@ -1188,195 +1113,15 @@ def touchSshAuthorizedKeys(mounts):
     fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
     fh.close()
 
-def backupFileSystem(primary_partition, backup_partition):
-    # format the backup partition:
-    if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-        raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
-
-    # copy the files across:
-    primary_mount = '/tmp/backup/primary'
-    backup_mount  = '/tmp/backup/backup'
-    for mnt in [primary_mount, backup_mount]:
-        util.assertDir(mnt)
-    try:
-        util.mount(primary_partition, primary_mount, options = ['ro'])
-        util.mount(backup_partition,  backup_mount)
-        cmd = ['cp', '-a'] + \
-              [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
-              ['%s/' % backup_mount]
-        assert util.runCmd2(cmd) == 0
-        
-    finally:
-        for mnt in [primary_mount, backup_mount]:
-            util.umount(mnt)
-
-def stampBackupPartition(backup_partition):
-    backup_mount  = '/tmp/backup/backup'
-    util.assertDir(backup_mount)
-    try:
-        util.mount(backup_partition,  backup_mount)
-        util.runCmd2(['touch', os.path.join(backup_mount, '.xen-backup-partition')])
-    finally:
-        util.umount(backup_partition)
-
-def backupExisting(upgrader, existing):
-    if not upgrader.requires_backup and not upgrader.optional_backup:
-        # This upgrader doesn't support a backup during the upgrade, so skip it
-        xelogging.log("Skipping backup of existing installation: this upgrade does not support it" )
-        return
-    primary_partition = diskutil.getRootPartName(existing.primary_disk)
-    backup_partition  = diskutil.getBackupPartName(existing.primary_disk)
-
-    xelogging.log("Backing up existing installation: source %s, target %s" % (primary_partition, backup_partition))
-
-    backupFileSystem(primary_partition, backup_partition)
-    stampBackupPartition(backup_partition)
-
-
-################################################################################
-# Functions to convert disk format from OEM to Retail
-
-def removeExcessOemPartitions(existing):
-    """Remove all OEM disk partitions except state and SR partitions,
-       to enable conversion to Retail disk format. Converts state and SR
-       partitions from logical to primary partitions. The SR will have
-       the same partition number as the Retail SR and the state partition
-       will have the Retail backup partition number."""
-
-    disk = existing.primary_disk
-    xelogging.log("Repartitioning %s to convert from OEM to Retail format" % disk)
-
-    if not os.path.exists(disk):
-        raise RuntimeError, "The disk %s could not be found." % disk
-
-    # TODO - take into account service partitions
-    # For now, assert the truth we require for this process to succeed:
-    assert diskutil.getRootPartNumber(disk)   == 1
-    assert diskutil.getBackupPartNumber(disk) == 2
-
-    # Read the partition table in sector units
-    cmd = ["/sbin/sfdisk", "-l", "-uS", disk]
-    rc, ptn_table = util.runCmd2(cmd, with_stdout = True)
-    if rc != 0:
-        xelogging.log("Repartitioning %s failed when reading existing partition table" % disk)
-        raise RuntimeError, "Repartition of %s failed" % disk
-
-    state_p = diskutil.partitionFromDisk(disk, OEMHDD_STATE_PARTITION_NUMBER)
-    SR_p    = diskutil.partitionFromDisk(disk, OEMHDD_SR_PARTITION_NUMBER)
-
-    state_expr = re.compile('^%s\s+\*?\s+(\d+)\s+\d+\s+(\d+)\s+' % state_p, re.MULTILINE)
-    SR_expr    = re.compile('^%s\s+\*?\s+(\d+)\s+\d+\s+(\d+)\s+' % SR_p, re.MULTILINE)
-    try:
-        (state_start, state_size) = map(int, state_expr.search(ptn_table).groups())
-        (SR_start,       SR_size) = map(int,    SR_expr.search(ptn_table).groups())
-    except:
-        xelogging.log("Repartitioning %s failed when parsing partition table entries" % disk)
-        raise RuntimeError, "Repartition of %s failed parsing partition table entries" % disk
-
-    # Rewrite the partition table to renumber the SR and the state partition
-    # and remove everything else. We number so as to allow a later partition number 1.
-    first_partition  = diskutil.partitionFromDisk(disk, 1)
-    second_partition = diskutil.partitionFromDisk(disk, 2)
-    third_partition  = diskutil.partitionFromDisk(disk, 3)
-
-    new_ptn_table = """# partition table of %s
-unit: sectors
-%s : start=  0, size=  0, Id=0
-%s : start= %d, size= %d, Id=83
-%s : start= %d, size= %d, Id=8e
-""" % \
-    (disk, first_partition, second_partition, state_start, state_size, third_partition, SR_start, SR_size)
-
-    xelogging.log("Repartitioning %s\n%s\n" % (disk, new_ptn_table))
-
-    # sfdisk --force : sfdisk doesn't much like the sector layout that results
-    #                  when logical partitions become primary; hence '--force'.
-    cmd = ["/sbin/sfdisk", "--force", disk]
-    try:
-        pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
-                                     stdout = util.dev_null(),
-                                     stderr = util.dev_null(), close_fds = True)
-        pipe.stdin.write(new_ptn_table)
-        pipe.stdin.close()
-        assert pipe.wait() == 0
-    except:
-        xelogging.log("Repartitioning %s failed when reducing partition table entries" % disk)
-        raise RuntimeError, "Repartition of %s failed when reducing partition table entries" % disk
-
-def createRootPartitionTableEntry(disk):
-    """Add the root partition using similar code to the default install"""
-    try:
-        diskutil.addRootPartition(disk, diskutil.getRootPartNumber(disk), root_size)
-        diskutil.makeActivePartition(disk, diskutil.getRootPartNumber(disk))
-    except:
-        xelogging.log("Repartitioning %s failed to add new root partition table entry" % disk)
-        raise RuntimeError, "Repartitioning %s failed to add new root partition table entry" % disk
-
-def transferFSfromBackupToRoot(disk):
-    """Transfer the contents of the backup filesytem to the new root.
-       We do this so that the state partition can be erased to make room
-       for the standard backup partition.
-       IMPORTANT: after the partition table was rewritten, the state partition
-                  has been renumbered to be that of the Retail backup partition."""
-    root_partition = diskutil.getRootPartName(disk)
-    backup_partition = diskutil.partitionFromDisk(disk, diskutil.getBackupPartNumber(disk))
-
-    backupFileSystem(backup_partition, root_partition)
-
-def removeBackupPartition(disk):
-    diskutil.removePrimaryPartition(disk, diskutil.getBackupPartNumber(disk))
-
-def createBackupPartition(disk):
-    """Add the backup partition using similar code to the default install"""
-    diskutil.addRootPartition(disk, diskutil.getBackupPartNumber(disk), root_size)
-
-    backup_partition = diskutil.getBackupPartName(disk)
-    if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-        xelogging.log("Repartitioning failed to format filesystem on %s" % backup_partition)
-        raise RuntimeError, "Repartitioning failed to format filesystem on %s" % backup_partition
-
-def extractOemStatefromRootToBackup(existing):
-    disk = existing.primary_disk
-
-    root_partition = diskutil.getRootPartName(disk)
-    backup_partition = diskutil.getBackupPartName(disk)
-
-    backupFileSystem(root_partition, backup_partition)
-
-    # Move state up out of the "xe-" directory and everything else out of the way
-    def rearrangeOEMState(partition, build):
-        state_mount = "/tmp/rearrange-state"
-        util.assertDir(state_mount)
-        try:
-            util.mount(partition, state_mount)
-
-            top_contents = os.listdir(state_mount)
-            retired = tempfile.mkdtemp(prefix='retired-', dir=state_mount)
-
-            for f in top_contents:
-                assert util.runCmd2(['mv', '-f', os.path.join(state_mount, f), retired]) == 0
-
-            state_dirname = "xe-%s" % build
-            state_path = os.path.join(retired, state_dirname)
-            if os.path.isdir(state_path):
-                contents = os.listdir(state_path)
-                for f in contents:
-                    assert util.runCmd2(['mv', '-f', os.path.join(state_path, f), state_mount]) == 0
-
-        finally:
-            util.umount(state_mount)
-
-    rearrangeOEMState(backup_partition, existing.build)
-
 
 ################################################################################
 # OTHER HELPERS
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
-def writeLog(primary_disk):
+def writeLog(primary_disk, primary_partnum):
     try: 
-        bootnode = diskutil.getRootPartName(primary_disk)
+        bootnode = PartitionTool.partitionDevice(primary_disk, primary_partnum)
         util.assertDir("/tmp/mnt")
         util.mount(bootnode, "/tmp/mnt")
         log_location = "/tmp/mnt/var/log/installer"
@@ -1396,7 +1141,7 @@ def writeLog(primary_disk):
         pass
 
 def writei18n(mounts):
-    path = os.path.join(mounts['root'], 'etc', 'sysconfig', 'i18n')
+    path = os.path.join(mounts['root'], 'etc/sysconfig/i18n')
     fd = open(path, 'w')
     fd.write('LANG="en_US.UTF-8"\n')
     fd.write('SYSFONT="drdos8x8"\n')
@@ -1405,6 +1150,12 @@ def writei18n(mounts):
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
     return upgrade.getUpgrader(source)
+
+def prepareTarget(progress_callback, upgrader, *args):
+    return upgrader.prepareTarget(progress_callback, *args)
+
+def doBackup(progress_callback, upgrader, *args):
+    return upgrader.doBackup(progress_callback, *args)
 
 def prepareUpgrade(progress_callback, upgrader, *args):
     """ Gets required state from existing installation. """

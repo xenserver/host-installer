@@ -48,12 +48,7 @@ for arg in $args; do
   [ $copy -eq 1 ] && set -- "$@" "--$arg"
 done
 
-# OEM edition contains file /.oem_edition
-# Note: the non-OEM edition behaves like the OEM edition if you 
-# pass in "oem_edition" on the kernel command line
-[ -e /.oem_edition ] && set -- "$@" "--oem_edition"
-
-if [ "$started_by_init" == "1" ]; then
+if [ $started_by_init -eq 1 ]; then
   # started by init on the console
 
   # force TERM if on a serial console (Xen defeats init's attempt to do this)

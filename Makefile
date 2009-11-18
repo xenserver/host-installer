@@ -18,12 +18,6 @@ install:
 	install -m755 init $(INSTALLER_DIR)
 	install -m755 support.sh $(SUPPORT_DIR)
 
-# scripts used by OEM installer
-	mkdir -p $(INSTALLER_DIR)/oem
-	install -m755 oem/create-partitions $(INSTALLER_DIR)/oem
-	install -m755 oem/populate-partition $(INSTALLER_DIR)/oem
-	install -m755 oem/update-initrd $(INSTALLER_DIR)/oem
-
 # Others
 	install -m644 answerfile.py $(INSTALLER_DIR)
 	install -m644 backend.py $(INSTALLER_DIR)
@@ -34,23 +28,19 @@ install:
 	install -m644 generalui.py $(INSTALLER_DIR)
 	install -m644 hardware.py $(INSTALLER_DIR)
 	install -m644 install.py $(INSTALLER_DIR)
-	install -m644 md5crypt.py $(INSTALLER_DIR)
 	install -m644 init_constants.py $(INSTALLER_DIR)
 	install -m644 netutil.py $(INSTALLER_DIR)
 	install -m644 netinterface.py $(INSTALLER_DIR)
-	install -m644 oem.py $(INSTALLER_DIR)
-	install -m644 pbzip2file.py $(INSTALLER_DIR)
 	install -m644 repository.py $(INSTALLER_DIR)
 	install -m644 restore.py $(INSTALLER_DIR)
 	install -m644 snackutil.py $(INSTALLER_DIR)
-	install -m644 variant.py $(INSTALLER_DIR)
 	install -m644 cpiofile.py $(INSTALLER_DIR)
+	install -m644 scripts.py $(INSTALLER_DIR)
 # TUI
 	mkdir -p $(INSTALLER_DIR)/tui
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
 	install -m644 tui/network.py $(INSTALLER_DIR)/tui
 	install -m644 tui/init.py $(INSTALLER_DIR)/tui
-	install -m644 tui/init_oem.py $(INSTALLER_DIR)/tui
 	install -m644 tui/progress.py $(INSTALLER_DIR)/tui
 	install -m644 tui/repo.py $(INSTALLER_DIR)/tui
 	mkdir -p $(INSTALLER_DIR)/tui/installer

@@ -55,6 +55,9 @@ class Repository:
     meta data. """
     REPOSITORY_FILENAME = "XS-REPOSITORY"
     PKGDATA_FILENAME = "XS-PACKAGES"
+    REPOLIST_FILENAME = "XS-REPOSITORY-LIST"
+
+    OPER_MAP = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
 
     def __init__(self, accessor, base = ""):
         self._accessor = accessor
@@ -62,6 +65,7 @@ class Repository:
         self._product_brand = None
         self._product_version = None
         self._md5 = md5.new()
+        self.requires = []
 
         accessor.start()
 
@@ -114,6 +118,14 @@ class Repository:
             _build = repo_node.getAttribute("build")
             if _build == '': _build = None
             _description = getText(desc_node.childNodes)
+
+            for req_node in xmldoc.getElementsByTagName('requires'):
+                req = {}
+                for attr in ['originator', 'name', 'test', 'version', 'build']:
+                    req[attr] = req_node.getAttribute(attr)
+                if req['build'] == '': del req['build']
+                assert req['test'] in self.OPER_MAP
+                self.requires.append(req)
         except:
             raise RepoFormatError, "%s format error" % self.REPOSITORY_FILENAME
 
@@ -126,8 +138,10 @@ class Repository:
         self._product_version = product.Version.from_string(ver_str)
 
     def compatible_with(self, brand, version):
-        return self._product_brand in [brand, None] and \
-               self._product_version in [version, None]
+        return self._product_brand in [brand, None]
+
+    def __str__(self):
+        return self._identifier + ' ' + str(self._product_version)
 
     def name(self):
         return self._name
@@ -212,6 +226,35 @@ class Repository:
             self._accessor.finish()
         return problems
 
+    def check_requires(self, installed_repos):
+        """ Return a list the prerequisites that are not yet installed. """
+        problems = []
+
+        def fmt_dep(d):
+            text = "%s:%s" % (d['originator'], d['name'])
+            if d['test'] in self.OPER_MAP:
+                text += self.OPER_MAP[d['test']]
+            else:
+                return text
+            text += 'build' in d and "%s-%s" % (d['version'], d['build']) or d['version']
+            
+            return text
+
+        for dep in self.requires:
+            want_id = "%s:%s" % (dep['originator'], dep['name'])
+            want_ver = product.Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
+            found = False
+            for repo in installed_repos.values():
+                if repo.identifier() == want_id and eval("repo._product_version.__%s__(want_ver)" % dep['test']):
+                    xelogging.log("Dependency match: %s satisfies test %s" % (str(repo), fmt_dep(dep)))
+                    found = True
+                    break
+            if not found:
+                xelogging.log("Dependency failure: failed test %s" % fmt_dep(dep))
+                problems.append(fmt_dep(dep))
+
+        return problems
+
     def copyTo(self, destination, copy_packages = True):
         util.assertDir(destination)
 
@@ -241,8 +284,10 @@ class Repository:
     def __iter__(self):
         return self._packages.__iter__()
 
-    def record_install(self, answers):
+    def record_install(self, answers, installed_repos):
         self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier), False)
+        installed_repos[str(self)] = self
+        return installed_repos
 
     def md5sum(self):
         return self._md5.hexdigest()
@@ -462,6 +507,7 @@ class RPMPackage(Package):
             return
 
         rc, msg = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-U', self.destination], with_stderr = True)
+        os.unlink(os.path.join(base, self.destination))
         if rc != 0:
             raise ErrorInstallingPackage, "Installation of %s failed.\n%s" % (self.destination, msg.rstrip())
 
@@ -632,7 +678,7 @@ class Accessor:
 
         self.start()
         try:
-            extra = self.openAddress('XS-REPOSITORY-LIST')
+            extra = self.openAddress(Repository.REPOLIST_FILENAME)
             if extra:
                 for line in extra:
                     package_list.append(line.strip())
@@ -762,7 +808,7 @@ class URLFileWrapper:
                 raise IOError('Seek beyond end of file')
 
 class URLAccessor(Accessor):
-    url_prefixes = ['http://', 'https://', 'ftp://']
+    url_prefixes = ['http://', 'https://', 'ftp://', 'file://']
 
     def __init__(self, baseAddress):
         if not True in [ baseAddress.startswith(prefix) for prefix in self.url_prefixes ] :

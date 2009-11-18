@@ -59,7 +59,7 @@ def choose_operation(display_restore):
     else:
         return init_constants.OPERATION_REBOOT
 
-def driver_disk_sequence(answers):
+def driver_disk_sequence(answers, driver_repos):
     uic = uicontroller
     seq = [
         uic.Step(tui.repo.select_repo_source, 
@@ -71,8 +71,9 @@ def driver_disk_sequence(answers):
         uic.Step(tui.repo.get_source_location, 
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
-        uic.Step(confirm_load_drivers),
-        uic.Step(tui.repo.verify_source, args=['driver']),
+#        uic.Step(confirm_load_drivers),
+        uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
+#        uic.Step(tui.repo.verify_source, args=['driver']),
         uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
@@ -98,6 +99,7 @@ def get_driver_source(answers):
     answers['source-media'] = entry
     if entry == 'local':
         answers['source-address'] = ''
+    answers['id-list'] = None
     return RIGHT_FORWARDS
 
 def require_networking(answers):
@@ -123,6 +125,7 @@ def confirm_load_drivers(answers):
         return LEFT_BACKWARDS
         
     drivers = []
+    id_list = []
 
     for r in repos:
         has_drivers = False
@@ -131,6 +134,7 @@ def confirm_load_drivers(answers):
                 has_drivers = True
         if has_drivers:
            drivers.append(p)
+           id_list.append(r.identifier())
 
     if len(drivers) == 0:
         ButtonChoiceWindow(
@@ -162,6 +166,7 @@ Note that this driver-loading mechanism is only compatible with media/locations 
             if rc == 'back': return LEFT_BACKWARDS
             if rc in [None, 'load drivers']:
                 answers['repos'] = repos
+                answers['id-list'] = id_list
                 return RIGHT_FORWARDS
 
             if rc == 'info':

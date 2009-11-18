@@ -146,12 +146,10 @@ def get_iface_configuration(nic, txt = None, show_identify = True, defaults = No
                                subnet_field.value(), gateway_field.value(), dns_field.value())
     return RIGHT_FORWARDS, answers
 
-def select_netif(text, conf, default=None, blacklist=[]):
+def select_netif(text, conf, default=None):
     """ Display a screen that displays a choice of network interfaces to the
     user, with 'text' as the informative text as the data, and conf being the
     netutil.scanConfiguration() output to be used. 
-    
-    blacklist is a list of interface which should be marked as 'in use'
     """
 
     netifs = conf.keys()
@@ -169,9 +167,6 @@ def select_netif(text, conf, default=None, blacklist=[]):
         key = iface
         if not netutil.linkUp(iface):
             tag = ' [no link]'
-        if iface in blacklist:
-            tag = ' [in use]'
-            key = None
         text = "%s (%s)%s" % (iface, conf[iface].hwaddr, tag)
         return (text, key)
 
@@ -189,7 +184,7 @@ def select_netif(text, conf, default=None, blacklist=[]):
     if rc == 'back': return LEFT_BACKWARDS, None
     return RIGHT_FORWARDS, entry
 
-def requireNetworking(answers, defaults=None, msg=None, blacklist=[], keys=['net-admin-interface', 'net-admin-configuration']):
+def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interface', 'net-admin-configuration']):
     """ Display the correct sequence of screens to get networking
     configuration.  Bring up the network according to this configuration.
     If answers is a dictionary, set 
@@ -197,17 +192,12 @@ def requireNetworking(answers, defaults=None, msg=None, blacklist=[], keys=['net
       answers[keys[1]] to the interface configuration chosen, and
       answers['runtime-iface-configuration'] to current manual network config, in format (all-dhcp, manual-config).
     If defaults.has_key[keys[0]] then use defaults[keys[0]] as the default network interface.
-    If defaults.has_key[keys[1]] then use defaults[keys[1]] as the default network interface configuration.
-    Mark interfaces in blacklist as 'in use', and prevent these being selected (useful if interface is currently being used to 
-    access iSCSI disk)"""
+    If defaults.has_key[keys[1]] then use defaults[keys[1]] as the default network interface configuration."""
 
     interface_key = keys[0]
     config_key = keys[1]
 
     nethw = netutil.scanConfiguration()
-    if len([nif for nif in nethw.keys() if nif not in blacklist]) == 0:
-        tui.progress.OKDialog("Networking", "No unused ethernet device found")
-        return REPEAT_STEP
 
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:
@@ -219,7 +209,7 @@ def requireNetworking(answers, defaults=None, msg=None, blacklist=[], keys=['net
             default = answers['interface']
         if msg == None:
             msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND)
-        direction, iface = select_netif(msg, nethw, default, blacklist)
+        direction, iface = select_netif(msg, nethw, default)
         if direction == RIGHT_FORWARDS:
             answers['interface'] = iface
         return direction

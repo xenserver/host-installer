@@ -13,6 +13,7 @@
 import product
 import backend
 import diskutil
+from disktools import *
 import xelogging
 import tempfile
 import shutil
@@ -68,7 +69,8 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     assert backup_partition.startswith('/dev/')
     assert disk.startswith('/dev/')
 
-    restore_partition = diskutil.getRootPartName(disk)
+    primary_partnum, _, __ = backend.inspectTargetDisk(disk, [])
+    restore_partition = PartitionTool.partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
     # first, format the primary disk:
@@ -92,7 +94,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
             xelogging.log("Restoring subtree %s..." % obj)
             progress((i * 100) / len(objs))
 
-            # Use 'cp' here because Python's coyping tools are useless and
+            # Use 'cp' here because Python's copying tools are useless and
             # get stuck in an infinite loop when copying e.g. /dev/null.
             util.runCmd2(['cp', '-a', os.path.join(backup_mnt, obj),
                           os.path.join(dest_mnt)])
@@ -113,7 +115,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
         # preserve bootloader configuration
         util.runCmd2(['cp', os.path.join(backup_mnt, bootloader_config), '/tmp/bootloader.tmp'])
         mounts = {'root': dest_mnt, 'boot': os.path.join(dest_mnt, 'boot')}
-        backend.installBootLoader(mounts, disk, bootloader, None, None)
+        backend.installBootLoader(mounts, disk, primary_partnum, bootloader, None, None)
         util.runCmd2(['cp', '/tmp/bootloader.tmp',
                       os.path.join(dest_mnt, bootloader_config)])
 

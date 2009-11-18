@@ -20,6 +20,7 @@ from netinterface import *
 import os
 import stat
 import xml.dom.minidom
+import scripts
 
 class AnswerfileError(Exception):
     pass
@@ -50,25 +51,7 @@ class Answerfile:
 
     @staticmethod
     def generate(location):
-        xelogging.log("Fetching answerfile generator from %s" % location)
-        util.fetchFile(location, constants.ANSWERFILE_GENERATOR_PATH)
-        os.chmod(constants.ANSWERFILE_GENERATOR_PATH, stat.S_IRUSR | stat.S_IXUSR)
-
-        # check the interpreter
-        f = open(constants.ANSWERFILE_GENERATOR_PATH)
-        line = f.readline()
-        f.close()
-
-        if not line.startswith('#!'):
-            raise AnswerfileError, "Missing interpreter in generator script."
-        interp = line[2:].split()
-        if interp[0] == '/usr/bin/env':
-            if interp[1] not in ['python']:
-                raise AnswerfileError, "Invalid interpreter %s in generator script." % interp[1]
-        elif interp[0] not in ['/bin/sh', '/bin/bash', 'usr/bin/python']:
-            raise AnswerfileError, "Invalid interpreter %s in generator script." % interp[0]
-
-        ret, out, err = util.runCmd2(constants.ANSWERFILE_GENERATOR_PATH, with_stdout = True, with_stderr = True)
+        ret, out, err = scripts.run_script(location, 'answerfile')
         if ret != 0:
             raise AnswerfileError, "Generator script failed:\n\n%s" % err
 
@@ -94,10 +77,6 @@ class Answerfile:
             results = self.parseReinstall()
         elif install_type == "upgrade":
                 results = self.parseUpgrade()
-        elif install_type == "oemhdd":
-            results = self.parseOemHdd()
-        elif install_type == "oemflash":
-            results = self.parseOemFlash()
             
         return results
 
@@ -117,12 +96,23 @@ class Answerfile:
             raise AnswerfileError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'."
         results['sr-type'] = srtype
 
+        # initial-partitions:
+        results['initial-partitions'] = []
+        init_part_nodes = self.nodelist.getElementsByTagName('initial-partitions')
+        if len(init_part_nodes) == 1:
+            for part_node in init_part_nodes[0].getElementsByTagName('partition'):
+                try:
+                    part = {}
+                    for k in ('number', 'size', 'id'):
+                        part[k] = int(part_node.getAttribute(k), 0)
+                    results['initial-partitions'].append(part)
+                except:
+                    pass
+
         # primary-disk:
         results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
         pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
-        preserve_p1 = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
-        if preserve_p1:
-            diskutil.preservePart1(results['primary-disk'])
+        results['sr-at-end'] = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
 
         # guest-disks:
         results['guest-disks'] = []
@@ -138,7 +128,6 @@ class Answerfile:
         results.update(self.parseNSConfig())
         results.update(self.parseTimeConfig())
         results.update(self.parseKeymap())
-        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -158,7 +147,6 @@ class Answerfile:
         results.update(self.parseNSConfig())
         results.update(self.parseTimeConfig())
         results.update(self.parseKeymap())
-        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
         return results
@@ -171,65 +159,14 @@ class Answerfile:
         results['preserve-settings'] = True
         results['backup-existing-installation'] = True
 
+        target_nodes = self.nodelist.getElementsByTagName('primary-disk')
+        if len(target_nodes) == 1:
+            results['primary-disk'] = "/dev/%s" % getText(target_nodes[0].childNodes)
+
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
-        results.update(self.parseScripts())
         results.update(self.parseBootloader())
 
-        return results
-
-    def parseOemHdd(self):
-        results = {}
-
-        results['install-type'] = constants.INSTALL_TYPE_FRESH
-
-        # storage type (lvm or ext):
-        srtype_node = self.nodelist.getAttribute("srtype")
-        if srtype_node in ['', 'lvm']:
-            srtype = constants.SR_TYPE_LVM
-        elif srtype_node in ['ext']:
-            srtype = constants.SR_TYPE_EXT
-        else:
-            raise AnswerfileError, "Specified SR Type unknown.  Should be 'lvm' or 'ext'."
-        results['sr-type'] = srtype
-
-        # primary-disk:
-        results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
-        pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
-
-        # guest-disks:
-        results['guest-disks'] = []
-        if pd_has_guest_storage:
-            results['guest-disks'].append(results['primary-disk'])
-        for disk in self.nodelist.getElementsByTagName('guest-disk'):
-            results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
-
-        results.update(self.parseSource())
-        try:
-            results.update(self.parseInterfaces())
-        except IndexError:
-            # Don't configure the admin interface if not specified in answerfile
-            pass
-        results.update(self.parseOemSource())
-        results.update(self.parseScripts())
-
-        rw = self.nodelist.getElementsByTagName('rootfs-writable')
-        if len(rw) == 1:
-            results['rootfs-writable'] = True
-
-        return results
-
-    def parseOemFlash(self):
-        results = {}
-
-        # primary-disk:
-        results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
-        results.update(self.parseOemSource())
-        results.update(self.parseScripts())
-
-        # guest-disks:
-        results['guest-disks'] = []
-        results['sr-type'] = constants.SR_TYPE_LVM
         return results
 
 
@@ -238,37 +175,21 @@ class Answerfile:
     def parseScripts(self):
         results = {}
         
-        stages = ['filesystem-populated', 'installation-complete']
-        for stage in stages:
-            results['%s-scripts' % stage] = []
-
         # new format
         script_nodes = self.nodelist.getElementsByTagName('script')
         for node in script_nodes:
             stage = node.getAttribute("stage").lower()
-            assert stage in stages
             script = getText(node.childNodes)
-            results['%s-scripts' % stage].append(script)
+            scripts.add_script(stage, script)
 
-        # old format - retained for backward compatability - REMOVE AFTER XENRT MOVED TO NEW FORMAT
         pis_nodes = self.nodelist.getElementsByTagName('post-install-script')
         if len(pis_nodes) == 1:
             script = getText(pis_nodes[0].childNodes)
-            results['filesystem-populated-scripts'].append(script) 
+            scripts.add_script('filesystem-populated', script)
         ifs_nodes = self.nodelist.getElementsByTagName('install-failed-script')
         if len(ifs_nodes) == 1:
             script = getText(ifs_nodes[0].childNodes)
-            # create wrapper script so this is only called on installation-complete if there was a failure
-            open('/tmp/install-failed-wrapper-script' ,'w').write( \
-                "#!/usr/bin/env python\n" \
-                "import sys\n" \
-                "sys.path.append('%s')\n" % constants.INSTALLER_DIR +\
-                "import util\n" \
-                "if sys.argv[1] == '1':\n" \
-                "    util.fetchFile('%s', '/tmp/install-failed-script')\n" % script +\
-                "    util.runCmd2(['chmod','a+x','/tmp/install-failed-script'])\n" \
-                "    util.runCmd2(['/tmp/install-failed-script'])\n")
-            results['installation-complete-scripts'].append('file:///tmp/install-failed-wrapper-script')
+            scripts.add_script('installation-complete', script)
 
         return results
 
@@ -359,10 +280,7 @@ class Answerfile:
         if len(self.nodelist.getElementsByTagName('existing-installation')) == 0:
             raise AnswerfileError, "No existing installation specified."
         disk = "/dev/" + getText(self.nodelist.getElementsByTagName('existing-installation')[0].childNodes)
-
-        preserve_p1 = self.nodelist.getElementsByTagName('existing-installation')[0].getAttribute("preserve-partition1").lower() in ["yes", "true"]
-        if preserve_p1:
-            diskutil.preservePart1(disk)
+        results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
@@ -433,34 +351,6 @@ class Answerfile:
             raise AnswerfileError, "No source media specified."
         return results
 
-    def parseOemSource(self):
-        results = {}
-        if len(self.nodelist.getElementsByTagName('source')) == 0:
-            raise AnswerfileError, "No OEM image specified."
-        source = self.nodelist.getElementsByTagName('source')[0]
-        if source.getAttribute('type') == 'local':
-            results['source-media'] = 'local'
-            results['source-address'] = getText(source.childNodes)
-        elif source.getAttribute('type') == 'url':
-            results['source-media'] = 'url'
-            results['source-address'] = getText(source.childNodes)
-        elif source.getAttribute('type') == 'nfs':
-            results['source-media'] = 'nfs'
-            results['source-address'] = getText(source.childNodes)
-        else:
-            raise AnswerfileError, "No media for OEM image specified."
-
-        if len(self.nodelist.getElementsByTagName('xenrt')) != 0:
-            xenrt = self.nodelist.getElementsByTagName('xenrt')[0]
-            if xenrt.getAttribute('scorch').lower() != 'false':
-                results['xenrt-scorch'] = True
-            serport = xenrt.getAttribute('serial')
-            if serport:
-                results['xenrt-serial'] = str(serport)
-            results['xenrt'] = getText(xenrt.childNodes)
-
-        return results
-
     def parseDriverSource(self):
         results = {}
         for source in self.nodelist.getElementsByTagName('driver-source'):
@@ -473,5 +363,5 @@ class Answerfile:
                 address = getText(source.childNodes)
             else:
                 raise AnswerfileError, "Invalid type for driver-source media specified."
-            results['extra-repos'].append((source.getAttribute('type'), address))
+            results['extra-repos'].append((source.getAttribute('type'), address, []))
         return results

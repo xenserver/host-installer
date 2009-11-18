@@ -38,6 +38,7 @@ import upgrade
 # general
 import repository
 import xelogging
+import scripts
 
 def main(args):
     ui = tui
@@ -80,7 +81,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             results["keymap"] = val
             xelogging.log("Keymap specified on command-line: %s" % val)
         elif opt == "--extrarepo":
-            extra_repo_defs.append(val)
+            extra_repo_defs += val
         elif opt == "--bootloader":
             xelogging.log("Bootloader specified on command-line: %s" % val)
             if val == "grub":
@@ -89,9 +90,6 @@ def go(ui, args, answerfile_address, answerfile_script):
                 results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
         elif opt == "--onecd":
             suppress_extra_cd_dialog = True
-        elif opt == "--enable-iscsi":
-            results['enable-iscsi'] = True
-        
 
     if boot_console and not serial_console:
         serial_console = boot_console
@@ -125,7 +123,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             if results.has_key('extra-repos'):
                 # load drivers now
                 for d in results['extra-repos']:
-                    for r in repository.repositoriesFromDefinition(*d):
+                    media, address, _ = d
+                    for r in repository.repositoriesFromDefinition(media, address):
                         for p in r:
                             if p.type.startswith('driver'):
                                 if p.load() != 0:
@@ -144,9 +143,6 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         if len(nethw.keys()) == 0:
             raise RuntimeError, "No network interfaces found on this host."
-        if len(nethw.keys()) == 1:
-            if results.has_key('enable-iscsi') and results['enable-iscsi'] == True:
-                raise RuntimeError, "--enable-iscsi not supported on hosts with only one network interface as an extra interface is required for iSCSI target access"
 
         # record the network configuration at startup so it remains consistent
         # in the face of kudzu:
@@ -176,7 +172,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         if not aborted:
             xelogging.log("Starting actual installation")       
-            backend.performInstallation(results, ui)
+            results = backend.performInstallation(results, ui)
 
             if ui and not using_answerfile:
                 ui.installer.screens.installation_complete()
@@ -195,8 +191,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             xelogging.log(err)
 
             # run the user's scripts - an arg of "1" indicates failure
-            if results.has_key('installation-complete-scripts'):
-                util.runScripts(results['installation-complete-scripts'], "1")
+            scripts.run_scripts('installation-complete', '1')
 
             # now write out logs where possible:
             xelogging.writeLog("/tmp/install-log")
@@ -212,8 +207,8 @@ def go(ui, args, answerfile_address, answerfile_script):
                 xelogging.log(txt)
     
             # and now on the disk if possible:
-            if results.has_key('primary-disk'):
-                backend.writeLog(results['primary-disk'])
+            if 'primary-disk' in results and 'primary-partnum' in results:
+                backend.writeLog(results['primary-disk'], results['primary-partnum'])
     
             xelogging.log(results)
         except Exception, e:
@@ -225,16 +220,15 @@ def go(ui, args, answerfile_address, answerfile_script):
 
     else:
         # run the user's scripts - an arg of "0" indicates success
-        if results.has_key('installation-complete-scripts'):
-            util.runScripts(results['installation-complete-scripts'], "0")
+        scripts.run_scripts('installation-complete', '0')
 
         # put the log in /tmp:
         xelogging.writeLog("/tmp/install-log")
         xelogging.collectLogs('/tmp')
 
         # and now on the disk if possible:
-        if results.has_key('primary-disk'):
-            backend.writeLog(results['primary-disk'])
+        if 'primary-disk' in results and 'primary-partnum' in results:
+            backend.writeLog(results['primary-disk'], results['primary-partnum'])
 
         assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
         

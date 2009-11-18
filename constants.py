@@ -72,16 +72,6 @@ rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
 swap_location = '/var/swap/swap.001'
 swap_size = 512
 
-OEMFLASH_SYS_1_PARTITION_NUMBER = 1
-OEMFLASH_SYS_2_PARTITION_NUMBER = 2
-OEMFLASH_STATE_PARTITION_NUMBER = 3
-OEMFLASH_BOOT_PARTITION_NUMBER = 4
-    
-OEMHDD_SYS_1_PARTITION_NUMBER = 5
-OEMHDD_SYS_2_PARTITION_NUMBER = 6
-OEMHDD_STATE_PARTITION_NUMBER = 7
-OEMHDD_SR_PARTITION_NUMBER    = 8
-
 OEM_BOOT_PARTITION_FAT_LABEL = "IHVCONFIG"
 
 MIN_PASSWD_LEN=6
@@ -94,6 +84,7 @@ timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
 ANSWERFILE_PATH = '/tmp/answerfile'
 ANSWERFILE_GENERATOR_PATH = '/tmp/answerfile_generator'
+SCRIPTS_DIR = "/tmp/scripts"
 
 # host filesystem - always absolute paths from root of install
 # and never start with a '/', so they can be used safely with
