@@ -7,6 +7,8 @@ start()
     case "$arg" in
       make-ramdisk=*)
         src=${arg#make-ramdisk=}
+	[ -d /tmp/ramdisk ] && continue
+	copied=0
         echo -n "Copying installation image from $src to ramdisk..."
 
 	# hang around a while for USB devices to settle
@@ -14,7 +16,10 @@ start()
 	  [ -b $src ] && break
 	  sleep 5
 	done
-	[ -b $src ] || return 2
+	if ! [ -b $src ]; then
+	    echo " failed"
+	    continue
+	fi
 
 	# mount the source
 	mkdir /tmp/src
@@ -27,10 +32,17 @@ start()
 	  fssize=`df -k /tmp/src | sed -ne 's#^/[^ ]\+ \+[0-9]\+ \+\([0-9]\+\).*#\1#p'`
 	  mkdir /tmp/ramdisk
 	  mount -t tmpfs -o size=$((fssize+1000))k tmpfs /tmp/ramdisk
-	  cp -a /tmp/src/* /tmp/ramdisk
+	  if cp -a /tmp/src/* /tmp/ramdisk; then
+	    echo " done"
+	    copied=1
+	  else
+	    umount /tmp/ramdisk
+	    rmdir /tmp/ramdisk
+	  fi
 	  umount /tmp/src
-	  echo " done"
-	else
+	fi
+	rmdir /tmp/src
+	if [ $copied -eq 0 ]; then
 	  echo " failed"
 	  ret=1
 	fi;;
