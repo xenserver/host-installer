@@ -596,7 +596,7 @@ class PartitionTool:
         input = 'unit: sectors\n\n'
     
         # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
-        for number in range(1, 1+max(table.keys())):
+        for number in range(1, 1+max([1]+table.keys())):
             partition = table.get(number, {
                 'start': 0,
                 'size': 0,
