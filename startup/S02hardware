@@ -51,6 +51,7 @@ start()
 
   # need dm-mod for P2V:
   echo -n '.'
+  modprobe ide-generic 2>/dev/null
   modprobe dm-mod
   udevsettle --timeout=180
   echo
