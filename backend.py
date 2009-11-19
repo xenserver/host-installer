@@ -514,8 +514,7 @@ def writeGuestDiskPartitions(disk):
     assert disk[:5] == '/dev/'
 
     tool = PartitionTool(disk)
-    for num, part in tool.iteritems():
-        tool.deletePartition(num)
+    tool.deletePartitions(tool.partitions.keys())
     tool.commit(log = True)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
