@@ -478,6 +478,8 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
     for num, part in tool.iteritems():
         if num >= primary_partnum:
             tool.deletePartition(num)
+        else:
+            tool.setActiveFlag(False, num)
     tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, active = True)
     if backup_partnum > 0:
         tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
