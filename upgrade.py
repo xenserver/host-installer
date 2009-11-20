@@ -209,6 +209,10 @@ class ThirdGenUpgrader(Upgrader):
 
         self.restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
 
+        # CP-1508: preserve AD config
+        self.restore_list += [ 'etc/resolv.conf', 'etc/nsswitch.conf', 'etc/krb5.conf', '/etc/krb5.keytab', 'etc/pam.d/sshd' ]
+        self.restore_list.append({'dir': 'var/lib/likewise'})
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
 
@@ -273,6 +277,22 @@ class ThirdGenUpgrader(Upgrader):
                     br_ifcfg.close()
             except:
                 pass
+
+        # CP-1508: preserve AD service state
+        ad_on = False
+        try:
+            fh = open(os.path.join(mounts['root'], 'etc/nsswitch.conf'), 'r')
+            for line in fh:
+                if line.startswith('passwd:') and 'lsass' in line:
+                    ad_on = True
+                    break
+            fh.close()
+        except:
+            pass
+
+        if ad_on:
+            for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
+                util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
 
 
 class ThirdGenOEMUpgrader(ThirdGenUpgrader):
