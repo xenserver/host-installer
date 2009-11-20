@@ -19,12 +19,10 @@ import subprocess
 import tempfile
 
 import product
-import diskutil
 from disktools import *
 import util
 import constants
 import xelogging
-import backend
 
 def upgradeAvailable(src):
     return __upgraders__.hasUpgrader(src.name, src.version, src.variant)
@@ -339,7 +337,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         
         # Detect the OEM HDD state partition as a special case
         isOEMHDD = ( existing.variant == 'OEM-hd' )
-        if isOEMHDD:
+        if isOEMHDD and foundSRNumber:
             foundConfigNumber = foundSRNumber - 1
             partNumsToPreserve.append(foundConfigNumber)
             
@@ -354,7 +352,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         # Purge redundant partitions on target
         partTool.deletePartitions( [ num for num, part in partTool.iteritems() if num not in partNumsToPreserve ] )
         
-        if isOEMHDD:
+        if isOEMHDD and foundConfigNumber:
             partTool.renamePartition(foundConfigNumber, firstXSPartition)
             if existing is not None: # existing can be None in unit testing only
                 existing.partitionWasRenamed(partTool._partitionDevice(foundConfigNumber),
@@ -544,7 +542,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
         ThirdGenUpgrader.completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum)
-        if prev_install.variant == 'OEM-flash':
+        if os.path.realpath(prev_install.primary_disk) != os.path.realpath(target_disk):
             xelogging.log("Deactivating all partitions on %s" % prev_install.primary_disk)
             partTool = PartitionTool(prev_install.primary_disk)
             partTool.inactivateDisk()
