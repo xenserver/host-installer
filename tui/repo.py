@@ -290,12 +290,18 @@ def confirm_load_repo(answers, label, installed_repos):
 # verify the installation source?
 def verify_source(answers, label):
     cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    if 'source-media' in answers and 'source-address' in answers:
+        media = answers['source-media']
+        address = answers['source-address']
+    else:
+        media = 'local'
+        address = ''
     done = False
     SKIP, VERIFY = range(2)
     entries = [ ("Skip verification", SKIP),
                 ("Verify %s source" % label, VERIFY), ]
 
-    if answers['source-media'] == 'local':
+    if media == 'local':
         text = "Would you like to test your media?"
         default = selectDefault(VERIFY, entries)
     else:
