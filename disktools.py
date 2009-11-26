@@ -624,6 +624,9 @@ class PartitionTool:
             xelogging.log('Output from sfdisk:\n'+output[0])
         if process.returncode != 0:
             raise Exception('Partition changes could not be applied: '+str(output[0]))
+        # CA-35300: sfdisk doesn't return non-zero when the BLKRRPART ioctl fails
+        if 'BLKRRPART: Device or resource busy' in output:
+            raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
         # Verify the table - raises exception on failure
         self.cmdWrap([self.SFDISK, '-LVquS', self.device])
         
