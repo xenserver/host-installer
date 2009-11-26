@@ -150,7 +150,7 @@ class Version(object):
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 XENSERVER_5_5_0 = Version(5,5,0)
 
-class ExisitingInstallation:
+class ExistingInstallation:
     def __init__(self, primary_disk, boot_device, state_device):
         self.primary_disk = primary_disk
         self.boot_device = boot_device
@@ -395,10 +395,10 @@ class ExisitingInstallation:
         return self.settings
 
 
-class ExistingRetailInstallation(ExisitingInstallation):
+class ExistingRetailInstallation(ExistingInstallation):
     def __init__(self, primary_disk, boot_device, state_device, storage):
         self.variant = 'Retail'
-        ExisitingInstallation.__init__(self, primary_disk, boot_device, state_device)
+        ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
         self.root_device = boot_device
         self.readInventory()
 
@@ -446,10 +446,10 @@ class ExistingRetailInstallation(ExisitingInstallation):
             for mnt in [primary_mount, backup_mount]:
                 util.umount(mnt)
 
-class ExistingOEMInstallation(ExisitingInstallation):
+class ExistingOEMInstallation(ExistingInstallation):
     def __init__(self, primary_disk, boot_device, state_device):
         self.variant = "OEM"
-        ExisitingInstallation.__init__(self, primary_disk, boot_device, state_device)
+        ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
 
         # determine active root partition
         mountpoint = tempfile.mkdtemp('-oem-boot')
