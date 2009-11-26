@@ -249,28 +249,39 @@ def confirm_load_repo(answers, label, installed_repos):
         return LEFT_BACKWARDS
 
     USE, VERIFY, BACK = range(3)
-    default_button = VERIFY
+    default_button = BACK
     if len(repos) == 1:
-        text = "The following %s was found:\n\n" % label
+        text = TextboxReflowed(54, "The following %s was found:\n\n" % label)
     else:
-        text = "The following %ss were found:\n\n" % label
+        text = TextboxReflowed(54, "The following %ss were found:\n\n" % label)
+    buttons = ButtonBar(tui.screen, [('Use', 'use'), ('Verify', 'verify'), ('Back', 'back')])
+    cbt = CheckboxTree(4, scroll = 1)
     for r in repos:
         if str(r) in installed_repos:
-            text += " * %s (already installed)\n" % r.name()
-            default_button = BACK
+            cbt.append("%s (already installed)" % r.name(), r, False)
         else:
-            text += " * %s\n" % r.name()
+            cbt.append(r.name(), r, True)
+            default_button = VERIFY
+
+    gf = GridFormHelp(tui.screen, 'Load Repository', None, 1, 3)
+    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
+    gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
+    gf.add(buttons, 0, 2, growx = 1)
+    gf.draw()
 
     done = False
     while not done:
-        rc = snackutil.ButtonChoiceWindowEx(
-            tui.screen, "Load Repository", text, ['Use', 'Verify', 'Back'], width = 50, default = default_button)
+        gf.setCurrent(buttons.list[default_button][0])
+        rc = buttons.buttonPressed(gf.run())
+        selected_repos = cbt.getSelection()
 
         if rc in [None, 'use']:
             done = True
-        elif rc == 'back': return LEFT_BACKWARDS
-        elif rc == 'verify':
-            hashes = [" %s %s" % (r.md5sum(), r.name()) for r in repos]
+        elif rc == 'back':
+            tui.screen.popWindow()
+            return LEFT_BACKWARDS
+        elif rc == 'verify' and len(selected_repos) > 0:
+            hashes = [" %s %s" % (r.md5sum(), r.name()) for r in selected_repos]
             text2 = "The following MD5 hashes have been calculated. Please check them against those provided by the supplier:\n\n"
             text2 += "\n".join(hashes)
 
@@ -281,10 +292,11 @@ def confirm_load_repo(answers, label, installed_repos):
 
             rc2 = ButtonChoiceWindow(
                 tui.screen, "Repository Information", text2, ['Ok', 'Back'], width = 60)
-            if rc2 == 'ok' and interactive_source_verification(repos, label):
+            if rc2 == 'ok' and interactive_source_verification(selected_repos, label):
                 default_button = USE
 
-    answers['repos'] = repos
+    tui.screen.popWindow()
+    answers['repos'] = selected_repos
     return RIGHT_FORWARDS
 
 # verify the installation source?

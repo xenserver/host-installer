@@ -168,7 +168,9 @@ def more_media_sequence(installed_repos, still_need):
     IDs of repositories we already installed from, to help avoid
     issues where multiple CD drives are present.
 
-    Returns pair: (install more, then ask again)"""
+    Returns tuple: (install more, then ask again, repo_list)"""
+    Step = uicontroller.Step
+
     def get_more_media(_):
         """ 'Please insert disk' dialog. """
         done = False
@@ -228,6 +230,11 @@ def more_media_sequence(installed_repos, still_need):
 
         return LEFT_BACKWARDS
 
-    seq = [ uicontroller.Step(get_more_media), uicontroller.Step(check_requires), uicontroller.Step(tui.repo.confirm_load_repo, args = ['Supplemental Pack', installed_repos]) ]
-    direction = uicontroller.runSequence(seq, {})
-    return (direction == RIGHT_FORWARDS, direction != EXIT)
+    seq = [
+        Step(get_more_media),
+        Step(check_requires),
+        Step(tui.repo.confirm_load_repo, args = ['Supplemental Pack', installed_repos])
+        ]
+    results = {}
+    direction = uicontroller.runSequence(seq, results)
+    return (direction == RIGHT_FORWARDS, direction != EXIT, 'repos' in results and results['repos'] or [])

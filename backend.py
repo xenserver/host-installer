@@ -371,10 +371,10 @@ def performInstallation(answers, ui_package):
                 if r.accessor().canEject():
                     r.accessor().eject()
             still_need = filter(lambda r: str(r) not in new_ans['installed-repos'], master_required_list)
-            accept_media, ask_again = ui_package.installer.more_media_sequence(new_ans['installed-repos'], still_need)
+            accept_media, ask_again, repos = ui_package.installer.more_media_sequence(new_ans['installed-repos'], still_need)
             repeat = accept_media
             answers['more-media'] = ask_again
-            all_repositories += repository.repositoriesFromDefinition('local', '')
+            all_repositories += repos
 
     if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
