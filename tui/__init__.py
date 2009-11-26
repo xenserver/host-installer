@@ -20,6 +20,7 @@ import constants
 import sys
 
 screen = None
+help_line = ["<Tab>/<Alt-Tab> between elements", "               ", "<F12> next screen"]
 
 def init_ui():
     global screen
@@ -31,6 +32,12 @@ def end_ui():
     global screen
     if screen:
         screen.finish()
+
+def update_help_line(help):
+    for i in range(0, len(help)):
+        if help[i]:
+            help_line[i] = help[i]
+    screen.pushHelpLine(' | '.join(map(lambda x: x+' ', help_line)).center(79))
 
 def OKDialog(title, text, hasCancel = False):
     return snackutil.OKDialog(screen, title, text, hasCancel)
