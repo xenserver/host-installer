@@ -12,6 +12,60 @@
 
 from snack import *
 
+def ListboxChoiceWindowEx(screen, title, text, items, 
+            buttons = ('Ok', 'Cancel'), 
+            width = 40, scroll = 0, height = -1, default = None,
+            help = None, hotkey = None, hotkey_cb = None,
+            timeout_ms = 0, timeout_cb = None):
+    if (height == -1): height = len(items)
+
+    bb = ButtonBar(screen, buttons)
+    t = TextboxReflowed(width, text)
+    l = Listbox(height, scroll = scroll, returnExit = 1)
+    count = 0
+    for item in items:
+	if (type(item) == types.TupleType):
+	    (text, key) = item
+	else:
+	    text = item
+	    key = count
+
+	if (default == count):
+	    default = key
+	elif (default == item):
+	    default = key
+
+	l.append(text, key)
+	count = count + 1
+
+    if (default != None):
+	l.setCurrent (default)
+
+    g = GridFormHelp(screen, title, help, 1, 3)
+    g.add(t, 0, 0)
+    g.add(l, 0, 1, padding = (0, 1, 0, 1))
+    g.add(bb, 0, 2, growx = 1)
+    if hotkey:
+        g.addHotKey(hotkey)
+    if timeout_ms > 0:
+        g.setTimer(timeout_ms)
+
+    loop = True
+    while loop:
+        rc = g.run()
+        if rc == 'TIMER':
+            if timeout_cb:
+                loop = timeout_cb()
+        elif rc == hotkey:
+            if hotkey_cb:
+                loop = hotkey_cb(l.current())
+        else:
+            loop = False
+    screen.popWindow()
+    screen.popHelpLine()
+    
+    return (bb.buttonPressed(rc), l.current())
+
 def ButtonChoiceWindowEx(screen, title, text, 
                buttons = [ 'Ok', 'Cancel' ], 
                width = 40, x = None, y = None, help = None,
@@ -112,5 +166,4 @@ def displayProgressDialog(screen, current, (form, t, scale), updated_text = None
 
 def clearModelessDialog(screen):
     screen.popHelpLine()
-    screen.pushHelpLine(None)
     screen.popWindow()
