@@ -374,6 +374,21 @@ def setup_runtime_networking(answers):
     # Get the answers from the user
     return tui.network.requireNetworking(answers, defaults)
 
+def disk_more_info(context):
+    if not context: return True
+
+    usage = 'unknown'
+    (boot, state, storage) = diskutil.probeDisk(context)
+    if boot[0]:
+        usage = PRODUCT_BRAND
+    elif storage[0]:
+        usage = 'SR'
+
+    text = "Disk:          %s\nCurrent usage: %s" % (diskutil.getHumanDiskName(context), usage)
+
+    tui.progress.OKDialog("Details", text)
+    return True
+
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     diskEntries = diskutil.getQualifiedDiskList()
@@ -385,15 +400,12 @@ def select_primary_disk(answers):
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size) <= constants.max_primary_disk_size:
             # determine current usage
-            usage = 'unknown'
             target_is_sr[de] = False
             (boot, state, storage) = diskutil.probeDisk(de)
-            if boot[0]:
-                usage = PRODUCT_BRAND
-            elif storage[0]:
-                usage = 'SR'
+            if storage[0]:
                 target_is_sr[de] = True
-            stringEntry = "%s - %s [%s]" % (de, diskutil.getHumanDiskSize(size), usage)
+            (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
+            stringEntry = "%s - %s [%s %s]" % (diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
             e = (stringEntry, de)
             entries.append(e)
 
@@ -416,14 +428,17 @@ def select_primary_disk(answers):
     if answers.has_key('primary-disk'):
         default = selectDefault(answers['primary-disk'], entries)
 
-    (button, entry) = ListboxChoiceWindow(
+    tui.update_help_line([None, "<F5> more info"])
+
+    (button, entry) = snackutil.ListboxChoiceWindowEx(
         tui.screen,
         "Select Primary Disk",
         """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
 
 You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
         entries,
-        ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default)
+        ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default,
+        hotkey = 'F5', hotkey_cb = disk_more_info)
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
@@ -473,7 +488,7 @@ def select_guest_disks(answers):
     entries = []
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        entry = "%s - %s [%s %s]" % (de, diskutil.getHumanDiskSize(size), vendor, model)
+        entry = "%s - %s [%s %s]" % (diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
         entries.append((entry, de))
         
     text = TextboxReflowed(54, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
@@ -486,8 +501,21 @@ def select_guest_disks(answers):
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 2, growx = 1)
+    gf.addHotKey('F5')
     
-    button = buttons.buttonPressed(gf.runOnce())
+    tui.update_help_line([None, "<F5> more info"])
+
+    loop = True
+    while loop:
+        rc = gf.run()
+        if rc == 'F5':
+            disk_more_info(cbt.getCurrent())
+        else:
+            loop = False
+    tui.screen.popWindow()
+    tui.screen.popHelpLine()
+    
+    button = buttons.buttonPressed(rc)
     
     if button == 'back': return LEFT_BACKWARDS
 
@@ -512,9 +540,10 @@ def confirm_installation(answers):
     text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
     if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
         # need to work on a copy of this! (hence [:])
-        disks = answers['guest-disks'][:]
-        if answers['primary-disk'] not in disks:
-            disks.append(answers['primary-disk'])
+        #disks = answers['guest-disks'][:]
+        disks = map(diskutil.getHumanDiskName, answers['guest-disks'])
+        if diskutil.getHumanDiskName(answers['primary-disk']) not in disks:
+            disks.append(diskutil.getHumanDiskName(answers['primary-disk']))
         disks.sort()
         if len(disks) == 1:
             term = 'disk'
@@ -526,7 +555,8 @@ def confirm_installation(answers):
         if answers['primary-disk'] == answers['installation-to-overwrite'].primary_disk:
             text2 = "The installation will be performed over %s" % str(answers['installation-to-overwrite'])
         else:
-            text2 = "The installation will migrate the installation from %s to %s" % (str(answers['installation-to-overwrite']), answers['primary-disk'])
+            text2 = "The installation will migrate the installation from %s to %s" % (str(answers['installation-to-overwrite']),
+                                                                                      diskutil.getHumanDiskName(answers['primary-disk']))
         text2 += ", preserving existing %s in your storage repository." % BRAND_GUESTS
     text = text1 + "\n\n" + text2
     ok = 'Install %s' % PRODUCT_BRAND
