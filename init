@@ -101,6 +101,7 @@ def main(args):
     answerfile_address = None
     answerfile_script = None
     
+    xelogging.log("%s Setup - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
     xelogging.log("Command line args (raw): %s" % str(sys.argv))
     xelogging.log("Command line args (processed): %s" % str(args))
     for (opt, val) in args.items():
