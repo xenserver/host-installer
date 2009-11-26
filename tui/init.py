@@ -28,12 +28,12 @@ import xelogging
 def get_keymap():
     entries = generalui.getKeymaps()
 
-    (button, entry) = ListboxChoiceWindow(
+    (button, entry) = snackutil.ListboxChoiceWindowEx(
         tui.screen,
         "Select Keymap",
         "Please select the keymap you would like to use:",
         entries,
-        ['Ok'], height = 8, scroll = 1)
+        ['Ok'], height = 8, scroll = 1, timeout_ms = 500)
 
     return entry
 
