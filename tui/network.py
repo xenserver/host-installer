@@ -14,34 +14,14 @@ import uicontroller
 from uicontroller import LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import tui
 import tui.progress
+import snackutil
 import netutil
 from netinterface import *
 import version
 
 from snack import *
 
-def get_iface_configuration(nic, txt = None, show_identify = True, defaults = None, include_dns = False):
-    def identify_interface(nic):
-        gf = GridFormHelp(tui.screen, 'Identify Interface', None, 1, 2)
-        bb = ButtonBar(tui.screen, [ 'Ok' ])
-        name_text = Textbox(13, 1, "Name:")
-        mac_text = Textbox(13, 1, "MAC Address:")
-        pci_text = Textbox(13, 1, "PCI Details:")
-        name_val = Textbox(10, 1, nic.name)
-        mac_val = Textbox(20, 1, nic.hwaddr)
-        pci_val = TextboxReflowed(40, nic.pci_string)
-        id_grid = Grid(2, 3)
-        id_grid.setField(name_text, 0, 0)
-        id_grid.setField(name_val, 1, 0, anchorLeft = 1)
-        id_grid.setField(mac_text, 0, 1)
-        id_grid.setField(mac_val, 1, 1, anchorLeft = 1)
-        id_grid.setField(pci_text, 0, 2)
-        id_grid.setField(pci_val, 1, 2, anchorLeft = 1)
-
-        gf.add(id_grid, 0, 0, padding = (0,0,0,1))
-        gf.add(bb, 0, 1, growx = 1)
-
-        gf.runOnce()
+def get_iface_configuration(nic, txt = None, defaults = None, include_dns = False):
 
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
@@ -51,10 +31,7 @@ def get_iface_configuration(nic, txt = None, show_identify = True, defaults = No
     if txt == None:
         txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
     text = TextboxReflowed(45, txt)
-    if show_identify:
-        b = [("Ok", "ok"), ("Back", "back"), ("Identify", "identify")]
-    else:
-        b = [("Ok", "ok"), ("Back", "back")]
+    b = [("Ok", "ok"), ("Back", "back")]
     buttons = ButtonBar(tui.screen, b)
 
     ip_field = Entry(16)
@@ -111,31 +88,27 @@ def get_iface_configuration(nic, txt = None, show_identify = True, defaults = No
     loop = True
     while loop:
         result = gf.run()
-        # do we display a popup then continue, or leave the loop?
-        if buttons.buttonPressed(result) == 'identify':
-            identify_interface(nic)
-        else:
-            # leave the loop - 'ok', F12, or 'back' was pressed:
-            if buttons.buttonPressed(result) in ['ok', None]:
-                # validate input
-                msg = ''
-                if static_rb.selected():
-                    if not netutil.valid_ip_addr(ip_field.value()):
-                        msg = 'IP Address'
-                    elif not netutil.valid_ip_addr(subnet_field.value()):
-                        msg = 'Subnet mask'
-                    elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
-                        msg = 'Gateway'
-                    elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
-                        msg = 'Nameserver'
-                if msg != '':
-                    tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)
-                else:
-                    loop = False
+
+        if buttons.buttonPressed(result) in ['ok', None]:
+            # validate input
+            msg = ''
+            if static_rb.selected():
+                if not netutil.valid_ip_addr(ip_field.value()):
+                    msg = 'IP Address'
+                elif not netutil.valid_ip_addr(subnet_field.value()):
+                    msg = 'Subnet mask'
+                elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
+                    msg = 'Gateway'
+                elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
+                    msg = 'Nameserver'
+            if msg != '':
+                tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)
             else:
                 loop = False
-        if not loop:
-            tui.screen.popWindow()
+        else:
+            loop = False
+
+    tui.screen.popWindow()
 
     if buttons.buttonPressed(result) == 'back': return LEFT_BACKWARDS, None
 
@@ -163,21 +136,56 @@ def select_netif(text, conf, default=None):
                 break
 
     def lentry(iface):
-        tag = ''
         key = iface
-        if not netutil.linkUp(iface):
-            tag = ' [no link]'
+        tag = netutil.linkUp(iface) and '          ' or ' [no link]'
         text = "%s (%s)%s" % (iface, conf[iface].hwaddr, tag)
         return (text, key)
+
+    def iface_details(context):
+        if not context: return True
+
+        nic = conf[context]
+        gf = GridFormHelp(tui.screen, 'Interface Details', None, 1, 2)
+        bb = ButtonBar(tui.screen, [ 'Ok' ])
+        name_text = Textbox(13, 1, "Name:")
+        mac_text = Textbox(13, 1, "MAC Address:")
+        pci_text = Textbox(13, 1, "PCI Details:")
+        name_val = Textbox(10, 1, nic.name)
+        mac_val = Textbox(20, 1, nic.hwaddr)
+        pci_val = TextboxReflowed(40, nic.pci_string)
+        id_grid = Grid(2, 3)
+        id_grid.setField(name_text, 0, 0)
+        id_grid.setField(name_val, 1, 0, anchorLeft = 1)
+        id_grid.setField(mac_text, 0, 1)
+        id_grid.setField(mac_val, 1, 1, anchorLeft = 1)
+        id_grid.setField(pci_text, 0, 2)
+        id_grid.setField(pci_val, 1, 2, anchorLeft = 1)
+
+        gf.add(id_grid, 0, 0, padding = (0,0,0,1))
+        gf.add(bb, 0, 1, growx = 1)
+
+        gf.runOnce()
+        return True
+
+    def update(listbox):
+        old = listbox.current()
+        for item in listbox.item2key.keys():
+            text, _ = lentry(item)
+            listbox.replace(text, item)
+        listbox.setCurrent(old)
+        return True
+
+    tui.update_help_line([None, "<F5> more info"])
 
     while True:
         def_iface = None
         if default:
             def_iface = lentry(default)
         netif_list = [lentry(x) for x in netifs]
-        rc, entry = ListboxChoiceWindow(tui.screen, "Networking", text, netif_list,
-                                        ['Ok', 'Refresh', 'Back'], width=45, default=def_iface)
-        if (rc == 'refresh') or ((rc in ['ok', None]) and (entry == None)):
+        rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
+                                        ['Ok', 'Back'], width=45, default=def_iface,
+                                        hotkey='F5', hotkey_cb=iface_details, timeout_ms=5000, timeout_cb=update)
+        if ((rc in ['ok', None]) and (entry == None)):
             continue
         break
 
