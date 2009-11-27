@@ -55,7 +55,7 @@ def ListboxChoiceWindowEx(screen, title, text, items,
         rc = g.run()
         if rc == 'TIMER':
             if timeout_cb:
-                loop = timeout_cb()
+                loop = timeout_cb(l)
         elif rc == hotkey:
             if hotkey_cb:
                 loop = hotkey_cb(l.current())
