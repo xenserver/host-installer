@@ -31,7 +31,6 @@ import netutil
 import util
 import restore
 import driver
-import p2v
 from netinterface import *
 
 from version import *
@@ -107,8 +106,6 @@ def main(args):
     for (opt, val) in args.items():
         if opt == "--install":
             operation = init_constants.OPERATION_INSTALL
-        elif opt == "--p2v":
-            operation = init_constants.OPERATION_P2V
         elif opt == "--answerfile":
             answerfile_address = val
             interactive = False
@@ -196,11 +193,6 @@ def main(args):
             elif operation == init_constants.OPERATION_RESTORE:
                 xelogging.log("Starting restore")
                 rc = restore.go(ui)
-
-            # P2V:
-            elif operation == init_constants.OPERATION_P2V:
-                xelogging.log("Starting P2V")
-                rc = p2v.go(args, ui)
 
             operation = None
             # if we're non-interactive, or weren't canceled, force us to exit:

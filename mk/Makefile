@@ -53,7 +53,6 @@ $(PROC_ADDED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 # install scripts:
 	$(MAKE) -C $(call hg_loc,host-installer) install DESTDIR=$(INSTALLER_FILESYSTEM)
-	$(MAKE) -C $(call hg_loc,host-installer)/p2v install DESTDIR=$(INSTALLER_FILESYSTEM)
 	$(MAKE) -C $(call hg_loc,host-installer)/startup install DESTDIR=$(INSTALLER_FILESYSTEM)
 # make version.py: (XXX should be a separate target):
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py

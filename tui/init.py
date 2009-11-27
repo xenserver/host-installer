@@ -40,7 +40,6 @@ def get_keymap():
 def choose_operation(display_restore):
     entries = [ 
         (' * Install or upgrade %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
-        (' * Convert an existing OS on this machine to a %s (P2V)' % BRAND_GUEST_SHORT, init_constants.OPERATION_P2V)
         ]
 
     if display_restore:
