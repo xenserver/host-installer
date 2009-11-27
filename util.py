@@ -60,17 +60,6 @@ def copyFilesFromDir(sourcedir, dest):
 ###
 # shell
 
-def runCmd(command, with_output = False):
-    (rv, output) = commands.getstatusoutput(command)
-    l = "ran %s; rc %d" % (command, rv)
-    if output:
-        l += "; output follows:\n" + output
-    xelogging.log(l)
-    if with_output:
-        return rv, output
-    else:
-        return rv
-
 def runCmd2(command, with_stdout = False, with_stderr = False):
     out = ""
     err = ""
