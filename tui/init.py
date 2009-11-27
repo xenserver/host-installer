@@ -70,9 +70,7 @@ def driver_disk_sequence(answers, driver_repos):
         uic.Step(tui.repo.get_source_location, 
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
-#        uic.Step(confirm_load_drivers),
         uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
-#        uic.Step(tui.repo.verify_source, args=['driver']),
         uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
@@ -203,50 +201,6 @@ def eula_screen(answers):
                 "Driver License Agreement",
                 "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this driver.",
                 ['Ok'])
-
-# OBSOLETE?
-def ask_export_destination_screen(answers):
-    valid = False
-    hn = ""
-    while not valid:
-        button, result = EntryWindow(
-            tui.screen,
-            "Export VMs",
-            "Which host would you like to transfer the VMs to?",
-            [("Hostname", Entry(50, hn))], entryWidth = 50,
-            buttons = ["Ok", "Back"])
-        
-        if button == "back":
-            valid = True
-        elif button == "ok":
-            hn = result[0].strip()
-            if hn != "" and " " not in hn:
-                valid = True
-                answers['hostname'] = hn
-            else:
-                ButtonChoiceWindow(
-                    tui.screen,
-                    "Hostname required",
-                    "You must enter a valid hostname",
-                    ["Ok"])
-
-    if button == 'back': return LEFT_BACKWARDS
-    return RIGHT_FORWARDS
-
-# OBSOLETE?
-def ask_host_password_screen(answers):
-    button, result = snackutil.PasswordEntryWindow(
-        tui.screen,
-        "Password",
-        "Please enter the password for the host you are connecting to:",
-        ["Password"], entryWidth = 30,
-        buttons = ["Ok", "Back"])
-
-    if button == 'back': return LEFT_BACKWARDS
-
-    answers['password'] = result[0]
-
-    return RIGHT_FORWARDS
 
 def select_backup(backups):
     entries = []
