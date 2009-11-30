@@ -65,7 +65,8 @@ def runCmd2(command, with_stdout = False, with_stderr = False):
     err = ""
     cmd = subprocess.Popen(command, bufsize = 1,
                            stdout = subprocess.PIPE,
-                           stderr = subprocess.PIPE)
+                           stderr = subprocess.PIPE,
+                           shell = isinstance(command, str))
 
     for line in cmd.stdout:
         out += line
