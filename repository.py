@@ -554,7 +554,7 @@ class RPMPackage(Package):
         self.write(temploc)
 
         tmpcpio = tempfile.mktemp(prefix="cpio-", dir="/tmp")
-        util.runCmd("rpm2cpio %s >%s" % (temploc, tmpcpio))
+        util.runCmd2("rpm2cpio %s >%s" % (temploc, tmpcpio))
 
         data = ''
 
