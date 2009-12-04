@@ -136,24 +136,39 @@ def is_serialConsole(console):
     return console.startswith('hvc') or console.startswith('ttyS')
 
 class SerialPort:
-    def __init__(self, console):
+    def __init__(self, idv, dev = None, port = None, baud = '9600', data = '8', parity = 'n', stop = '1', term = 'vt102'):
+        if not dev:
+            dev = "hvc0"
+        if not port:
+            port = "com%d" % (idv+1)
+
+        self.id = idv
+        self.dev = dev
+        self.port = port
+        self.baud = baud
+        self.data = data
+        self.parity = parity
+        self.stop = stop
+        self.term = term
+
+    @classmethod
+    def from_string(cls, console):
         """Create instance from Xen console parameter (e.g. com1=115200,8n1)"""
-        self.dev = 'hvc0'
-        self.id = 0
-        self.port = 'com1'
-        self.baud = '9600'
-        self.data = '8'
-        self.parity = 'n'
-        self.stop = '1'
-        self.term = 'vt102'
+        port = 'com1'
+        baud = '9600'
+        data = '8'
+        parity = 'n'
+        stop = '1'
 
         m = re.match(r'(com\d+)=(\d+)(?:/\d+)?(?:,(\d)(.)?(\d)?)?', console)
         if m:
-            self.port = m.group(1)
-            self.baud = m.group(2)
-            if m.group(3): self.data = m.group(3)
-            if m.group(4): self.parity = m.group(4)
-            if m.group(5): self.stop = m.group(5)
+            port = m.group(1)
+            baud = m.group(2)
+            if m.group(3): data = m.group(3)
+            if m.group(4): parity = m.group(4)
+            if m.group(5): stop = m.group(5)
+
+        return cls(0, None, port, baud, data, parity, stop)
 
     def __repr__(self):
         return "<SerialPort: %s>" % self.xenFmt()
