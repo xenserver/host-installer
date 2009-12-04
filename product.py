@@ -24,6 +24,7 @@ import tempfile
 import xelogging
 import repository
 from disktools import *
+import hardware
 
 class SettingsNotAvailable(Exception):
     pass
@@ -386,6 +387,39 @@ class ExistingInstallation:
 
         finally:
             self.unmount_state()
+
+        # read bootloader config to extract serial console settings
+        try:
+            boot_mountpoint = tempfile.mkdtemp('-boot')
+            util.mount(self.boot_device, boot_mountpoint, ['ro'], 'ext3')
+
+            if os.path.exists(os.path.join(boot_mountpoint, "boot/extlinux.conf")):
+                conf = open(os.path.join(boot_mountpoint, "boot/extlinux.conf"), 'r')
+                for line in conf:
+                    l = line.strip().lower()
+                    if l.startswith('serial'):
+                        val = l.split()
+                        if len(val) > 2:
+                            results['serial-console'] = hardware.SerialPort(int(val[1]), baud = val[2])
+                    elif l.startswith('default'):
+                        results['boot-serial'] = l.endswith('xe-serial')
+                conf.close()
+            elif os.path.exists(os.path.join(boot_mountpoint, "boot/grub/menu.lst")):
+                conf = open(os.path.join(boot_mountpoint, "boot/grub/menu.lst"), 'r')
+                for line in conf:
+                    l = line.strip().lower()
+                    if l.startswith('serial'):
+                        args = util.splitArgs(l.split()[1:])
+                        if '--unit' in args and '--speed' in args:
+                            results['serial-console'] = hardware.SerialPort(int(args['--unit']),
+                                                                            baud = args['--speed'])
+                    elif l.startswith('default'):
+                        results['boot-serial'] = l.endswith('1')
+                conf.close()
+
+        finally:
+            util.umount(boot_mountpoint)
+            os.rmdir(boot_mountpoint)
 
         return results
 
