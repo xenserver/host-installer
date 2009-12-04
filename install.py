@@ -96,7 +96,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         boot_serial = True
     if serial_console:
         try:
-            results['serial-console'] = hardware.SerialPort(serial_console)
+            results['serial-console'] = hardware.SerialPort.from_string(serial_console)
             results['boot-serial'] = boot_serial
             xelogging.log("Serial console specified on command-line: %s, default boot: %s" % 
                           (serial_console, boot_serial))
