@@ -198,14 +198,11 @@ class ThirdGenUpgrader(Upgrader):
                               'etc/xensource/xapi-ssl.pem']
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
-        self.restore_list += [ 'etc/sysconfig/network' ]
+        self.restore_list += [ 'etc/sysconfig/network', 'var/xapi/network.dbcache' ]
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
         self.restore_list += ['var/xapi/state.db', 'etc/xensource/license']
         self.restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
-
-        self.restore_list.append({'dir': os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg'),
-                                  're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
         self.restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
 
@@ -213,13 +210,84 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [ 'etc/resolv.conf', 'etc/nsswitch.conf', 'etc/krb5.conf', '/etc/krb5.keytab', 'etc/pam.d/sshd' ]
         self.restore_list.append({'dir': 'var/lib/likewise'})
 
-    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
-    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
+    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
         util.assertDir(os.path.join(mounts['root'], "var/xapi"))
         util.assertDir(os.path.join(mounts['root'], "etc/xensource"))
 
         Upgrader.completeUpgrade(self, mounts, target_disk, backup_partnum)
+
+        if not os.path.exists(os.path.join(mounts['root'], 'var/xapi/network.dbcache')):
+            # upgrade from 5.5, generate dbcache
+            save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
+            util.assertDir(save_dir)
+            dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
+            util.assertDir(os.path.dirname(dbcache_file))
+            dbcache_fd = open(dbcache_file, 'w')
+
+            network_uid = util.getUUID()
+                
+            dbcache_fd.write('<?xml version="1.0" ?>\n<xenserver-network-configuration>\n')
+                
+            if admin_iface.startswith('bond'):
+                top_pif_uid = bond_pif_uid = util.getUUID()
+                bond_uid = util.getUUID()
+
+# find slaves of this bond and write PIFs for them
+                slaves = []
+                for file in [ f for f in os.listdir(os.path.join(tds, constants.NET_SCR_DIR))
+                              if re.match('ifcfg-eth[0-9]+$', f) ]:
+                    slavecfg = util.readKeyValueFile(os.path.join(tds, constants.NET_SCR_DIR, file), strip_quotes = False)
+                    if slavecfg.has_key('MASTER') and slavecfg['MASTER'] == admin_iface:
+                            
+                        slave_uid = util.getUUID()
+                        slave_net_uid = util.getUUID()
+                        slaves.append(slave_uid)
+                        slave = NetInterface.loadFromIfcfg(os.path.join(tds, constants.NET_SCR_DIR, file))
+                        slave.writePif(slavecfg['DEVICE'], dbcache_fd, slave_uid, slave_net_uid, ('slave-of', bond_uid))
+
+# locate bridge that has this interface as its PIFDEV
+                        bridge = None
+                        for file in [ f for f in os.listdir(os.path.join(tds, constants.NET_SCR_DIR))
+                                      if re.match('ifcfg-xenbr[0-9]+$', f) ]:
+                            brcfg = util.readKeyValueFile(os.path.join(tds, constants.NET_SCR_DIR, file), strip_quotes = False)
+                            if brcfg.has_key('PIFDEV') and brcfg['PIFDEV'] == slavecfg['DEVICE']:
+                                bridge = brcfg['DEVICE']
+                                break
+                        assert bridge
+                        
+                        dbcache_fd.write('\t<network ref="OpaqueRef:%s">\n' % slave_net_uid)
+                        dbcache_fd.write('\t\t<uuid>%sSlaveNetwork</uuid>\n' % slavecfg['DEVICE'])
+                        dbcache_fd.write('\t\t<PIFs>\n\t\t\t<PIF>OpaqueRef:%s</PIF>\n\t\t</PIFs>\n' % slave_uid)
+                        dbcache_fd.write('\t\t<bridge>%s</bridge>\n' % bridge)
+                        dbcache_fd.write('\t\t<other_config/>\n\t</network>\n')
+
+                # write bond
+                dbcache_fd.write('\t<bond ref="OpaqueRef:%s">\n' % bond_uid)
+                dbcache_fd.write('\t\t<master>OpaqueRef:%s</master>\n' % bond_pif_uid)
+                dbcache_fd.write('\t\t<uuid>InitialManagementBond</uuid>\n\t\t<slaves>\n')
+                for slave_uid in slaves:
+                    dbcache_fd.write('\t\t\t<slave>OpaqueRef:%s</slave>\n' % slave_uid)
+                dbcache_fd.write('\t\t</slaves>\n\t</bond>\n')
+
+                # write bond PIF
+                admin_config.writePif(admin_iface, dbcache_fd, bond_pif_uid, network_uid, ('master-of', bond_uid))
+            else:
+                top_pif_uid = util.getUUID()
+                # write PIF
+                admin_config.writePif(admin_iface, dbcache_fd, top_pif_uid, network_uid)
+
+            dbcache_fd.write('\t<network ref="OpaqueRef:%s">\n' % network_uid)
+            dbcache_fd.write('\t\t<uuid>InitialManagementNetwork</uuid>\n')
+            dbcache_fd.write('\t\t<PIFs>\n\t\t\t<PIF>OpaqueRef:%s</PIF>\n\t\t</PIFs>\n' % top_pif_uid)
+            dbcache_fd.write('\t\t<bridge>%s</bridge>\n' % admin_bridge)
+            dbcache_fd.write('\t\t<other_config/>\n\t</network>\n')
+
+            dbcache_fd.write('</xenserver-network-configuration>\n')
+
+            dbcache_fd.close()
+            util.runCmd2(['cp', '-p', dbcache_file, save_dir])
 
         v = product.Version(prev_install.version.major,
                             prev_install.version.minor,
@@ -231,52 +299,6 @@ class ThirdGenUpgrader(Upgrader):
         state = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'host.conf'), 'w')
         print >>state, "UPGRADE=true"
         state.close()
-
-        # CA-21443: initial ifcfg files are needed for pool eject
-        save_dir = os.path.join(constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
-        if not os.path.exists(os.path.join(mounts['root'], save_dir)):
-            xelogging.log("Generating firstboot ifcfg files from firstboot data")
-            try:
-                net_dict = util.readKeyValueFile(os.path.join(self.tds, constants.FIRSTBOOT_DATA_DIR, 'network.conf'))
-                if net_dict.has_key('ADMIN_INTERFACE'):
-                    mgmt_dict = util.readKeyValueFile(os.path.join(self.tds, constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % net_dict['ADMIN_INTERFACE']))
-                    xelogging.log(mgmt_dict)
-                    brname = 'xenbr%s' % mgmt_dict['LABEL'][3:]
-                    eth_ifcfg = open(os.path.join(mounts['root'], save_dir, 'ifcfg-%s' % mgmt_dict['LABEL']), 'w')
-                    print >>eth_ifcfg, "XEMANAGED=yes"
-                    print >>eth_ifcfg, "DEVICE=%s" % mgmt_dict['LABEL']
-                    print >>eth_ifcfg, "ONBOOT=no"
-                    print >>eth_ifcfg, "TYPE=Ethernet"
-                    print >>eth_ifcfg, "HWADDR=%s" % net_dict['ADMIN_INTERFACE']
-                    print >>eth_ifcfg, "BRIDGE=%s" % brname
-                    eth_ifcfg.close()
-
-                    br_ifcfg = open(os.path.join(mounts['root'], save_dir, 'ifcfg-%s' % brname), 'w')
-                    print >>br_ifcfg, "XEMANAGED=yes"
-                    print >>br_ifcfg, "DEVICE=%s" % brname
-                    print >>br_ifcfg, "ONBOOT=no"
-                    print >>br_ifcfg, "TYPE=Bridge"
-                    print >>br_ifcfg, "DELAY=0"
-                    print >>br_ifcfg, "STP=0"
-                    print >>br_ifcfg, "PIFDEV=%s" % mgmt_dict['LABEL']
-                    if mgmt_dict['MODE'] == 'static':
-                        print >>br_ifcfg, "BOOTPROTO=none"
-                        print >>br_ifcfg, "NETMASK=%s" % mgmt_dict['NETMASK']
-                        print >>br_ifcfg, "IPADDR=%s" % mgmt_dict['IP']
-                        print >>br_ifcfg, "GATEWAY=%s" % mgmt_dict['GATEWAY']
-                        i = 1
-                        while mgmt_dict.has_key('DNS%d' % i):
-                            print >>br_ifcfg, "DNS%d=%s" % (i, mgmt_dict['DNS%d' % i])
-                            i += 1
-                        if i > 1:
-                            print >>br_ifcfg, "PEERDNS=yes"
-                    else:
-                        print >>br_ifcfg, "BOOTPROTO=dhcp"
-                        print >>br_ifcfg, "PERSISTENT_DHCLIENT=yes"
-                        print >>br_ifcfg, "PEERDNS=yes"
-                    br_ifcfg.close()
-            except:
-                pass
 
         # CP-1508: preserve AD service state
         ad_on = False
@@ -559,9 +581,9 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         
         return retVal
 
-    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum']
-    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum):
-        ThirdGenUpgrader.completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum)
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
+    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
+        ThirdGenUpgrader.completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config)
         if os.path.realpath(prev_install.primary_disk) != os.path.realpath(target_disk):
             xelogging.log("Deactivating all partitions on %s" % prev_install.primary_disk)
             partTool = PartitionTool(prev_install.primary_disk)

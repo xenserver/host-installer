@@ -52,7 +52,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
         if defaults.gateway:
             gateway_field.set(defaults.gateway)
         if defaults.dns:
-            dns_field.set(defaults.dns)
+            dns_field.set(defaults.dns[0])
     else:
         dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
         dhcp_rb.setCallback(dhcp_change, ())

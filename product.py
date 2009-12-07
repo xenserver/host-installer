@@ -25,6 +25,7 @@ import xelogging
 import repository
 from disktools import *
 import hardware
+import xml.dom.minidom
 
 class SettingsNotAvailable(Exception):
     pass
@@ -254,6 +255,7 @@ class ExistingInstallation:
                 results['manual-hostname'] = (False, None)
 
             # nameservers:
+            domain = None
             if not os.path.exists(self.join_state_path('etc/resolv.conf')):
                 results['manual-nameservers'] = (False, None)
             else:
@@ -264,6 +266,10 @@ class ExistingInstallation:
                 for line in lines:
                     if line.startswith("nameserver "):
                         ns.append(line[11:].strip())
+                    elif line.startswith("domain "):
+                        domain = line[8:].strip()
+                    elif line.startswith("search "):
+                        domain = line.split()[1]
                 results['manual-nameservers'] = (True, ns)
 
             # ntp servers:
@@ -314,55 +320,58 @@ class ExistingInstallation:
             # The dev -> MAC mapping for other devices will be preserved in the
             # database which is available in time for everything except the
             # management interface.
-            for file in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
-                                   os.listdir(self.join_state_path('etc/sysconfig/network-scripts'))):
-                devcfg = util.readKeyValueFile(self.join_state_path('etc/sysconfig/network-scripts', file), strip_quotes = False)
-                if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == self.getInventoryValue('MANAGEMENT_INTERFACE'):
-                    brcfg = util.readKeyValueFile(self.join_state_path('etc/sysconfig/network-scripts', 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
-                    results['net-admin-interface'] = devcfg['DEVICE']
-                    results['net-admin-bridge'] = devcfg['BRIDGE']
+            mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
+            if os.path.exists(os.path.join(mntpoint, constants.DBCACHE)):
+                def getText(nodelist):
+                    rc = ""
+                    for node in nodelist:
+                        if node.nodeType == node.TEXT_NODE:
+                            rc = rc + node.data
+                    return rc.encode()
+                
+                xmldoc = xml.dom.minidom.parse(os.path.join(mntpoint, constants.DBCACHE))
 
-                    # get hardware address if it was recorded, otherwise look it up:
-                    if devcfg.has_key('HWADDR'):
-                        hwaddr = devcfg['HWADDR']
-                    elif devcfg.has_key('MACADDR'):
-                        # our bonds have a key called MACADDR instead
-                        hwaddr = devcfg['MACADDR']
-                    else:
-                        # XXX what if it's been renamed out of existence?
-                        try:
-                            hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
-                        except:
-                            hwaddr = None
+                pif_uid = None
+                for network in xmldoc.documentElement.getElementsByTagName('network'):
+                    if getText(network.getElementsByTagName('bridge')[0].childNodes) == mgmt_iface:
+                        pif_uid = getText(network.getElementsByTagName('PIFs')[0].getElementsByTagName('PIF')[0].childNodes)
+                        break
+                if pif_uid:
+                    for pif in xmldoc.documentElement.getElementsByTagName('pif'):
+                        if pif.getAttribute('ref') == pif_uid:
+                            results['net-admin-interface'] = getText(pif.getElementsByTagName('device')[0].childNodes)
+                            results['net-admin-bridge'] = mgmt_iface
+                            results['net-admin-configuration'] = NetInterface.loadFromPif(pif)
+                            break
+            else:
+                for file in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
+                                   os.listdir(os.path.join(mntpoint, constants.NET_SCR_DIR))):
+                    devcfg = util.readKeyValueFile(os.path.join(mntpoint, constants.NET_SCR_DIR, file), strip_quotes = False)
+                    if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == mgmt_iface:
+                        brcfg = util.readKeyValueFile(os.path.join(mntpoint, constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
+                        results['net-admin-interface'] = devcfg['DEVICE']
+                        results['net-admin-bridge'] = devcfg['BRIDGE']
 
-                    default = lambda d, k, v: d.has_key(k) and d[k] or v
+                        # get hardware address if it was recorded, otherwise look it up:
+                        if devcfg.has_key('HWADDR'):
+                            hwaddr = devcfg['HWADDR']
+                        elif devcfg.has_key('MACADDR'):
+                            # our bonds have a key called MACADDR instead
+                            hwaddr = devcfg['MACADDR']
+                        else:
+                            # XXX what if it's been renamed out of existence?
+                            try:
+                                hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
+                            except:
+                                hwaddr = None
 
-                    #results['net-admin-configuration'] = {'enabled': True}
-                    if (not brcfg.has_key('BOOTPROTO')) or brcfg['BOOTPROTO'] != 'dhcp':
-                        ip = default(brcfg, 'IPADDR', None)
-                        netmask = default(brcfg, 'NETMASK', None)
-                        gateway = default(brcfg, 'GATEWAY', None)
-
-                        if not ip or not netmask:
-                            raise SettingsNotAvailable, "IP address or netmask missing"
-                        
-                        # read resolv.conf for DNS
-                        dns = None
-                        try:
-                            f = open(this.join_state_path('etc/resolv.conf'), 'r')
-                            lines = f.readlines()
-                            f.close()
-                            for line in lines:
-                                if line.startswith('nameserver '):
-                                    dns = line[11:]
-                                    break
-                        except:
-                            pass
-
-                        results['net-admin-configuration'] = NetInterface(NetInterface.Static, hwaddr, ip, netmask, gateway, dns)
-                    else:
-                        results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, hwaddr)
-                    break
+                        ifcfg = NetInterface.loadFromIfcfg(os.path.join(mntpoint, constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']))
+                        if not ifcfg.hwaddr:
+                            ifcfg.hwaddr = hwaddr
+                        if ifcfg.isStatic() and not ifcfg.domain and domain:
+                            ifcfg.domain = domain
+                        results['net-admin-configuration'] = ifcfg
+                        break
 
             repo_list = []
             if os.path.exists(self.join_state_path(constants.INSTALLED_REPOS_DIR)):
