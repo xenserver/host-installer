@@ -321,7 +321,7 @@ class ExistingInstallation:
             # database which is available in time for everything except the
             # management interface.
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
-            if os.path.exists(os.path.join(mntpoint, constants.DBCACHE)):
+            if os.path.exists(self.join_state_path(constants.DBCACHE)):
                 def getText(nodelist):
                     rc = ""
                     for node in nodelist:
@@ -329,7 +329,7 @@ class ExistingInstallation:
                             rc = rc + node.data
                     return rc.encode()
                 
-                xmldoc = xml.dom.minidom.parse(os.path.join(mntpoint, constants.DBCACHE))
+                xmldoc = xml.dom.minidom.parse(self.join_state_path(constants.DBCACHE))
 
                 pif_uid = None
                 for network in xmldoc.documentElement.getElementsByTagName('network'):
@@ -345,10 +345,10 @@ class ExistingInstallation:
                             break
             else:
                 for file in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
-                                   os.listdir(os.path.join(mntpoint, constants.NET_SCR_DIR))):
-                    devcfg = util.readKeyValueFile(os.path.join(mntpoint, constants.NET_SCR_DIR, file), strip_quotes = False)
+                                   os.listdir(self.join_state_path(constants.NET_SCR_DIR))):
+                    devcfg = util.readKeyValueFile(self.join_state_path(constants.NET_SCR_DIR, file), strip_quotes = False)
                     if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == mgmt_iface:
-                        brcfg = util.readKeyValueFile(os.path.join(mntpoint, constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
+                        brcfg = util.readKeyValueFile(self.join_state_path(constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
                         results['net-admin-interface'] = devcfg['DEVICE']
                         results['net-admin-bridge'] = devcfg['BRIDGE']
 
@@ -365,7 +365,7 @@ class ExistingInstallation:
                             except:
                                 hwaddr = None
 
-                        ifcfg = NetInterface.loadFromIfcfg(os.path.join(mntpoint, constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']))
+                        ifcfg = NetInterface.loadFromIfcfg(self.join_state_path(constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']))
                         if not ifcfg.hwaddr:
                             ifcfg.hwaddr = hwaddr
                         if ifcfg.isStatic() and not ifcfg.domain and domain:
