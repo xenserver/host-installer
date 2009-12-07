@@ -399,8 +399,10 @@ class ExistingInstallation:
 
         # read bootloader config to extract serial console settings
         try:
+            mounted = False
             boot_mountpoint = tempfile.mkdtemp('-boot')
             util.mount(self.boot_device, boot_mountpoint, ['ro'], 'ext3')
+            mounted = True
 
             if os.path.exists(os.path.join(boot_mountpoint, "boot/extlinux.conf")):
                 conf = open(os.path.join(boot_mountpoint, "boot/extlinux.conf"), 'r')
@@ -425,10 +427,12 @@ class ExistingInstallation:
                     elif l.startswith('default'):
                         results['boot-serial'] = l.endswith('1')
                 conf.close()
+        except:
+            pass
 
-        finally:
+        if mounted:
             util.umount(boot_mountpoint)
-            os.rmdir(boot_mountpoint)
+        os.rmdir(boot_mountpoint)
 
         return results
 
