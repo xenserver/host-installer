@@ -15,3 +15,4 @@ install:
 	install -m755 S03unplug-vcpus $(DESTDIR)/etc/init.d
 	install -m755 S05ramdisk $(DESTDIR)/etc/init.d
 	install -m755 S11network $(DESTDIR)/etc/init.d
+	install -D -m644 depmod.conf $(DESTDIR)/etc/depmod.d/depmod.conf
