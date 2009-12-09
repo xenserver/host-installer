@@ -1,4 +1,4 @@
-SCRIPTS = build-fi-image.sh rebuild-initrd.sh
+SCRIPTS = build-fi-image.sh rebuild-initrd.sh answerfilegen.py
 
 all:
 
