@@ -1,0 +1,16 @@
+#!/bin/sh
+cat <<EOF
+<?xml version="1.0"?>
+   <installation>
+      <primary-disk>sda</primary-disk>
+      <bootloader location="partition">extlinux</bootloader>
+      <keymap>uk</keymap>
+      <hostname>factory.dell.com</hostname>
+      <source type="url">file:///tmp/ramdisk/</source>
+      <admin-interface name="eth0" proto="dhcp">
+      </admin-interface>
+      <timezone>Europe/London</timezone>
+      <script stage="installation-complete">file:///tmp/ramdisk/postinstall.sh</script>
+   </installation>
+EOF
+exit 0
