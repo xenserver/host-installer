@@ -13,6 +13,7 @@
 
 import os
 import sys
+import fcntl
 import util
 import datetime
 import traceback
@@ -100,6 +101,9 @@ def openLog(file):
         try:
             f = open(file, 'w', 1)
             continuous_logs.append(f)
+            # set close-on-exec
+            old = fcntl.fcntl(f.fileno(), fcntl.F_GETFD)
+            fcntl.fcntl(f.fileno(), fcntl.F_SETFD, old | fcntl.FD_CLOEXEC)
         except:
             log("Error opening %s as a log output." % file)
             return False
