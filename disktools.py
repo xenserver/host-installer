@@ -489,8 +489,8 @@ class PartitionTool:
         self.partitions = self.partitionTable()
         self.origPartitions = deepcopy(self.partitions)
 
-    @staticmethod                                                                                        
-    def partitionDevice(device, deviceNum):                                                              
+    @staticmethod
+    def partitionDevice(device, deviceNum):
         return device + PartitionTool.determineMidfix(device) + str(deviceNum) 
 
     @staticmethod
