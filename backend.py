@@ -874,12 +874,12 @@ def enableAgent(mounts, network_backend):
     util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--del', 'xend'])
 
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
-        vswitchd = ['vswitchd']
+        vswitch = ['vswitch']
     else:
-        vswitchd = []
+        vswitch = []
         
     for service in ['management-interface', 'xenservices', 'squeezed', 'xapi',
-                    'xapi-domains', 'perfmon', 'snapwatchd', 'v6d'] + vswitchd:
+                    'xapi-domains', 'perfmon', 'snapwatchd', 'v6d'] + vswitch:
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
