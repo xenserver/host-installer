@@ -77,7 +77,19 @@ class Answerfile:
             results = self.parseReinstall()
         elif install_type == "upgrade":
                 results = self.parseUpgrade()
-            
+
+        nb_nodes = self.nodelist.getElementsByTagName('network-backend')
+        if len(nb_nodes) == 1:
+            network_backend = getText(nb_nodes[0].childNodes)
+            if network_backend == constants.NETWORK_BACKEND_BRIDGE:
+                results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
+            elif network_backend == constants.NETWORK_BACKEND_VSWITCH:
+                results['network-backend'] = constants.NETWORK_BACKEND_VSWITCH
+            else:
+                raise AnswerfileError, "Specified Network backend type \"%s\" unknown." % network_backend
+        else:
+            results['network-backend'] = constants.NETWORK_BACKEND_DEFAULT
+        
         return results
 
     def parseFreshInstall(self):

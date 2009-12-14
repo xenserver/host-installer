@@ -165,10 +165,10 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
-        Task(enableAgent, A(ans, 'mounts'), []),
+        Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
@@ -870,10 +870,16 @@ def writeFstab(mounts):
     fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
-def enableAgent(mounts):
+def enableAgent(mounts, network_backend):
     util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--del', 'xend'])
+
+    if network_backend == constants.NETWORK_BACKEND_VSWITCH:
+        vswitchd = ['vswitchd']
+    else:
+        vswitchd = []
+        
     for service in ['management-interface', 'xenservices', 'squeezed', 'xapi',
-                    'xapi-domains', 'perfmon', 'snapwatchd', 'v6d']:
+                    'xapi-domains', 'perfmon', 'snapwatchd', 'v6d'] + vswitchd:
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
@@ -938,7 +944,7 @@ def setRootPassword(mounts, root_pwd):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings):
+def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings, network_backend):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -1050,6 +1056,10 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
+
+    nwconf = open("%s/etc/xensource/network.conf" % mounts["root"], "w")
+    nwconf.write("%s\n" % network_backend)
+    nwconf.close()
 
 # use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts):

@@ -56,7 +56,8 @@ def go(ui, args, answerfile_address, answerfile_script):
         'serial-console': None,
         'operation': init_constants.OPERATION_INSTALL,
         'boot-serial': False,
-        'extra-repos': []
+        'extra-repos': [],
+        'network-backend': constants.NETWORK_BACKEND_DEFAULT,
         }
     suppress_extra_cd_dialog = False
     serial_console = None

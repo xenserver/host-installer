@@ -31,6 +31,11 @@ SR_TYPE_EXT = 2
 BOOTLOADER_TYPE_GRUB = 1
 BOOTLOADER_TYPE_EXTLINUX = 2
 
+# network backend types:
+NETWORK_BACKEND_BRIDGE = "bridge"
+NETWORK_BACKEND_VSWITCH = "vswitch"
+NETWORK_BACKEND_DEFAULT = NETWORK_BACKEND_BRIDGE
+
 # error strings:
 def error_string(error, logname, with_hd):
     (
