@@ -396,7 +396,7 @@ class ExistingInstallation:
 
             try:
                 network_conf = open(self.join_state_path("etc/xensource/network.conf"), 'r')
-                network_backend = network_config.readline().strip()
+                network_backend = network_conf.readline().strip()
                 network_conf.close()
                 
                 if network_backend == constants.NETWORK_BACKEND_BRIDGE:
