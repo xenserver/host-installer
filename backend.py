@@ -950,8 +950,17 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     to /etc/sysconfig/network-scripts, and removes any other configuration
     files from that directory."""
 
+    # always set network backend
+    util.assertDir(os.path.join(mounts['root'], 'etc/xensource'))
+    nwconf = open("%s/etc/xensource/network.conf" % mounts["root"], "w")
+    nwconf.write("%s\n" % network_backend)
+    xelogging.log("Writing %s to /etc/xensource/network.conf" % network_backend)
+    nwconf.close()
+
     if preserve_settings:
         return
+
+    # Clean install only below this point
 
     util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
@@ -1056,10 +1065,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
-
-    nwconf = open("%s/etc/xensource/network.conf" % mounts["root"], "w")
-    nwconf.write("%s\n" % network_backend)
-    nwconf.close()
 
 # use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts):
