@@ -20,13 +20,27 @@ import constants
 import sys
 
 screen = None
-help_line = ["<Tab>/<Alt-Tab> between elements", "               ", "<F12> next screen"]
+help_pad = [33, 16, 17]
+help_line = ["<Tab>/<Alt-Tab> between elements", "", "<F12> next screen"]
+
+
+def global_help(screen, context):
+    text = """To navigate between fields and buttons use <Tab> to move forwards and <Alt-Tab>
+to move backwards.
+
+To select check boxes and radio buttons press <Space>.
+
+To advance to the next screen navigate to the Ok button and press Enter or press <F12>.
+"""
+    OKDialog("General Help", text)
 
 def init_ui():
     global screen
     screen = SnackScreen()
     screen.drawRootText(0, 0, "Welcome to %s - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
     screen.drawRootText(0, 1, "Copyright (c) %s %s" % (COPYRIGHT_YEARS, COMPANY_NAME_LEGAL))
+    update_help_line(help_line)
+    screen.helpCallback(global_help)
 
 def end_ui():
     global screen
@@ -34,10 +48,14 @@ def end_ui():
         screen.finish()
 
 def update_help_line(help):
-    for i in range(0, len(help)):
-        if help[i]:
-            help_line[i] = help[i]
-    screen.pushHelpLine(' | '.join(map(lambda x: x+' ', help_line)).center(79))
+    hl = []
+    for i in range(0, len(help_line)):
+        if len(help) > i and help[i]:
+            hl.append(help[i].ljust(help_pad[i]))
+        else:
+            hl.append(help_line[i].ljust(help_pad[i]))
+
+    screen.pushHelpLine('  ' + '  |  '.join(hl))
 
 def OKDialog(title, text, hasCancel = False):
     return snackutil.OKDialog(screen, title, text, hasCancel)

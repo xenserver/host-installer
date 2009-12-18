@@ -12,6 +12,7 @@
 
 import string
 import datetime
+import os.path
 
 import generalui
 import uicontroller
@@ -37,6 +38,7 @@ from snack import *
 import tui
 import tui.network
 import tui.progress
+import driver
 
 def selectDefault(key, entries):
     """ Given a list of (text, key) and a key to select, returns the appropriate
@@ -49,15 +51,49 @@ def selectDefault(key, entries):
 
 # welcome screen:
 def welcome_screen(answers):
-    button = ButtonChoiceWindow(tui.screen,
-                                "Welcome to %s Setup" % PRODUCT_BRAND,
-                                """This setup tool will install %s on your server.  Installing %s will erase all data on the disks selected for use unless an upgrade option is chosen.
 
-Please make sure you have backed up any data you wish to preserve before proceeding with the installation.""" % (PRODUCT_BRAND, PRODUCT_BRAND),
-                                ['Ok', 'Cancel Installation'], width = 60)
+    tui.update_help_line([None, "<F9> load driver"])
+
+    def load_driver():
+        driver_answers = {}
+        tui.screen.popHelpLine()
+        tui.update_help_line([None, ' '])
+        drivers = driver.doInteractiveLoadDriver(tui, driver_answers)
+        xelogging.log(drivers)
+        xelogging.log(driver_answers)
+        if drivers[0]:
+            if 'extra-repos' not in answers: answers['extra-repos'] = []
+            answers['extra-repos'].append(drivers)
+        return True
+
+    global loop
+    loop = True
+
+    def fn9():
+        global loop
+        loop = True
+        return False
+
+    while loop:
+        loop = False
+        button = snackutil.ButtonChoiceWindowEx(tui.screen,
+                                "Welcome to %s Setup" % PRODUCT_BRAND,
+                                """This setup tool can be used to install %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use unless an upgrade option is chosen.
+
+Please make sure you have backed up any data you wish to preserve before proceeding.
+
+To load a device driver press <F9>.
+""" % (PRODUCT_BRAND, PRODUCT_BRAND),
+                                ['Ok', 'Reboot'], width = 60,
+                                hotkey = 'F9', hotkey_cb = fn9)
+        if loop:
+            load_driver()
+            tui.update_help_line([None, "<F9> load driver"])
+
+    tui.screen.popHelpLine()
 
     # advance to next screen:
-    if button == 'cancel installation':
+    if button == 'reboot':
         return EXIT
     else:
         return RIGHT_FORWARDS
@@ -140,27 +176,83 @@ def get_admin_interface_configuration(answers):
 
 def get_installation_type(answers):
     entries = []
-    insts = answers['upgradeable-products']
-    for x in insts:
+    for x in answers['upgradeable-products']:
         if x.version < product.THIS_PRODUCT_VERSION:
             entries.append(("Upgrade %s" % str(x), (x, x.settingsAvailable())))
         else:
             entries.append(("Freshen %s" % str(x), (x, x.settingsAvailable())))
+    for b in answers['backups']:
+        entries.append(("Restore %s from backup" % str(b), (b, None)))
 
     entries.append( ("Perform clean installation", None) )
 
     # default value?
     if answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         default = selectDefault(answers['installation-to-overwrite'], entries)
+    elif answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_RESTORE:
+        default = selectDefault(answers['backup-to-restore'], entries)
     else:
         default = None
 
-    (button, entry) = ListboxChoiceWindow(
+    if len(answers['upgradeable-products']) > 0:
+        text = "One or more existing product installations that can be upgraded have been detected."
+        if len(answers['backups']) > 0:
+            text += "  In addition one or more backups have been detected."
+    else:
+        text = "One or more backups have been detected."
+    text += "\n\nWhat would you like to do?"
+
+    tui.update_help_line([None, "<F5> more info"])
+
+    def more_info(context):
+        if not context: return True
+        obj, _ = context
+        if not isinstance(obj, (product.ExistingInstallation, product.XenServerBackup)): return True
+
+        date = "Unknown"
+        if 'INSTALLATION_DATE' in obj.inventory:
+            date = obj.inventory['INSTALLATION_DATE']
+        dev = "Unknown"
+        if 'PRIMARY_DISK' in obj.inventory:
+            pd = obj.inventory['PRIMARY_DISK']
+            if pd == "ToBeDetermined":
+                dev = diskutil.getHumanDiskName(obj.primary_disk)
+            else:
+                dev = "%s (%s)" % (diskutil.getHumanDiskName(os.path.realpath(pd)),
+                               diskutil.getHumanDiskName(pd))
+
+        tui.update_help_line([' ', ' '])
+        gf = GridFormHelp(tui.screen, 'Details', None, 1, 2)
+        bb = ButtonBar(tui.screen, [ 'Ok' ])
+        ver_text = Textbox(13, 1, "Version:")
+        date_text = Textbox(13, 1, "Installed:")
+        dev_text = Textbox(13, 1, "Disk:")
+        ver_val = Textbox(20, 1, str(obj.version))
+        date_val = Textbox(28, 1, date)
+        dev_val = Textbox(36, 1, dev)
+        id_grid = Grid(2, 3)
+        id_grid.setField(ver_text, 0, 0)
+        id_grid.setField(ver_val, 1, 0, anchorLeft = 1)
+        id_grid.setField(date_text, 0, 1)
+        id_grid.setField(date_val, 1, 1, anchorLeft = 1)
+        id_grid.setField(dev_text, 0, 2)
+        id_grid.setField(dev_val, 1, 2, anchorLeft = 1)
+
+        gf.add(id_grid, 0, 0, padding = (0,0,0,1))
+        gf.add(bb, 0, 1, growx = 1)
+
+        gf.runOnce()
+        tui.screen.popHelpLine()
+        return True
+
+    (button, entry) = snackutil.ListboxChoiceWindowEx(
         tui.screen,
-        "Installation Type",
-        "One or more existing product installations that can be refreshed using this setup tool have been detected.  What would you like to do?",
+        "Action To Perform",
+        text,
         entries,
-        ['Ok', 'Back'], width=60, default = default)
+        ['Ok', 'Back'], width=60, default = default, hotkey = 'F5', hotkey_cb = more_info)
+
+    tui.screen.popHelpLine()
 
     if button == 'back': 
         return LEFT_BACKWARDS
@@ -171,7 +263,7 @@ def get_installation_type(answers):
 
         if answers.has_key('installation-to-overwrite'):
             del answers['installation-to-overwrite']
-    else:
+    elif isinstance(entry[0], product.ExistingInstallation):
         answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
         answers['installation-to-overwrite'], preservable = entry
         answers['preserve-settings'] = preservable
@@ -181,6 +273,10 @@ def get_installation_type(answers):
         for k in ['guest-disks', 'default-sr-uuid']:
             if answers.has_key(k):
                 del answers[k]
+    elif isinstance(entry[0], product.XenServerBackup):
+        answers['install-type'] = constants.INSTALL_TYPE_RESTORE
+        answers['backup-to-restore'], _ = entry
+
     return RIGHT_FORWARDS
 
 def ha_master_upgrade(answers):
@@ -382,11 +478,13 @@ def disk_more_info(context):
     if boot[0]:
         usage = PRODUCT_BRAND
     elif storage[0]:
-        usage = 'SR'
+        usage = 'VM storage'
 
     text = "Disk:          %s\nCurrent usage: %s" % (diskutil.getHumanDiskName(context), usage)
 
+    tui.update_help_line([' ', ' '])
     tui.progress.OKDialog("Details", text)
+    tui.screen.popHelpLine()
     return True
 
 # select drive to use as the Dom0 disk:
@@ -439,6 +537,8 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
         entries,
         ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default,
         hotkey = 'F5', hotkey_cb = disk_more_info)
+
+    tui.screen.popHelpLine()
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
@@ -537,32 +637,38 @@ If you proceed, please refer to the user guide for details on provisioning stora
     return RIGHT_FORWARDS
 
 def confirm_installation(answers):
-    text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
-    if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
-        # need to work on a copy of this! (hence [:])
-        #disks = answers['guest-disks'][:]
-        disks = map(diskutil.getHumanDiskName, answers['guest-disks'])
-        if diskutil.getHumanDiskName(answers['primary-disk']) not in disks:
-            disks.append(diskutil.getHumanDiskName(answers['primary-disk']))
-        disks.sort()
-        if len(disks) == 1:
-            term = 'disk'
-        else:
-            term = 'disks'
-        disks_used = generalui.makeHumanList(disks)
-        text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
-    elif answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        if answers['primary-disk'] == answers['installation-to-overwrite'].primary_disk:
-            text2 = "The installation will be performed over %s" % str(answers['installation-to-overwrite'])
-        else:
-            text2 = "The installation will migrate the installation from %s to %s" % (str(answers['installation-to-overwrite']),
-                                                                                      diskutil.getHumanDiskName(answers['primary-disk']))
-        text2 += ", preserving existing %s in your storage repository." % BRAND_GUESTS
-    text = text1 + "\n\n" + text2
-    ok = 'Install %s' % PRODUCT_BRAND
+    if answers['install-type'] == constants.INSTALL_TYPE_RESTORE:
+        backup = answers['backup-to-restore']
+        label = "Confirm Restore"
+        text = "Are you sure you want to restore your installation with the backup on %s?\n\nYour existing installation will be overwritten with the backup (though VMs will still be intact).\n\nTHIS OPERATION CANNOT BE UNDONE." % diskutil.getHumanDiskName(backup.partition)
+        ok = 'Restore %s' % PRODUCT_BRAND
+    else:
+        label = "Confirm Installation"
+        text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
+        if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
+            disks = map(diskutil.getHumanDiskName, answers['guest-disks'])
+            if diskutil.getHumanDiskName(answers['primary-disk']) not in disks:
+                disks.append(diskutil.getHumanDiskName(answers['primary-disk']))
+            disks.sort()
+            if len(disks) == 1:
+                term = 'disk'
+            else:
+                term = 'disks'
+            disks_used = generalui.makeHumanList(disks)
+            text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
+        elif answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+            if answers['primary-disk'] == answers['installation-to-overwrite'].primary_disk:
+                text2 = "The installation will be performed over %s" % str(answers['installation-to-overwrite'])
+            else:
+                text2 = "The installation will migrate the installation from %s to %s" % (str(answers['installation-to-overwrite']),
+                                                                                          diskutil.getHumanDiskName(answers['primary-disk']))
+            text2 += ", preserving existing %s in your storage repository." % BRAND_GUESTS
+        text = text1 + "\n\n" + text2
+        ok = 'Install %s' % PRODUCT_BRAND
+
     button = snackutil.ButtonChoiceWindowEx(
-        tui.screen, "Confirm Installation", text,
-        [ok, 'Back'], default = 1
+        tui.screen, label, text,
+        [ok, 'Back'], default = 1, width = 50
         )
 
     if button == 'back': return LEFT_BACKWARDS

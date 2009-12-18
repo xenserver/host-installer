@@ -29,8 +29,6 @@ import init_constants
 import xelogging
 import netutil
 import util
-import restore
-import driver
 from netinterface import *
 
 from version import *
@@ -93,8 +91,6 @@ def main(args):
     ui = tui
     interactive = True
     answer_device = 'all'
-    driver_answers = {}
-    driver_repos = []
     init_network = False
     reboot = False
     answerfile_address = None
@@ -163,48 +159,15 @@ def main(args):
     if init_network:
         configureNetworking(ui, answer_device)
 
-    backups = product.findXenSourceBackups()
+    xelogging.log("Starting installation/upgrade/restore")
 
-    try:
-        while True:
-            # if interactive, set the operation:
-            if interactive and not operation:
-                operation = ui.init.choose_operation(len(backups) > 0)
+    rc = install.go(ui, args, answerfile_address, answerfile_script)
 
-            if operation == init_constants.OPERATION_REBOOT:
-                break
+    if ui:
+        ui.end_ui()
 
-            # install/upgrade:
-            elif operation == init_constants.OPERATION_INSTALL:
-                xelogging.log("Starting installation/upgrade")
-
-                if len(driver_repos) > 0:
-                    args['--extrarepo'] = driver_repos
-                rc = install.go(ui, args, answerfile_address, answerfile_script)
-
-            # load a driver:
-            elif operation == init_constants.OPERATION_LOAD_DRIVER:
-                drivers = driver.doInteractiveLoadDriver(ui, driver_answers)
-                if drivers[0]:
-                    driver_repos.append(drivers)
-                rc = None
-
-            # restore:
-            elif operation == init_constants.OPERATION_RESTORE:
-                xelogging.log("Starting restore")
-                rc = restore.go(ui)
-
-            operation = None
-            # if we're non-interactive, or weren't canceled, force us to exit:
-            if rc == EXIT_OK or rc == EXIT_ERROR or not interactive:
-                break
-
-    finally:
-        if ui:
-            ui.end_ui()
-
-        # stop logging to tty3:
-        xelogging.closeLogs()
+    # stop logging to tty3:
+    xelogging.closeLogs()
 
     return reboot
 

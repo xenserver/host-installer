@@ -161,8 +161,8 @@ class ExistingInstallation:
         self.settings = None
 
     def __str__(self):
-        return "%s v%s on %s" % (
-            self.brand, str(self.version), self.root_device)
+        return "%s %s" % (
+            self.brand, str(self.version))
 
     def mount_state(self):
         """ Mount main state partition on self.state_mountpoint. """
@@ -463,7 +463,7 @@ class ExistingRetailInstallation(ExistingInstallation):
         self.readInventory()
 
     def __repr__(self):
-        return "<ExistingRetailInstallation: %s>" % self
+        return "<ExistingRetailInstallation: %s on %s>" % (str(self), self.root_device)
 
     def mount_root(self):
         self.root_mountpoint = tempfile.mkdtemp('-root')
@@ -587,7 +587,7 @@ class ExistingOEMInstallation(ExistingInstallation):
         xelogging.log('Found auxiliary state devices: '+str(self.auxiliary_state_devices))
 
     def __repr__(self):
-        return "<ExistingOEMInstallation: %s>" % self
+        return "<ExistingOEMInstallation: %s on %s>" % (str(self), self.root_device)
 
     def mount_root(self):
         self.root_mountpoint2 = tempfile.mkdtemp('-root')
@@ -646,6 +646,23 @@ class ExistingOEMInstallation(ExistingInstallation):
             xelogging.log("Existing installation noted that state partition '" +
                 srcDevice + "' was renamed as '" + destDevice+"'")
 
+class XenServerBackup:
+    def __init__(self, part, mnt):
+        self.partition = part
+        self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes = True)
+        self.name = self.inventory['PRODUCT_NAME']
+        self.brand = self.inventory['PRODUCT_BRAND']
+        self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
+        self.build = self.inventory['BUILD_NUMBER']
+        self.root_disk = self.inventory['PRIMARY_DISK']
+
+    def __str__(self):
+        return "%s %s" % (
+            self.brand, str(self.version))
+
+    def __repr__(self):
+        return "<XenServerBackup: %s on %s>" % (str(self), self.partition)
+
 def findXenSourceBackups():
     """Scans the host and find partitions containing backups of XenSource
     products.  Returns a list of device node paths to partitions containing
@@ -658,10 +675,7 @@ def findXenSourceBackups():
             try:
                 util.mount(p, mnt, fstype = 'ext3', options = ['ro'])
                 if os.path.exists(os.path.join(mnt, '.xen-backup-partition')):
-                    if os.path.exists(os.path.join(mnt, constants.INVENTORY_FILE)):
-                        inv = readInventoryFile(os.path.join(mnt, constants.INVENTORY_FILE))
-                        if inv.has_key('PRIMARY_DISK'):
-                            backups.append((p, inv['PRIMARY_DISK']))
+                    backups.append(XenServerBackup(p, mnt))
             except util.MountFailureException, e:
                 pass
             else:

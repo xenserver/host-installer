@@ -33,7 +33,7 @@ def get_keymap():
         "Select Keymap",
         "Please select the keymap you would like to use:",
         entries,
-        ['Ok'], height = 8, scroll = 1, timeout_ms = 500)
+        ['Ok'], height = 8, scroll = 1, help = "keymap", timeout_ms = 500)
 
     return entry
 
@@ -70,7 +70,8 @@ def driver_disk_sequence(answers, driver_repos):
         uic.Step(tui.repo.get_source_location, 
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
-        uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
+#        uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
+        uic.Step(confirm_load_drivers),
         uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
@@ -78,26 +79,6 @@ def driver_disk_sequence(answers, driver_repos):
     if rc == LEFT_BACKWARDS:
         return None
     return (answers['source-media'], answers['source-address'])
-
-def get_driver_source(answers):
-    entries = [
-        ('Removable media', 'local'),
-        ('HTTP or FTP', 'url'),
-        ('NFS', 'nfs')
-        ]
-    result, entry = ListboxChoiceWindow(
-        tui.screen,
-        "Load Driver",
-        "Please select where you would like to load a driver from:",
-        entries, ['Ok', 'Back'])
-
-    if result == 'back': return LEFT_BACKWARDS
-
-    answers['source-media'] = entry
-    if entry == 'local':
-        answers['source-address'] = ''
-    answers['id-list'] = None
-    return RIGHT_FORWARDS
 
 def require_networking(answers):
     rc = tui.network.requireNetworking(answers)
@@ -127,8 +108,11 @@ def confirm_load_drivers(answers):
     for r in repos:
         has_drivers = False
         for p in r:
-            if p.type.startswith("driver") and p.is_compatible():
-                has_drivers = True
+            if p.type.startswith("driver"):
+                if p.is_compatible():
+                    has_drivers = True
+                else:
+                    xelogging.log("Driver %s is not compatible, skipping" % p.name)
         if has_drivers:
            drivers.append(p)
            id_list.append(r.identifier())
@@ -139,39 +123,33 @@ def confirm_load_drivers(answers):
             """No compatible drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
 
 Note that this driver-loading mechanism is only compatible with media/locations containing %s repositories.  Check the installation guide for more information.""" % PRODUCT_BRAND,
-            ['Back'])
+            ['Back'], width = 50)
         return LEFT_BACKWARDS
     else:
-        this_repo = None
-        driver_text = ""
-        for d in drivers:
-            if this_repo != d.repository:
-                driver_text += "\n%s\n\n" % d.repository.name().center(30)
-                this_repo = d.repository
-            driver_text += " * %s\n" % d.name
-
         if len(drivers) == 1:
-            text = "The following driver was found:\n"
+            text = "The following driver was found:\n\n"
         elif len(drivers) > 1:
-            text = "The following drivers were found:\n"
-        text += driver_text
+            text = "The following drivers were found:\n\n"
+        for d in drivers:
+            text += " * %s\n" % d.name
 
         while True:
             rc = ButtonChoiceWindow(
                 tui.screen, "Load Drivers", text, ['Load drivers', 'Info', 'Back'])
 
             if rc == 'back': return LEFT_BACKWARDS
-            if rc in [None, 'load drivers']:
-                answers['repos'] = repos
-                answers['id-list'] = id_list
-                return RIGHT_FORWARDS
-
-            if rc == 'info':
+            elif rc == 'info':
                 hashes = [" %s %s" % (r.md5sum(), r.name()) for r in repos]
                 text2 = "The following MD5 hashes have been calculated. Please check them against those provided by the driver supplier:\n\n"
                 text2 += "\n".join(hashes)
                 ButtonChoiceWindow(
                     tui.screen, "Driver Repository Information", text2, ['Ok'])
+            else:
+                break
+
+    answers['repos'] = repos
+    answers['id-list'] = id_list
+    return RIGHT_FORWARDS
 
 def eula_screen(answers):
     eula = ''

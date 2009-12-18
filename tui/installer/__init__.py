@@ -32,6 +32,11 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     uis = tui.installer.screens
     Step = uicontroller.Step
 
+    def only_unupgradeable_products(answers):
+        return len(answers['installed-products']) > 0 and \
+               len(answers['upgradeable-products']) == 0 and \
+               len(answers['backups']) == 0
+
     def upgrade_but_no_settings_predicate(answers):
         return answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
             (not answers.has_key('installation-to-overwrite') or \
@@ -44,7 +49,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
-    is_using_remote_media_fn = lambda a: a['source-media'] in ['url', 'nfs']
+    is_not_restore_fn = lambda a: a['install-type'] != constants.INSTALL_TYPE_RESTORE
+    is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']
 
     def requires_backup(answers):
         return answers.has_key("installation-to-overwrite") and \
@@ -97,6 +103,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
     results['installed-products'] = product.find_installed_products()
     results['upgradeable-products'] = upgrade.filter_for_upgradeable_products(results['installed-products'])
+    results['backups'] = product.findXenSourceBackups()
     tui.progress.clearModelessDialog()
 
     if not results.has_key('install-type'):
@@ -110,9 +117,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              args=[ram_warning, vt_warning],
              predicates=[lambda _:(ram_warning or vt_warning)]),
         Step(uis.overwrite_warning,
-             predicates=[lambda _:len(results['installed-products']) > 0 and len(results['upgradeable-products']) == 0]),
+             predicates=[only_unupgradeable_products]),
         Step(uis.get_installation_type, 
-             predicates=[lambda _:len(results['upgradeable-products']) > 0]),
+             predicates=[lambda _:len(results['upgradeable-products']) > 0 or len(results['backups']) > 0]),
         Step(uis.upgrade_settings_warning,
              predicates=[upgrade_but_no_settings_predicate]),
         Step(uis.ha_master_upgrade,
@@ -133,7 +140,9 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[is_clean_install_fn]),
         Step(uis.confirm_erase_volume_groups,
              predicates=[is_clean_install_fn]),
-        Step(tui.repo.select_repo_source, args = ["Select Installation Source", "Please select the type of source you would like to use for this installation"]),
+        Step(tui.repo.select_repo_source,
+             args=["Select Installation Source", "Please select the type of source you would like to use for this installation"],
+             predicates=[is_not_restore_fn]),
         Step(uis.use_extra_media, args=[vt_warning],
              predicates=[local_media_predicate]),
         Step(uis.setup_runtime_networking, 
@@ -141,23 +150,23 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(tui.repo.get_source_location,
              args=[True],
              predicates=[is_using_remote_media_fn]),
-        Step(tui.repo.verify_source, args=['installation']),
+        Step(tui.repo.verify_source, args=['installation'], predicates=[is_not_restore_fn]),
         Step(uis.get_root_password,
-             predicates=[not_preserve_settings]),
+             predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_admin_interface,
-             predicates=[has_multiple_nics, not_preserve_settings]),
+             predicates=[is_not_restore_fn, has_multiple_nics, not_preserve_settings]),
         Step(uis.get_admin_interface_configuration,
-             predicates=[not_preserve_settings]),
+             predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_name_service_configuration,
-             predicates=[not_preserve_settings]),
+             predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_timezone_region,
-             predicates=[not_preserve_timezone]),
+             predicates=[is_not_restore_fn, not_preserve_timezone]),
         Step(uis.get_timezone_city,
-             predicates=[not_preserve_timezone]),
+             predicates=[is_not_restore_fn, not_preserve_timezone]),
         Step(uis.get_time_configuration_method,
-             predicates=[not_preserve_settings]),
+             predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_ntp_servers,
-             predicates=[not_preserve_settings]),
+             predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.confirm_installation),
         ]
     return uicontroller.runSequence(seq, results)

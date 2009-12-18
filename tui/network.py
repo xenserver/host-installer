@@ -144,6 +144,7 @@ def select_netif(text, conf, default=None):
     def iface_details(context):
         if not context: return True
 
+        tui.update_help_line([' ', ' '])
         nic = conf[context]
         gf = GridFormHelp(tui.screen, 'Interface Details', None, 1, 2)
         bb = ButtonBar(tui.screen, [ 'Ok' ])
@@ -165,6 +166,7 @@ def select_netif(text, conf, default=None):
         gf.add(bb, 0, 1, growx = 1)
 
         gf.runOnce()
+        tui.screen.popHelpLine()
         return True
 
     def update(listbox):
@@ -188,6 +190,8 @@ def select_netif(text, conf, default=None):
         if ((rc in ['ok', None]) and (entry == None)):
             continue
         break
+
+    tui.screen.popHelpLine()
 
     if rc == 'back': return LEFT_BACKWARDS, None
     return RIGHT_FORWARDS, entry
