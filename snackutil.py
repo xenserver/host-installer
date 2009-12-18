@@ -62,14 +62,14 @@ def ListboxChoiceWindowEx(screen, title, text, items,
         else:
             loop = False
     screen.popWindow()
-    screen.popHelpLine()
     
     return (bb.buttonPressed(rc), l.current())
 
 def ButtonChoiceWindowEx(screen, title, text, 
                buttons = [ 'Ok', 'Cancel' ], 
                width = 40, x = None, y = None, help = None,
-               default = 0):
+               default = 0, hotkey = None, hotkey_cb = None,
+               timeout_ms = 0, timeout_cb = None):
     bb = ButtonBar(screen, buttons)
     t = TextboxReflowed(width, text, maxHeight = screen.height - 12)
 
@@ -77,10 +77,28 @@ def ButtonChoiceWindowEx(screen, title, text,
     g.add(t, 0, 0, padding = (0, 0, 0, 1))
     g.add(bb, 0, 1, growx = 1)
 
-    g.draw()
+    g.draw()                                                                   
     g.setCurrent(bb.list[default][0])
     
-    return bb.buttonPressed(g.runOnce(x, y))
+    if hotkey:
+        g.addHotKey(hotkey)
+    if timeout_ms > 0:
+        g.setTimer(timeout_ms)
+
+    loop = True
+    while loop:
+        rc = g.run(x, y)
+        if rc == 'TIMER':
+            if timeout_cb:
+                loop = timeout_cb()
+        elif rc == hotkey:
+            if hotkey_cb:
+                loop = hotkey_cb()
+        else:
+            loop = False
+    screen.popWindow()
+
+    return bb.buttonPressed(rc)
 
 def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 40,
                         entryWidth = 20, buttons = [ 'Ok', 'Cancel' ], help = None):
