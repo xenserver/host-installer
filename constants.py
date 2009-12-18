@@ -106,6 +106,8 @@ INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
 DBCACHE = "var/xapi/network.dbcache"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
 
+POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
+
 SYSLINUX_CFG = "syslinux.cfg"
 
 HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"

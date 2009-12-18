@@ -169,6 +169,7 @@ def getFinalisationSequence(ans):
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
+        Task(runPostInstallScripts, A(ans, 'mounts'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
@@ -883,6 +884,12 @@ def enableAgent(mounts, network_backend):
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
+def runPostInstallScripts(mounts):
+    path = os.path.join(mounts['root'], constants.POST_INSTALL_SCRIPTS_DIR)
+    if os.path.isdir(path):
+        for script in os.listdir(path):
+            util.runCmd2(['chroot', mounts['root'], os.path.join(constants.POST_INSTALL_SCRIPTS_DIR, script)])
+        
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
     (manual_nameservers, nameservers) = ns_conf
