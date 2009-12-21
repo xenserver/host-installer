@@ -140,12 +140,12 @@ def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 4
 
     return (bb.buttonPressed(result), tuple(entryValues))
 
-def OKDialog(screen, title, text, hasCancel = False):
+def OKDialog(screen, title, text, hasCancel = False, width = 40):
     if hasCancel:
         buttons = ['Ok', 'Cancel']
     else:
         buttons = ['Ok']
-    return ButtonChoiceWindow(screen, title, text, buttons)
+    return ButtonChoiceWindow(screen, title, text, buttons, width)
 
 PLEASE_WAIT_STRING = "  Working: Please wait..."
 
