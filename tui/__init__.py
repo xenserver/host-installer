@@ -30,9 +30,11 @@ to move backwards.
 
 To select check boxes and radio buttons press <Space>.
 
-To advance to the next screen navigate to the Ok button and press Enter or press <F12>.
-"""
-    OKDialog("General Help", text)
+To advance to the next screen navigate to the Ok button and press Enter or press <F12>."""
+    if 'info' in context:
+        text += "\n\nTo view additional details about a higlighted item press <F5>."
+
+    OKDialog("General Help", text, width = 50)
 
 def init_ui():
     global screen
@@ -57,8 +59,8 @@ def update_help_line(help):
 
     screen.pushHelpLine('  ' + '  |  '.join(hl))
 
-def OKDialog(title, text, hasCancel = False):
-    return snackutil.OKDialog(screen, title, text, hasCancel)
+def OKDialog(title, text, hasCancel = False, width = 40):
+    return snackutil.OKDialog(screen, title, text, hasCancel, width)
 
 def exn_error_dialog(logname, with_hd):
     if screen:
