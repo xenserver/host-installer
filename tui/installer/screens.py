@@ -78,13 +78,13 @@ def welcome_screen(answers):
         loop = False
         button = snackutil.ButtonChoiceWindowEx(tui.screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
-                                """This setup tool can be used to install %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use unless an upgrade option is chosen.
+                                """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
 
 Please make sure you have backed up any data you wish to preserve before proceeding.
 
 To load a device driver press <F9>.
 """ % (PRODUCT_BRAND, PRODUCT_BRAND),
-                                ['Ok', 'Reboot'], width = 60,
+                                ['Ok', 'Reboot'], width = 60, help = "welcome",
                                 hotkey = 'F9', hotkey_cb = fn9)
         if loop:
             load_driver()
@@ -114,7 +114,7 @@ def hardware_warnings(answers, ram_warning, vt_warning):
         "System Hardware",
         text,
         ['Ok', 'Back'],
-        width = 60
+        width = 60, help = "hwwarn"
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -130,7 +130,7 @@ Continuing will result in a clean installation, all existing configuration will 
 
 Alternatively, please contact a Technical Support Representative for the recommended upgrade path.""",
         ['Ok', 'Back'],
-        width = 60
+        width = 60, help = "overwrtwarn"
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -177,10 +177,7 @@ def get_admin_interface_configuration(answers):
 def get_installation_type(answers):
     entries = []
     for x in answers['upgradeable-products']:
-        if x.version < product.THIS_PRODUCT_VERSION:
-            entries.append(("Upgrade %s" % str(x), (x, x.settingsAvailable())))
-        else:
-            entries.append(("Freshen %s" % str(x), (x, x.settingsAvailable())))
+        entries.append(("Upgrade %s" % str(x), (x, x.settingsAvailable())))
     for b in answers['backups']:
         entries.append(("Restore %s from backup" % str(b), (b, None)))
 
@@ -207,7 +204,12 @@ def get_installation_type(answers):
     def more_info(context):
         if not context: return True
         obj, _ = context
-        if not isinstance(obj, (product.ExistingInstallation, product.XenServerBackup)): return True
+        if isinstance(obj, product.ExistingInstallation):
+            use = "%s installation" % PRODUCT_BRAND
+        elif isinstance(obj, product.XenServerBackup):
+            use = "%s backup" % PRODUCT_BRAND
+        else:
+            return True
 
         date = "Unknown"
         if 'INSTALLATION_DATE' in obj.inventory:
@@ -224,19 +226,23 @@ def get_installation_type(answers):
         tui.update_help_line([' ', ' '])
         gf = GridFormHelp(tui.screen, 'Details', None, 1, 2)
         bb = ButtonBar(tui.screen, [ 'Ok' ])
+        use_text = Textbox(13, 1, "Use:")
         ver_text = Textbox(13, 1, "Version:")
         date_text = Textbox(13, 1, "Installed:")
         dev_text = Textbox(13, 1, "Disk:")
+        use_val = Textbox(28, 1, use)
         ver_val = Textbox(20, 1, str(obj.version))
         date_val = Textbox(28, 1, date)
         dev_val = Textbox(36, 1, dev)
-        id_grid = Grid(2, 3)
-        id_grid.setField(ver_text, 0, 0)
-        id_grid.setField(ver_val, 1, 0, anchorLeft = 1)
-        id_grid.setField(date_text, 0, 1)
-        id_grid.setField(date_val, 1, 1, anchorLeft = 1)
-        id_grid.setField(dev_text, 0, 2)
-        id_grid.setField(dev_val, 1, 2, anchorLeft = 1)
+        id_grid = Grid(2, 4)
+        id_grid.setField(use_text, 0, 0)
+        id_grid.setField(use_val, 1, 0, anchorLeft = 1)
+        id_grid.setField(ver_text, 0, 1)
+        id_grid.setField(ver_val, 1, 1, anchorLeft = 1)
+        id_grid.setField(date_text, 0, 2)
+        id_grid.setField(date_val, 1, 2, anchorLeft = 1)
+        id_grid.setField(dev_text, 0, 3)
+        id_grid.setField(dev_val, 1, 3, anchorLeft = 1)
 
         gf.add(id_grid, 0, 0, padding = (0,0,0,1))
         gf.add(bb, 0, 1, growx = 1)
@@ -250,7 +256,8 @@ def get_installation_type(answers):
         "Action To Perform",
         text,
         entries,
-        ['Ok', 'Back'], width=60, default = default, hotkey = 'F5', hotkey_cb = more_info)
+        ['Ok', 'Back'], width=60, default = default, help = 'action:info',
+        hotkey = 'F5', hotkey_cb = more_info)
 
     tui.screen.popHelpLine()
 
@@ -287,7 +294,7 @@ def ha_master_upgrade(answers):
 
 Please reboot this host, disable High Availability on the pool, check which server is the pool master and then restart the upgrade procedure.""",
         ['Cancel', 'Back'],
-        width = 60
+        width = 60, help = 'hawarn'
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -301,7 +308,7 @@ def upgrade_settings_warning(answers):
 
 Warning: You must use the current values. Failure to do so may result in an incorrect installation of the product.""" % str(answers['installation-to-overwrite']),
         ['Ok', 'Back'],
-        width = 60
+        width = 60, help = 'preswarn'
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -330,7 +337,7 @@ def remind_driver_repos(answers):
 %s
 Please ensure that the functionality they provide is either included in the version of %s being installed or by a Supplemental Pack for this release.""" % (text, PRODUCT_BRAND),
         ['Ok', 'Back'],
-        width = 60
+        width = 60, help = "suppackremind"
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -345,7 +352,7 @@ def repartition_existing(answers):
 The conversion will replace all previous system image partitions to create the %s %s disk partition layout.
 
 Continue with installation?""" % (COMPANY_NAME_SHORT, PRODUCT_BRAND),
-        ['Continue', 'Back']
+        ['Continue', 'Back'], help = 'repartwarn'
         )
     if button == 'back': return LEFT_BACKWARDS
 
@@ -361,7 +368,7 @@ def force_backup_screen(answers):
 This will erase data currently on the backup partition (which includes previous backups performed by the installer, and backups installed onto the host using the CLI's 'host-restore' function).
 
 Continue with installation?""",
-        ['Continue', 'Back']
+        ['Continue', 'Back'], help = 'forceback'
         )
     if button == 'back': return LEFT_BACKWARDS
 
@@ -384,7 +391,7 @@ def backup_existing_installation(answers):
         """Would you like to back-up your existing installation before re-installing %s?
 
 The backup will be placed on the backup partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, answers['installation-to-overwrite'].primary_disk),
-        ['Yes', 'No', 'Back'], default = default
+        ['Yes', 'No', 'Back'], default = default, help = 'optbackup'
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -402,7 +409,7 @@ def eula_screen(answers):
             tui.screen,
             "End User License Agreement",
             eula,
-            ['Accept EULA', 'Back'], width=60, default=1)
+            ['Accept EULA', 'Back'], width=60, default=1, help = 'eula')
 
         if button == 'accept eula':
             return RIGHT_FORWARDS
@@ -431,7 +438,7 @@ def confirm_erase_volume_groups(answers):
                                 """Some or all of the disks you selected to install %s onto contain parts of LVM volume groups.  Proceeding with the installation will cause these volume groups to be deleted.
 
 %s""" % (PRODUCT_BRAND, affected),
-                                ['Continue', 'Back'], width=60)
+                                ['Continue', 'Back'], width=60, help = 'erasevg')
 
     if button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
@@ -446,7 +453,7 @@ def use_extra_media(answers, vt_warning):
         "Supplemental Packs",
         "Would you like to install any Supplemental Packs?",
         ['Yes', 'No', 'Back'],
-        default = default
+        default = default, help = 'suppack'
         )
 
     if rc == 'back': return LEFT_BACKWARDS
@@ -476,7 +483,7 @@ def disk_more_info(context):
     usage = 'unknown'
     (boot, state, storage) = diskutil.probeDisk(context)
     if boot[0]:
-        usage = PRODUCT_BRAND
+        usage = "%s installation" % PRODUCT_BRAND
     elif storage[0]:
         usage = 'VM storage'
 
@@ -535,7 +542,7 @@ def select_primary_disk(answers):
 
 You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
         entries,
-        ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default,
+        ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default, help = 'pridisk:info',
         hotkey = 'F5', hotkey_cb = disk_more_info)
 
     tui.screen.popHelpLine()
@@ -561,7 +568,7 @@ def check_sr_space(answers):
                                 """The disk selected contains a storage repository which does not have enough space to also install %s on.
 
 Either return to the previous screen and select a different disk or cancel the installation, restart the %s and use %s to free up %dMB of space in the local storage repository.""" % (PRODUCT_BRAND, BRAND_SERVER, BRAND_CONSOLE, 2 * constants.root_size),
-                                ['Back', 'Cancel'], width = 60)
+                                ['Back', 'Cancel'], width = 60, help = 'insuffsr')
     if button == 'back': return LEFT_BACKWARDS
 
     return EXIT
@@ -597,7 +604,7 @@ def select_guest_disks(answers):
     for (c_text, c_item) in entries:
         cbt.append(c_text, c_item, c_item in currently_selected)
     
-    gf = GridFormHelp(tui.screen, 'Guest Storage', None, 1, 3)
+    gf = GridFormHelp(tui.screen, 'Guest Storage', 'guestdisk:info', 1, 3)
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 2, growx = 1)
@@ -630,7 +637,7 @@ def select_guest_disks(answers):
             """You didn't select any disks for %s storage.  Are you sure this is what you want?
 
 If you proceed, please refer to the user guide for details on provisioning storage after installation.""" % BRAND_GUEST,
-            ['Continue', 'Back']
+            ['Continue', 'Back'], help = 'noguest'
             )
         if button == 'back': return REPEAT_STEP
 
@@ -668,7 +675,7 @@ def confirm_installation(answers):
 
     button = snackutil.ButtonChoiceWindowEx(
         tui.screen, label, text,
-        [ok, 'Back'], default = 1, width = 50
+        [ok, 'Back'], default = 1, width = 50, help = 'confirm'
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -691,7 +698,7 @@ def get_root_password(answers):
                 ButtonChoiceWindow(tui.screen,
                                "Password Error",
                                "The password has to be %d characters or longer." % constants.MIN_PASSWD_LEN,
-                               ['Ok'])
+                               ['Ok'], help = 'passwd')
             else:
                 done = True
         else:
@@ -825,7 +832,7 @@ def get_name_service_configuration(answers):
 
         # The form itself:
         i = 1
-        gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', None, 1, 11)
+        gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', 'dns', 1, 11)
         gf.add(hn_title, 0, 0, padding = (0,0,0,0))
         if not hide_rb:
             gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
@@ -920,7 +927,7 @@ def get_timezone_city(answers):
         "Select Time Zone",
         "Please select the city or area that the managed host is in (press a letter to jump to that place in the list):",
         map(lambda x: x.replace('_', ' '), entries),
-        ['Ok', 'Back'], height = 8, scroll = 1, default = default)
+        ['Ok', 'Back'], height = 8, scroll = 1, default = default, help = 'gettz')
 
     if button == 'back': return LEFT_BACKWARDS
 
@@ -942,7 +949,7 @@ def get_time_configuration_method(answers):
         tui.screen,
         "System Time",
         "How should the local time be determined?\n\n(Note that if you choose to enter it manually, you will need to respond to a prompt at the end of the installation.)",
-        entries, ['Ok', 'Back'], default = default)
+        entries, ['Ok', 'Back'], default = default, help = 'timemeth')
 
     if button == 'back': return LEFT_BACKWARDS
 
@@ -962,7 +969,7 @@ def get_ntp_servers(answers):
 
     hide_cb = answers['net-admin-configuration'].isStatic()
 
-    gf = GridFormHelp(tui.screen, 'NTP Configuration', None, 1, 4)
+    gf = GridFormHelp(tui.screen, 'NTP Configuration', 'ntpconf', 1, 4)
     text = TextboxReflowed(60, "Please specify details of the NTP servers you wish to use (e.g. pool.ntp.org)?")
     buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])
 
@@ -1039,7 +1046,7 @@ def set_time(answers, now, show_back_button = False):
 
     # loop until the form validates or they click back:
     while not done:
-        gf = GridFormHelp(tui.screen, "Set local time", "", 1, 4)
+        gf = GridFormHelp(tui.screen, "Set local time", 'settime', 1, 4)
         
         gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0,0,1,1))
         

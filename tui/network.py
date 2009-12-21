@@ -27,7 +27,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
 
-    gf = GridFormHelp(tui.screen, 'Networking', None, 1, 6)
+    gf = GridFormHelp(tui.screen, 'Networking', 'ifconfig', 1, 6)
     if txt == None:
         txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
     text = TextboxReflowed(45, txt)
@@ -185,7 +185,7 @@ def select_netif(text, conf, default=None):
             def_iface = lentry(default)
         netif_list = [lentry(x) for x in netifs]
         rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
-                                        ['Ok', 'Back'], width=45, default=def_iface,
+                                        ['Ok', 'Back'], width=45, default=def_iface, help = 'selif:info',
                                         hotkey='F5', hotkey_cb=iface_details, timeout_ms=5000, timeout_cb=update)
         if ((rc in ['ok', None]) and (entry == None)):
             continue

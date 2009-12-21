@@ -107,12 +107,10 @@ def select_repo_source(answers, title, text, require_base_repo = True):
 
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
-#        "Select Installation Source",
         title,
-#        "Please select the type of source you would like to use for this installation",
         text,
         entries,
-        ['Ok', 'Back'], default=default
+        ['Ok', 'Back'], default=default, help = 'selreposrc'
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -157,7 +155,7 @@ def get_url_location(answers, require_base_repo):
 
     done = False
     while not done:
-        gf = GridFormHelp(tui.screen, "Specify Repository", None, 1, 3)
+        gf = GridFormHelp(tui.screen, "Specify Repository", 'geturlloc', 1, 3)
         bb = ButtonBar(tui.screen, [ 'Ok', 'Back' ])
         t = TextboxReflowed(50, text)
 
@@ -203,7 +201,7 @@ def get_nfs_location(answers, require_base_rep):
             "Specify Repository",
             text,
             [(label, default)], entryWidth = 50, width = 50,
-            buttons = ['Ok', 'Back'])
+            buttons = ['Ok', 'Back'], help = 'getnfsloc')
             
         answers['source-address'] = result[0]
 
@@ -263,7 +261,7 @@ def confirm_load_repo(answers, label, installed_repos):
             cbt.append(r.name(), r, True)
             default_button = VERIFY
 
-    gf = GridFormHelp(tui.screen, 'Load Repository', None, 1, 3)
+    gf = GridFormHelp(tui.screen, 'Load Repository', 'loadrepo', 1, 3)
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 2, growx = 1)
@@ -323,7 +321,7 @@ def verify_source(answers, label):
     while not done:
         (button, entry) = ListboxChoiceWindow(
             tui.screen, "Verify %s Source" % cap_label, text,
-            entries, ['Ok', 'Back'], default = default)
+            entries, ['Ok', 'Back'], default = default, help = 'vfyrepo')
 
         if button == 'back': return LEFT_BACKWARDS
 
