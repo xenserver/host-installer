@@ -323,7 +323,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     optional_backup = False
     repartition = True
     prompt_for_target = True
-    upgrades_variants = [ 'OEM-hd', 'OEM-flash' ]
+    upgrades_variants = [ 'OEM' ]
 
     def __init__(self, source):
         ThirdGenUpgrader.__init__(self, source)
