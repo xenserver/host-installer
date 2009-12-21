@@ -359,16 +359,12 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         if foundConfigDevice is not None:
             foundConfigNumber = partTool.partitionNumber(foundConfigDevice)
             partNumsToPreserve.append(foundConfigNumber)
+        # Detect the OEM HDD state partition as a special case
+        elif existing and existing.primary_disk == primaryDisk and existing.state_device:
+            foundConfigNumber = partTool.partitionNumber(existing.state_device)
+            partNumsToPreserve.append(foundConfigNumber)
         else:
             foundConfigNumber = None
-        
-        foundSwapDevice = lvmTool.swapPartition(primaryDisk)
-        if foundSwapDevice is not None:
-            # We won't need this, so delete the LVM records and don't add this to the preserved list
-            lvmTool.deleteDevice(foundSwapDevice)
-            foundSwapNumber = partTool.partitionNumber(foundSwapDevice)
-        else:
-            foundSwapNumber = None
         
         foundSRDevice = lvmTool.srPartition(primaryDisk)
         if foundSRDevice is not None:
@@ -377,39 +373,36 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         else:
             foundSRNumber = None
         
-        # Detect the OEM HDD state partition as a special case
-        isOEMHDD = ( existing.variant == 'OEM-hd' )
-        if isOEMHDD and foundSRNumber:
-            foundConfigNumber = foundSRNumber - 1
-            partNumsToPreserve.append(foundConfigNumber)
-            
         xelogging.log(
             "prepareTarget found the following:"+
             "\nUtility partition : "+str(foundUtilityNumber) +
             "\nConfig partition  : "+str(foundConfigNumber) +
-            "\nSwap partition    : "+str(foundSwapNumber) +
             "\nSR partition      : "+str(foundSRNumber) +
             "\nand chose to preserve partitions: "+", ".join( [ str(i) for i in partNumsToPreserve ] )
         )
         # Purge redundant partitions on target
-        partTool.deletePartitions( [ num for num, part in partTool.iteritems() if num not in partNumsToPreserve ] )
+        for num, part in partTool.iteritems():
+            if num not in partNumsToPreserve:
+                lvmTool.deleteDevice(part)
+                partTool.deletePartition(num)
         
-        if isOEMHDD and foundConfigNumber:
+        if foundConfigNumber > 4:
             partTool.renamePartition(foundConfigNumber, firstXSPartition)
             if existing is not None: # existing can be None in unit testing only
                 existing.partitionWasRenamed(partTool._partitionDevice(foundConfigNumber),
                     partTool._partitionDevice(firstXSPartition))
             foundConfigNumber = firstXSPartition
 
-        if foundSRDevice is not None and not isOEMHDD:
-            # There is an SR partition on this disk that we need to preserve, as as this is not OEM HDD
-            # we need to resize it
-            lvmSize = lvmTool.deviceSize(foundSRDevice)
-            lvmTool.resizeDevice(foundSRDevice, lvmSize - 2 * rootByteSize)
-            partitionSize = partTool.partitionSize(foundSRNumber)
-            partTool.resizePartition(foundSRNumber, partitionSize - 2 * rootByteSize)
+        if foundSRDevice:
+            if foundSRNumber <= 4:
+                # There is an SR partition on this disk that we need to preserve, as as this is not OEM HDD
+                # we need to resize it
+                xelogging.log("Reducing %s by %d bytes" % (foundSRDevice, (2 * rootByteSize)))
+                lvmSize = lvmTool.deviceSize(foundSRDevice)
+                lvmTool.resizeDevice(foundSRDevice, lvmSize - 2 * rootByteSize)
+                partitionSize = partTool.partitionSize(foundSRNumber)
+                partTool.resizePartition(foundSRNumber, partitionSize - 2 * rootByteSize)
         
-        if foundSRDevice is not None:
             # We must rename the SR partition now and not later, as in OEM HDD the SR lives in an
             # extended partition that we're deleting
             partTool.renamePartition(foundSRNumber, storagePartnum)
@@ -421,8 +414,6 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
 
         # Partition creation
         # So far we've deleted everything except utility, config and SR partitions on this disk.
-        # In all scenarios backupPartnum is now free for our use
-        partTool.deletePartitionIfPresent(backupPartnum)
     
         # If an SR is present, root and backup partitions go at the end of the disk for Flash,
         # and the start for OEM HDD.  In either case they have lower numbers than the SR partition
@@ -434,18 +425,21 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         if foundSRNumber is not None:
             # SR is present, so root and backup partitions go either before (if there's room) or
             # after it
-            if isOEMHDD and foundConfigNumber is not None:
+            if not foundConfigNumber and partTool.partitionStart(foundSRNumber) - availStart > 2 * rootByteSize:
+                # Root and backup partitions will fit before the SR...
+                xelogging.log("Space for both install and backup partitions at start of disk")
+                rootStart = availStart
+                backupSize = rootByteSize
+            elif partTool.partitionStart(foundSRNumber) - availStart > rootByteSize:
                 # Fit the partition between where the new root partition will end and the start
                 # of the current config partition
+                xelogging.log("Creating reduced size backup partition temporarily")
                 rootStart = availStart
                 backupStart = rootStart + rootByteSize
                 backupSize = partTool.partitionStart(foundConfigNumber) - backupStart
-            elif partTool.partitionStart(foundSRNumber) - availStart > 2 * rootByteSize:
-                # Root and backup partitions will fit before the SR...
-                rootStart = availStart
-                backupSize = rootByteSize
             else:
                 # Won't fit - put at the end.  We know there's space because of the resize above
+                xelogging.log("Placing install and backup partitions at end of device")
                 rootStart = partTool.partitionEnd(foundSRNumber)
                 backupSize = rootByteSize
         else:
@@ -458,7 +452,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             startBytes = backupStart, sizeBytes = backupSize)
         
         lvmTool.commit(progress_callback) # progress_callback gets values 0..100
-        partTool.commit()
+        partTool.commit(log = True)
 
         # Store the number of the state partition so that we can delete it later
         postBackupDelete = []
