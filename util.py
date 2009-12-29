@@ -135,6 +135,24 @@ def umount(mountpoint, force = False):
     rc = runCmd2(cmd)
     return rc
 
+class TempMount:
+    def __init__(self, device, tmp_prefix, options = None, fstype = None):
+        self.mounted = False
+        self.mount_point = tempfile.mkdtemp(dir = "/tmp", prefix = tmp_prefix)
+        try:
+            mount(device, self.mount_point, options, fstype)
+        except:
+            os.rmdir(self.mount_point)
+            raise
+        self.mounted = True
+
+    def unmount(self):
+        if self.mounted:
+            umount(self.mount_point)
+            self.mounted = False
+        if os.path.isdir(self.mount_point):
+            os.rmdir(self.mount_point)
+
 def parseTime(timestr):
     match = re.match('(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', timestr)
     (year, month, day, hour, minute, second) = map(lambda x: int(x), match.groups())
