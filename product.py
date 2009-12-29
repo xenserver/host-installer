@@ -165,25 +165,23 @@ class ExistingInstallation:
             self.brand, str(self.version))
 
     def mount_state(self):
-        """ Mount main state partition on self.state_mountpoint. """
-        self.state_mountpoint = tempfile.mkdtemp('-state')
-        util.mount(self.state_device, self.state_mountpoint, ['ro'], 'ext3')
+        """ Mount main state partition on self.state_fs. """
+        self.state_fs = util.TempMount(self.state_device, 'state-', )
 
     def unmount_state(self):
-        util.umount(self.state_mountpoint)
-        os.rmdir(self.state_mountpoint)
-        self.state_mountpoint = None
+        self.state_fs.unmount()
+        self.state_fs = None
 
     def join_state_path(self, *path):
         """ Construct an absolute path to a file in the main state partition. """
-        return os.path.join(self.state_mountpoint, self.state_prefix, *path)
+        return os.path.join(self.state_fs.mount_point, self.state_prefix, *path)
 
     def getInventoryValue(self, k):
         return self.inventory[k]
 
     def isUpgradeable(self):
+        self.mount_state()
         try:
-            self.mount_state()
             state_files = os.listdir(self.join_state_path('etc/firstboot.d/state'))
             firstboot_files = [ f for f in os.listdir(self.join_state_path('etc/firstboot.d')) \
                                 if f[0].isdigit() and os.stat(self.join_state_path('etc/firstboot.d', f))[stat.ST_MODE] & stat.S_IXUSR ]
@@ -220,8 +218,8 @@ class ExistingInstallation:
         if self.version < XENSERVER_5_5_0:
             raise SettingsNotAvailable, "version too old"
 
+        self.mount_state()
         try:
-            self.mount_state()
 
             # timezone:
             tz = None
@@ -411,14 +409,11 @@ class ExistingInstallation:
             self.unmount_state()
 
         # read bootloader config to extract serial console settings
+        boot_fs = None
         try:
-            mounted = False
-            boot_mountpoint = tempfile.mkdtemp('-boot')
-            util.mount(self.boot_device, boot_mountpoint, ['ro'], 'ext3')
-            mounted = True
-
-            if os.path.exists(os.path.join(boot_mountpoint, "boot/extlinux.conf")):
-                conf = open(os.path.join(boot_mountpoint, "boot/extlinux.conf"), 'r')
+            boot_fs = util.TempMount(self.boot_device, 'boot-', ['ro'], 'ext3')
+            if os.path.exists(os.path.join(boot_fs.mount_point, "boot/extlinux.conf")):
+                conf = open(os.path.join(boot_fs.mount_point, "boot/extlinux.conf"), 'r')
                 for line in conf:
                     l = line.strip().lower()
                     if l.startswith('serial'):
@@ -428,8 +423,8 @@ class ExistingInstallation:
                     elif l.startswith('default'):
                         results['boot-serial'] = l.endswith('xe-serial')
                 conf.close()
-            elif os.path.exists(os.path.join(boot_mountpoint, "boot/grub/menu.lst")):
-                conf = open(os.path.join(boot_mountpoint, "boot/grub/menu.lst"), 'r')
+            elif os.path.exists(os.path.join(boot_fs.mount_point, "boot/grub/menu.lst")):
+                conf = open(os.path.join(boot_fs.mount_point, "boot/grub/menu.lst"), 'r')
                 for line in conf:
                     l = line.strip().lower()
                     if l.startswith('serial'):
@@ -442,10 +437,8 @@ class ExistingInstallation:
                 conf.close()
         except:
             pass
-
-        if mounted:
-            util.umount(boot_mountpoint)
-        os.rmdir(boot_mountpoint)
+        if boot_fs:
+            boot_fs.unmount()
 
         return results
 
@@ -466,18 +459,16 @@ class ExistingRetailInstallation(ExistingInstallation):
         return "<ExistingRetailInstallation: %s on %s>" % (str(self), self.root_device)
 
     def mount_root(self):
-        self.root_mountpoint = tempfile.mkdtemp('-root')
-        util.mount(self.root_device, self.root_mountpoint, ['ro'], 'ext3')
+        self.root_fs = util.TempMount(self.root_device, 'root', ['ro'], 'ext3')
 
     def unmount_root(self):
-        util.umount(self.root_mountpoint)
-        os.rmdir(self.root_mountpoint)
-        self.root_mountpoint = None
+        self.root_fs.unmount()
+        self.root_fs = None
 
     def readInventory(self):
+        self.mount_root()
         try:
-            self.mount_root()
-            self.inventory = util.readKeyValueFile(os.path.join(self.root_mountpoint, constants.INVENTORY_FILE), strip_quotes = True)
+            self.inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
             self.name = self.inventory['PRODUCT_NAME']
             self.brand = self.inventory['PRODUCT_BRAND']
             self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
@@ -485,26 +476,6 @@ class ExistingRetailInstallation(ExistingInstallation):
         finally:
             self.unmount_root()
 
-    def backupFileSystem(self, backup_partition):
-        # format the backup partition:
-        if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-            raise Exception,  "Backup: Failed to format filesystem on %s" % backup_partition
-
-        # copy the files across:
-        primary_mount = '/tmp/backup/primary'
-        backup_mount  = '/tmp/backup/backup'
-        for mnt in [primary_mount, backup_mount]:
-            util.assertDir(mnt)
-        try:
-            util.mount(self.root_device, primary_mount, options = ['ro'])
-            util.mount(backup_partition,  backup_mount)
-            cmd = ['cp', '-a'] + \
-                  [ os.path.join(primary_mount, x) for x in os.listdir(primary_mount) ] + \
-                  ['%s/' % backup_mount]
-            assert util.runCmd2(cmd) == 0
-        finally:
-            for mnt in [primary_mount, backup_mount]:
-                util.umount(mnt)
 
 class ExistingOEMInstallation(ExistingInstallation):
     def __init__(self, primary_disk, boot_device, state_device):
@@ -512,15 +483,14 @@ class ExistingOEMInstallation(ExistingInstallation):
         ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
 
         # determine active root partition
-        mountpoint = tempfile.mkdtemp('-oem-boot')
+        boot_fs = util.TempMount(boot_device, 'boot-', ['ro'], 'vfat')
         try:
             fd = None
-            util.mount(boot_device, mountpoint, ['ro'], 'vfat')
             root_part = -1
             arm_for_root = False
             default_label = None
             try:
-                fd = open(os.path.join(mountpoint, constants.SYSLINUX_CFG))
+                fd = open(os.path.join(boot_fs.mount_point, constants.SYSLINUX_CFG))
                 for line in fd:
                     tokens = line.upper().split()
                     if len(tokens) <= 1: continue
@@ -539,8 +509,7 @@ class ExistingOEMInstallation(ExistingInstallation):
         finally:
             if fd is not None:
                 fd.close()
-            util.umount(mountpoint)
-            os.rmdir(mountpoint)
+            boot_fs.unmount()
 
         assert root_part > 0
         self.root_device = PartitionTool.partitionDevice(PartitionTool.diskDevice(boot_device), root_part)
@@ -586,37 +555,36 @@ class ExistingOEMInstallation(ExistingInstallation):
         return "<ExistingOEMInstallation: %s on %s>" % (str(self), self.root_device)
 
     def mount_root(self):
-        self.root_mountpoint2 = tempfile.mkdtemp('-root')
-        self.root_mountpoint = tempfile.mkdtemp('-loop')
-        util.mount(self.root_device, self.root_mountpoint2, ['ro'], 'ext3')
-        util.mount(os.path.join(self.root_mountpoint2, 'rootfs'), self.root_mountpoint, ['loop', 'ro'], 'squashfs')
+        self.root_fs_outer = util.TempMount(self.root_device, 'root-', ['ro'], 'ext3')
+        try:
+            self.root_fs = util.TempMount(os.path.join(self.root_fs_outer.mount_point, 'rootfs'), 'loop-', ['loop', 'ro'], 'squashfs')
+        except:
+            self.root_fs_outer.unmount()
+            self.root_fs_outer = None
 
     def unmount_root(self):
-        util.umount(self.root_mountpoint)
-        os.rmdir(self.root_mountpoint)
-        self.root_mountpoint = None
-        util.umount(self.root_mountpoint2)
-        os.rmdir(self.root_mountpoint2)
+        self.root_fs.unmount()
+        self.root_fs_outer.unmount()
 
     def join_state_path(self, *path):
         if self.state_prefix != '':
-            p = os.path.join(self.state_mountpoint, self.state_prefix, 'etc/freq-etc', *path)
+            p = os.path.join(self.state_fs.mount_point, self.state_prefix, 'etc/freq-etc', *path)
             if os.path.exists(p):
                 return p
-        return os.path.join(self.state_mountpoint, self.state_prefix, *path)
+        return os.path.join(self.state_fs.mount_point, self.state_prefix, *path)
 
     def readInventory(self):
+        self.mount_root()
         try:
-            self.mount_root()
             # read read-only inventory to determine build
-            ro_inventory = util.readKeyValueFile(os.path.join(self.root_mountpoint, constants.INVENTORY_FILE), strip_quotes = True)
+            ro_inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
             self.build = ro_inventory['BUILD_NUMBER']
         finally:
             self.unmount_root()
 
         self.state_prefix = "xe-%s" % self.build
+        self.mount_state()
         try:
-            self.mount_state()
             # read inventory in state partition
             self.inventory = util.readKeyValueFile(self.join_state_path(constants.INVENTORY_FILE), strip_quotes = True)
             self.name = self.inventory['PRODUCT_NAME']
@@ -665,21 +633,17 @@ def findXenSourceBackups():
     said backups. """
     partitions = diskutil.getQualifiedPartitionList()
     backups = []
-    try:
-        mnt = tempfile.mkdtemp(prefix = 'backup-', dir = '/tmp')
-        for p in partitions:
-            try:
-                util.mount(p, mnt, fstype = 'ext3', options = ['ro'])
-                if os.path.exists(os.path.join(mnt, '.xen-backup-partition')):
-                    backups.append(XenServerBackup(p, mnt))
-            except util.MountFailureException, e:
-                pass
-            else:
-                util.umount(mnt)
-    finally:
-        while os.path.ismount(mnt):
-            util.umount(mnt)
-        os.rmdir(mnt)
+
+    for p in partitions:
+        b = None
+        try:
+            b = util.TempMount(p, 'backup-', ['ro'], 'ext3')
+            if os.path.exists(os.path.join(b.mount_point, '.xen-backup-partition')):
+                backups.append(XenServerBackup(p, b.mount_point))
+        except:
+            pass
+        if b:
+            b.unmount()
 
     return backups
 

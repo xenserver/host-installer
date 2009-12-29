@@ -348,12 +348,11 @@ def performInstallation(answers, ui_package):
 
     if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         # mount backup and advertise mountpoint for Supplemental Packs
-        backup_dir = '/tmp/backup/backup'
         chroot_dir = 'tmp/backup'
-        util.assertDir(backup_dir)
-        util.mount(PartitionTool.partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum']), backup_dir, options = ['ro'])
+        backup_device = PartitionTool.partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum'])
+        backup_fs = util.TempMount(backup_device, 'backup-', options = ['ro'])
         util.assertDir(os.path.join(new_ans['mounts']['root'], chroot_dir))
-        util.bindMount(backup_dir, os.path.join(new_ans['mounts']['root'], chroot_dir))
+        util.bindMount(backup_fs.mount_point, os.path.join(new_ans['mounts']['root'], chroot_dir))
         os.environ['XS_PREVIOUS_INSTALLATION'] = '/'+chroot_dir
         
     repeat = True
@@ -380,7 +379,7 @@ def performInstallation(answers, ui_package):
     if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
         os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
-        util.umount(backup_dir)
+        backup_fs.unmount()
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
@@ -1124,21 +1123,17 @@ def touchSshAuthorizedKeys(mounts):
 def writeLog(primary_disk, primary_partnum):
     try: 
         bootnode = PartitionTool.partitionDevice(primary_disk, primary_partnum)
-        util.assertDir("/tmp/mnt")
-        util.mount(bootnode, "/tmp/mnt")
-        log_location = "/tmp/mnt/var/log/installer"
-        if os.path.islink(log_location):
-            log_location = os.path.join("/tmp/mnt", os.readlink(log_location).lstrip("/"))
-        util.assertDir(log_location)
-        xelogging.writeLog(os.path.join(log_location, "install-log"))
+        primary_fs = util.TempMount(bootnode, 'install-')
         try:
-            xelogging.collectLogs(log_location, "/tmp/mnt/root")
+            log_location = os.path.join(primary_fs.mount_point, "var/log/installer")
+            if os.path.islink(log_location):
+                log_location = os.path.join(primary_fs.mount_point, os.readlink(log_location).lstrip("/"))
+            util.assertDir(log_location)
+            xelogging.writeLog(os.path.join(log_location, "install-log"))
+            xelogging.collectLogs(log_location, os.path.join(primary_fs.mount_point,"root"))
         except:
             pass
-        try:
-            util.umount("/tmp/mnt")
-        except:
-            pass
+        primary_fs.unmount()
     except:
         pass
 

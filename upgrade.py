@@ -86,11 +86,9 @@ class Upgrader(object):
         """ Write any data back into the new filesystem as needed to follow
         through the upgrade. """
 
-        self.tds = None
-
-        def restore_file(f, d = None):
+        def restore_file(src_base, f, d = None):
             if not d: d = f
-            src = os.path.join(self.tds, f)
+            src = os.path.join(src_base, f)
             dst = os.path.join(mounts['root'], d)
             if os.path.exists(src):
                 xelogging.log("Restoring /%s" % f)
@@ -103,33 +101,28 @@ class Upgrader(object):
                 xelogging.log("WARNING: /%s did not exist in the backup image." % f)
 
         backup_volume = PartitionTool.partitionDevice(target_disk, backup_partnum)
+        tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
         try:
-            self.tds = tempfile.mkdtemp(dir = "/tmp", prefix = "upgrade-src-")
-            util.mount(backup_volume, self.tds, options = ['ro'])
-
             self.buildRestoreList()
 
             xelogging.log("Restoring preserved files")
             for f in self.restore_list:
                 if isinstance(f, str):
-                    restore_file(f)
+                    restore_file(tds.mount_point, f)
                 elif isinstance(f, dict):
                     if 'src' in f:
                         assert 'dst' in f
-                        restore_file(f['src'], f['dst'])
+                        restore_file(tds.mount_point, f['src'], f['dst'])
                     elif 'dir' in f:
                         pat = 're' in f and f['re'] or None
-                        src_dir = os.path.join(self.tds, f['dir'])
+                        src_dir = os.path.join(tds.mount_point, f['dir'])
                         if os.path.exists(src_dir):
                             for ff in os.listdir(src_dir):
                                 fn = os.path.join(f['dir'], ff)
                                 if not pat or pat.match(fn):
-                                    restore_file(fn)
+                                    restore_file(tds.mount_point, fn)
         finally:
-            if self.tds:
-                if os.path.ismount(self.tds):
-                    util.umount(self.tds)
-                os.rmdir(self.tds)
+            tds.unmount()
 
 
 class ThirdGenUpgrader(Upgrader):
@@ -154,31 +147,26 @@ class ThirdGenUpgrader(Upgrader):
         progress_callback(10)
 
         # copy the files across:
-        primary_mount = '/tmp/backup/primary'
-        backup_mount  = '/tmp/backup/backup'
-        for mnt in [primary_mount, backup_mount]:
-            util.assertDir(mnt)
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
         try:
-            util.mount(self.source.root_device, primary_mount, options = ['ro'])
-            util.mount(backup_partition, backup_mount)
-
-            top_dirs = os.listdir(primary_mount)
-            val = 10
-            for x in top_dirs:
-                cmd = ['cp', '-a'] + \
-                      [ os.path.join(primary_mount, x) ] + \
-                      ['%s/' % backup_mount]
-                assert util.runCmd2(cmd) == 0
-                val += 90 / len(top_dirs)
-                progress_callback(val)
-
-            util.umount(backup_mount)
-            util.mount(backup_partition, backup_mount)
-            fh = open(os.path.join(backup_mount, '.xen-backup-partition'), 'w')
-            fh.close()
+            backup_fs = util.TempMount(backup_partition, 'backup-')
+            try:
+                top_dirs = os.listdir(primary_fs.mount_point)
+                val = 10
+                for x in top_dirs:
+                    cmd = ['cp', '-a'] + \
+                          [ os.path.join(primary_fs.mount_point, x) ] + \
+                          ['%s/' % backup_fs.mount_point]
+                    if util.runCmd2(cmd) != 0:
+                        raise RuntimeError, "Backup of %d directory failed" % x
+                    val += 90 / len(top_dirs)
+                    progress_callback(val)
+            finally:
+                fh = open(os.path.join(backup_fs.mount_point, '.xen-backup-partition'), 'w')
+                fh.close()
+                backup_fs.unmount()
         finally:
-            for mnt in [primary_mount, backup_mount]:
-                util.umount(mnt)
+            primary_fs.unmount()
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid']
     prepStateChanges = ['installation-uuid', 'control-domain-uuid']
@@ -477,56 +465,57 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
 
         # format the backup partition:
         if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-            raise Exception,  "Backup: Failed to format filesystem on %s" % backup_partition
+            raise RuntimeError,  "Backup: Failed to format filesystem on %s" % backup_partition
         progress_callback(10)
-
-        primary_mount = '/tmp/backup/primary'
-        backup_mount  = '/tmp/backup/backup'
-        for mnt in [primary_mount, backup_mount]:
-            util.assertDir(mnt)
-
-        util.mount(backup_partition, backup_mount)
 
         db_generation = (-1, None, None)
         lvmTool = LVMTool()
+        backup_fs = util.TempMount(backup_partition, 'backup-')
         try:
-            # copy from primary state partition:
-            util.mount(existing.state_device, primary_mount, options = ['ro'])
-            root_dir = os.path.join(primary_mount, existing.state_prefix)
-            gen = readDbGen(root_dir)
+            primary_fs = util.TempMount(existing.state_device, 'state-', options = ['ro'])
+            try:
+                # copy from primary state partition:
+                root_dir = os.path.join(primary_fs.mount_point, existing.state_prefix)
+                gen = readDbGen(root_dir)
 
-            xelogging.log("Copying state from %s" % root_dir)
-            cmd = ['cp', '-a'] + \
-                  [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
-                  ['%s/' % backup_mount]
-            assert util.runCmd2(cmd) == 0
-            if gen > db_generation[0]:
-                db_generation = (gen, existing.state_device, existing.state_prefix)
-            progress_callback(30)
+                xelogging.log("Copying state from %s" % root_dir)
+                cmd = ['cp', '-a'] + \
+                      [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
+                      ['%s/' % backup_fs.mount_point]
+                if util.runCmd2(cmd) != 0:
+                    raise RuntimeError, "Backup of %d directory failed" % x
+                if gen > db_generation[0]:
+                    db_generation = (gen, existing.state_device, existing.state_prefix)
+                progress_callback(30)
+            finally:
+                primary_fs.unmount()
 
-            util.umount(primary_mount)
             freqPath = os.path.join(root_dir, 'etc/freq-etc/etc')
             if os.path.isdir(freqPath): # Present on OEM Flash only
-                cmd = ['cp', '-a', freqPath, '%s/' % backup_mount]
-                assert util.runCmd2(cmd) == 0
+                cmd = ['cp', '-a', freqPath, '%s/' % backup_fs.mount_point]
+                if util.runCmd2(cmd) != 0:
+                    raise RuntimeError, "Backup of etc/freq-etc/etc directory failed"
 
             # copy from auxiliary state partitions:
             val = 30
             for state_info in existing.auxiliary_state_devices:
                 lvmTool.activateVG(state_info['vg'])
                 mountPath = os.path.join('/dev', state_info['vg'], state_info['lv'])
-                util.mount(mountPath, primary_mount, options = ['ro'])
-                root_dir = os.path.join(primary_mount, existing.inventory['XAPI_DB_COMPAT_VERSION'])
-                gen = readDbGen(root_dir)
+                primary_fs = util.TempMount(mountPath, 'auxstate-', options = ['ro'])
+                try:
+                    root_dir = os.path.join(primary_fs.mount_point, existing.inventory['XAPI_DB_COMPAT_VERSION'])
+                    gen = readDbGen(root_dir)
                 
-                xelogging.log("Copying state from %s" % root_dir)
-                cmd = ['cp', '-a'] + \
-                      [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
-                      ['%s/' % backup_mount]
-                assert util.runCmd2(cmd) == 0
-                if gen > db_generation[0]:
-                    db_generation = (gen, state_info, existing.inventory['XAPI_DB_COMPAT_VERSION'])
-                util.umount(primary_mount)
+                    xelogging.log("Copying state from %s" % root_dir)
+                    cmd = ['cp', '-a'] + \
+                          [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
+                          ['%s/' % backup_fs.mount_point]
+                    if util.runCmd2(cmd) != 0:
+                        raise RuntimeError, "Backup of %s failed" % root_dir
+                    if gen > db_generation[0]:
+                        db_generation = (gen, state_info, existing.inventory['XAPI_DB_COMPAT_VERSION'])
+                finally:
+                    primary_fs.unmount()
                 val += 10
                 progress_callback(val)
 
@@ -534,17 +523,20 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             if db_generation[0] > gen:
                 state_info = db_generation[1]
                 mountPath = os.path.join('/dev', state_info['vg'], state_info['lv'])
-                util.mount(mountPath, primary_mount, options = ['ro'])
-                root_dir = os.path.join(primary_mount, db_generation[2])
+                primary_fs = util.TempMount(mountPath, 'auxstate-', options = ['ro'])
+                try:
+                    root_dir = os.path.join(primary_fs.mount_point, db_generation[2])
                 
-                xelogging.log("Copying state from %s" % root_dir)
-                cmd = ['cp', '-a'] + \
-                    [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
-                    ['%s/' % backup_mount]
-                assert util.runCmd2(cmd) == 0
+                    xelogging.log("Copying state from %s" % root_dir)
+                    cmd = ['cp', '-a'] + \
+                          [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
+                          ['%s/' % backup_fs.mount_point]
+                    if util.runCmd2(cmd) != 0:
+                        raise RuntimeError, "Backup of %s failed" % root_dir
+                finally:
+                    primary_fs.unmount()
         finally:
-            for mnt in [primary_mount, backup_mount]:
-                util.umount(mnt)
+            backup_fs.unmount()
             lvmTool.deactivateAll()
 
     prepUpgradeArgs = ['installation-uuid', 'control-domain-uuid', 'primary-disk', 'primary-partnum', 
