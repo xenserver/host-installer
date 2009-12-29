@@ -330,12 +330,20 @@ class ExistingInstallation:
                 xmldoc = xml.dom.minidom.parse(self.join_state_path(constants.DBCACHE))
 
                 pif_uid = None
-                for network in xmldoc.documentElement.getElementsByTagName('network'):
+                for node in xmldoc.documentElement.childNodes:
+                    if node.nodeType == node.ELEMENT_NODE and node.tagName == 'network':
+                        network = node
+                    else:
+                        continue
                     if getText(network.getElementsByTagName('bridge')[0].childNodes) == mgmt_iface:
                         pif_uid = getText(network.getElementsByTagName('PIFs')[0].getElementsByTagName('PIF')[0].childNodes)
                         break
                 if pif_uid:
-                    for pif in xmldoc.documentElement.getElementsByTagName('pif'):
+                    for node in xmldoc.documentElement.childNodes:
+                        if node.nodeType == node.ELEMENT_NODE and node.tagName == 'pif':
+                            pif = node
+                        else:
+                            continue
                         if pif.getAttribute('ref') == pif_uid:
                             results['net-admin-interface'] = getText(pif.getElementsByTagName('device')[0].childNodes)
                             results['net-admin-bridge'] = mgmt_iface
