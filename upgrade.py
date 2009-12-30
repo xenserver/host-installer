@@ -186,7 +186,7 @@ class ThirdGenUpgrader(Upgrader):
                               'etc/xensource/xapi-ssl.pem']
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
-        self.restore_list += [ 'etc/sysconfig/network', 'var/xapi/network.dbcache' ]
+        self.restore_list += [ 'etc/sysconfig/network', constants.DBCACHE ]
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
         self.restore_list += ['var/xapi/state.db', 'etc/xensource/license']
@@ -206,12 +206,11 @@ class ThirdGenUpgrader(Upgrader):
 
         Upgrader.completeUpgrade(self, mounts, target_disk, backup_partnum)
 
-        if not os.path.exists(os.path.join(mounts['root'], 'var/xapi/network.dbcache')):
+        if not os.path.exists(os.path.join(mounts['root'], constants.DBCACHE)):
             # upgrade from 5.5, generate dbcache
             save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
             util.assertDir(save_dir)
             dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
-            util.assertDir(os.path.dirname(dbcache_file))
             dbcache_fd = open(dbcache_file, 'w')
 
             network_uid = util.getUUID()
@@ -224,22 +223,22 @@ class ThirdGenUpgrader(Upgrader):
 
 # find slaves of this bond and write PIFs for them
                 slaves = []
-                for file in [ f for f in os.listdir(os.path.join(tds, constants.NET_SCR_DIR))
+                for file in [ f for f in os.listdir(os.path.join(mounts['root'], constants.NET_SCR_DIR))
                               if re.match('ifcfg-eth[0-9]+$', f) ]:
-                    slavecfg = util.readKeyValueFile(os.path.join(tds, constants.NET_SCR_DIR, file), strip_quotes = False)
+                    slavecfg = util.readKeyValueFile(os.path.join(mounts['root'], constants.NET_SCR_DIR, file), strip_quotes = False)
                     if slavecfg.has_key('MASTER') and slavecfg['MASTER'] == admin_iface:
                             
                         slave_uid = util.getUUID()
                         slave_net_uid = util.getUUID()
                         slaves.append(slave_uid)
-                        slave = NetInterface.loadFromIfcfg(os.path.join(tds, constants.NET_SCR_DIR, file))
+                        slave = NetInterface.loadFromIfcfg(os.path.join(mounts['root'], constants.NET_SCR_DIR, file))
                         slave.writePif(slavecfg['DEVICE'], dbcache_fd, slave_uid, slave_net_uid, ('slave-of', bond_uid))
 
 # locate bridge that has this interface as its PIFDEV
                         bridge = None
-                        for file in [ f for f in os.listdir(os.path.join(tds, constants.NET_SCR_DIR))
+                        for file in [ f for f in os.listdir(os.path.join(mounts['root'], constants.NET_SCR_DIR))
                                       if re.match('ifcfg-xenbr[0-9]+$', f) ]:
-                            brcfg = util.readKeyValueFile(os.path.join(tds, constants.NET_SCR_DIR, file), strip_quotes = False)
+                            brcfg = util.readKeyValueFile(os.path.join(mounts['root'], constants.NET_SCR_DIR, file), strip_quotes = False)
                             if brcfg.has_key('PIFDEV') and brcfg['PIFDEV'] == slavecfg['DEVICE']:
                                 bridge = brcfg['DEVICE']
                                 break
