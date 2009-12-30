@@ -24,22 +24,22 @@ def ListboxChoiceWindowEx(screen, title, text, items,
     l = Listbox(height, scroll = scroll, returnExit = 1)
     count = 0
     for item in items:
-	if (type(item) == types.TupleType):
-	    (text, key) = item
-	else:
-	    text = item
-	    key = count
+        if (type(item) == types.TupleType):
+            (text, key) = item
+        else:
+            text = item
+            key = count
 
-	if (default == count):
-	    default = key
-	elif (default == item):
-	    default = key
+        if (default == count):
+            default = key
+        elif (default == item):
+            default = key
 
-	l.append(text, key)
-	count = count + 1
+        l.append(text, key)
+        count = count + 1
 
     if (default != None):
-	l.setCurrent (default)
+        l.setCurrent(default)
 
     g = GridFormHelp(screen, title, help, 1, 3)
     g.add(t, 0, 0)
@@ -154,8 +154,8 @@ def initProgressDialog(screen, title, text, total):
     
     t = Textbox(60, 1, text)
     scale = Scale(60, total)
-    form.add(t, 0, 0, padding = (0,0,0,1))
-    form.add(scale, 0, 1, padding = (0,0,0,0))
+    form.add(t, 0, 0, padding = (0, 0, 0, 1))
+    form.add(scale, 0, 1, padding = (0, 0, 0, 0))
 
     form.draw()
     screen.pushHelpLine(PLEASE_WAIT_STRING)
@@ -167,7 +167,7 @@ def showMessageDialog(screen, title, text):
     form = GridFormHelp(screen, title, None, 1, 1)
     
     t = TextboxReflowed(60, text)
-    form.add(t, 0, 0, padding = (0,0,0,0))
+    form.add(t, 0, 0, padding = (0, 0, 0, 0))
 
     form.draw()
 

@@ -79,10 +79,10 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
         entry_grid.setField(dns_text, 0, 3)
         entry_grid.setField(dns_field, 1, 3)
 
-    gf.add(text, 0, 0, padding = (0,0,0,1))
+    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(dhcp_rb, 0, 2, anchorLeft = True)
     gf.add(static_rb, 0, 3, anchorLeft = True)
-    gf.add(entry_grid, 0, 4, padding = (0,0,0,1))
+    gf.add(entry_grid, 0, 4, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 5, growx = 1)
 
     loop = True
@@ -162,7 +162,7 @@ def select_netif(text, conf, default=None):
         id_grid.setField(pci_text, 0, 2)
         id_grid.setField(pci_val, 1, 2, anchorLeft = 1)
 
-        gf.add(id_grid, 0, 0, padding = (0,0,0,1))
+        gf.add(id_grid, 0, 0, padding = (0, 0, 0, 1))
         gf.add(bb, 0, 1, growx = 1)
 
         gf.runOnce()

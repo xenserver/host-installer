@@ -20,8 +20,8 @@ def initProgressDialog(title, text, total):
     
     t = Textbox(60, 1, text)
     scale = Scale(60, total)
-    form.add(t, 0, 0, padding = (0,0,0,1))
-    form.add(scale, 0, 1, padding = (0,0,0,0))
+    form.add(t, 0, 0, padding = (0, 0, 0, 1))
+    form.add(scale, 0, 1, padding = (0, 0, 0, 0))
 
     form.draw()
     tui.screen.pushHelpLine(PLEASE_WAIT_STRING)
@@ -33,7 +33,7 @@ def showMessageDialog(title, text):
     form = GridFormHelp(tui.screen, title, None, 1, 1)
     
     t = TextboxReflowed(60, text)
-    form.add(t, 0, 0, padding = (0,0,0,0))
+    form.add(t, 0, 0, padding = (0, 0, 0, 0))
 
     form.draw()
 

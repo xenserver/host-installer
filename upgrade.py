@@ -15,8 +15,6 @@
 
 import os
 import re
-import subprocess
-import tempfile
 
 import product
 from disktools import *
@@ -322,7 +320,6 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         resizing the SR already present if necessary, and create root and backup partitions."""
         lvmTool = LVMTool()
         partTool = PartitionTool(primaryDisk)
-        storageDevice = partTool._partitionDevice(storagePartnum)
         rootByteSize = constants.root_size * 2 ** 20
         
         # Build a list of partition numbers to preserve at least for now.
@@ -482,7 +479,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
                       [ os.path.join(root_dir, x) for x in os.listdir(root_dir) ] + \
                       ['%s/' % backup_fs.mount_point]
                 if util.runCmd2(cmd) != 0:
-                    raise RuntimeError, "Backup of %d directory failed" % x
+                    raise RuntimeError, "Backup failed"
                 if gen > db_generation[0]:
                     db_generation = (gen, existing.state_device, existing.state_prefix)
                 progress_callback(30)

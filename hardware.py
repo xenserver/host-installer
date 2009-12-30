@@ -11,8 +11,6 @@
 #
 # written by Andrew Peace
 
-import os
-import version
 import constants
 import xelogging
 import util

@@ -12,8 +12,6 @@
 
 import re, sys
 import os.path
-import subprocess
-from pprint import pprint
 import constants
 
 import util
@@ -61,10 +59,10 @@ def getDiskList():
     disks = []
     for l in partlines:
         try:
-           (major, minor, size, name) = l.split(" ")
-           (major, minor, size) = (int(major), int(minor), int(size))
-           if (major, minor) in disk_nodes:
-               disks.append(name.replace("!", "/"))
+            (major, minor, size, name) = l.split(" ")
+            (major, minor, size) = (int(major), int(minor), int(size))
+            if (major, minor) in disk_nodes:
+                disks.append(name.replace("!", "/"))
         except:
             # it wasn't an actual entry, maybe the headers or something:
             continue
@@ -82,10 +80,10 @@ def getPartitionList():
     rv = []
     for l in partlines:
         try:
-           (major, minor, size, name) = l.split(" ")
-           (major, minor, size) = (int(major), int(minor), int(size))
-           if (major, minor) not in disk_nodes:
-               rv.append(name.replace("!", "/"))
+            (major, minor, size, name) = l.split(" ")
+            (major, minor, size) = (int(major), int(minor), int(size))
+            if (major, minor) not in disk_nodes:
+                rv.append(name.replace("!", "/"))
         except:
             # it wasn't an actual entry, maybe the headers or something:
             continue
@@ -120,7 +118,7 @@ def removable(device):
 
     # CA-25624 - udev maps sr* to scd*
     if device.startswith('scd'):
-        device='sr'+device[3:]
+        device = 'sr'+device[3:]
 
     return device in getRemovableDeviceList()
 

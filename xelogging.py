@@ -14,7 +14,6 @@
 import os
 import sys
 import fcntl
-import util
 import datetime
 import traceback
 import constants
@@ -93,19 +92,19 @@ def collectLogs(dst, tarball_dir = None):
         # tar up contents
         os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, tarball_dir, logs))
 
-def openLog(file):
-    if hasattr(file, 'name'):
+def openLog(lfile):
+    if hasattr(lfile, 'name'):
         # file object
-        continuous_logs.append(file)
+        continuous_logs.append(lfile)
     else:
         try:
-            f = open(file, 'w', 1)
+            f = open(lfile, 'w', 1)
             continuous_logs.append(f)
             # set close-on-exec
             old = fcntl.fcntl(f.fileno(), fcntl.F_GETFD)
             fcntl.fcntl(f.fileno(), fcntl.F_SETFD, old | fcntl.FD_CLOEXEC)
         except:
-            log("Error opening %s as a log output." % file)
+            log("Error opening %s as a log output." % lfile)
             return False
     return True
 

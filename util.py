@@ -13,7 +13,6 @@
 import os
 import os.path
 import xelogging
-import commands
 import subprocess
 import urllib2
 import shutil
@@ -22,7 +21,6 @@ import datetime
 import random
 import string
 import tempfile
-import xelogging
 
 random.seed()
 
@@ -285,7 +283,7 @@ def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):
     if strip_quotes:
         def quotestrip(x):
             return x.strip("'")
-        defs = [ (a, quotestrip(b)) for (a,b) in defs ]
+        defs = [ (a, quotestrip(b)) for (a, b) in defs ]
 
     return dict(defs)
 

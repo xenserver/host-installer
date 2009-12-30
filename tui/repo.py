@@ -17,7 +17,6 @@ import product
 import tui
 import tui.progress
 from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
-import snackutil
 import repository
 import generalui
 import urlparse
@@ -167,8 +166,8 @@ def get_url_location(answers, require_base_repo):
         entry_grid.setField(passwd_text, 0, 2)
         entry_grid.setField(passwd_field, 1, 2, anchorLeft = 1)
 
-        gf.add(t, 0, 0, padding = (0,0,0,1))
-        gf.add(entry_grid, 0, 1, padding = (0,0,0,1))
+        gf.add(t, 0, 0, padding = (0, 0, 0, 1))
+        gf.add(entry_grid, 0, 1, padding = (0, 0, 0, 1))
         gf.add(bb, 0, 2, growx = 1)
 
         button = bb.buttonPressed(gf.runOnce())

@@ -11,10 +11,8 @@
 # written by Andrew Peace
 
 import os
-import uicontroller
 import time
 import datetime
-import util
 import constants
 
 def getTimeZoneRegions():

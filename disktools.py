@@ -4,7 +4,7 @@
 # trademarks of Citrix Systems, Inc., in the United States and other
 # countries.
 
-import re, subprocess, sys, types
+import re, subprocess, types
 from pprint import pprint
 from copy import copy, deepcopy
 import util, xelogging
@@ -55,13 +55,13 @@ class FreePool:
     def takeSegments(self, size):
         """Returns a LIST of segments that fill the requested size, and effectively removes
         those segments from the free pool by increasing usedThreshold"""
-        initialFreeSpace= self.freeSpace()
+        initialFreeSpace = self.freeSpace()
         segsToTake = []
         sizeLeft = size
         for seg in self.freeSegments:
             availableStart = max(seg.start, self.usedThreshold)
             sizeToTake = min(seg.end() - availableStart, sizeLeft)
-            if sizeToTake> 0:
+            if sizeToTake > 0:
                 takenSegment = Segment(availableStart, sizeToTake)
                 segsToTake.append(takenSegment)
                 self.usedThreshold = takenSegment.end()
@@ -81,23 +81,23 @@ class FreePool:
         
 class LVMTool:
     # Separation character - mustn't appear in anything we expect back from pvs/vgs/lvs
-    SEP='#'
+    SEP = '#'
     
     # Evacuate this many more extents than pvresize theoretically requires
-    PVRESIZE_EXTENT_MARGIN=0
+    PVRESIZE_EXTENT_MARGIN = 0
     
     # Volume group prefixes
-    VG_SWAP_PREFIX='VG_XenSwap'
-    VG_CONFIG_PREFIX='VG_XenConfig'
-    VG_SR_PREFIX='VG_XenStorage'
+    VG_SWAP_PREFIX = 'VG_XenSwap'
+    VG_CONFIG_PREFIX = 'VG_XenConfig'
+    VG_SR_PREFIX = 'VG_XenStorage'
     
-    PVMOVE=['pvmove']
-    LVCHANGE=['lvchange']
-    LVREMOVE=['lvremove']
-    VGCHANGE=['vgchange']
-    VGREMOVE=['vgremove']
-    PVREMOVE=['pvremove']
-    PVRESIZE=['pvresize']
+    PVMOVE = ['pvmove']
+    LVCHANGE = ['lvchange']
+    LVREMOVE = ['lvremove']
+    VGCHANGE = ['vgchange']
+    VGREMOVE = ['vgremove']
+    PVREMOVE = ['pvremove']
+    PVRESIZE = ['pvresize']
     
     VGS_INFO = { # For one-per-VG records
         'command' : ['/sbin/lvm', 'vgs'],
@@ -400,7 +400,7 @@ class LVMTool:
                 chunkSize = min(sizeStep, move.size - offset)
                 srcRange = cls.encodeSegmentRange(device, move.src + offset, chunkSize)
                 destRange = cls.encodeSegmentRange(device, move.dest + offset, chunkSize)
-                out = cls.cmdWrap(cls.PVMOVE +
+                cls.cmdWrap(cls.PVMOVE +
                     [
                     '--alloc',
                     'anywhere',
@@ -462,8 +462,7 @@ class LVMTool:
         pprint(self.__dict__)
 
 class PartitionTool:
-    SFDISK='/sbin/sfdisk'
-    DD='/bin/dd'
+    SFDISK = '/sbin/sfdisk'
     
     DISK_PREFIX = '/dev/'
     P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel']
@@ -619,7 +618,7 @@ class PartitionTool:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             )
-        output=process.communicate(input)
+        output = process.communicate(input)
         if log:
             xelogging.log('Output from sfdisk:\n'+output[0])
         if process.returncode != 0:
@@ -690,7 +689,7 @@ class PartitionTool:
         }
 
     def deletePartition(self, number):
-       del self.partitions[number]            
+        del self.partitions[number]            
 
     def deletePartitionIfPresent(self, number):
         if number in self.partitions:

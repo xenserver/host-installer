@@ -166,7 +166,7 @@ def getFinalisationSequence(ans):
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
-        Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk'), []),
+        Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(runPostInstallScripts, A(ans, 'mounts'), []),
@@ -215,7 +215,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     answers['cleanup'] = []
     answers['ui'] = ui
 
-    progress_total = reduce(lambda x,y: x + y,
+    progress_total = reduce(lambda x, y: x + y,
                             [task.progress_scale for task in sequence])
 
     pd = None
@@ -229,7 +229,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     def doCleanup(actions):
         for tag, f, a in actions:
             try:
-                apply(f,a)
+                apply(f, a)
             except:
                 xelogging.log("FAILED to perform cleanup action %s" % tag)
 
@@ -424,6 +424,7 @@ def configureNTP(mounts, ntp_servers):
 def configureTimeManually(mounts, ui_package):
     # display the Set Time dialog in the chosen UI:
     rc, time = util.runCmd2(['chroot', mounts['root'], 'timeutil', 'getLocalTime'], with_stdout = True)
+    assert rc == 0
     answers = {}
     ui_package.installer.screens.set_time(answers, util.parseTime(time))
         
@@ -851,7 +852,7 @@ def writeKeyboardConfiguration(mounts, keymap):
     kbdfile.write("KEYTABLE=%s\n" % keymap)
     kbdfile.close()
 
-def prepareSwapfile(mounts, primary_disk):
+def prepareSwapfile(mounts):
     util.assertDir("%s/var/swap" % mounts['root'])
     util.runCmd2(['dd', 'if=/dev/zero',
                   'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
@@ -974,11 +975,11 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     (manual_hostname, hostname) = hn_conf
     (manual_nameservers, nameservers) = ns_conf
-    domain=None
+    domain = None
     if manual_hostname:
         dot = hostname.find('.')
         if dot != -1:
-            domain=hostname[dot+1:]
+            domain = hostname[dot+1:]
 
     # remove any files that may be present in the filesystem already, 
     # particularly those created by kudzu:

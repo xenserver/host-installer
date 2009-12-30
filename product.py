@@ -20,7 +20,6 @@ import constants
 import version
 import re
 import stat
-import tempfile
 import xelogging
 import repository
 from disktools import *
@@ -88,8 +87,10 @@ class Version(object):
         return ( self.major < v.major or
                  (self.major == v.major and self.minor < v.minor) or
                  (self.major == v.major and self.minor == v.minor and self.release < v.release) or
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == -1) or                                                         
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix,v.suffix) == -1) )
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
+                  self.cmp_version_number(self.build, v.build) == -1) or                                                         
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
+                  self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix,v.suffix) == -1) )
 
     def __eq__(self, v):
         if not type(v) == type(self): return False
@@ -113,8 +114,10 @@ class Version(object):
         return ( self.major > v.major or
                  (self.major == v.major and self.minor > v.minor) or
                  (self.major == v.major and self.minor == v.minor and self.release > v.release) or
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == 1) or                                                          
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix, v.suffix) == 1) )
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
+                  self.cmp_version_number(self.build, v.build) == 1) or                                                          
+                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
+                  self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix, v.suffix) == 1) )
 
     def __str__(self):
         if self.build == self.ANY:
@@ -350,9 +353,9 @@ class ExistingInstallation:
                             results['net-admin-configuration'] = NetInterface.loadFromPif(pif)
                             break
             else:
-                for file in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
+                for cfile in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
                                    os.listdir(self.join_state_path(constants.NET_SCR_DIR))):
-                    devcfg = util.readKeyValueFile(self.join_state_path(constants.NET_SCR_DIR, file), strip_quotes = False)
+                    devcfg = util.readKeyValueFile(self.join_state_path(constants.NET_SCR_DIR, cfile), strip_quotes = False)
                     if devcfg.has_key('DEVICE') and devcfg.has_key('BRIDGE') and devcfg['BRIDGE'] == mgmt_iface:
                         brcfg = util.readKeyValueFile(self.join_state_path(constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']), strip_quotes = False)
                         results['net-admin-interface'] = devcfg['DEVICE']

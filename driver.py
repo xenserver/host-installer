@@ -11,10 +11,7 @@
 #
 # written by Andrew Peace
 
-import os
 import sys
-import traceback
-import platform
 
 # user-interface stuff:
 from snack import *
@@ -22,25 +19,12 @@ import tui.installer
 import tui.installer.screens
 import tui.progress
 import util
-import answerfile
-import uicontroller
-import constants
-
-# hardware
-import diskutil
-import netutil
-import hardware
 
 # backend
-import backend
-import product
-import upgrade
 import repository
 
 # general
 import xelogging
-import tempfile
-import util
 
 def doInteractiveLoadDriver(ui, answers):
     driver_repos = []

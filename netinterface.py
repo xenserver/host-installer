@@ -146,11 +146,11 @@ class NetInterface:
         f.write('\t</pif>\n')
 
     @staticmethod
-    def loadFromIfcfg(file):
+    def loadFromIfcfg(filename):
         def valOrNone(d, k):
             return d.has_key(k) and d[k] or None
 
-        conf = util.readKeyValueFile(file)
+        conf = util.readKeyValueFile(filename)
         mode = None
         if conf.has_key('BOOTPROTO'):
             if conf['BOOTPROTO'] == 'static' or conf.has_key('IPADDR'):
@@ -199,7 +199,7 @@ class NetInterface:
             gateway = getTextOrNone(pif.getElementsByTagName('gateway')[0].childNodes)
             dns_txt = getText(pif.getElementsByTagName('DNS')[0].childNodes)
             if dns_txt != '':
-                dns = dns_text.split(',')
+                dns = dns_txt.split(',')
             domain_list = pif.getElementsByTagName('other_config')[0].getElementsByTagName('domain')
             if len(domain_list) == 1:
                 domain = getText(domain_list[0].childNodes)

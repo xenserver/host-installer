@@ -153,14 +153,6 @@ class Repository:
         return self._accessor.pathjoin(self._base, name)
 
     def _parse_packages(self, pkgfile):
-        pkgtype_mapping = {
-            'tbz2' : BzippedPackage,
-            'driver' : DriverPackage,
-            'firmware' : FirmwarePackage,
-            'rpm' : RPMPackage,
-            'driver-rpm' : DriverRPMPackage,
-            }
-
         self._pkgfile_contents = pkgfile.read()
         pkgfile.close()
         
@@ -213,7 +205,7 @@ class Repository:
 
         try:
             problems = []
-            total_size = reduce(lambda x,y: x + y,
+            total_size = reduce(lambda x, y: x + y,
                                 [ p.size for p in self._packages ])
             total_progress = 0
             for p in self._packages:
@@ -796,7 +788,7 @@ class URLFileWrapper:
             else:
                 raise Exception('Backward seek not supported')
         else:
-           raise Exception('Only SEEK_SET supported')
+            raise Exception('Only SEEK_SET supported')
            
         if consume > 0:
             step = 100000

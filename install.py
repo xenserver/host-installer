@@ -11,7 +11,6 @@
 #
 # written by Andrew Peace
 
-import os
 import sys
 import traceback
 
@@ -32,8 +31,6 @@ import hardware
 
 # backend
 import backend
-import product
-import upgrade
 import restore
 
 # general
@@ -177,14 +174,15 @@ def go(ui, args, answerfile_address, answerfile_script):
                 xelogging.log("Starting actual restore")
                 backup = results['backup-to-restore']
                 if ui:
-                    pd = tui.progress.initProgressDialog("Restoring", "Restoring data - this may take a while...", 100)
+                    pd = tui.progress.initProgressDialog("Restoring",
+                                                         "Restoring data - this may take a while...",
+                                                         100)
                 def progress(x):
                     if ui and pd:
                         tui.progress.displayProgressDialog(x, pd)
-                rc = restore.restoreFromBackup(backup.partition, backup.root_disk, progress)
+                restore.restoreFromBackup(backup.partition, backup.root_disk, progress)
                 if pd:
                     tui.progress.clearModelessDialog()
-                if rc:
                     tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
             else:
                 xelogging.log("Starting actual installation")

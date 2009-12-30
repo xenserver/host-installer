@@ -15,7 +15,6 @@ import datetime
 import os.path
 
 import generalui
-import uicontroller
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import constants
 import diskutil
@@ -23,15 +22,10 @@ from disktools import *
 import xelogging
 from version import *
 import snackutil
-import repository
-import hardware
 import util
 import socket
-import version
 import product
-import upgrade
 import netutil
-import urlparse
 
 from snack import *
 
@@ -244,7 +238,7 @@ def get_installation_type(answers):
         id_grid.setField(dev_text, 0, 3)
         id_grid.setField(dev_val, 1, 3, anchorLeft = 1)
 
-        gf.add(id_grid, 0, 0, padding = (0,0,0,1))
+        gf.add(id_grid, 0, 0, padding = (0, 0, 0, 1))
         gf.add(bb, 0, 1, growx = 1)
 
         gf.runOnce()
@@ -834,21 +828,21 @@ def get_name_service_configuration(answers):
         # The form itself:
         i = 1
         gf = GridFormHelp(tui.screen, 'Hostname and DNS Configuration', 'dns', 1, 11)
-        gf.add(hn_title, 0, 0, padding = (0,0,0,0))
+        gf.add(hn_title, 0, 0, padding = (0, 0, 0, 0))
         if not hide_rb:
             gf.add(hn_dhcp_rb, 0, 1, anchorLeft = True)
             gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
             i += 2
-        gf.add(hostname_grid, 0, i, padding = (0,0,0,1), anchorLeft = True)
+        gf.add(hostname_grid, 0, i, padding = (0, 0, 0, 1), anchorLeft = True)
     
-        gf.add(ns_title, 0, i+1, padding = (0,0,0,0))
+        gf.add(ns_title, 0, i+1, padding = (0, 0, 0, 0))
         if not hide_rb:
             gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
             gf.add(ns_manual_rb, 0, 6, anchorLeft = True)
             i += 2
         gf.add(ns1_grid, 0, i+2)
         gf.add(ns2_grid, 0, i+3)
-        gf.add(ns3_grid, 0, i+4, padding = (0,0,0,1))
+        gf.add(ns3_grid, 0, i+4, padding = (0, 0, 0, 1))
     
         gf.add(buttons, 0, 10, growx = 1)
 
@@ -1008,11 +1002,11 @@ def get_ntp_servers(answers):
 
     i = 1
 
-    gf.add(text, 0, 0, padding = (0,0,0,1))
+    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     if not hide_cb:
         gf.add(dhcp_cb, 0, 1)
         i += 1
-    gf.add(entry_grid, 0, i, padding = (0,0,0,1))
+    gf.add(entry_grid, 0, i, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, i+1, growx = 1)
 
     button = buttons.buttonPressed(gf.runOnce())
@@ -1049,7 +1043,7 @@ def set_time(answers, now, show_back_button = False):
     while not done:
         gf = GridFormHelp(tui.screen, "Set local time", 'settime', 1, 4)
         
-        gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0,0,1,1))
+        gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0, 0, 1, 1))
         
         dategrid = Grid(7, 4)
         # TODO: switch day and month around if in appropriate timezone
@@ -1066,14 +1060,14 @@ def set_time(answers, now, show_back_button = False):
         dategrid.setField(Textbox(12, 1, "Time (24h):"), 0, 3)
         dategrid.setField(Textbox(12, 1, ""), 0, 2)
         
-        dategrid.setField(year, 1, 1, padding=(0,0,0,1))
-        dategrid.setField(month, 2, 1, padding=(0,0,0,1))
-        dategrid.setField(day, 3, 1, padding=(0,0,0,1))
+        dategrid.setField(year, 1, 1, padding=(0, 0, 0, 1))
+        dategrid.setField(month, 2, 1, padding=(0, 0, 0, 1))
+        dategrid.setField(day, 3, 1, padding=(0, 0, 0, 1))
         
         dategrid.setField(hour, 1, 3)
         dategrid.setField(minute, 2, 3)
         
-        gf.add(dategrid, 0, 1, padding=(0,0,1,1))
+        gf.add(dategrid, 0, 1, padding=(0, 0, 1, 1))
 
         if show_back_button:
             buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])

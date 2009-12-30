@@ -10,25 +10,17 @@
 #
 # written by Andrew Peace
 
-import product
 import backend
-import diskutil
 from disktools import *
 import xelogging
-import tempfile
-import shutil
 import util
 import os
-import tui.init
-import tui.progress
 import constants
 import re
-import traceback
 
 def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
-    """ Restore files from backup_partition to the root partition (as
-    determined by diskutil.getRootPartName(disk)) on disk.  Call progress
-    with a value between 0 and 100.  Re-install bootloader.  Fails if 
+    """ Restore files from backup_partition to the root partition on disk.
+    Call progress with a value between 0 and 100.  Re-install bootloader.  Fails if 
     backup is not same version as the CD in use."""
 
     assert backup_partition.startswith('/dev/')
@@ -89,7 +81,9 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
         dest_fs.unmount()
             
     # find out the label
-    v, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/bootloader.tmp'], with_stdout = True)
+    rc, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/bootloader.tmp'], with_stdout = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to find disk label"
     p = re.compile('root=LABEL=root-\w+')
     labels = p.findall(out)
 

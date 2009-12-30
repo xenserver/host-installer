@@ -76,7 +76,7 @@ class Answerfile:
         elif install_type == "reinstall":
             results = self.parseReinstall()
         elif install_type == "upgrade":
-                results = self.parseUpgrade()
+            results = self.parseUpgrade()
 
         nb_nodes = self.nodelist.getElementsByTagName('network-backend')
         if len(nb_nodes) == 1:
@@ -122,9 +122,10 @@ class Answerfile:
                     pass
 
         # primary-disk:
-        results['primary-disk'] = "/dev/%s" % getText(self.nodelist.getElementsByTagName('primary-disk')[0].childNodes)
-        pd_has_guest_storage = True and self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
-        results['sr-at-end'] = self.nodelist.getElementsByTagName('primary-disk')[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
+        pd = self.nodelist.getElementsByTagName('primary-disk')
+        results['primary-disk'] = "/dev/%s" % getText(pd[0].childNodes)
+        pd_has_guest_storage = pd[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
+        results['sr-at-end'] = pd[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
 
         # guest-disks:
         results['guest-disks'] = []
