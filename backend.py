@@ -563,7 +563,7 @@ def createDom0DiskFilesystems(disk, primary_partnum):
 def __mkinitrd(mounts, primary_disk, kernel_version):
 
     # the mkinitrd command line
-    cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/citrix-splash', '--with', 'ide-generic']
+    cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic']
 
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
