@@ -136,6 +136,10 @@ def idFromPartition(partition):
                 break
     return symlink
 
+# Given a id symlink (e.g. /dev/disk/by-id/scsi-...), get the device
+def partitionFromId(symlink):
+    return os.path.realpath(symlink)
+
 def __readOneLineFile__(filename):
     try:
         f = open(filename)

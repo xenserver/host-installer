@@ -33,6 +33,11 @@ def getText(nodelist):
             rc = rc + node.data
     return rc.encode()
 
+def normalize_disk(disk):
+    if not disk.startswith('/dev/'):
+        disk = '/dev/' + disk
+    return diskutil.partitionFromId(disk)
+
 
 class Answerfile:
 
@@ -123,7 +128,7 @@ class Answerfile:
 
         # primary-disk:
         pd = self.nodelist.getElementsByTagName('primary-disk')
-        results['primary-disk'] = "/dev/%s" % getText(pd[0].childNodes)
+        results['primary-disk'] = normalize_disk(getText(pd[0].childNodes))
         pd_has_guest_storage = pd[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
         results['sr-at-end'] = pd[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
 
@@ -132,7 +137,7 @@ class Answerfile:
         if pd_has_guest_storage:
             results['guest-disks'].append(results['primary-disk'])
         for disk in self.nodelist.getElementsByTagName('guest-disk'):
-            results['guest-disks'].append("/dev/%s" % getText(disk.childNodes))
+            results['guest-disks'].append(normalize_disk(getText(disk.childNodes)))
 
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
@@ -174,7 +179,7 @@ class Answerfile:
 
         target_nodes = self.nodelist.getElementsByTagName('primary-disk')
         if len(target_nodes) == 1:
-            results['primary-disk'] = "/dev/%s" % getText(target_nodes[0].childNodes)
+            results['primary-disk'] = normalize_disk(getText(target_nodes[0].childNodes))
 
         results.update(self.parseSource())
         results.update(self.parseDriverSource())

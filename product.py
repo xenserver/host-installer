@@ -637,7 +637,7 @@ class XenServerBackup:
         self.brand = self.inventory['PRODUCT_BRAND']
         self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
         self.build = self.inventory['BUILD_NUMBER']
-        self.root_disk = self.inventory['PRIMARY_DISK']
+        self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
 
     def __str__(self):
         return "%s %s" % (

@@ -566,7 +566,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
         ThirdGenUpgrader.completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config)
-        if os.path.realpath(prev_install.primary_disk) != os.path.realpath(target_disk):
+        if prev_install.primary_disk != target_disk:
             xelogging.log("Deactivating all partitions on %s" % prev_install.primary_disk)
             partTool = PartitionTool(prev_install.primary_disk)
             partTool.inactivateDisk()
