@@ -427,15 +427,20 @@ class ExistingInstallation:
         finally:
             self.unmount_state()
 
-        # read bootloader config to extract serial console settings
+        # read bootloader config to extract serial console settings & bootloader location
         boot_fs = None
         try:
             boot_fs = util.TempMount(self.boot_device, 'boot-', ['ro'], 'ext3')
             if os.path.exists(os.path.join(boot_fs.mount_point, "boot/extlinux.conf")):
                 conf = open(os.path.join(boot_fs.mount_point, "boot/extlinux.conf"), 'r')
+                results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
                 for line in conf:
                     l = line.strip().lower()
-                    if l.startswith('serial'):
+                    if l.startswith('# location'):
+                        els = line.split()
+                        if len(els) == 3 and els[2] in ['mbr', 'partition']:
+                            results['bootloader-location'] = els[2]
+                    elif l.startswith('serial'):
                         val = l.split()
                         if len(val) > 2:
                             results['serial-console'] = hardware.SerialPort(int(val[1]), baud = val[2])
@@ -444,9 +449,14 @@ class ExistingInstallation:
                 conf.close()
             elif os.path.exists(os.path.join(boot_fs.mount_point, "boot/grub/menu.lst")):
                 conf = open(os.path.join(boot_fs.mount_point, "boot/grub/menu.lst"), 'r')
+                results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
                 for line in conf:
                     l = line.strip().lower()
-                    if l.startswith('serial'):
+                    if l.startswith('# location'):
+                        els = line.split()
+                        if len(els) == 3 and els[2] in ['mbr', 'partition']:
+                            results['bootloader-location'] = els[2]
+                    elif l.startswith('serial'):
                         args = util.splitArgs(l.split()[1:])
                         if '--unit' in args and '--speed' in args:
                             results['serial-console'] = hardware.SerialPort(int(args['--unit']),

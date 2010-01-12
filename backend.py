@@ -558,7 +558,9 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk, primary_partnum):
-    assert util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, PartitionTool.partitionDevice(disk, primary_partnum)]) == 0
+    rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, PartitionTool.partitionDevice(disk, primary_partnum)], with_stderr = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to create filesystem: %s" % err
 
 def __mkinitrd(mounts, primary_disk, kernel_version):
 
@@ -724,6 +726,8 @@ def installExtLinux(mounts, disk, serial, boot_serial, location = 'mbr'):
 
     f = open("%s/extlinux.conf" % mounts['boot'], "w")
 
+    f.write("# location %s\n" % location);
+
     if serial:
         f.write("serial %s %s\n" % (serial.id, serial.baud))
     if boot_serial:
@@ -740,7 +744,9 @@ def installExtLinux(mounts, disk, serial, boot_serial, location = 'mbr'):
     
     f.close()
 
-    assert util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"]) == 0
+    rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to install bootloader: %s" % err
 
     for m in ["mboot", "menu", "chain"]:
         assert util.runCmd2(["ln", "-f",
@@ -780,7 +786,7 @@ def installGrub(mounts, disk, primary_partnum, serial, boot_serial, location = '
 
     # grub configuration - placed here for easy editing.  Written to
     # the menu.lst file later in this function.
-    grubconf = ""
+    grubconf = "# location %s\n" % location
 
     if serial:
         grubconf += "serial --unit=%d --speed=%s\n" % (serial.id, serial.baud)
@@ -814,7 +820,9 @@ def installGrub(mounts, disk, primary_partnum, serial, boot_serial, location = '
 
     # now perform our own installation, onto the MBR of the selected disk:
     xelogging.log("About to install GRUB.  Install to disk %s" % grubroot)
-    assert util.runCmd2(["chroot", mounts['root'], "grub-install", "--no-floppy", "--recheck", grubroot]) == 0
+    rc, err = util.runCmd2(["chroot", mounts['root'], "grub-install", "--no-floppy", "--recheck", grubroot], with_stderr = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to install bootloader: %s" % err
 
 ##########
 # mounting and unmounting of various volumes

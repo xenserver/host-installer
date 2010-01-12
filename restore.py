@@ -30,6 +30,29 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     restore_partition = PartitionTool.partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
+    # determine current location of bootloader
+    current_location = 'unknown'
+    try:
+        root_fs = util.TempMount(restore_partition, 'root-', options = ['ro'])
+        try:
+            config = None
+            if os.path.exists(os.path.join(root_fs.mount_point, "boot/grub/menu.lst")):
+                config = open(os.path.join(root_fs.mount_point, "boot/grub/menu.lst"))
+            elif os.path.exists(os.path.join(root_fs.mount_point, "boot/extlinux.conf")):
+                config = os.path.join(root_fs.mount_point, "boot/extlinux.conf")
+            if config:
+                line = config.readline().strip()
+                config.close()
+                if line.startswith('# location'):
+                    els = line.split()
+                    if len(els) == 3 and els[2] in ['mbr', 'partition']:
+                        current_location = els[2]
+                        xelogging.log("Bootloader currently in %s" % current_location)
+        finally:
+            root_fs.unmount()
+    except:
+        pass
+
     # first, format the primary disk:
     if util.runCmd2(['mkfs.ext3', restore_partition]) != 0:
         raise RuntimeError, "Failed to create filesystem"
@@ -70,8 +93,30 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
             # preserve bootloader configuration
             if util.runCmd2(['cp', os.path.join(backup_fs.mount_point, bootloader_config), '/tmp/bootloader.tmp']) != 0:
                 raise RuntimeError, "Failed copy bootloader configuration"
+
+            # find out the label and bootloader location
+            labels = []
+            location = 'mbr'
+            conf = open('/tmp/bootloader.tmp')
+            for line in conf:
+                l = line.strip()
+                if l.startswith('append') or l.startswith('module'):
+                    m = re.search(r'root=LABEL=(\S+)', l)
+                    if m:
+                        labels.append(m.group(1))
+                elif l.startswith('# location'):
+                    els = l.split()
+                    if len(els) == 3 and els[2] in ['mbr', 'partition']:
+                        location = els[2]
+                        if location == 'partition' and current_location == 'mbr':
+                            # if bootloader in the MBR it's probably not safe to restore with it
+                            # on the partition
+                            xelogging.log("Bootloader is currently installed to MBR, restoring to MBR instead of partition")
+                            location = 'mbr'
+            conf.close()
+
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            backend.installBootLoader(mounts, disk, primary_partnum, bootloader, None, None)
+            backend.installBootLoader(mounts, disk, primary_partnum, bootloader, None, location)
             if util.runCmd2(['cp', '/tmp/bootloader.tmp',
                              os.path.join(dest_fs.mount_point, bootloader_config)]) != 0:
                 raise RuntimeError, "Failed restore bootloader configuration"
@@ -79,20 +124,13 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
             backup_fs.unmount()
     finally:
         dest_fs.unmount()
-            
-    # find out the label
-    rc, out = util.runCmd2(['grep', 'root=LABEL', '/tmp/bootloader.tmp'], with_stdout = True)
-    if rc != 0:
-        raise RuntimeError, "Failed to find disk label"
-    p = re.compile('root=LABEL=root-\w+')
-    labels = p.findall(out)
 
     if len(labels) == 0:
         raise RuntimeError, "Failed to find label required for root filesystem."
     else:
         # just take the first one
         newlabel = labels[0]
-        if util.runCmd2(['e2label', restore_partition, newlabel[len('root=LABEL='):]]) != 0:
+        if util.runCmd2(['e2label', restore_partition, newlabel]) != 0:
             raise RuntimeError, "Failed to label partition"
 
         xelogging.log("Bootloader restoration complete.")
