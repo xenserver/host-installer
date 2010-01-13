@@ -41,19 +41,18 @@ class Version(object):
         self.minor = minor
         self.release = release
         self.build = build
-        self.suffix = suffix
         self.buildsuffix = buildsuffix
 
     def from_string(cls, vstr):
         """ Create a Version object given an input string vstr.  vstr should be
         of one of the following forms:
 
-            a.b   a.b.cs   a.b.cs-bt
+            a.b   a.b.c   a.b.c-bt
 
         for integers a, b, c, and b representing the major, minor, release, and
-        build number elements of the version.  s and t are alphanumeric strings
-        that begin with an alphabetic character to distinguish them from c and
-        b respectively.  s and t should NOT contain the hyphen character. """
+        build number elements of the version.  t is an alphanumeric string
+        that begins with an alphabetic character to distinguish them from c and
+        b respectively.  t should NOT contain the hyphen character. """
 
         if vstr.find("-") != -1:
             vs, bs = vstr.split("-")
@@ -64,20 +63,17 @@ class Version(object):
 
         elements = vs.split(".")
         if len(elements) == 3:
-            vmaj_s, vmin_s, vrelsuf_s = elements
-            match = re.match("([0-9]+)(.*)", vrelsuf_s)
-            vrel_s, vsuf_s = match.group(1), match.group(2)
+            vmaj_s, vmin_s, vrel_s = elements
         else:
             vmaj_s, vmin_s = elements
             vrel_s = 0
-            vsuf_s = ''
 
         if bs:
             match = re.match("([0-9]+)(.*)", bs)
             vbuild = int(match.group(1))
             vbuildsuffix = match.group(2)
 
-        return cls(int(vmaj_s), int(vmin_s), int(vrel_s), suffix = vsuf_s,
+        return cls(int(vmaj_s), int(vmin_s), int(vrel_s), 
                    build = vbuild, buildsuffix = vbuildsuffix)
     from_string = classmethod(from_string)
 
@@ -88,17 +84,14 @@ class Version(object):
                  (self.major == v.major and self.minor < v.minor) or
                  (self.major == v.major and self.minor == v.minor and self.release < v.release) or
                  (self.major == v.major and self.minor == v.minor and self.release == v.release and \
-                  self.cmp_version_number(self.build, v.build) == -1) or                                                         
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
-                  self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix,v.suffix) == -1) )
+                  self.cmp_version_number(self.build, v.build) == -1) )
 
     def __eq__(self, v):
         if not type(v) == type(self): return False
         return ( self.cmp_version_number(self.major, v.major) == 0 and
                  self.cmp_version_number(self.minor, v.minor) == 0 and
                  self.cmp_version_number(self.release, v.release) == 0  and
-                 self.cmp_version_number(self.build, v.build) == 0 and
-                 self.suffix == v.suffix )
+                 self.cmp_version_number(self.build, v.build) == 0 )
 
     def __le__(self, v):
         if not type(v) == type(self): return False
@@ -115,29 +108,13 @@ class Version(object):
                  (self.major == v.major and self.minor > v.minor) or
                  (self.major == v.major and self.minor == v.minor and self.release > v.release) or
                  (self.major == v.major and self.minor == v.minor and self.release == v.release and \
-                  self.cmp_version_number(self.build, v.build) == 1) or                                                          
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
-                  self.cmp_version_number(self.build, v.build) == 0 and self.cmp_suffix(self.suffix, v.suffix) == 1) )
+                  self.cmp_version_number(self.build, v.build) == 1) )
 
     def __str__(self):
         if self.build == self.ANY:
-            return "%d.%d.%d%s" % (self.major, self.minor, self.release, self.suffix)
+            return "%d.%d.%d" % (self.major, self.minor, self.release)
         else:
-            return "%d.%d.%d%s-%d%s" % (self.major, self.minor, self.release, self.suffix, self.build, self.buildsuffix)
-
-    def cmp_suffix(cls, s1, s2):
-        """ Compare suffixes.  Empty suffix is bigger than anything, else
-        just do a lexicographic comparison. """
-        if s1 == s2:
-            return 0
-        elif s1 == '':
-            return 1
-        elif s2 == '':
-            return -1
-        else:
-            return s1 < s2
-
-    cmp_suffix = classmethod(cmp_suffix)
+            return "%d.%d.%d-%d%s" % (self.major, self.minor, self.release, self.build, self.buildsuffix)
 
     def cmp_version_number(cls, v1, v2):
         if v1 == cls.ANY or v2 == cls.ANY:
