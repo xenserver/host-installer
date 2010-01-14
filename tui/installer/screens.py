@@ -752,36 +752,19 @@ def get_name_service_configuration(answers):
 
     # NAMESERVERS:
     def nsvalue(answers, id):
-        if not answers.has_key('manual-nameservers'):
-            if not answers.has_key('runtime-iface-configuration'):
-                return ""
-            # we have a runtime interface configuration; check to see if there is
-            # configuration for the interface we're currently trying to configure.
-            # If so, use it to get default values; we're being super careful to
-            # check bounds, etc. here.  answers['runtime-iface-configuration'] is 
-            # a pair, (all_dhcp, manual_config), where manual_config is a map
-            # of interface name (string) -> network config.
-            ric = answers['runtime-iface-configuration']
-            if len(ric) != 2: # this should never really happen but best to be safe
-                return ""
-            else:
-                ric_all_dhcp, ric_manual_config = ric
-                if ric_manual_config == None or ric_all_dhcp:
-                    return ""
-                else:
-                    if ric_manual_config.has_key(answers['net-admin-interface']):
-                        ai = ric_manual_config[answers['net-admin-interface']]
-                        if ai.isStatic() and id == 0 and ai.dns:
-                            return ai.dns
-                        else:
-                            return ""
-                    else:
-                        return ""
-        (mns, nss) = answers['manual-nameservers']
-        if not mns or id >= len(nss):
-            return ""
-        else:
-            return nss[id]
+        nameservers = None
+        if 'manual-nameservers' in answers:
+            manual, nsl = answers['manual-nameservers']
+            if manual:
+                nameservers = nsl
+        elif 'runtime-iface-configuration' in answers:
+            all_dhcp, netdict = answers['runtime-iface-configuration']
+            if not all_dhcp and isinstance(netdict, dict):
+                nameservers = netdict.values()[0].dns
+
+        if isinstance(nameservers, list) and id < len(nameservers):
+            return nameservers[id]
+        return ""
 
     ns_title = Textbox(len("DNS Configuration"), 1, "DNS Configuration")
 
