@@ -116,6 +116,9 @@ def getPCIInfo(interface):
 
     return info
 
+def getDriver(interface):
+    return os.path.basename(os.path.realpath('/sys/class/net/%s/device/driver' % interface))
+
 def __readOneLineFile__(filename):
     f = open(filename)
     value = f.readline().strip('\n')
