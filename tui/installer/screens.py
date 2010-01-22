@@ -218,30 +218,10 @@ def get_installation_type(answers):
                                diskutil.getHumanDiskName(pd))
 
         tui.update_help_line([' ', ' '])
-        gf = GridFormHelp(tui.screen, 'Details', None, 1, 2)
-        bb = ButtonBar(tui.screen, [ 'Ok' ])
-        use_text = Textbox(13, 1, "Use:")
-        ver_text = Textbox(13, 1, "Version:")
-        date_text = Textbox(13, 1, "Installed:")
-        dev_text = Textbox(13, 1, "Disk:")
-        use_val = Textbox(28, 1, use)
-        ver_val = Textbox(20, 1, str(obj.version))
-        date_val = Textbox(28, 1, date)
-        dev_val = Textbox(36, 1, dev)
-        id_grid = Grid(2, 4)
-        id_grid.setField(use_text, 0, 0)
-        id_grid.setField(use_val, 1, 0, anchorLeft = 1)
-        id_grid.setField(ver_text, 0, 1)
-        id_grid.setField(ver_val, 1, 1, anchorLeft = 1)
-        id_grid.setField(date_text, 0, 2)
-        id_grid.setField(date_val, 1, 2, anchorLeft = 1)
-        id_grid.setField(dev_text, 0, 3)
-        id_grid.setField(dev_val, 1, 3, anchorLeft = 1)
-
-        gf.add(id_grid, 0, 0, padding = (0, 0, 0, 1))
-        gf.add(bb, 0, 1, growx = 1)
-
-        gf.runOnce()
+        snackutil.TableDialog(tui.screen, "Details", ("Use:", use),
+                              ("Version:", str(obj.version)),
+                              ("Installed:", date),
+                              ("Disk:", dev))
         tui.screen.popHelpLine()
         return True
 
@@ -481,10 +461,12 @@ def disk_more_info(context):
     elif storage[0]:
         usage = 'VM storage'
 
-    text = "Disk:          %s\nCurrent usage: %s" % (diskutil.getHumanDiskName(context), usage)
-
     tui.update_help_line([' ', ' '])
-    tui.progress.OKDialog("Details", text)
+    snackutil.TableDialog(tui.screen, "Details", ("Disk:", diskutil.getHumanDiskName(context)),
+                          ("Vendor:", diskutil.getDiskDeviceVendor(context)),
+                          ("Model:", diskutil.getDiskDeviceModel(context)),
+                          ("Size:", diskutil.getHumanDiskSize(diskutil.getDiskDeviceSize(context))),
+                          ("Current usage:", usage))
     tui.screen.popHelpLine()
     return True
 
