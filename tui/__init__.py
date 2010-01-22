@@ -25,8 +25,7 @@ help_line = ["<Tab>/<Alt-Tab> between elements", "", "<F12> next screen"]
 
 
 def global_help(screen, context):
-    text = """To navigate between fields and buttons use <Tab> to move forwards and <Alt-Tab>
-to move backwards.
+    text = """To navigate between fields and buttons use <Tab> to move forwards and <Alt-Tab> to move backwards.
 
 To select check boxes and radio buttons press <Space>.
 
