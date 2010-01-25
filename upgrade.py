@@ -18,6 +18,7 @@ import re
 
 import product
 from disktools import *
+from netinterface import *
 import util
 import constants
 import xelogging
