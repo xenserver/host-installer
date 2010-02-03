@@ -151,6 +151,9 @@ class LVMTool:
         out = self.cmdWrap(cmd)
 
         for line in out.strip().split('\n'):
+            # skip blank lines
+            if line == '':
+                continue
             try:
                 # Create a dict of the form 'option_name':value
                 data = dict(zip(allOptions, line.lstrip().split(self.SEP)))
