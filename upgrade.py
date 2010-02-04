@@ -365,6 +365,11 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             "\nSR partition      : "+str(foundSRNumber) +
             "\nand chose to preserve partitions: "+", ".join( [ str(i) for i in partNumsToPreserve ] )
         )
+
+        # CA-37339: trap partition table/LVM inconsistencies
+        if foundUtilityNumber and (foundUtilityNumber == foundConfigNumber or foundUtilityNumber == foundSRNumber):
+            raise RuntimeError, "Target disk has inconsistencies in its layout."
+
         # Purge redundant partitions on target
         for num, part in partTool.iteritems():
             if num not in partNumsToPreserve:
@@ -384,6 +389,9 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
                 # we need to resize it
                 xelogging.log("Reducing %s by %d bytes" % (foundSRDevice, (2 * rootByteSize)))
                 lvmSize = lvmTool.deviceSize(foundSRDevice)
+                if lvmSize <= (2 * rootByteSize):
+                    xelogging.log("FATAL: SR too small, %d < %d" % (lvmSize, 2 * rootByteSize))
+                    raise RuntimeError, "Storage Repository partition is too small to be resized."
                 lvmTool.resizeDevice(foundSRDevice, lvmSize - 2 * rootByteSize)
                 partitionSize = partTool.partitionSize(foundSRNumber)
                 partTool.resizePartition(foundSRNumber, partitionSize - 2 * rootByteSize)
