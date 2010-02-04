@@ -13,6 +13,8 @@
 import re, sys
 import os.path
 import constants
+import CDROM
+import fcntl
 
 import util
 from util import dev_null
@@ -62,6 +64,8 @@ def getDiskList():
             (major, minor, size, name) = l.split(" ")
             (major, minor, size) = (int(major), int(minor), int(size))
             if (major, minor) in disk_nodes:
+                if major == 202 and isRemovable("/dev/" + name): # Ignore PV CDROM devices
+                    continue
                 disks.append(name.replace("!", "/"))
         except:
             # it wasn't an actual entry, maybe the headers or something:
@@ -176,10 +180,30 @@ def getDiskDeviceSize(dev):
     elif os.path.exists("/sys/block/%s/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/size" % dev))
 
-def isRemovable(dev):
-    if dev.startswith("/dev/"):
-        dev = re.match("/dev/(.*)", dev).group(1)
+def isRemovable(path):
+    if path.startswith("/dev/"):
+        dev = re.match("/dev/(.*)", path).group(1)
+    else:
+        dev = path
+        
     dev = dev.replace("/", "!")
+
+    if dev.startswith("xvd"):
+        is_cdrom = False
+        f = None
+        try:
+            f = open(path, 'r')
+            if fcntl.ioctl(f, CDROM.CDROM_GET_CAPABILITY) == 0:
+                is_cdrom = True
+        except: # Any exception implies this is not a CDROM
+            pass
+
+        if f is not None:
+            f.close()
+
+        if is_cdrom:
+            return True
+
     if os.path.exists("/sys/block/%s/removable" % dev):
         return int(__readOneLineFile__("/sys/block/%s/removable" % dev)) == 1
     else:

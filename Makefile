@@ -55,5 +55,8 @@ install:
 	install -m644 keymaps $(INSTALLER_DATA_DIR)
 	install -m644 timezones $(INSTALLER_DATA_DIR)
 
+# answerfiles
+	install -m644 sdk.answerfile $(DESTDIR)
+
 	[ ! -e /output/docs/EULA ] || install -m644 /output/docs/EULA $(INSTALLER_DATA_DIR)
 

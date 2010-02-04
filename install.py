@@ -47,6 +47,20 @@ def main(args):
     ui.end_ui()
     return status
 
+def xen_control_domain():
+    f = None
+    is_xen_control_domain = True
+
+    try:
+        f = open("/proc/xen/capabilities",'r')
+        lines = [l.strip() for l in f.readlines()]
+        is_xen_control_domain = 'control_d' in lines
+    except:
+        pass
+    if f is not None:
+        f.close()
+    return is_xen_control_domain
+
 def go(ui, args, answerfile_address, answerfile_script):
     extra_repo_defs = []
     results = {
@@ -62,7 +76,7 @@ def go(ui, args, answerfile_address, answerfile_script):
     boot_console = None
     boot_serial = False
 
-    if args.has_key('--virtual'):
+    if not xen_control_domain() or args.has_key('--virtual'):
         hardware.useVMHardwareFunctions()
 
     for (opt, val) in args.items():
