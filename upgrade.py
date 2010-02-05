@@ -330,10 +330,12 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         if primaryPartnum == 1 :
             # No utility partition - start at 1
             foundUtilityNumber = None
+            availStart = partTool.sectorSize # First sector contains MBR, so skip it
         else:
             # First partition is a utility partition so preserve it
             partNumsToPreserve.append(1)
             foundUtilityNumber = 1
+            availStart = partTool.partitionEnd(foundUtilityNumber)
 
         firstXSPartition = primaryPartnum
 
@@ -384,7 +386,12 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             foundConfigNumber = firstXSPartition
 
         if foundSRDevice:
-            if foundSRNumber <= 4:
+            spaceBeforeSR = partTool.partitionStart(foundSRNumber) - availStart
+            xelogging.log("Space before SR: %d%s, need: %d" %
+                          (spaceBeforeSR,
+                           foundConfigNumber and " (but not contiguous yet)" or "",
+                           2 * rootByteSize))
+            if foundSRNumber <= 4 and (foundConfigNumber or spaceBeforeSR < 2 * rootByteSize):
                 # There is an SR partition on this disk that we need to preserve, as as this is not OEM HDD
                 # we need to resize it
                 xelogging.log("Reducing %s by %d bytes" % (foundSRDevice, (2 * rootByteSize)))
@@ -410,20 +417,16 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
     
         # If an SR is present, root and backup partitions go at the end of the disk for Flash,
         # and the start for OEM HDD.  In either case they have lower numbers than the SR partition
-        if foundUtilityNumber is not None:
-            availStart = partTool.partitionEnd(foundUtilityNumber)
-        else:
-            availStart = partTool.sectorSize # First sector stores partition table, so skip it
 
         if foundSRNumber is not None:
             # SR is present, so root and backup partitions go either before (if there's room) or
             # after it
-            if not foundConfigNumber and partTool.partitionStart(foundSRNumber) - availStart > 2 * rootByteSize:
+            if not foundConfigNumber and spaceBeforeSR >= 2 * rootByteSize:
                 # Root and backup partitions will fit before the SR...
                 xelogging.log("Space for both install and backup partitions at start of disk")
                 rootStart = availStart
                 backupSize = rootByteSize
-            elif partTool.partitionStart(foundSRNumber) - availStart > rootByteSize:
+            elif foundConfigNumber and spaceBeforeSR > rootByteSize:
                 # Fit the partition between where the new root partition will end and the start
                 # of the current config partition
                 xelogging.log("Creating reduced size backup partition temporarily")
