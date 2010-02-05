@@ -515,7 +515,7 @@ class PartitionTool:
     def cmdWrap(self, params):
         rv, out, err = util.runCmd2(params, True, True)
         if rv != 0:
-            raise Exception("\n".join(err))
+            raise Exception(err)
         return out
     
     @staticmethod
