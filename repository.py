@@ -910,7 +910,7 @@ def findRepositoriesOnMedia():
         'sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf',
         'scd0', 'scd1', 'scd2', 'scd3', 'scd4',
         'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7',
-        'cciss/c0d0', 'cciss/c0d1'#,
+        'cciss/c0d0', 'cciss/c0d1',
         'xvda', 'xvdb','xvdc', 'xvdd', 
     ]
 
