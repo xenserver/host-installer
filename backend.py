@@ -30,6 +30,7 @@ import hardware
 import upgrade
 import init_constants
 import scripts
+import bootloader
 
 # Product version and constants:
 import version
@@ -160,7 +161,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'bootloader', 'serial-console', 'boot-serial', 'bootloader-location'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'bootloader', 'serial-console', 'boot-serial', 'xen-cpuid-masks', 'bootloader-location'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -301,6 +302,9 @@ def performInstallation(answers, ui_package):
 
     if not answers.has_key('bootloader-location'):
         answers['bootloader-location'] = 'mbr'
+
+    if 'xen-cpuid-masks' not in answers:
+        answers['xen-cpuid-masks'] = []
 
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
@@ -604,65 +608,54 @@ def mkinitrd(mounts, primary_disk):
     # make the initrd-2.6-xen.img symlink:
     os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
 
-def writeMenuItems(xen_kernel_version, f, fn, s):
-    # XXX assumes only one kernel version installed:
-    entries = [
-        {
-            'label':      "xe",
-            'title':      PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz dom0_mem=%dM lowmem_emergency_pool=1M crashkernel=64M@32M console=comX vga=mode-0x0311" % constants.DOM0_MEM,
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0 quiet vga=785 splash" % constants.rootfs_label,
-            'initrd':     "/boot/initrd-2.6-xen.img",
-        }
-    ]
-    if s:
-        entries += [{
-            'label':      "xe-serial",
-            'title':      "%s (Serial)" % PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz %s console=%s,vga dom0_mem=%dM " \
-                          % (s.xenFmt(), s.port, constants.DOM0_MEM) \
-                          + "lowmem_emergency_pool=1M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-2.6-xen root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
-                          % (constants.rootfs_label, s.dev),
-            'initrd':     "/boot/initrd-2.6-xen.img",
-        }, {
-            'label':      "safe",
-            'title':      "%s in Safe Mode" % PRODUCT_BRAND,
-            'hypervisor': "/boot/xen.gz nosmp noreboot noirqbalance acpi=off noapic " \
-                          + "dom0_mem=%dM %s console=%s,vga" \
-                          % (constants.DOM0_MEM, s.xenFmt(), s.port),
-            'kernel':     "/boot/vmlinuz-2.6-xen nousb root=LABEL=%s ro console=tty0 " \
-                          % constants.rootfs_label \
-                          + "xencons=hvc console=%s" % s.dev,
-            'initrd':     "/boot/initrd-2.6-xen.img",
-        }]
-    entries += [{
-            'label':      "fallback",
-            'title':      "%s (Xen %s / Linux %s)" \
-                          % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
-            'hypervisor': "/boot/xen-%s.gz dom0_mem=%dM lowmem_emergency_pool=1M crashkernel=64M@32M" \
-                          % (version.XEN_VERSION, constants.DOM0_MEM),
-            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro xencons=hvc console=hvc0 console=tty0" \
-                          % (xen_kernel_version, constants.rootfs_label),
-            'initrd':     "/boot/initrd-%s.img" % xen_kernel_version,
-        }]
-    if s:
-        entries += [{
-            'label':      "fallback-serial",
-            'title':      "%s (Serial, Xen %s / Linux %s)" \
-                          % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
-            'hypervisor': "/boot/xen-%s.gz %s console=%s,vga dom0_mem=%dM " \
-                          % (version.XEN_VERSION, s.xenFmt(), s.port, constants.DOM0_MEM) \
-                          + "lowmem_emergency_pool=1M crashkernel=64M@32M",
-            'kernel':     "/boot/vmlinuz-%s root=LABEL=%s ro console=tty0 xencons=hvc console=%s" \
-                          % (xen_kernel_version, constants.rootfs_label, s.dev),
-            'initrd':     "/boot/initrd-%s.img" % xen_kernel_version,
-        }]
+def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks):
+    common_xen_params = "dom0_mem=%dM" % constants.DOM0_MEM
+    safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
+    xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
+    mask_params = ' '.join(xen_cpuid_masks)
+    if len(mask_params):
+        mask_params = ' '+mask_params
+    common_kernel_params = "root=LABEL=%s ro" % constants.rootfs_label
+    kernel_console_params = "xencons=hvc console=hvc0"
 
-    for entry in entries:
-        fn(f, entry)
+    e = bootloader.MenuEntry("/boot/xen.gz",
+                             common_xen_params+" "+xen_mem_params+mask_params+" console=comX vga=mode-0x0311",
+                             "/boot/vmlinuz-2.6-xen",
+                             common_kernel_params+" "+kernel_console_params+" console=tty0 quiet vga=785 splash",
+                             "/boot/initrd-2.6-xen.img", PRODUCT_BRAND)
+    boot_config.append("xe", e)
+    if serial:
+        xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
+        
+        e = bootloader.MenuEntry("/boot/xen.gz",
+                                 ' '.join([xen_serial_params, common_xen_params, xen_mem_params+mask_params]),
+                                 "/boot/vmlinuz-2.6-xen",
+                                 common_kernel_params+" console=tty0 "+kernel_console_params,
+                                 "/boot/initrd-2.6-xen.img", PRODUCT_BRAND+" (Serial)")
+        boot_config.append("xe-serial", e)
+        e = bootloader.MenuEntry("/boot/xen.gz",
+                                 ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
+                                 "/boot/vmlinuz-2.6-xen",
+                                 ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
+                                 "/boot/initrd-2.6-xen.img", PRODUCT_BRAND+" in Safe Mode")
+        boot_config.append("safe", e)
+    e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
+                             common_xen_params+" "+xen_mem_params+mask_params,
+                             "/boot/vmlinuz-%s" % xen_kernel_version,
+                             ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
+                             "/boot/initrd-%s.img" % xen_kernel_version, 
+                             "%s (Xen %s / Linux %s)" % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+    boot_config.append("fallback", e)
+    if serial:
+        e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
+                                 ' '.join([xen_serial_params, common_xen_params, xen_mem_params+mask_params]),
+                                 "/boot/vmlinuz-%s" % xen_kernel_version,
+                                 common_kernel_params+" console=tty0 "+kernel_console_params,
+                                 "/boot/initrd-%s.img" % xen_kernel_version, 
+                                 "%s (Serial, Xen %s / Linux %s)" % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+        boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, primary_partnum, bootloader, serial, boot_serial, location = 'mbr'):
+def installBootLoader(mounts, disk, primary_partnum, bloader, serial, boot_serial, cpuid_masks, location = 'mbr'):
     
     assert(location == 'mbr' or location == 'partition')
     
@@ -685,12 +678,26 @@ def installBootLoader(mounts, disk, primary_partnum, bootloader, serial, boot_se
         f.close()
 
     try:
-        if bootloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk, primary_partnum, serial, boot_serial, location)
-        elif bootloader == constants.BOOTLOADER_TYPE_EXTLINUX:
-            installExtLinux(mounts, disk, serial, boot_serial, location)
+        if bloader == constants.BOOTLOADER_TYPE_GRUB:
+            bt = 'grub'
+            fn = os.path.join(mounts['boot'], "grub/menu.lst")
+        elif bloader == constants.BOOTLOADER_TYPE_EXTLINUX:
+            bt = 'extlinux'
+            fn = os.path.join(mounts['boot'], "extlinux.conf")
         else:
             raise RuntimeError, "Unknown bootloader."
+
+        boot_config = bootloader.Bootloader(bt, fn, default = boot_serial and 'xe-serial' or 'xe', timeout = 50,
+                                            serial = serial and {'port': serial.id, 'baud': int(serial.baud)} or None,
+                                            location = location)
+        buildBootLoaderMenu(getKernelVersion(mounts['root'], 'xen'), boot_config, serial, cpuid_masks)
+        util.assertDir(os.path.dirname(fn))
+        boot_config.commit()
+
+        if bloader == constants.BOOTLOADER_TYPE_GRUB:
+            installGrub(mounts, disk, primary_partnum, location)
+        elif bloader == constants.BOOTLOADER_TYPE_EXTLINUX:
+            installExtLinux(mounts, disk, location)
 
         if serial:
             # ensure a getty will run on the serial console
@@ -714,36 +721,7 @@ def installBootLoader(mounts, disk, primary_partnum, bootloader, serial, boot_se
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
-def writeExtLinuxMenuItem(f, item):
-    f.write("label %s\n  # %s\n" % (item['label'], item['title']))
-    f.write("  kernel mboot.c32\n")
-    f.write("  append %s --- %s --- %s\n" % (item['hypervisor'], item['kernel'], item['initrd']))
-    f.write("\n")
-
-def installExtLinux(mounts, disk, serial, boot_serial, location = 'mbr'):
-
-    assert(location == 'mbr' or location == 'partition')
-
-    f = open("%s/extlinux.conf" % mounts['boot'], "w")
-
-    f.write("# location %s\n" % location);
-
-    if serial:
-        f.write("serial %s %s\n" % (serial.id, serial.baud))
-    if boot_serial:
-        f.write("default xe-serial\n")
-    else:
-        f.write("default xe\n")
-    
-    f.write("prompt 1\n")
-    f.write("timeout 50\n")
-    f.write("\n")
-
-    # XXX assumes only one kernel version installed:
-    writeMenuItems(getKernelVersion(mounts['root'], 'xen'), f, writeExtLinuxMenuItem, serial)
-    
-    f.close()
-
+def installExtLinux(mounts, disk, location = 'mbr'):
     rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to install bootloader: %s" % err
@@ -756,13 +734,7 @@ def installExtLinux(mounts, disk, serial, boot_serial, location = 'mbr'):
         assert util.runCmd2(["dd", "if=%s/usr/lib/syslinux/mbr.bin" % mounts['root'], \
                                  "of=%s" % disk, "bs=512", "count=1"]) == 0
 
-def writeGrubMenuItem(f, item):
-    f.write("title %s\n" % item['title'])
-    f.write("   kernel %s\n" % item['hypervisor'])
-    f.write("   module %s\n" % item['kernel'])
-    f.write("   module %s\n\n" % item['initrd'])
-
-def installGrub(mounts, disk, primary_partnum, serial, boot_serial, location = 'mbr'):
+def installGrub(mounts, disk, primary_partnum, location = 'mbr'):
 
     assert(location == 'mbr' or location == 'partition')
 
@@ -770,53 +742,6 @@ def installGrub(mounts, disk, primary_partnum, serial, boot_serial, location = '
         grubroot = disk
     else:
         grubroot = PartitionTool.partitionDevice(disk, primary_partnum)
-
-    # move the splash screen to a safe location so we don't delete it
-    # when removing a previous installation of GRUB:
-    hasSplash = False
-    if os.path.exists("%s/grub/xs-splash.xpm.gz" % mounts['boot']):
-        shutil.move("%s/grub/xs-splash.xpm.gz" % mounts['boot'],
-                    "%s/xs-splash.xpm.gz" % mounts['boot'])
-        hasSplash = True
-
-    # ensure there isn't a previous installation in /boot
-    # for any reason:
-    if os.path.isdir("%s/grub" % mounts['boot']):
-        shutil.rmtree("%s/grub" % mounts['boot'])
-
-    # grub configuration - placed here for easy editing.  Written to
-    # the menu.lst file later in this function.
-    grubconf = "# location %s\n" % location
-
-    if serial:
-        grubconf += "serial --unit=%d --speed=%s\n" % (serial.id, serial.baud)
-        grubconf += "terminal --timeout=10 console serial\n"
-    else:
-        grubconf += "terminal console\n"
-    if boot_serial:
-        grubconf += "default 1\n"
-    else:
-        grubconf += "default 0\n"
-
-    grubconf += "timeout 5\n\n"
-
-    # splash screen?
-    # (Disabled for now since GRUB messes up on the serial line when
-    # this is enabled.)
-    if hasSplash and False:
-        grubconf += "\n"
-        grubconf += "foreground = 000000\n"
-        grubconf += "background = cccccc\n"
-        grubconf += "splashimage = /xs-splash.xpm.gz\n\n"
-
-
-    # write the GRUB configuration:
-    util.assertDir("%s/grub" % mounts['boot'])
-    menulst_file = open("%s/grub/menu.lst" % mounts['boot'], "w")
-    menulst_file.write(grubconf)
-    xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
-    writeMenuItems(xen_kernel_version, menulst_file, writeGrubMenuItem, serial)
-    menulst_file.close()
 
     # now perform our own installation, onto the MBR of the selected disk:
     xelogging.log("About to install GRUB.  Install to disk %s" % grubroot)

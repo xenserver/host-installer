@@ -24,6 +24,7 @@ import xelogging
 import repository
 from disktools import *
 import hardware
+import bootloader
 import xml.dom.minidom
 
 class SettingsNotAvailable(Exception):
@@ -408,39 +409,13 @@ class ExistingInstallation:
         boot_fs = None
         try:
             boot_fs = util.TempMount(self.boot_device, 'boot-', ['ro'], 'ext3')
-            if os.path.exists(os.path.join(boot_fs.mount_point, "boot/extlinux.conf")):
-                conf = open(os.path.join(boot_fs.mount_point, "boot/extlinux.conf"), 'r')
-                results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
-                for line in conf:
-                    l = line.strip().lower()
-                    if l.startswith('# location'):
-                        els = line.split()
-                        if len(els) == 3 and els[2] in ['mbr', 'partition']:
-                            results['bootloader-location'] = els[2]
-                    elif l.startswith('serial'):
-                        val = l.split()
-                        if len(val) > 2:
-                            results['serial-console'] = hardware.SerialPort(int(val[1]), baud = val[2])
-                    elif l.startswith('default'):
-                        results['boot-serial'] = l.endswith('xe-serial')
-                conf.close()
-            elif os.path.exists(os.path.join(boot_fs.mount_point, "boot/grub/menu.lst")):
-                conf = open(os.path.join(boot_fs.mount_point, "boot/grub/menu.lst"), 'r')
-                results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
-                for line in conf:
-                    l = line.strip().lower()
-                    if l.startswith('# location'):
-                        els = line.split()
-                        if len(els) == 3 and els[2] in ['mbr', 'partition']:
-                            results['bootloader-location'] = els[2]
-                    elif l.startswith('serial'):
-                        args = util.splitArgs(l.split()[1:])
-                        if '--unit' in args and '--speed' in args:
-                            results['serial-console'] = hardware.SerialPort(int(args['--unit']),
-                                                                            baud = args['--speed'])
-                    elif l.startswith('default'):
-                        results['boot-serial'] = l.endswith('1')
-                conf.close()
+            boot_config = bootloader.Bootloader.loadExisting(boot_fs.mount_point)
+            if boot_config.serial:
+                results['serial-console'] = hardware.SerialPort(boot_config.serial['port'],
+                                                                baud = str(boot_config.serial['baud']))
+            results['bootloader-location'] = boot_config.location
+            results['boot-serial'] = (boot_config.default == 'xe-serial')
+            results['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), boot_config.menu[boot_config.default].getHypervisorArgs())
         except:
             pass
         if boot_fs:

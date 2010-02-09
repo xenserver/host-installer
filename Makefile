@@ -36,6 +36,7 @@ install:
 	install -m644 snackutil.py $(INSTALLER_DIR)
 	install -m644 cpiofile.py $(INSTALLER_DIR)
 	install -m644 scripts.py $(INSTALLER_DIR)
+	install -m644 bootloader.py $(INSTALLER_DIR)
 # TUI
 	mkdir -p $(INSTALLER_DIR)/tui
 	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
