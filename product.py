@@ -163,15 +163,15 @@ class ExistingInstallation:
     def isUpgradeable(self):
         self.mount_state()
         try:
-            state_files = os.listdir(self.join_state_path('etc/firstboot.d/state'))
             firstboot_files = [ f for f in os.listdir(self.join_state_path('etc/firstboot.d')) \
                                 if f[0].isdigit() and os.stat(self.join_state_path('etc/firstboot.d', f))[stat.ST_MODE] & stat.S_IXUSR ]
+            missing_state_files = filter(lambda x: not self.join_state_path('etc/firstboot.d/state', x), firstboot_files)
 
-            result = (len(state_files) == len(firstboot_files))
+            result = (len(missing_state_files) == 0)
             if not result:
                 xelogging.log('Upgradeability test failed:')
-                xelogging.log('  Firstboot:'+', '.join(firstboot_files))
-                xelogging.log('  State: '+', '.join(state_files))
+                xelogging.log('  Firstboot:     '+', '.join(firstboot_files))
+                xelogging.log('  Missing state: '+', '.join(missing_state_files))
         finally:
             self.unmount_state()
         return result
