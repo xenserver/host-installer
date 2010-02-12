@@ -179,9 +179,8 @@ class NetInterface:
     @staticmethod
     def loadFromPif(pif):
         mode_txt = getText(pif.getElementsByTagName('ip_configuration_mode')[0].childNodes)
-        if mode_txt == 'None':
-            mode = None
-        elif mode_txt == 'Static':
+        mode = None
+        if mode_txt == 'Static':
             mode = NetInterface.Static
         elif mode_txt == 'DHCP':
             mode = NetInterface.DHCP

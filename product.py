@@ -306,7 +306,7 @@ class ExistingInstallation:
                     for node in nodelist:
                         if node.nodeType == node.TEXT_NODE:
                             rc = rc + node.data
-                    return rc.encode()
+                    return rc.strip().encode()
                 
                 xmldoc = xml.dom.minidom.parse(self.join_state_path(constants.DBCACHE))
 
