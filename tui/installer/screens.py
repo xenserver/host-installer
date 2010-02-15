@@ -115,7 +115,7 @@ def hardware_warnings(answers, ram_warning, vt_warning):
     return RIGHT_FORWARDS
 
 def overwrite_warning(answers):
-    button = ButtonChoiceWindow(
+    button = snackutil.ButtonChoiceWindowEx(
         tui.screen,
         "Warning",
         """Only product installations that cannot be upgraded have been detected.
@@ -124,7 +124,7 @@ Continuing will result in a clean installation, all existing configuration will 
 
 Alternatively, please contact a Technical Support Representative for the recommended upgrade path.""",
         ['Ok', 'Back'],
-        width = 60, help = "overwrtwarn"
+        width = 60, help = "overwrtwarn", default = 1,
         )
 
     if button == 'back': return LEFT_BACKWARDS
