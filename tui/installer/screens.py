@@ -45,11 +45,11 @@ def selectDefault(key, entries):
 
 # welcome screen:
 def welcome_screen(answers):
+    driver_answers = {'loaded-drivers': [], 'driver-repos': []}
 
     tui.update_help_line([None, "<F9> load driver"])
 
-    def load_driver():
-        driver_answers = {}
+    def load_driver(driver_answers):
         tui.screen.popHelpLine()
         tui.update_help_line([None, ' '])
         drivers = driver.doInteractiveLoadDriver(tui, driver_answers)
@@ -81,7 +81,7 @@ To load a device driver press <F9>.
                                 ['Ok', 'Reboot'], width = 60, help = "welcome",
                                 hotkey = 'F9', hotkey_cb = fn9)
         if loop:
-            load_driver()
+            load_driver(driver_answers)
             tui.update_help_line([None, "<F9> load driver"])
 
     tui.screen.popHelpLine()

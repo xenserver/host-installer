@@ -24,73 +24,61 @@ import util
 import repository
 
 # general
+from version import *
 import xelogging
 
 def doInteractiveLoadDriver(ui, answers):
-    driver_repos = []
-    incompat_drivers = []
     media = None
     address = None
-    required_list = []
+    required_repo_list = []
+    loaded_drivers = []
 
-    rc = ui.init.driver_disk_sequence(answers, driver_repos)
+    rc = ui.init.driver_disk_sequence(answers, answers['driver-repos'], answers['loaded-drivers'])
     if rc:
         media, address = rc
         repos = repository.repositoriesFromDefinition(media, address)
-
-        # put firmware in place:
-        for r in repos:
-            repo_has_drivers = False
-            for p in r:
-                if p.type == 'firmware':
-                    p.provision()
-                    repo_has_drivers = True
-            if repo_has_drivers:
-                driver_repos.append(r)
+        compat_driver = False
 
         # now load the drivers:
         for r in repos:
-            repo_has_drivers = False
             for p in r:
-                if p.type.startswith('driver'):
-                    repo_has_drivers = True
-                    if not p.is_compatible():
-                        incompat_drivers.append(p)
-                    elif p.is_loadable():
-                        if not answers.has_key('loaded-drivers'):
-                            answers['loaded-drivers'] = []
-                        if p.name not in answers['loaded-drivers']:
-                            if p.load() == 0:
-                                answers['loaded-drivers'].append(p.name)
-                            else:
-                                repo_has_drivers = False
-                                ButtonChoiceWindow(
-                                    ui.screen,
-                                    "Problem Loading Driver",
-                                    "Setup was unable to load the device driver %s you specified." % p.name,
-                                    ['Ok']
-                                    )
-            if repo_has_drivers:
-                driver_repos.append(r)
+                if p.type.startswith('driver') and p.is_loadable():
+                    if p.name not in answers['loaded-drivers']:
+                        compat_driver = True
+                        if p.load() == 0:
+                            loaded_drivers.append(p.name)
+                            if r not in required_repo_list:
+                                required_repo_list.append(r)
+                        else:
+                            ButtonChoiceWindow(
+                                ui.screen,
+                                "Problem Loading Driver",
+                                "Setup was unable to load the device driver %s." % p.name,
+                                ['Ok']
+                                )
 
-    text = "The following drivers were successfully loaded:\n\n"
-    for dr in driver_repos:
-        text += " * %s\n" % dr.name()
-        required_list.append(str(dr))
+        if not compat_driver:
+            ButtonChoiceWindow(
+                ui.screen,
+                "No Compatible Drivers",
+                "Setup was unable to find any drivers compatible with this version of %s." % PRODUCT_BRAND,
+                ['Ok']
+                )
+        elif len(loaded_drivers) > 0:
+            answers['loaded-drivers'] += loaded_drivers
+            answers['driver-repos'] += map(lambda r: str(r), required_repo_list)
+            text = "The following drivers were successfully loaded:\n\n"
 
-    if len(incompat_drivers) > 0:
-        text += "\nThe following drivers are not compatible with this release but will be installed anyway:\n\n"
-        for p in incompat_drivers:
-            text += " * %s\n" % p.name
+            for dr in loaded_drivers:
+                text += " * %s\n" % dr
 
-    if len(driver_repos) > 0:
-        ButtonChoiceWindow(
-            ui.screen,
-            "Drivers Loaded",
-            text,
-            ['Ok'])
+                ButtonChoiceWindow(
+                    ui.screen,
+                    "Drivers Loaded",
+                    text,
+                    ['Ok'])
 
-    return media, address, required_list
+    return media, address, required_repo_list
 
 def main(args):
     if len(doInteractiveLoadDriver(tui, {})) > 0:

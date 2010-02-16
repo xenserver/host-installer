@@ -236,12 +236,15 @@ def confirm_load_repo(answers, label, installed_repos):
             ['Back'])
         return LEFT_BACKWARDS
 
-    repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
+    if label == 'driver':
+        repos = filter(lambda r: True in map(lambda p: p.type.startswith('driver'), r), repos)
+    else:
+        repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
         
     if len(repos) == 0:
         ButtonChoiceWindow(
             tui.screen, "No %s Found" % cap_label,
-            """No compatible %ss were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""" % (label, PRODUCT_BRAND),
+            """No %s compatible %ss were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""" % (version.PRODUCT_BRAND, label),
             ['Back'])
         return LEFT_BACKWARDS
 
