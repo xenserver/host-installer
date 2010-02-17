@@ -187,11 +187,12 @@ def more_media_sequence(installed_repos, still_need):
             text = ''
             for need in still_need:
                 if text == '':
-                    text = "The following Supplemental Packs should be supplied to complete installation:\n\n"
+                    text = "The following Supplemental Packs must be supplied to complete installation:\n\n"
                 text += " * %s\n" % need
-            text += "\nWhen there are no more Supplemental Packs to install press Cancel."
-            more = tui.progress.OKDialog("New Media", "Please insert your Supplemental Pack now.\n" + text, True)
-            if more == "cancel":
+            text += "\nWhen there are no more Supplemental Packs to install press Skip."
+            more = ButtonChoiceWindow(tui.screen, "New Media", "Please insert your Supplemental Pack now.\n" + text,
+                                      ['Ok', 'Skip'], 40)
+            if more == "skip":
                 # they hit cancel:
                 rv = EXIT
                 done = True

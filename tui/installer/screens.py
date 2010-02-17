@@ -580,7 +580,7 @@ def select_guest_disks(answers):
     for (c_text, c_item) in entries:
         cbt.append(c_text, c_item, c_item in currently_selected)
     
-    gf = GridFormHelp(tui.screen, 'Guest Storage', 'guestdisk:info', 1, 3)
+    gf = GridFormHelp(tui.screen, 'Virtual Machine Storage', 'guestdisk:info', 1, 3)
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 2, growx = 1)
@@ -664,7 +664,7 @@ def get_root_password(answers):
     while not done:
         (button, result) = snackutil.PasswordEntryWindow(
             tui.screen, "Set Password",
-            "Please specify the root password for this installation. \n\n(This is the password used when connecting to the %s from %s.)" % (BRAND_SERVER, BRAND_CONSOLE), 
+            "Please specify a password of at least %d characters for the root account. \n\n(This is the password used when connecting to the %s from %s.)" % (constants.MIN_PASSWD_LEN, BRAND_SERVER, BRAND_CONSOLE), 
             ['Password', 'Confirm'], buttons = ['Ok', 'Back'],
             )
         if button == 'back': return LEFT_BACKWARDS

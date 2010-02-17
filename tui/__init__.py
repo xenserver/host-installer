@@ -31,7 +31,7 @@ To select check boxes and radio buttons press <Space>.
 
 To advance to the next screen navigate to the Ok button and press Enter or press <F12>."""
     if 'info' in context:
-        text += "\n\nTo view additional details about a higlighted item press <F5>."
+        text += "\n\nTo view additional details about a highlighted item press <F5>."
 
     OKDialog("General Help", text, width = 50)
 
