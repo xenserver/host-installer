@@ -191,6 +191,8 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += ['var/xapi/state.db', 'etc/xensource/license']
         self.restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
 
+        self.restore_list += ['etc/xensource/syslog.conf']
+
         self.restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
 
         # CP-1508: preserve AD config
