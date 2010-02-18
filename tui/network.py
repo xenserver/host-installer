@@ -126,7 +126,7 @@ def select_netif(text, conf, default=None):
     """
 
     netifs = conf.keys()
-    netifs.sort()
+    netifs.sort(lambda l, r: int(l[3:]) - int(r[3:]))
 
     if default not in netifs:
         # find first link that is up

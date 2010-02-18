@@ -35,7 +35,7 @@ def scanConfiguration():
 def getNetifList():
     all = os.listdir("/sys/class/net")
     relevant = filter(lambda x: x.startswith("eth"), all)
-    relevant.sort()
+    relevant.sort(lambda l, r: int(l[3:]) - int(r[3:]))
     return relevant
 
 # writes an 'interfaces' style file given a network configuration object list
