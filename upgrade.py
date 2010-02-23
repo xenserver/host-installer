@@ -401,6 +401,10 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
                 if lvmSize <= (2 * rootByteSize):
                     xelogging.log("FATAL: SR too small, %d < %d" % (lvmSize, 2 * rootByteSize))
                     raise RuntimeError, "Storage Repository partition is too small to be resized."
+                lvmFree = lvmTool.deviceFreeSpace(foundSRDevice)
+                if lvmFree <= (2 * rootByteSize):
+                    xelogging.log("FATAL: SR too full, %d < %d" % (lvmFree, 2 * rootByteSize))
+                    raise RuntimeError, "Storage Repository partition has insufficient free space to be resized."
                 lvmTool.resizeDevice(foundSRDevice, lvmSize - 2 * rootByteSize)
                 partitionSize = partTool.partitionSize(foundSRNumber)
                 partTool.resizePartition(foundSRNumber, partitionSize - 2 * rootByteSize)
