@@ -171,7 +171,7 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(runPostInstallScripts, A(ans, 'mounts'), []),
-        Task(mkinitrd, A(ans, 'mounts', 'primary-disk'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
@@ -182,6 +182,7 @@ def getFinalisationSequence(ans):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(prepareStorageRepositories, A(ans, 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
+            Task(configureSRMultipathing, A(ans, 'mounts', 'primary-disk'), []),
             ]
     if ans['time-config-method'] == 'ntp':
         seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
@@ -566,10 +567,11 @@ def createDom0DiskFilesystems(disk, primary_partnum):
     if rc != 0:
         raise RuntimeError, "Failed to create filesystem: %s" % err
 
-def __mkinitrd(mounts, primary_disk, kernel_version):
+def __mkinitrd(mounts, partition, kernel_version):
 
-    # the mkinitrd command line
-    cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic']
+    # --rootdev ensures correct device is found when there's multiple 
+    # with same LABEL. (Which is the case when root is multipath.)
+    cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic', '--rootdev', partition]
 
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
@@ -599,11 +601,22 @@ def getKernelVersion(rootfs_mount, kextra):
     assert len(out) == 1, "Installer only supports having a single kernel of each type installed.  Found %d of kernel-%s" % (len(out), kextra)
     return out[0]
 
-def mkinitrd(mounts, primary_disk):
+def configureSRMultipathing(mounts, primary_disk):
+    # Only called on fresh installs:
+    # Configure multipathed SRs iff root disk is multipathed
+    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'),'w')
+    if isDeviceMapperNode(primary_disk):
+        fd.write("MULTIPATHING_ENABLED='True'\n")
+    else:
+        fd.write("MULTIPATHING_ENABLED='False'\n")
+    fd.close()
+
+def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
-    __mkinitrd(mounts, primary_disk, xen_kernel_version)
-    __mkinitrd(mounts, primary_disk, kdump_kernel_version)
+    partition = PartitionTool.partitionDevice(primary_disk, primary_partnum)
+    __mkinitrd(mounts, partition, xen_kernel_version)
+    __mkinitrd(mounts, partition, kdump_kernel_version)
  
     # make the initrd-2.6-xen.img symlink:
     os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])

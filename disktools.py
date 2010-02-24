@@ -4,7 +4,7 @@
 # trademarks of Citrix Systems, Inc., in the United States and other
 # countries.
 
-import re, subprocess, types
+import re, subprocess, types, os
 from pprint import pprint
 from copy import copy, deepcopy
 import util, xelogging
@@ -466,9 +466,10 @@ class LVMTool:
 
 class PartitionTool:
     SFDISK = '/sbin/sfdisk'
+    BLOCKDEV = '/sbin/blockdev'
     
     DISK_PREFIX = '/dev/'
-    P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel']
+    P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel', 'mapper/']
     PART_STYLE_DISKS = [ 'disk/by-id' ]
     
     DEFAULT_SECTOR_SIZE = 512 # Used if sfdisk won't print its (hardcoded) value
@@ -538,7 +539,7 @@ class PartitionTool:
             raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
         return int(matches.group(1))
 
-    def readDiskDetails(self):
+    def __readDiskDetails(self):
         # Read basic geometry
         out = self.cmdWrap([self.SFDISK, '-Lg', self.device])
         matches = re.match(r'^[^:]*:\s*(\d+)\s+cylinders,\s*(\d+)\s+heads,\s*(\d+)\s+sectors', out)
@@ -565,6 +566,24 @@ class PartitionTool:
                 "Using default value: "+str(self.sectorSize)+"\nsfdisk output:"+out)
                 
         self.byteExtent = self.sectorExtent * self.sectorSize
+
+    def __readDeviceMapperDiskDetails(self):
+        # DM nodes don't have a geometry and this version of sfdisk will return nothing.
+        # Later versions return the default geometry below.
+        self.heads = 255
+        self.sectors = 63
+        out = self.cmdWrap([self.BLOCKDEV, '--getsz', self.device])
+        self.sectorExtent = int(out)
+        self.cylinders = int(self.sectorExtent/(self.heads * self.sectors))
+        self.sectorExtent = self.cylinders * self.heads * self.sectors # Ignore partial cylinder at end
+        self.sectorSize = 512
+        self.byteExtent = self.sectorExtent * self.sectorSize
+
+    def readDiskDetails(self):
+        if isDeviceMapperNode(self.device):
+            self.__readDeviceMapperDiskDetails()
+        else:
+            self.__readDiskDetails()
 
     def partitionTable(self):
         out = self.cmdWrap([self.SFDISK, '-Ld', self.device])
@@ -615,8 +634,18 @@ class PartitionTool:
             input += line+'\n'
         if log:
             xelogging.log('Input to sfdisk:\n'+input)
+
+        if isDeviceMapperNode(self.device):
+            # Destroy device mapper partitions before re-writing partition table on mpath device
+            rv = destroyPartnodes(self.device)
+            if rv:
+                raise Exception('Failed to destroy partitions on ' + self.device)
+            cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '-f', '-C%s' % str(self.cylinders), '-H%s' % str(self.heads), '-S%s' % str(self.sectors), self.device]
+        else:
+            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', self.device]
+        xelogging.log('sfdisk command: %s' % ' '.join(cmd))
         process = subprocess.Popen(
-            [self.SFDISK, dryrun and '-LnuS' or '-LuS', self.device],
+            cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -624,13 +653,26 @@ class PartitionTool:
         output = process.communicate(input)
         if log:
             xelogging.log('Output from sfdisk:\n'+output[0])
-        if process.returncode != 0:
-            raise Exception('Partition changes could not be applied: '+str(output[0]))
-        # CA-35300: sfdisk doesn't return non-zero when the BLKRRPART ioctl fails
-        if 'BLKRRPART: Device or resource busy' in output:
-            raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
-        # Verify the table - raises exception on failure
-        self.cmdWrap([self.SFDISK, '-LVquS', self.device])
+
+        if isDeviceMapperNode(self.device):
+            # Create partitions using device mapper
+            rv = createPartnodes(self.device)
+            if rv:
+                raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
+            for number in table.keys():
+                size = int(self.cmdWrap([self.BLOCKDEV, '--getsz', '%sp%d' % (self.device, number)]))
+                if size != table[number]['size']:
+                    raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, table[number]['size']))
+
+        else:
+            if process.returncode != 0:
+                raise Exception('Partition changes could not be applied: '+str(output[0]))
+
+            # CA-35300: sfdisk doesn't return non-zero when the BLKRRPART ioctl fails
+            if 'BLKRRPART: Device or resource busy' in output:
+                raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
+            # Verify the table - raises exception on failure
+            self.cmdWrap([self.SFDISK, '-LVquS', self.device])
         
     def writePartitionTable(self, dryrun = False, log = False):
         try:
@@ -779,4 +821,101 @@ class PartitionTool:
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
         xelogging.log(output)
+
+
+def destroyPartnodes(dev):
+    # Destroy partition nodes for a device-mapper device
+    dmnodes = [ '/dev/mapper/%s' % f for f in os.listdir('/dev/mapper') ]
+    partitions = filter(lambda dmnode: dmnode.startswith(dev + 'p'), dmnodes)
+    for partition in partitions:
+        # the obvious way to do this is to use "kpartx -d" but that's broken!
+        rv = util.runCmd2(['dmsetup', 'remove', partition])
+        if rv: return rv
+    return 0
+
+def destroyMpathPartnodes():
+    mpnodes = getMpathNodes()
+    for mpnode in mpnodes:
+        rv = destroyPartnodes(mpnode)
+        if rv: return rv
+    return 0
+
+def createPartnodes(dev):
+    # Create partition nodes for a device-mapper device
+    return util.runCmd2(['kpartx', '-a', '-p', 'p', dev])
+
+def createMpathPartnodes():
+    return util.runCmd2(['dmsetup', 'ls', '--target', 'multipath', '--exec', "kpartx -a -p p"])
+
+def getMpathNodes():
+    nodes = []
+    rv, out = util.runCmd2(['dmsetup', 'ls', '--target', 'multipath', '--exec', 'ls'], with_stdout=True)
+    xelogging.log("multipath devs: %s" % out)
+    lines = out.strip().split('\n')
+    for line in lines:
+        if line.startswith('/dev/'):
+            nodes.append(line)
+    return nodes
+
+def getMajMin(dev):
+    buf = os.stat(dev)
+    major = os.major(buf.st_rdev)
+    minor = os.minor(buf.st_rdev)
+    return (major, minor)
+
+def isDeviceMapperNode(dev):
+    return getMajMin(dev)[0] == 251
+
+def getSysfsDir(dev):
+    major, minor = getMajMin(dev)
+    parts = open("/proc/partitions")
+    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
+                    parts.readlines())
+    parts.close()
+    # parse it:
+    disks = []
+    for l in partlines:
+        try:
+           (_major, _minor, size, name) = l.split(" ")
+           if (major, minor) == (int(_major), int(_minor)):
+               return '/sys/block/%s' % name
+        except:
+            pass
+    raise RuntimeError, "Couldn't find sysfs dir for device %s" % dev
+
+def hasDeviceMapperHolder(dev):
+    sysfs = getSysfsDir(dev)
+    if os.path.exists('%s/holders' % sysfs):
+        for holder in os.listdir('%s/holders' % sysfs):
+            if holder.startswith('dm-'):
+                return True
+    return False
+
+def getMpathSlaves(disk):
+    """ Return the list of slaves for an mpath device or an empty list if not mpath """    
+    slaves = []
+    major, minor = getMajMin(disk)
+    rv, out = util.runCmd2(['sh','-c','ls -d1 /sys/block/*/holders/*/dev'],with_stdout=True)
+    lines = out.strip().split('\n')
+    lines = filter(lambda x: x != '', lines)
+    for f in lines:
+        _, _, _, dev, _, _, _ = f.split('/')
+        __major, __minor = map(int, open(f).read().split(':'))
+        if (__major, __minor) == (major, minor):
+            dev = '/dev/' + dev.replace("!", "/")
+            slaves.append(dev)
+    return slaves
+
+def getMpathMaster(dev):
+    "Returns master device or False"
+    d = getSysfsDir(dev)
+    holders = os.listdir('%s/holders' % d)
+    if len(holders) == 1 and holders[0].startswith('dm-'):
+        holder = holders[0]
+        (major,minor) = map(int,open('/sys/block/%s/dev' % holder).read().strip().split(':'))
+        for i in os.listdir('/dev/mapper'):
+            dmdev = '/dev/mapper/%s' % i 
+            if getMajMin(dmdev) == (major,minor):
+                return dmdev
+    return None
 
