@@ -145,8 +145,13 @@ class Answerfile:
         results['guest-disks'] = []
         if pd_has_guest_storage:
             results['guest-disks'].append(results['primary-disk'])
-        for disk in self.nodelist.getElementsByTagName('guest-disk'):
-            results['guest-disks'].append(normalize_disk(getText(disk.childNodes)))
+        for disknode in self.nodelist.getElementsByTagName('guest-disk'):
+            disk = normalize_disk(getText(disknode.childNodes))
+            # Replace references to multipath slaves with references to their multipath masters
+            master = disktools.getMpathMaster(disk)
+            if master:
+                disk = master
+            results['guest-disks'].append(disk)
 
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
