@@ -24,6 +24,51 @@ import time
 
 use_mpath = False
 
+
+regex = re.compile("[0-9]+:[0-9]+:[0-9]+:[0-9]+\s*([a-z]*)")
+regex2 = re.compile("multipathd>(\s*[^:]*:)?\s+(.*)")
+
+def mpath_cli_mpexec(cmd):
+    xelogging.log("mpath cmd: %s" % cmd)
+    (rc,stdout,stderr) = util.runCmd2(["multipathd", "-k"],with_stdout=True, with_stderr=True, inputtext=cmd)
+    if stdout != "multipathd> ok\nmultipathd> ":
+        raise Exception("multipath cli command %s failed\n" % cmd)
+
+def mpath_cli_do_get_topology(cmd):
+    xelogging.log("mpath cmd: %s" % cmd)
+    (rc,stdout,stderr) = util.runCmd2(["multipathd","-k"], with_stdout=True, with_stderr=True, inputtext=cmd)
+    xelogging.log("mpath output: %s" % stdout)
+    lines = stdout.split('\n')[:-1]
+    if len(lines):
+	    m=regex2.search(lines[0])
+	    lines[0]=str(m.group(2))
+    return lines
+
+def mpath_cli_get_topology(scsi_id):
+    cmd="show map %s topology" % scsi_id
+    return mpath_cli_do_get_topology(cmd)
+
+def mpath_cli_list_paths(scsi_id):
+    lines = mpath_cli_get_topology(scsi_id)
+    matches = []
+    for line in lines:
+        m=regex.search(line)
+        if(m):
+            matches.append(m.group(1))
+    return matches
+
+def mpath_cli_remove_path(path):
+    mpath_cli_mpexec("remove path %s" % path)
+
+def mpath_cli_remove_map(m):
+    mpath_cli_mpexec("remove map %s" % m)
+
+def mpath_remove(scsi_id):
+    paths = mpath_cli_list_paths(scsi_id)
+    mpath_cli_remove_map(scsi_id)
+    for path in paths:
+        mpath_cli_remove_path(path)
+
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
     try:
@@ -63,13 +108,10 @@ def mpath_enable():
     # Remove multipath nodes for non-SAN disks
     regex = re.compile(" ok")
     for dev in getMpathNodes():
-        mapname = dev.split('/')[-1]
+        scsi_id = dev.split('/')[-1]
         slave = getMpathSlaves(dev)[0]
         if not mpath_supported(slave):
-            (rc,stdout) = util.runCmd2(["multipathd","-k"], with_stdout=True, inputtext="remove map %s" % mapname)
-            m = regex.search(stdout)
-            if not m:
-                raise Exception("Could not remove map %s" % mapname)
+            mpath_remove(scsi_id)
     
     assert 0 == createMpathPartnodes()
     xelogging.log("created multipath device(s)");

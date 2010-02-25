@@ -572,6 +572,8 @@ def __mkinitrd(mounts, partition, kernel_version):
     # --rootdev ensures correct device is found when there's multiple 
     # with same LABEL. (Which is the case when root is multipath.)
     cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic', '--rootdev', partition]
+    if not isDeviceMapperNode(partition):
+        cmd.append('--without-multipath')
 
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))

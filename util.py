@@ -79,6 +79,8 @@ def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None)
         rv = cmd.wait()
 
     l = "ran %s; rc %d" % (str(command), rv)
+    if inputtext:
+        l += " with input %s" % inputtext
     if out != "":
         l += "\nSTANDARD OUT:\n" + out
     if err != "":
