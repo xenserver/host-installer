@@ -16,7 +16,6 @@ import product
 import xelogging
 import netutil
 import diskutil
-import disktools
 from netinterface import *
 import os
 import stat
@@ -129,15 +128,7 @@ class Answerfile:
 
         # primary-disk:
         pd = self.nodelist.getElementsByTagName('primary-disk')
-        disk = normalize_disk(getText(pd[0].childNodes))
-
-        # If we're using multipath and the answerfile names a multipath
-        # slave, then we want to install to the master!
-        master = disktools.getMpathMaster(disk)
-        if master:
-            disk = master
-        results['primary-disk'] = disk
-
+        results['primary-disk'] = normalize_disk(getText(pd[0].childNodes))
         pd_has_guest_storage = pd[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
         results['sr-at-end'] = pd[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
 
@@ -188,13 +179,7 @@ class Answerfile:
 
         target_nodes = self.nodelist.getElementsByTagName('primary-disk')
         if len(target_nodes) == 1:
-            disk = normalize_disk(getText(target_nodes[0].childNodes))
-
-            # If answerfile names a multipath replace with the master!
-            master = disktools.getMpathMaster(disk)
-            if master:
-                disk = master
-            results['primary-disk'] = disk
+            results['primary-disk'] = normalize_disk(getText(target_nodes[0].childNodes))
 
         results.update(self.parseSource())
         results.update(self.parseDriverSource())
@@ -313,12 +298,6 @@ class Answerfile:
         if len(self.nodelist.getElementsByTagName('existing-installation')) == 0:
             raise AnswerfileError, "No existing installation specified."
         disk = "/dev/" + getText(self.nodelist.getElementsByTagName('existing-installation')[0].childNodes)
-
-        # If answerfile names a multipath replace with the master!
-        master = disktools.getMpathMaster(disk)
-        if master:
-            disk = master
-
         results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()

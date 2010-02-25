@@ -15,71 +15,11 @@ import os.path
 import constants
 import CDROM
 import fcntl
-import devscan
+
 import util
 from util import dev_null
 import xelogging
 from disktools import *
-import time
-
-use_mpath = False
-
-def mpath_cli_is_working():
-    regex = re.compile("switchgroup")
-    try:
-        (rc,stdout) = util.runCmd2(["multipathd","-k"], with_stdout=True, inputtext="help")
-        m=regex.search(stdout)
-        if m:
-            return True
-        else:
-            return False
-    except:
-        return False
-
-def wait_for_multipathd():
-    for i in range(0,120):
-        if mpath_cli_is_working():
-            return
-        time.sleep(1)
-    msg = "Unable to contact Multipathd daemon"
-    xelogging.log(msg)
-    raise Exception(msg)
-
-adapters=None
-def mpath_supported(dev):
-    # Determine whether we support multipathing over this devices.
-    # adapters is a dict describing the support adapters present.
-    global adapters
-    if adapters == None:
-        adapters = devscan.adapters()
-    return dev.replace('/dev/','') in adapters['devs'].keys()
-
-def mpath_enable():
-    global use_mpath
-    assert 0 == util.runCmd2(['modprobe','dm-multipath'])
-    assert 0 == util.runCmd2(['/sbin/multipathd'])
-    wait_for_multipathd()
-
-    # Remove multipath nodes for non-SAN disks
-    regex = re.compile(" ok")
-    for dev in getMpathNodes():
-        mapname = dev.split('/')[-1]
-        slave = getMpathSlaves(dev)[0]
-        if not mpath_supported(slave):
-            (rc,stdout) = util.runCmd2(["multipathd","-k"], with_stdout=True, inputtext="remove map %s" % mapname)
-            m = regex.search(stdout)
-            if not m:
-                raise Exception("Could not remove map %s" % mapname)
-    
-    assert 0 == createMpathPartnodes()
-    xelogging.log("created multipath device(s)");
-    use_mpath = True
-
-def mpath_disable():
-    destroyMpathPartnodes()
-    util.runCmd2(['killall','multipathd'])
-    util.runCmd2(['/sbin/multipath','-F'])
-    use_mpath = False
 
 # hd* -> (ide has majors 3, 22, 33, 34, 56, 57, 88, 89, 90, 91, each major has
 # two disks, with minors 0... and 64...)
@@ -126,29 +66,32 @@ def getDiskList():
             if (major, minor) in disk_nodes:
                 if major == 202 and isRemovable("/dev/" + name): # Ignore PV CDROM devices
                     continue
-                if hasDeviceMapperHolder("/dev/" + name.replace("!","/")):
-                    # skip device that cannot be used
-                    continue
                 disks.append(name.replace("!", "/"))
         except:
             # it wasn't an actual entry, maybe the headers or something:
             continue
-    # Add multipath nodes to list
-    disks.extend(map(lambda node: node.replace('/dev/',''), getMpathNodes()))
-
     return disks
 
+# this works on this principle that everything that isn't a
+# disk (according to our disk_nodes) is a partition.
 def getPartitionList():
-    disks = getDiskList()
-    rv  = []
-    for disk in disks:
-        if isDeviceMapperNode('/dev/' + disk):
-            name = disk.split('/',1)[1]
-            partitions = filter(lambda s: s.startswith("%sp" % name), os.listdir('/dev/mapper/'))
-            partitions = map(lambda s: "mapper/%s" % s, partitions)
-        else:
-            partitions = filter(lambda s: s.startswith(disk), os.listdir('/sys/block/%s' % disk))
-        rv.extend(partitions)
+    # read the partition tables:
+    parts = open("/proc/partitions")
+    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
+                    parts.readlines())
+    parts.close()
+
+    rv = []
+    for l in partlines:
+        try:
+            (major, minor, size, name) = l.split(" ")
+            (major, minor, size) = (int(major), int(minor), int(size))
+            if (major, minor) not in disk_nodes:
+                rv.append(name.replace("!", "/"))
+        except:
+            # it wasn't an actual entry, maybe the headers or something:
+            continue
+
     return rv
 
 def partitionsOnDisk(dev):
@@ -211,13 +154,6 @@ def __readOneLineFile__(filename):
         raise e
 
 def getDiskDeviceVendor(dev):
-
-    # For Multipath nodes return info about 1st slave
-    if not dev.startswith("/dev/"):
-        dev = '/dev/' + dev
-    if isDeviceMapperNode(dev):
-        return getDiskDeviceVendor(getMpathSlaves(dev)[0])
-
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
     dev = dev.replace("/", "!")
@@ -227,13 +163,6 @@ def getDiskDeviceVendor(dev):
         return ""
 
 def getDiskDeviceModel(dev):
-
-    # For Multipath nodes return info about 1st slave
-    if not dev.startswith("/dev/"):
-        dev = '/dev/' + dev
-    if isDeviceMapperNode(dev):
-        return getDiskDeviceModel(getMpathSlaves(dev)[0])
-
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
     dev = dev.replace("/", "!")
@@ -243,13 +172,6 @@ def getDiskDeviceModel(dev):
         return ""
     
 def getDiskDeviceSize(dev):
-
-    # For Multipath nodes return info about 1st slave
-    if not dev.startswith("/dev/"):
-        dev = '/dev/' + dev
-    if isDeviceMapperNode(dev):
-        return getDiskDeviceSize(getMpathSlaves(dev)[0])
-
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
     dev = dev.replace("/", "!")
@@ -259,13 +181,6 @@ def getDiskDeviceSize(dev):
         return int(__readOneLineFile__("/sys/block/%s/size" % dev))
 
 def isRemovable(path):
-
-    # Multipath nodes are not removable
-    if not dev.startswith("/dev/"):
-        dev = '/dev/' + dev
-    if isDeviceMapperNode(dev):
-        return False
-
     if path.startswith("/dev/"):
         dev = re.match("/dev/(.*)", path).group(1)
     else:
@@ -301,8 +216,11 @@ def getHumanDiskSize(blocks):
     return "%d GB" % blockSizeToGBSize(blocks)
 
 def getExtendedDiskInfo(disk, inMb = 0):
-    return (getDiskDeviceVendor(disk), getDiskDeviceModel(disk),
-            inMb and (getDiskDeviceSize(disk)/2048) or getDiskDeviceSize(disk))
+    devname = disk.replace("/dev/", "")
+
+    return (getDiskDeviceVendor(devname),
+            getDiskDeviceModel(devname),
+            inMb and (getDiskDeviceSize(devname)/2048) or getDiskDeviceSize(devname))
 
 def readFATPartitionLabel(partition):
     """Read the FAT partition label directly, including whitespace."""
@@ -330,13 +248,6 @@ def readExtPartitionLabel(partition):
     return label
 
 def getHumanDiskName(disk):
-
-    # For Multipath nodes return info about 1st slave
-    if not disk.startswith("/dev/"):
-        disk = '/dev/' + disk
-    if isDeviceMapperNode(disk):
-        return getHumanDiskName(getMpathSlaves(disk)[0])
-
     if disk.startswith('/dev/disk/by-id/'):
         return disk[16:]
     if disk.startswith('/dev/'):

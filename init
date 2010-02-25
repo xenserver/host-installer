@@ -25,7 +25,6 @@ import install
 import init_constants
 import xelogging
 import netutil
-import diskutil
 import util
 from netinterface import *
 
@@ -92,7 +91,6 @@ def main(args):
     reboot = False
     answerfile_address = None
     answerfile_script = None
-    mpath = True
     
     xelogging.log("%s Setup - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
     xelogging.log("Command line args (raw): %s" % str(sys.argv))
@@ -118,8 +116,6 @@ def main(args):
             answer_device = val.lower()
         elif opt == "--reboot":
             reboot = True
-        elif opt == "--no_mpath":
-            mpath = False
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -156,11 +152,6 @@ def main(args):
 
         xelogging.writeLog("/tmp/startup-log")
 
-    # Ensure multipath devices are created if installer is being run with the "--mpath" option
-    # TODO: make sure correct binaries are in installer initrd
-    if mpath:
-        diskutil.mpath_enable()
-
     if init_network:
         configureNetworking(ui, answer_device)
 
@@ -170,10 +161,6 @@ def main(args):
 
     if ui:
         ui.end_ui()
-
-    # Bring down multipath devices to ensure they're flushed
-    if mpath:
-        diskutil.mpath_disable()
 
     # stop logging to tty3:
     xelogging.closeLogs()
