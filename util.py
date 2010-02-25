@@ -58,20 +58,25 @@ def copyFilesFromDir(sourcedir, dest):
 ###
 # shell
 
-def runCmd2(command, with_stdout = False, with_stderr = False):
+def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None):
     out = ""
     err = ""
     cmd = subprocess.Popen(command, bufsize = 1,
+                           stdin = (inputtext and subprocess.PIPE or None),
                            stdout = subprocess.PIPE,
                            stderr = subprocess.PIPE,
                            shell = isinstance(command, str))
 
-    for line in cmd.stdout:
-        out += line
-    for line in cmd.stderr:
-        err += line
-
-    rv = cmd.wait()
+    if inputtext:
+        (out, err) = cmd.communicate(inputtext)
+        rv = cmd.returncode
+    else:
+        (stdout, stderr) = (cmd.stdout, cmd.stderr)
+        for line in stdout:
+            out += line
+        for line in stderr:
+            err += line
+        rv = cmd.wait()
 
     l = "ran %s; rc %d" % (str(command), rv)
     if out != "":

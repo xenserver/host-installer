@@ -23,6 +23,7 @@ install:
 	install -m644 backend.py $(INSTALLER_DIR)
 	install -m644 constants.py $(INSTALLER_DIR)
 	install -m644 diskutil.py $(INSTALLER_DIR)
+	install -m644 devscan.py $(INSTALLER_DIR)
 	install -m644 disktools.py $(INSTALLER_DIR)
 	install -m644 driver.py $(INSTALLER_DIR)
 	install -m644 generalui.py $(INSTALLER_DIR)
