@@ -553,6 +553,13 @@ def select_guest_disks(answers):
     # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
 
+    # CA-38329: filter out device mapper nodes (except primary disk) as these won't exist
+    # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
+    # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
+    # in the "Local" SR.
+    allowed_in_local_sr = lambda dev: (dev == answers['primary-disk']) or (not isDeviceMapperNode(dev))
+    diskEntries = filter(allowed_in_local_sr, diskEntries)
+
     if len(diskEntries) == 0:
         answers['guest-disks'] = []
         return SKIP_SCREEN

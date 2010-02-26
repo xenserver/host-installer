@@ -150,6 +150,12 @@ class Answerfile:
             # Replace references to multipath slaves with references to their multipath masters
             master = disktools.getMpathMaster(disk)
             if master:
+                # CA-38329: disallow device mapper nodes (except primary disk) as these won't exist
+                # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
+                # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
+                # in the "Local" SR.
+                if master != results['primary-disk']:
+                    raise AnswerfileError, "Answerfile specifies non-local disk %s to add to Local SR" % disk
                 disk = master
             results['guest-disks'].append(disk)
 
