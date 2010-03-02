@@ -878,6 +878,7 @@ def getSysfsDir(dev):
         try:
            (_major, _minor, size, name) = l.split(" ")
            if (major, minor) == (int(_major), int(_minor)):
+               name = name.replace('/','!')
                return '/sys/block/%s' % name
         except:
             pass
