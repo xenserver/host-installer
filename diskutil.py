@@ -102,7 +102,7 @@ def mpath_supported(dev):
 def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
-    assert 0 == util.runCmd2(['/sbin/multipathd'])
+    assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
     wait_for_multipathd()
 
     # Remove multipath nodes for non-SAN disks
