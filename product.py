@@ -163,6 +163,9 @@ class ExistingInstallation:
     def isUpgradeable(self):
         self.mount_state()
         try:
+            # CA-38459: handle missing firstboot directory e.g. Rio
+            if not os.path.exists(self.join_state_path('etc/firstboot.d/state')):
+                return False
             firstboot_files = [ f for f in os.listdir(self.join_state_path('etc/firstboot.d')) \
                                 if f[0].isdigit() and os.stat(self.join_state_path('etc/firstboot.d', f))[stat.ST_MODE] & stat.S_IXUSR ]
             missing_state_files = filter(lambda x: not self.join_state_path('etc/firstboot.d/state', x), firstboot_files)
