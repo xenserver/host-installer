@@ -304,11 +304,8 @@ def getDiskDeviceSize(dev):
 
 def isRemovable(path):
 
-    # Multipath nodes are not removable
-    if not path.startswith("/dev/"):
-        path = '/dev/' + path
-    if isDeviceMapperNode(path):
-        return False
+    if path.startswith('/dev/mapper') or path.startswith('/dev/dm-') or path.startswith('dm-'):
+        return False 
 
     if path.startswith("/dev/"):
         dev = re.match("/dev/(.*)", path).group(1)
