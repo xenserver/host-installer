@@ -189,7 +189,9 @@ def getPartitionList():
             partitions = filter(lambda s: s.startswith("%sp" % name), os.listdir('/dev/mapper/'))
             partitions = map(lambda s: "mapper/%s" % s, partitions)
         else:
-            partitions = filter(lambda s: s.startswith(disk), os.listdir('/sys/block/%s' % disk))
+            name = disk.replace("/", "!")
+            partitions = filter(lambda s: s.startswith(name), os.listdir('/sys/block/%s' % name))
+            partitions = map(lambda n: n.replace("!","/"), partitions)
         rv.extend(partitions)
     return rv
 
