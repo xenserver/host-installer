@@ -150,7 +150,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(tui.repo.get_source_location,
              args=[True],
              predicates=[is_using_remote_media_fn]),
-        Step(tui.repo.verify_source, args=['installation'], predicates=[is_not_restore_fn]),
+        Step(tui.repo.verify_source, args=['installation', True], predicates=[is_not_restore_fn]),
         Step(uis.get_root_password,
              predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_admin_interface,

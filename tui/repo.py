@@ -300,7 +300,7 @@ def confirm_load_repo(answers, label, installed_repos):
     return RIGHT_FORWARDS
 
 # verify the installation source?
-def verify_source(answers, label):
+def verify_source(answers, label, require_base_repo):
     cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
     if 'source-media' in answers and 'source-address' in answers:
         media = answers['source-media']
@@ -334,14 +334,18 @@ def verify_source(answers, label):
                 repos = repository.repositoriesFromDefinition(media, address)
                 tui.progress.clearModelessDialog()
 
-                done = interactive_source_verification(
-                    repos, label
-                    )
+                if require_base_repo and constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in repos]:
+                    ButtonChoiceWindow(
+                        tui.screen, "Error",
+                        """A base installation repository was not found.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
+                        ['Ok'])
+                else:
+                    done = interactive_source_verification(repos, label)
             except:
                 ButtonChoiceWindow(
                     tui.screen, "Error",
                     """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
-                    ['Back'])
+                    ['Ok'])
         else:
             done = True
 

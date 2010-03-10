@@ -342,6 +342,8 @@ def performInstallation(answers, ui_package):
     if len(new_ans['installed-repos']) == 0 and len(all_repositories) == 0:
         # CA-29016: main repository has vanished
         raise RuntimeError, "No repository found at the specified location."
+    if constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in all_repositories]:
+        raise RuntimeError, "Main repository not found at the specified location."
 
     for driver_repo_def in answers['extra-repos']:
         rtype, rloc, required_list = driver_repo_def
