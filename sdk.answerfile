@@ -2,7 +2,7 @@
 <installation>
 <keymap>us</keymap>
 <primary-disk gueststorage="no">xvda</primary-disk>
-<root-password>xenroot</root-password>
+<root-password>Citrix</root-password>
 <source type="local"></source>
 <admin-interface name="eth0" proto="dhcp" />
 <timezone>Etc/UTC</timezone>
