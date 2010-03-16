@@ -11,6 +11,7 @@
 # written by Andrew Peace
 
 import os
+import diskutil
 import util
 import re
 import subprocess
@@ -26,10 +27,18 @@ class NIC:
 
 def scanConfiguration():
     """ Returns a dictionary of string -> NIC with a snapshot of the NIC
-    configuration."""
+    configuration.
+    
+    Filter out any NICs that have been reserved by the iBFT for use
+    with boot time iSCSI targets.  (iBFT = iSCSI Boot Firmware Tables.)
+    This is because we cannot use NICs that are used to access iSCSI
+    LUNs for other purposes e.g. XenServer Management.
+    """
     conf = {}
+
     for nif in getNetifList():
-        conf[nif] = NIC(nif, getHWAddr(nif), getPCIInfo(nif))
+        if nif not in diskutil.ibft_reserved_nics:
+            conf[nif] = NIC(nif, getHWAddr(nif), getPCIInfo(nif))
     return conf
 
 def getNetifList():
@@ -147,3 +156,9 @@ def valid_ip_addr(addr):
         if int(el) > 255:
             return False
     return True
+
+def network(ipaddr, netmask):
+    ip = map(int,ipaddr.split('.',3))
+    nm = map(int,netmask.split('.',3))
+    nw = map(lambda i: ip[i] & nm[i], range(4))
+    return ".".join(map(str,nw))

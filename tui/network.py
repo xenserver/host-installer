@@ -18,6 +18,7 @@ import snackutil
 import netutil
 from netinterface import *
 import version
+import os
 
 from snack import *
 
@@ -190,10 +191,32 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
     If defaults.has_key[keys[0]] then use defaults[keys[0]] as the default network interface.
     If defaults.has_key[keys[1]] then use defaults[keys[1]] as the default network interface configuration."""
 
+
+    # If one interface is already up then offer the option of using 
+    # existing routing.
+    # Note: all_ifaces includes those reserved by the iBFT for iSCSI disks 
+    # and which don't appear in answers['network-hardware']
+    all_ifaces = filter(lambda d: d.startswith('eth'), os.listdir('/sys/class/net'))
+    up_ifaces = filter(lambda i: open('/sys/class/net/%s/operstate'%i).read().strip() == 'up', all_ifaces)
+    plural = len(up_ifaces) > 1
+    if len(up_ifaces) > 0:
+        button = ButtonChoiceWindow(
+            tui.screen,
+            "Networking",
+            "Interface" + (plural and "s " or " ") + ", ".join(up_ifaces) + (plural and " are " or " is ") + \
+                "already up.  Would you like to use " + (plural and "their" or "its") + \
+                " existing IP configuration or to reconfigure networking?",
+            ['Use existing', 'Reconfigure'])
+        if button != 'reconfigure':
+            return RIGHT_FORWARDS
+
     interface_key = keys[0]
     config_key = keys[1]
 
-    nethw = netutil.scanConfiguration()
+    nethw = answers['network-hardware']
+    if len(nethw.keys()) == 0:
+        tui.progress.OKDialog("Networking", "No available ethernet device found")
+        return REPEAT_STEP
 
     # Display a screen asking which interface to configure, then what the 
     # configuration for that interface should be:

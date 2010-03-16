@@ -42,7 +42,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
             (not answers.has_key('installation-to-overwrite') or \
                  not answers['installation-to-overwrite'].settingsAvailable())
 
-    netifs = netutil.getNetifList()
+    netifs = results['network-hardware'].keys()
     has_multiple_nics = lambda _: len(netifs) > 1
     if len(netifs) == 1:
         results['net-admin-interface'] = netifs[0]

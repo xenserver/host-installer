@@ -101,6 +101,20 @@ def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None)
 class MountFailureException(Exception):
     pass
 
+def pidof(name):
+    def is_pid(s):
+        for c in s: 
+            if not c in string.digits: return False
+        return True
+    def has_name(pid):
+        try:
+            return os.path.basename(open('/proc/%s/cmdline' % pid).read().split('\0')[0]) == name
+        except:
+            return False
+    pids = filter(is_pid, os.listdir('/proc'))
+    pids = filter(has_name, pids)
+    return pids
+
 def mount(dev, mountpoint, options = None, fstype = None):
     xelogging.log("Mounting %s to %s, options = %s, fstype = %s" % (dev, mountpoint, options, fstype))
 

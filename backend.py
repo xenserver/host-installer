@@ -583,6 +583,7 @@ def __mkinitrd(mounts, partition, kernel_version):
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
         util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
+        util.mount('none', os.path.join(mounts['root'], 'tmp'), None, 'tmpfs')
 
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
@@ -593,6 +594,7 @@ def __mkinitrd(mounts, partition, kernel_version):
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
         util.umount(os.path.join(mounts['root'], 'proc'))
+        util.umount(os.path.join(mounts['root'], 'tmp'))
 
 class KernelNotFound(Exception):
     pass
@@ -621,6 +623,31 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
     partition = PartitionTool.partitionDevice(primary_disk, primary_partnum)
+
+    if diskutil.is_iscsi(primary_disk):
+
+        # Mkinitrd needs node files so it can extract 
+        # details about the iscsi root disk
+        src = '/etc/iscsi/nodes'
+        dst = os.path.join(mounts['root'], 'etc/iscsi/')
+        util.runCmd2(['cp','-a', src, dst])
+
+        if isDeviceMapperNode(primary_disk):
+
+            # Multipath failover between iSCSI disks requires iscsid
+            # to be running as it handles the error path
+            cmd = ['chroot', mounts['root'], 
+                   'chkconfig', '--level', '2345', 'open-iscsi', 'on']
+            if util.runCmd2(cmd):
+                raise RuntimeError, "Failed to chkconfig open-iscsi on"
+            # Open-iscsi needs an initiator name to start
+            src='/etc/iscsi/initiatorname.iscsi'
+            dst=os.path.join(mounts['root'],'etc/iscsi/initiatorname.iscsi')
+            if not os.path.exists(dst):
+                cmd = ['cp','-a', src, dst]
+                if util.runCmd2(cmd):
+                    raise RuntimeError, "Failed to copy initiatorname.iscsi"
+
     __mkinitrd(mounts, partition, xen_kernel_version)
     __mkinitrd(mounts, partition, kdump_kernel_version)
  

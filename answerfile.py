@@ -129,7 +129,15 @@ class Answerfile:
 
         # primary-disk:
         pd = self.nodelist.getElementsByTagName('primary-disk')
-        disk = normalize_disk(getText(pd[0].childNodes))
+        pd_text = getText(pd[0].childNodes)
+
+        if pd_text.startswith('iscsi:'):
+            # pd_text is an rfc4173 spec identifying a LUN in the iBFT.  We
+            # should be logged into this already.  Convert this spec into a
+            # disk location.
+            disk = diskutil.rfc4173_to_disk(pd_text)
+        else:
+            disk = normalize_disk(pd_text)
 
         # If we're using multipath and the answerfile names a multipath
         # slave, then we want to install to the master!
@@ -199,7 +207,15 @@ class Answerfile:
 
         target_nodes = self.nodelist.getElementsByTagName('primary-disk')
         if len(target_nodes) == 1:
-            disk = normalize_disk(getText(target_nodes[0].childNodes))
+            node_text = getText(target_nodes[0].childNodes)
+
+            if node_text.startswith('iscsi:'):
+                # node_text is an rfc4173 spec identifying a LUN in the
+                # iBFT. We should be logged into this already.  Convert
+                # this spec into a disk location.
+                disk = diskutil.rfc4173_to_disk(node_text)
+            else:
+                disk = normalize_disk(node_text)
 
             # If answerfile names a multipath replace with the master!
             master = disktools.getMpathMaster(disk)
@@ -323,7 +339,15 @@ class Answerfile:
         results = {}
         if len(self.nodelist.getElementsByTagName('existing-installation')) == 0:
             raise AnswerfileError, "No existing installation specified."
-        disk = "/dev/" + getText(self.nodelist.getElementsByTagName('existing-installation')[0].childNodes)
+        ei = getText(self.nodelist.getElementsByTagName('existing-installation')[0].childNodes)
+
+        if ei.startswith('iscsi:'):
+            # ei is a rfc4173 spec identifying a LUN in the iBFT.  
+            # We should be logged into this already.  
+            # Convert this spec into a disk location.
+            disk = diskutil.rfc4173_to_disk(ei)
+        else:
+            disk = "/dev/" + ei
 
         # If answerfile names a multipath replace with the master!
         master = disktools.getMpathMaster(disk)
