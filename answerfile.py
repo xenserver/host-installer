@@ -234,21 +234,29 @@ class Answerfile:
 
     def parseScripts(self):
         results = {}
+
+        def buildURL(stype, path):
+            if stype == 'nfs':
+                return 'nfs://'+path
+            return path
         
         # new format
         script_nodes = self.nodelist.getElementsByTagName('script')
         for node in script_nodes:
             stage = node.getAttribute("stage").lower()
-            script = getText(node.childNodes)
+            stype = node.getAttribute("type").lower()
+            script = buildURL(type, getText(node.childNodes))
             scripts.add_script(stage, script)
 
         pis_nodes = self.nodelist.getElementsByTagName('post-install-script')
         if len(pis_nodes) == 1:
-            script = getText(pis_nodes[0].childNodes)
+            stype = pis_nodes[0].getAttribute("type").lower()
+            script = buildURL(stype, getText(pis_nodes[0].childNodes))
             scripts.add_script('filesystem-populated', script)
         ifs_nodes = self.nodelist.getElementsByTagName('install-failed-script')
         if len(ifs_nodes) == 1:
-            script = getText(ifs_nodes[0].childNodes)
+            stype = ifs_nodes[0].getAttribute("type").lower()
+            script = buildURL(stype, getText(ifs_nodes[0].childNodes))
             scripts.add_script('installation-complete', script)
 
         return results
