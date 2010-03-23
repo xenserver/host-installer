@@ -219,3 +219,11 @@ def TableDialog(screen, title, *table):
     gf.add(bb, 0, 1, growx = 1)
 
     gf.runOnce()
+
+def scrollHeight(max_height, list_len):
+    """ Return height & scroll parameters such that:
+    if list_len >= max_height: scroll else: don't scroll """
+    if list_len < max_height:
+        return 0, -1
+    else:
+        return 1, max_height

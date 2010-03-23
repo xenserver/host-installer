@@ -511,6 +511,7 @@ def select_primary_disk(answers):
 
     tui.update_help_line([None, "<F5> more info"])
 
+    scroll, height = snackutil.scrollHeight(4, len(entries))
     (button, entry) = snackutil.ListboxChoiceWindowEx(
         tui.screen,
         "Select Primary Disk",
@@ -518,7 +519,7 @@ def select_primary_disk(answers):
 
 You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
         entries,
-        ['Ok', 'Back'], width = 55, height = 4, scroll = 1, default = default, help = 'pridisk:info',
+        ['Ok', 'Back'], 55, scroll, height, default, help = 'pridisk:info',
         hotkey = 'F5', hotkey_cb = disk_more_info)
 
     tui.screen.popHelpLine()
@@ -583,7 +584,8 @@ def select_guest_disks(answers):
         
     text = TextboxReflowed(54, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
-    cbt = CheckboxTree(4, scroll = 1)
+    scroll, _ = snackutil.scrollHeight(4, len(entries))
+    cbt = CheckboxTree(4, scroll)
     for (c_text, c_item) in entries:
         cbt.append(c_text, c_item, c_item in currently_selected)
     

@@ -22,6 +22,14 @@ import os
 
 from snack import *
 
+def scrollHeight(max_height, list_len):
+    """ Return height & scroll parameters such that:
+    if list_len >= max_height: scroll else: don't scroll """
+    if list_len < max_height:
+        return 0, -1
+    else:
+        return 1, max_height
+
 def get_iface_configuration(nic, txt = None, defaults = None, include_dns = False):
 
     def dhcp_change():
@@ -169,8 +177,9 @@ def select_netif(text, conf, default=None):
         if default:
             def_iface = lentry(default)
         netif_list = [lentry(x) for x in netifs]
+        scroll, height = snackutil.scrollHeight(6, len(netif_list))
         rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
-                                        ['Ok', 'Back'], width=45, default=def_iface, help = 'selif:info',
+                                        ['Ok', 'Back'], 45, scroll, height, def_iface, help = 'selif:info',
                                         hotkey='F5', hotkey_cb=iface_details, timeout_ms=5000, timeout_cb=update)
         if ((rc in ['ok', None]) and (entry == None)):
             continue
