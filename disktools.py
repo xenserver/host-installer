@@ -465,8 +465,8 @@ class LVMTool:
         pprint(self.__dict__)
 
 class PartitionTool:
-    SFDISK = '/usr/sbin/sfdisk'
-    BLOCKDEV = '/usr/sbin/blockdev'
+    SFDISK = '/sbin/sfdisk'
+    BLOCKDEV = '/sbin/blockdev'
     
     DISK_PREFIX = '/dev/'
     P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel', 'mapper/']
