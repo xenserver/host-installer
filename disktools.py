@@ -465,8 +465,8 @@ class LVMTool:
         pprint(self.__dict__)
 
 class PartitionTool:
-    SFDISK = '/sbin/sfdisk'
-    BLOCKDEV = '/sbin/blockdev'
+    SFDISK = '/usr/sbin/sfdisk'
+    BLOCKDEV = '/usr/sbin/blockdev'
     
     DISK_PREFIX = '/dev/'
     P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel', 'mapper/']
@@ -572,11 +572,11 @@ class PartitionTool:
         # Later versions return the default geometry below.
         self.heads = 255
         self.sectors = 63
-        out = self.cmdWrap([self.BLOCKDEV, '--getsz', self.device])
-        self.sectorExtent = int(out)
+        self.sectorSize = 512
+        out = self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])
+        self.sectorExtent = int(out)/self.sectorSize
         self.cylinders = int(self.sectorExtent/(self.heads * self.sectors))
         self.sectorExtent = self.cylinders * self.heads * self.sectors # Ignore partial cylinder at end
-        self.sectorSize = 512
         self.byteExtent = self.sectorExtent * self.sectorSize
 
     def readDiskDetails(self):
@@ -660,7 +660,7 @@ class PartitionTool:
             if rv:
                 raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
             for number in table.keys():
-                size = int(self.cmdWrap([self.BLOCKDEV, '--getsz', '%sp%d' % (self.device, number)]))
+                size = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', '%sp%d' % (self.device, number)]))/self.sectorSize
                 if size != table[number]['size']:
                     raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, table[number]['size']))
 
