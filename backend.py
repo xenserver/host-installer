@@ -854,7 +854,7 @@ def enableAgent(mounts, network_backend):
     util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--del', 'xend'])
 
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
-        vswitch = ['vswitch']
+        vswitch = ['openvswitch']
     else:
         vswitch = []
         
