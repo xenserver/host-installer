@@ -90,6 +90,7 @@ class LVMTool:
     VG_SWAP_PREFIX = 'VG_XenSwap'
     VG_CONFIG_PREFIX = 'VG_XenConfig'
     VG_SR_PREFIX = 'VG_XenStorage'
+    VG_EXT_SR_PREFIX = 'XSLocalEXT'
     
     PVMOVE = ['pvmove']
     LVCHANGE = ['lvchange']
@@ -339,7 +340,10 @@ class LVMTool:
         return self.testPartition(devicePrefix, self.VG_SWAP_PREFIX)
 
     def srPartition(self, devicePrefix):
-        return self.testPartition(devicePrefix, self.VG_SR_PREFIX)
+        retVal = self.testPartition(devicePrefix, self.VG_SR_PREFIX)
+        if retVal is None:
+            retVal = self.testPartition(devicePrefix, self.VG_EXT_SR_PREFIX)
+        return retVal
 
     def isPartitionConfig(self, device):
         """Returns True if there is a config partition on the specified PARTITION, e.g. '/dev/sda2',
@@ -353,7 +357,8 @@ class LVMTool:
 
     def isPartitionSR(self, device):
         pv = self.deviceToPVOrNone(device)
-        return pv is not None and pv['vg_name'].startswith(self.VG_SR_PREFIX)
+        return pv is not None and (pv['vg_name'].startswith(self.VG_SR_PREFIX) or \
+                                   pv['vg_name'].startswith(self.VG_EXT_SR_PREFIX))
 
     def deleteDevice(self, device):
         """Deletes PVs, VGs and LVs associated with a device (partition)"""

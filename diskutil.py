@@ -514,12 +514,12 @@ def probeDisk(device, justInstall = False):
             if lv_tool.isPartitionConfig(part_device):
                 state = (True, part_device)
             elif lv_tool.isPartitionSR(part_device):
-                storage = (STORAGE_LVM, part_device)
-            else:
                 pv = lv_tool.deviceToPVOrNone(part_device)
-                if pv is not None and pv['vg_name'].startswith('XSLocalEXT'):
+                if pv is not None and pv['vg_name'].startswith(lv_tool.VG_EXT_SR_PREFIX):
                     # odd 'ext3 in an LV' SR
                     storage = (STORAGE_EXT3, part_device)
+                else:
+                    storage = (STORAGE_LVM, part_device)
     
     xelogging.log('Probe of '+device+' found boot='+str(boot)+' state='+str(state)+' storage='+str(storage))
 

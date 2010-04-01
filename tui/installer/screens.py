@@ -501,7 +501,8 @@ def select_primary_disk(answers):
     # if only one disk, set default and skip this screen:
     if len(entries) == 1:
         answers['primary-disk'] = entries[0][1]
-        answers['target-is-sr'] = target_is_sr[entries[0][1]]
+        if 'installation-to-overwrite' in answers:
+            answers['target-is-sr'] = target_is_sr[entries[0][1]]
         return SKIP_SCREEN
 
     # default value:
@@ -526,7 +527,8 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
-    answers['target-is-sr'] = target_is_sr[entry]
+    if 'installation-to-overwrite' in answers:
+        answers['target-is-sr'] = target_is_sr[entry]
 
     if button == 'back': return LEFT_BACKWARDS
 
