@@ -35,40 +35,8 @@ def mpath_cli_mpexec(cmd):
     if stdout != "multipathd> ok\nmultipathd> ":
         raise Exception("multipath cli command %s failed\n" % cmd)
 
-def mpath_cli_do_get_topology(cmd):
-    xelogging.log("mpath cmd: %s" % cmd)
-    (rc,stdout,stderr) = util.runCmd2(["multipathd","-k"], with_stdout=True, with_stderr=True, inputtext=cmd)
-    xelogging.log("mpath output: %s" % stdout)
-    lines = stdout.split('\n')[:-1]
-    if len(lines):
-	    m=regex2.search(lines[0])
-	    lines[0]=str(m.group(2))
-    return lines
-
-def mpath_cli_get_topology(scsi_id):
-    cmd="show map %s topology" % scsi_id
-    return mpath_cli_do_get_topology(cmd)
-
-def mpath_cli_list_paths(scsi_id):
-    lines = mpath_cli_get_topology(scsi_id)
-    matches = []
-    for line in lines:
-        m=regex.search(line)
-        if(m):
-            matches.append(m.group(1))
-    return matches
-
-def mpath_cli_remove_path(path):
-    mpath_cli_mpexec("remove path %s" % path)
-
-def mpath_cli_remove_map(m):
-    mpath_cli_mpexec("remove map %s" % m)
-
-def mpath_remove(scsi_id):
-    paths = mpath_cli_list_paths(scsi_id)
-    mpath_cli_remove_map(scsi_id)
-    for path in paths:
-        mpath_cli_remove_path(path)
+def mpath_add(dev):
+    mpath_cli_mpexec("add path %s" % dev)
 
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
@@ -91,34 +59,32 @@ def wait_for_multipathd():
     xelogging.log(msg)
     raise Exception(msg)
 
-adapters=None
-def mpath_supported(dev):
-    # Determine whether we support multipathing over this devices.
-    # adapters is a dict describing the support adapters present.
+def mpath_supported_list():
+    # Create list of devices that support multipathing.
     
-    # Mpath is supported if disk is iSCSI
-    if is_iscsi(dev):
-        return True
-    
-    # Or if disk belongs to an HBA adapter that we support
-    global adapters
-    if adapters == None:
-        adapters = devscan.adapters()
-    return dev.replace('/dev/','') in adapters['devs'].keys()
+    # Disks belonging to an HBA adapter that we support
+    adapters = devscan.adapters()
+    hba_devs = adapters['devs'].keys()
 
+    # iSCSI disks
+    iscsi_devs = os.listdir('/dev/')
+    iscsi_devs = filter(lambda x: x.startswith('sd'), iscsi_devs)
+    iscsi_devs = filter(lambda x: not x[-1].isdigit(), iscsi_devs)
+    iscsi_devs = filter(lambda y: is_iscsi('/dev/'+y), iscsi_devs)
+
+    # Use mpath on supported HBAs and software iSCSI root disks
+    return hba_devs + iscsi_devs
+    
 def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
-    assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
+    assert 0 == util.runCmd2('multipathd -e -d &> /var/log/multipathd &')
     wait_for_multipathd()
 
-    # Remove multipath nodes for non-SAN disks
-    regex = re.compile(" ok")
-    for dev in getMpathNodes():
-        scsi_id = dev.split('/')[-1]
-        slave = getMpathSlaves(dev)[0]
-        if not mpath_supported(slave):
-            mpath_remove(scsi_id)
+    # Add multipath nodes for SAN disks
+    slaves = mpath_supported_list()
+    for dev in slaves:
+        mpath_add(dev)
     
     assert 0 == createMpathPartnodes()
     xelogging.log("created multipath device(s)");
