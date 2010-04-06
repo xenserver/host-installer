@@ -399,7 +399,7 @@ class ExistingInstallation:
                 
                 if network_backend == constants.NETWORK_BACKEND_BRIDGE:
                     results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
-                elif network_backend == constants.NETWORK_BACKEND_VSWITCH:
+                elif network_backend in [constants.NETWORK_BACKEND_VSWITCH, constants.NETWORK_BACKEND_VSWITCH_ALT]:
                     results['network-backend'] = constants.NETWORK_BACKEND_VSWITCH
                 else:
                     raise SettingsNotAvailable, "unknown network backend %s" % network_backend

@@ -89,7 +89,7 @@ class Answerfile:
             network_backend = getText(nb_nodes[0].childNodes)
             if network_backend == constants.NETWORK_BACKEND_BRIDGE:
                 results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
-            elif network_backend == constants.NETWORK_BACKEND_VSWITCH:
+            elif network_backend in [constants.NETWORK_BACKEND_VSWITCH, constants.NETWORK_BACKEND_VSWITCH_ALT]:
                 results['network-backend'] = constants.NETWORK_BACKEND_VSWITCH
             else:
                 raise AnswerfileError, "Specified Network backend type \"%s\" unknown." % network_backend

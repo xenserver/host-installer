@@ -34,8 +34,11 @@ BOOTLOADER_TYPE_EXTLINUX = 2
 
 # network backend types:
 NETWORK_BACKEND_BRIDGE = "bridge"
-NETWORK_BACKEND_VSWITCH = "vswitch"
+NETWORK_BACKEND_VSWITCH = "openvswitch"
 NETWORK_BACKEND_DEFAULT = NETWORK_BACKEND_BRIDGE
+
+# Old name for openvswitch backend, for use in answerfile and on upgrade only
+NETWORK_BACKEND_VSWITCH_ALT = "vswitch"
 
 # error strings:
 def error_string(error, logname, with_hd):
