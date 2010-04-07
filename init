@@ -183,6 +183,10 @@ def main(args):
     if mpath:
         diskutil.mpath_disable()
 
+    # Log out of any iSCSI disks
+    if use_ibft:
+        diskutil.release_ibft_disks()
+
     # stop logging to tty3:
     xelogging.closeLogs()
 

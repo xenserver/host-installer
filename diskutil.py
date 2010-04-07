@@ -712,3 +712,8 @@ def process_ibft(ui, interactive):
         spec = "iscsi:%(tgtip)s::%(port)d:%(lun)d:%(iqn)s" % locals()
         disk = attach_rfc4173(spec)
         xelogging.log("process_ibft: attached iSCSI disk %s." % disk)
+
+def release_ibft_disks():
+    if util.pidof('iscsid'):
+        util.runCmd2([ '/sbin/iscsiadm', '-m', 'session', '-u'])
+        util.runCmd2([ '/sbin/iscsiadm', '-k', '0'])
