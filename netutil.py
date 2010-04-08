@@ -72,12 +72,17 @@ def writeResolverFile(configuration, filename):
 
     outfile.close()
 
+interface_up = {}
+
 # simple wrapper for calling the local ifup script:
 def ifup(interface):
     assert interface in getNetifList()
+    interface_up[interface] = True
     return util.runCmd2(['ifup', interface])
 
 def ifdown(interface):
+    if interface in interface_up:
+        del interface_up[interface]
     return util.runCmd2(['ifdown', interface])
 
 # work out if an interface is up:
@@ -88,18 +93,37 @@ def interfaceUp(interface):
     inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
     return len(inets) == 1
 
-# work out if a link is up:
-def linkUp(interface):
-    up = False
+def _linkUp(interface):
+    linkUp = None
+    duplexSet = None
+
     rc, out = util.runCmd2(['ethtool', interface], with_stdout = True)
     if rc != 0:
         return False
     for line in out.split('\n'):
         line = line.strip()
-        # examine auto-neg line, the link line always reports 'no' if the interface is down
-        if line.startswith('Duplex:'):
-            up = line.find('Unknown!') == -1
-            break
+        if line.startswith('Link detected:'):
+            linkUp = line.endswith('yes')
+        elif line.startswith('Duplex:'):
+            duplexSet = line.find('Unknown!') == -1
+    return linkUp, duplexSet
+
+# the following NICs always reflect link status in duplex
+duplex_always = ['e1000', 'e1000e']
+
+# work out if a link is up:
+def linkUp(interface):
+    up = False
+
+    if getDriver(interface) in duplex_always:
+        _, up = _linkUp(interface)
+    else:
+        # need interface to be up before we can probe
+        if interface not in interface_up:
+            util.runCmd2(['ifconfig', interface, 'up'])
+            interface_up[interface] = True
+        up, _ = _linkUp(interface)
+
     return up
 
 # make a string to help users identify a network interface:
