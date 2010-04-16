@@ -577,7 +577,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
         
         # Grow the backup partition to its full size, now that the state partition has gone
         partTool.resizePartition(backupPartnum, rootByteSize)
-        partTool.commit()
+        partTool.commit(log = True)
         
         return retVal
 
@@ -588,7 +588,7 @@ class ThirdGenOEMUpgrader(ThirdGenUpgrader):
             xelogging.log("Deactivating all partitions on %s" % prev_install.primary_disk)
             partTool = PartitionTool(prev_install.primary_disk)
             partTool.inactivateDisk()
-            partTool.commit()
+            partTool.commit(log = True)
 
 
 ################################################################################
