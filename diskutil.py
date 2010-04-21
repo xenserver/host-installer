@@ -209,7 +209,7 @@ def idFromPartition(partition):
     v, out = util.runCmd2(['/usr/bin/udevinfo', '-q', 'symlink', '-n', partition], with_stdout = True)
     if v == 0:
         for link in out.split():
-            if link.startswith('disk/by-id'):
+            if link.startswith('disk/by-id') and not link.startswith('disk/by-id/edd'):
                 symlink = '/dev/'+link
                 break
     return symlink
