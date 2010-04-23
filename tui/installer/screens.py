@@ -70,6 +70,8 @@ def welcome_screen(answers):
 
     while loop:
         loop = False
+        driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
+
         button = snackutil.ButtonChoiceWindowEx(tui.screen,
                                 "Welcome to %s Setup" % PRODUCT_BRAND,
                                 """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.

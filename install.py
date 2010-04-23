@@ -131,6 +131,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             a = answerfile.Answerfile.generate(answerfile_script)
         if a:
             using_answerfile = True
+            results['network-hardware'] = netutil.scanConfiguration()
             results.update(a.parseScripts())
             results.update(a.processAnswerfile())
             if results.has_key('extra-repos'):
@@ -152,15 +153,6 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         status = constants.EXIT_OK
 
-        nethw = netutil.scanConfiguration()        
-
-        if len(nethw.keys()) == 0:
-            raise RuntimeError, "No network interfaces found on this host."
-
-        # record the network configuration at startup so it remains consistent
-        # in the face of kudzu:
-        results['network-hardware'] = nethw
-        
         # debug: print out what disks have been discovered
         diskutil.log_available_disks()
 

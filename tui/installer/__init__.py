@@ -42,10 +42,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
             (not answers.has_key('installation-to-overwrite') or \
                  not answers['installation-to-overwrite'].settingsAvailable())
 
-    netifs = results['network-hardware'].keys()
-    has_multiple_nics = lambda _: len(netifs) > 1
-    if len(netifs) == 1:
-        results['net-admin-interface'] = netifs[0]
+    has_multiple_nics = lambda a: len(a['network-hardware'].keys()) > 1
 
     is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH

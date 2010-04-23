@@ -96,13 +96,15 @@ def select_repo_source(answers, title, text, require_base_repo = True):
     ENTRY_LOCAL = 'Local media', 'local'
     ENTRY_URL = 'HTTP or FTP', 'url'
     ENTRY_NFS = 'NFS', 'nfs'
-    entries = [ ENTRY_LOCAL, ENTRY_URL, ENTRY_NFS ]
+    entries = [ ENTRY_LOCAL ]
 
-    # default selection?
-    if answers.has_key('source-media'):
-        default = selectDefault(answers['source-media'], entries)
-    else:
-        default = ENTRY_LOCAL
+    default = ENTRY_LOCAL
+    if len(answers['network-hardware'].keys()) > 0:
+        entries += [ ENTRY_URL, ENTRY_NFS ]
+
+        # default selection?
+        if answers.has_key('source-media'):
+            default = selectDefault(answers['source-media'], entries)
 
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
