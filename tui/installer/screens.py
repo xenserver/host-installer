@@ -148,7 +148,8 @@ def get_admin_interface(answers):
     return direction
 
 def get_admin_interface_configuration(answers):
-    assert answers.has_key('net-admin-interface')
+    if 'net-admin-interface' not in answers:
+        answers['net-admin-interface'] = answers['network-hardware'].keys()[0]
     nic = answers['network-hardware'][answers['net-admin-interface']]
 
     defaults = None
