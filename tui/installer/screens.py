@@ -339,13 +339,12 @@ Continue with installation?""" % (COMPANY_NAME_SHORT, PRODUCT_BRAND),
 def force_backup_screen(answers):
     button = ButtonChoiceWindow(
         tui.screen,
-        "Back-up Existing Installation",
-        """The installer needs to create a backup of your existing installation.
+        "Previous Installation Detected",
+        """The installer needs to create a backup of your existing installation. This will erase all data currently on the backup partition (including previous backups).
 
-This will erase data currently on the backup partition (which includes previous backups performed by the installer, and backups installed onto the host using the CLI's 'host-restore' function).
-
-Continue with installation?""",
-        ['Continue', 'Back'], help = 'forceback'
+IMPORTANT: Paid editions of %s now require a %s License Server to operate. Your system will enter a 30 day license grace period after install.
+We recommend visiting www.mycitrix.com to verify your license entitlement before proceeding.""" % (PRODUCT_BRAND, COMPANY_NAME_SHORT),
+        ['Continue', 'Back'], width = 60, help = 'forceback'
         )
     if button == 'back': return LEFT_BACKWARDS
 
