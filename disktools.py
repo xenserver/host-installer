@@ -718,7 +718,7 @@ class PartitionTool:
             previousPartitions = [part for num, part in reversed(sorted(self.partitions.iteritems())) if num < newNumber]
             
             if len(previousPartitions) == 0:
-                startSector = 1
+                startSector = 63
             else:
                 startSector =  previousPartitions[0]['start'] + previousPartitions[0]['size']
         else:
