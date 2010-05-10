@@ -88,11 +88,27 @@ To load a device driver press <F9>.
 
     tui.screen.popHelpLine()
 
-    # advance to next screen:
     if button == 'reboot':
         return EXIT
-    else:
-        return RIGHT_FORWARDS
+
+    # CA-41142, ensure we have at least one network interface and one disk before proceeding
+    label = None
+    if len(diskutil.getDiskList()) == 0:
+        label = "No Disks"
+        text = "hard disks"
+        text_short = "disks"
+    if len(answers['network-hardware'].keys()) == 0:
+        label = "No Network Interfaces"
+        text = "network interfaces"
+        text_short = "interfaces"
+    if label:
+        text = """This host does not appear to have any %s.
+
+If %s are present you may need to load a device driver on the previous screen for them to be detected.""" % (text, text_short)
+        ButtonChoiceWindow(tui.screen, label, text, ["Back"], width = 48)
+        return REPEAT_STEP
+
+    return RIGHT_FORWARDS
 
 def hardware_warnings(answers, ram_warning, vt_warning):
     vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
