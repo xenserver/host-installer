@@ -60,11 +60,19 @@ def wait_for_multipathd():
     raise Exception(msg)
 
 def mpath_supported_list():
+    def size(disk):
+        try:
+            return int(open('/sys/block/%s/size' % disk ).read())
+        except:
+            return 0
     # Create list of devices that support multipathing.
     
     # Disks belonging to an HBA adapter that we support
     adapters = devscan.adapters()
     hba_devs = adapters['devs'].keys()
+
+    # CA-41530: filter out zero length control LUNs
+    hba_devs = filter(size, hba_devs)
 
     # iSCSI disks
     iscsi_devs = os.listdir('/dev/')
