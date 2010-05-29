@@ -11,6 +11,7 @@
 # written by Andrew Peace
 
 import os
+import errno
 import md5
 import tempfile
 import urlparse
@@ -298,8 +299,14 @@ class Package:
         package = self.repository.accessor().openAddress(pkgpath)
 
         xelogging.log("mkdir -p %s" % (os.path.dirname(destination)))
-        os.makedirs(os.path.dirname(destination))
-
+        try:
+            os.makedirs(os.path.dirname(destination))
+        except OSError, exc:
+            # Needed for python < 2.5; considered a bug and fixed in later
+            # versions: http://bugs.python.org/issue1675
+            if exc.errno == errno.EEXIST:
+                pass
+            else: raise
         xelogging.log("Writing file %s" % destination)
         dest_fd = open(destination, 'w')
             
