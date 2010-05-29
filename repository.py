@@ -297,6 +297,9 @@ class Package:
         pkgpath = self.repository.path(self.repository_filename)
         package = self.repository.accessor().openAddress(pkgpath)
 
+        xelogging.log("mkdir -p %s" % (os.path.dirname(destination)))
+        os.makedirs(os.path.dirname(destination))
+
         xelogging.log("Writing file %s" % destination)
         dest_fd = open(destination, 'w')
             
