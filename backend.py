@@ -858,8 +858,7 @@ def enableAgent(mounts, network_backend):
     else:
         vswitch = []
         
-    for service in ['management-interface', 'xenservices', 'squeezed', 'xapi',
-                    'xapi-domains', 'perfmon', 'snapwatchd', 'v6d'] + vswitch:
+    for service in ['snapwatchd'] + vswitch:
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
