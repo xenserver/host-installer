@@ -64,9 +64,8 @@ def driver_disk_sequence(answers, driver_repos, loaded_drivers):
         uic.Step(tui.repo.select_repo_source, 
                  args = ["Select Driver Source", "Please select where you would like to load the Supplemental Pack containing the driver from:", 
                          False]),
-        uic.Step(require_networking,
-                 predicates = [lambda a: a['source-media'] != 'local' and 
-                               not a.has_key('network-configured')]),
+        uic.Step(tui.network.requireNetworking,
+                 predicates = [lambda a: a['source-media'] != 'local']),
         uic.Step(tui.repo.get_source_location, 
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
@@ -78,14 +77,6 @@ def driver_disk_sequence(answers, driver_repos, loaded_drivers):
     if rc == LEFT_BACKWARDS:
         return None
     return (answers['source-media'], answers['source-address'])
-
-def require_networking(answers):
-    rc = tui.network.requireNetworking(answers)
-
-    if rc == RIGHT_FORWARDS:
-        # no further prompts
-        answers['network-configured'] = True
-    return rc
 
 def confirm_load_drivers(answers):
     # find drivers:

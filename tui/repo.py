@@ -183,7 +183,8 @@ def get_url_location(answers, require_base_repo):
                 answers['source-address'] = url_field.value().replace('//', '//%s@' % user_field.value(), 1)
         else:
             answers['source-address'] = url_field.value()
-        done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_repo)
+        if len(answers['source-address']) > 0:
+            done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_repo)
             
     return RIGHT_FORWARDS
 

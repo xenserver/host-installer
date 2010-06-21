@@ -85,6 +85,17 @@ def ifdown(interface):
         del interface_up[interface]
     return util.runCmd2(['ifdown', interface])
 
+def ipaddr(interface):
+    rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout = True)
+    if rc != 0:
+        return None
+    inets = filter(lambda x: 'inet ' in x, out.split("\n"))
+    if len(inets) == 1:
+        m = re.search(r'inet (S+)/', inets[0])
+        if m:
+            return m.match(1)
+    return None
+
 # work out if an interface is up:
 def interfaceUp(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout = True)

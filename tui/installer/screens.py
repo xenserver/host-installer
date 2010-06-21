@@ -158,7 +158,8 @@ def get_admin_interface(answers):
 
     net_hw = answers['network-hardware']
     
-    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?", net_hw, default)
+    direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?",
+                                                net_hw, False, default)
     if direction == RIGHT_FORWARDS:
         answers['net-admin-interface'] = iface
     return direction

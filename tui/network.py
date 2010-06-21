@@ -22,14 +22,6 @@ import os
 
 from snack import *
 
-def scrollHeight(max_height, list_len):
-    """ Return height & scroll parameters such that:
-    if list_len >= max_height: scroll else: don't scroll """
-    if list_len < max_height:
-        return 0, -1
-    else:
-        return 1, max_height
-
 def get_iface_configuration(nic, txt = None, defaults = None, include_dns = False):
 
     def dhcp_change():
@@ -128,7 +120,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
                                subnet_field.value(), gateway_field.value(), dns_field.value())
     return RIGHT_FORWARDS, answers
 
-def select_netif(text, conf, default=None):
+def select_netif(text, conf, offer_existing = False, default = None):
     """ Display a screen that displays a choice of network interfaces to the
     user, with 'text' as the informative text as the data, and conf being the
     netutil.scanConfiguration() output to be used. 
@@ -151,39 +143,43 @@ def select_netif(text, conf, default=None):
         return (text, key)
 
     def iface_details(context):
-        if not context: return True
-
         tui.update_help_line([' ', ' '])
-        nic = conf[context]
-        snackutil.TableDialog(tui.screen, "Interface Details", ("Name:", nic.name),
-                              ("Driver:", netutil.getDriver(nic.name)),
-                              ("MAC Address:", nic.hwaddr),
-                              ("PCI Details:", nic.pci_string))
+        if context:
+            nic = conf[context]
+            snackutil.TableDialog(tui.screen, "Interface Details", ("Name:", nic.name),
+                                  ("Driver:", netutil.getDriver(nic.name)),
+                                  ("MAC Address:", nic.hwaddr),
+                                  ("PCI Details:", nic.pci_string))
+        else:
+            details = map(lambda x: (x, netutil.ipaddr(x)), filter(netutil.interfaceUp, netifs))
+
+            snackutil.TableDialog(tui.screen, "Networking Details", *details)
         tui.screen.popHelpLine()
         return True
 
     def update(listbox):
         old = listbox.current()
         for item in listbox.item2key.keys():
-            text, _ = lentry(item)
-            listbox.replace(text, item)
+            if item:
+                text, _ = lentry(item)
+                listbox.replace(text, item)
         listbox.setCurrent(old)
         return True
 
     tui.update_help_line([None, "<F5> more info"])
 
-    while True:
-        def_iface = None
+    def_iface = None
+    if offer_existing and len (filter(netutil.interfaceUp, netifs)):
+        netif_list = [("Use existing configuration", None)]
+    else:
+        netif_list = []
         if default:
             def_iface = lentry(default)
-        netif_list = [lentry(x) for x in netifs]
-        scroll, height = snackutil.scrollHeight(6, len(netif_list))
-        rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
+    netif_list += [lentry(x) for x in netifs]
+    scroll, height = snackutil.scrollHeight(6, len(netif_list))
+    rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
                                         ['Ok', 'Back'], 45, scroll, height, def_iface, help = 'selif:info',
                                         hotkey='F5', hotkey_cb=iface_details, timeout_ms=5000, timeout_cb=update)
-        if ((rc in ['ok', None]) and (entry == None)):
-            continue
-        break
 
     tui.screen.popHelpLine()
 
@@ -199,25 +195,6 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
       answers['runtime-iface-configuration'] to current manual network config, in format (all-dhcp, manual-config).
     If defaults.has_key[keys[0]] then use defaults[keys[0]] as the default network interface.
     If defaults.has_key[keys[1]] then use defaults[keys[1]] as the default network interface configuration."""
-
-
-    # If one interface is already up then offer the option of using 
-    # existing routing.
-    # Note: all_ifaces includes those reserved by the iBFT for iSCSI disks 
-    # and which don't appear in answers['network-hardware']
-    all_ifaces = filter(lambda d: d.startswith('eth'), os.listdir('/sys/class/net'))
-    up_ifaces = filter(lambda i: open('/sys/class/net/%s/operstate'%i).read().strip() == 'up', all_ifaces)
-    plural = len(up_ifaces) > 1
-    if len(up_ifaces) > 0:
-        button = ButtonChoiceWindow(
-            tui.screen,
-            "Networking",
-            "Interface" + (plural and "s " or " ") + ", ".join(up_ifaces) + (plural and " are " or " is ") + \
-                "already up.  Would you like to use " + (plural and "their" or "its") + \
-                " existing IP configuration or to reconfigure networking?",
-            ['Use existing', 'Reconfigure'])
-        if button != 'reconfigure':
-            return RIGHT_FORWARDS
 
     interface_key = keys[0]
     config_key = keys[1]
@@ -237,15 +214,21 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
             default = answers['interface']
         if msg == None:
             msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND)
-        direction, iface = select_netif(msg, nethw, default)
+        direction, iface = select_netif(msg, nethw, True, default)
         if direction == RIGHT_FORWARDS:
-            answers['interface'] = iface
+            answers['reuse-networking'] = (iface == None)
+            if iface:
+                answers['interface'] = iface
         return direction
 
     def specify_configuration(answers, txt, defaults):
         """ Show the dialog for setting nic config.  Sets answers['config']
         to the configuration used.  Assumes answers['interface'] is a string
         identifying by name the interface to configure. """
+
+        if 'reuse-networking' in answers and answers['reuse-networking']:
+            return RIGHT_FORWARDS
+
         direction, conf = get_iface_configuration(nethw[answers['interface']], txt, 
                                                   defaults=defaults, include_dns=True)
         if direction == RIGHT_FORWARDS:
@@ -269,7 +252,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         seq = [ uicontroller.Step(specify_configuration, args=[text, def_conf]) ]
     direction = uicontroller.runSequence(seq, conf_dict)
 
-    if direction == RIGHT_FORWARDS:
+    if direction == RIGHT_FORWARDS and 'config' in conf_dict:
         netutil.writeDebStyleInterfaceFile(
             {conf_dict['interface']: conf_dict['config']},
             '/etc/network/interfaces'
