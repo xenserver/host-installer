@@ -137,6 +137,12 @@ def linkUp(interface):
 
     return up
 
+def networkingUp():
+    rc, out = util.runCmd2(['ip', 'route'], with_stdout = True)
+    if rc == 0 and len(out.split('\n')) > 2:
+        return True
+    return False
+
 # make a string to help users identify a network interface:
 def getPCIInfo(interface):
     info = "<Information unknown>"

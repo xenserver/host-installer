@@ -169,7 +169,7 @@ def select_netif(text, conf, offer_existing = False, default = None):
     tui.update_help_line([None, "<F5> more info"])
 
     def_iface = None
-    if offer_existing and len (filter(netutil.interfaceUp, netifs)):
+    if offer_existing and netutil.networkingUp():
         netif_list = [("Use existing configuration", None)]
     else:
         netif_list = []
