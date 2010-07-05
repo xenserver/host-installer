@@ -502,19 +502,21 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
                                       'size': tool.partitions[primary_partnum]['size'],
                                       'id': tool.partitions[primary_partnum]['id'],
                                       'active': tool.partitions[primary_partnum]['active']}
-        new_parts[backup_partnum] = {'start': new_parts[primary_partnum]['start'] + new_parts[primary_partnum]['size'],
-                                     'size': tool.partitions[backup_partnum]['size'],
-                                     'id': tool.partitions[backup_partnum]['id'],
-                                     'active': tool.partitions[backup_partnum]['active']}
+        if backup_partnum > 0:
+            new_parts[backup_partnum] = {'start': new_parts[primary_partnum]['start'] + new_parts[primary_partnum]['size'],
+                                         'size': tool.partitions[backup_partnum]['size'],
+                                         'id': tool.partitions[backup_partnum]['id'],
+                                         'active': tool.partitions[backup_partnum]['active']}
         new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'],
                                       'size': tool.partitions[storage_partnum]['size'],
                                       'id': tool.partitions[storage_partnum]['id'],
                                       'active': tool.partitions[storage_partnum]['active']}
 
         for part in (primary_partnum, backup_partnum, storage_partnum):
-            tool.deletePartition(part)
-            tool.createPartition(new_parts[part]['id'], new_parts[part]['size'] * tool.sectorSize, part,
-                                 new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
+            if part > 0:
+                tool.deletePartition(part)
+                tool.createPartition(new_parts[part]['id'], new_parts[part]['size'] * tool.sectorSize, part,
+                                     new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
 
     tool.commit(log = True)
 
@@ -1080,7 +1082,8 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
-    inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(PartitionTool.partitionDevice(primary_disk, backup_partnum)) or PartitionTool.partitionDevice(primary_disk, backup_partnum)))
+    if backup_partnum > 0:
+        inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(PartitionTool.partitionDevice(primary_disk, backup_partnum)) or PartitionTool.partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
