@@ -243,7 +243,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
             def_iface = defaults[interface_key]
         if defaults.has_key(config_key):
             def_conf = defaults[config_key]
-    if len(nethw.keys()) > 1:
+    if len(nethw.keys()) > 1 or netutil.networkingUp():
         seq = [ uicontroller.Step(select_interface, args=[def_iface, msg]), 
                 uicontroller.Step(specify_configuration, args=[None, def_conf]) ]
     else:
