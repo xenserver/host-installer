@@ -573,7 +573,7 @@ def createDom0DiskFilesystems(disk, primary_partnum):
 
 def __mkinitrd(mounts, partition, kernel_version):
 
-    cmd = ['chroot', mounts['root'], 'mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic']
+    cmd = ['mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic']
     if isDeviceMapperNode(partition):
         # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
         # picks up the master device and not the slave 
@@ -590,8 +590,11 @@ def __mkinitrd(mounts, partition, kernel_version):
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
         cmd.extend([output_file, kernel_version])
-        if util.runCmd2(cmd) != 0:
+        if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
+        # Save command used to create initrd in <initrd_filename>.cmd
+        cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
+        open(cmd_logfile, "w").write(' '.join(cmd) + '\n')
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
