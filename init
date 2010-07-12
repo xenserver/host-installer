@@ -119,8 +119,9 @@ def main(args):
             answer_device = val.lower()
         elif opt == "--reboot":
             reboot = True
-        elif opt == "--no_mpath":
-            mpath = False
+        elif opt == "--device_mapper_multipath":
+            if val.lower() in [ "disabled", "false", "0", "no" ]: 
+                mpath = False
         elif opt == "--use_ibft":
             use_ibft = True
 
@@ -164,8 +165,8 @@ def main(args):
     if use_ibft:
         diskutil.process_ibft(ui, interactive)
 
-    # Ensure multipath devices are created if installer is being run with the "--mpath" option
-    # TODO: make sure correct binaries are in installer initrd
+    # Ensure multipath devices are created unless installer is being
+    # run with the "--device-mapper-multipath=disabled" option
     if mpath:
         diskutil.mpath_enable()
 
