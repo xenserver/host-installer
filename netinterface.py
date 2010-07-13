@@ -122,6 +122,8 @@ class NetInterface:
             f.write('\t\t<bond_master_of/>\n')
 
         f.write('\t\t<VLAN_slave_of/>\n\t\t<VLAN_master_of>OpaqueRef:NULL</VLAN_master_of>\n\t\t<VLAN>-1</VLAN>\n')
+        f.write('\t\t<tunnel_access_PIF_of/>\n')
+        f.write('\t\t<tunnel_transport_PIF_of/>\n')
         f.write('\t\t<device>%s</device>\n' % iface)
         f.write('\t\t<MAC>%s</MAC>\n' % self.hwaddr)
         if self.domain:
