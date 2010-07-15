@@ -879,11 +879,12 @@ def getMajMin(dev):
 cached_DM_maj = None
 def getDeviceMapperMaj():
     global cached_DM_maj
-    try:
-        line = filter(lambda x: x.endswith('device-mapper\n'), open('/proc/devices').readlines())
-        cached_DM_maj = int(line[0].split()[0])
-    except:
-        pass
+    if not cached_DM_maj:
+        try:
+            line = filter(lambda x: x.endswith('device-mapper\n'), open('/proc/devices').readlines())
+            cached_DM_maj = int(line[0].split()[0])
+        except:
+            pass
     return cached_DM_maj
 
 def isDeviceMapperNode(dev):
