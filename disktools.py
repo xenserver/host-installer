@@ -876,8 +876,18 @@ def getMajMin(dev):
     minor = os.minor(buf.st_rdev)
     return (major, minor)
 
+cached_DM_maj = None
+def getDeviceMapperMaj():
+    global cached_DM_maj
+    try:
+        line = filter(lambda x: x.endswith('device-mapper\n'), open('/proc/devices').readlines())
+        cached_DM_maj = int(line[0].split()[0])
+    except:
+        pass
+    return cached_DM_maj
+
 def isDeviceMapperNode(dev):
-    return getMajMin(dev)[0] == 251
+    return getMajMin(dev)[0] == getDeviceMapperMaj()
 
 def getSysfsDir(dev):
     major, minor = getMajMin(dev)
