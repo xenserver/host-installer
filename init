@@ -163,7 +163,13 @@ def main(args):
     # Attaches iSCSI disks listed in iSCSI Boot Firmware Tables.  This may
     # reserve NICs and so should be called before netutil.scanConfiguration
     if use_ibft:
-        diskutil.process_ibft(ui, interactive)
+        try:
+            diskutil.process_ibft(ui, interactive)
+        except Exception, e:
+            if ui:
+                ui.exn_error_dialog("install-log", False)
+                return reboot
+            raise
 
     # Ensure multipath devices are created unless installer is being
     # run with the "--device-mapper-multipath=disabled" option

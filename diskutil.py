@@ -589,7 +589,6 @@ def rfc4173_to_disk(rfc4173_spec):
 def attach_rfc4173(rfc4173_spec):
     """ Attach a disk given spec in the following format:
      "iscsi:"<targetip>":"<protocol>":"<port>":"<LUN>":"<targetname>
-     TODO: implement the <port> options
 
      return disk, e.g. "/dev/sdb"
     """
@@ -597,11 +596,15 @@ def attach_rfc4173(rfc4173_spec):
         parts = rfc4173_spec.split(':',5)
         assert(parts[0] == "iscsi")
         targetip = parts[1]
+        port = parts[3]
         lun = parts[4] and int(parts[4]) or 0        
         iqn = parts[5]
     except:
         raise IscsiDeviceException, "Cannot parse spec %s" % rfc4173_spec
     
+    if port:
+        targetip += ':%s' % port
+
     # Attach to disk
     if not os.path.exists("/etc/iscsi/initiatorname.iscsi"):
         rv, iname = util.runCmd2([ '/sbin/iscsi-iname' ], with_stdout=True)
@@ -718,7 +721,10 @@ def process_ibft(ui, interactive):
 
         # Attach to target (this creates new nodes /dev)
         spec = "iscsi:%(tgtip)s::%(port)d:%(lun)d:%(iqn)s" % locals()
-        disk = attach_rfc4173(spec)
+        try:
+            disk = attach_rfc4173(spec)
+        except:
+            raise RuntimeError, "Could not attach to iSCSI LUN %s" % spec
         xelogging.log("process_ibft: attached iSCSI disk %s." % disk)
 
 def release_ibft_disks():
