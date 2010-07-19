@@ -74,11 +74,19 @@ def mpath_supported_list():
     # CA-41530: filter out zero length control LUNs
     hba_devs = filter(size, hba_devs)
 
+    # CA-38523: debug to help work out why we sometimes multipath SATA disks
+    if hba_devs:
+        xelogging.log("adapters = %s" % str(adapters))
+
     # iSCSI disks
     iscsi_devs = os.listdir('/dev/')
     iscsi_devs = filter(lambda x: x.startswith('sd'), iscsi_devs)
     iscsi_devs = filter(lambda x: not x[-1].isdigit(), iscsi_devs)
     iscsi_devs = filter(lambda y: is_iscsi('/dev/'+y), iscsi_devs)
+
+    # CA-38523: debug to help work out why we sometimes multipath SATA disks
+    if iscsi_devs:
+        xelogging.log("iscsi_devs = %s" % str(iscsi_devs))
 
     # Use mpath on supported HBAs and software iSCSI root disks
     return hba_devs + iscsi_devs
