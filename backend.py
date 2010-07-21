@@ -403,7 +403,9 @@ def checkRepoDeps(repo, installed_repos):
     xelogging.log("Checking for dependencies of %s" % repo.identifier())
     missing_repos = repo.check_requires(installed_repos)
     if len(missing_repos) > 0:
-        raise RuntimeError, "Repository dependency error: %s" % ', '.join(missing_repos)
+        text = "Repository dependency error:\n\n"
+        text += '\n'.join(missing_repos)
+        raise RuntimeError, text
 
 def installPackage(progress_callback, mounts, package):
     package.install(mounts['root'], progress_callback)
