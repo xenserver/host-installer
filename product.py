@@ -30,108 +30,132 @@ import xml.dom.minidom
 class SettingsNotAvailable(Exception):
     pass
 
-class Version(object):
-    ANY = -1
-    INF = 999
-    
-    def __init__(self, major, minor, release, build = ANY, suffix = "", buildsuffix = ""):
-        assert type(major) is int
-        assert type(minor) is int
-        assert type(release) is int
-        self.major = major
-        self.minor = minor
-        self.release = release
+class Version:
+    def __init__(self, ver, build = None, build_suf = None):
+        self.ver = ver
         self.build = build
-        self.buildsuffix = buildsuffix
+        self.build_suf = build_suf
 
-    def from_string(cls, vstr):
-        """ Create a Version object given an input string vstr.  vstr should be
-        of one of the following forms:
+    @staticmethod
+    def intify(x):
+        if x.isdigit():
+            return int(x)
+        return x
 
-            a.b   a.b.c   a.b.c-bt
+    @classmethod
+    def from_string(cls, ver_str):
+        """ Create an object instance from a string conforming to:
 
-        for integers a, b, c, and b representing the major, minor, release, and
-        build number elements of the version.  t is an alphanumeric string
-        that begins with an alphabetic character to distinguish them from c and
-        b respectively.  t should NOT contain the hyphen character. """
+        p.q. ... y.z[-b[s]]
 
-        if vstr.find("-") != -1:
-            vs, bs = vstr.split("-")
-        else:
-            vs, bs = vstr, None
-            vbuild = cls.ANY
-            vbuildsuffix = ""
+        where:
 
-        elements = vs.split(".")
-        if len(elements) == 3:
-            vmaj_s, vmin_s, vrel_s = elements
-        else:
-            vmaj_s, vmin_s = elements
-            vrel_s = 0
+        p.q. ... y.z are arcs
+        b is a build number
+        s is a build suffix
 
-        if bs:
-            match = re.match("([0-9]+)(.*)", bs)
-            vbuild = int(match.group(1))
-            vbuildsuffix = match.group(2)
+        an arc is one of:
 
-        return cls(int(vmaj_s), int(vmin_s), int(vrel_s), 
-                   build = vbuild, buildsuffix = vbuildsuffix)
-    from_string = classmethod(from_string)
+        a positive integer
+        a sequence of subarcs, s-t-u"""
+        
+        build = None
+        build_suf = None
 
-    def __lt__(self, v):
-        if not type(v) == type(self): return False
-        assert not self.ANY in [self.major, self.minor, self.release]
-        return ( self.major < v.major or
-                 (self.major == v.major and self.minor < v.minor) or
-                 (self.major == v.major and self.minor == v.minor and self.release < v.release) or
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
-                  self.cmp_version_number(self.build, v.build) == -1) )
+        ver = map(cls.intify, ver_str.split('.'))
 
-    def __eq__(self, v):
-        if not type(v) == type(self): return False
-        return ( self.cmp_version_number(self.major, v.major) == 0 and
-                 self.cmp_version_number(self.minor, v.minor) == 0 and
-                 self.cmp_version_number(self.release, v.release) == 0  and
-                 self.cmp_version_number(self.build, v.build) == 0 )
+        if type(ver[-1]) is str and '-' in ver[-1] and ver[-1][-1].isalpha():
+            ver_el, build_str = ver[-1].rsplit('-', 1)
+            ver[-1] = cls.intify(ver_el)
 
-    def __le__(self, v):
-        if not type(v) == type(self): return False
-        return self < v or self == v
+            if build_str:
+                if not build_str.isdigit():
+                    build_suf = build_str[-1]
+                    build_str = build_str[:-1]
+                build = int(build_str)
 
-    def __ge__(self, v):
-        if not type(v) == type(self): return False
-        return self > v or self == v
-    
-    def __gt__(self, v):
-        if not type(v) == type(self): return False
-        assert not self.ANY in [self.major, self.minor, self.release]
-        return ( self.major > v.major or
-                 (self.major == v.major and self.minor > v.minor) or
-                 (self.major == v.major and self.minor == v.minor and self.release > v.release) or
-                 (self.major == v.major and self.minor == v.minor and self.release == v.release and \
-                  self.cmp_version_number(self.build, v.build) == 1) )
+        return cls(ver, build, build_suf)
 
     def __str__(self):
-        if self.build == self.ANY:
-            return "%d.%d.%d" % (self.major, self.minor, self.release)
-        else:
-            return "%d.%d.%d-%d%s" % (self.major, self.minor, self.release, self.build, self.buildsuffix)
+        val = '.'.join(map(lambda x: str(x), self.ver))
+        if self.build:
+            val += '-'+str(self.build)
+        if self.build_suf:
+            val += self.build_suf
+        return val
 
-    def cmp_version_number(cls, v1, v2):
-        if v1 == cls.ANY or v2 == cls.ANY:
-            return 0
+    """ ************************************************************
+    
+    NOTE: Comparisons are performed as follows
+
+    The version is always compared.
+
+    If rhs has a build it is compared. If lhs has no build it evaluates
+    to -1.
+
+    Build suffix is ignored.
+
+    ************************************************************ """ 
+
+    @classmethod
+    def arc_cmp(cls, l, r):
+        if type(l) is int and type(r) is int:
+            return (l-r)
+        elif type(l) is str and '-' in l:
+            if type(r) is str and '-' in r:
+                return cls.ver_cmp(map(cls.intify, l.split('-')),
+                                   map(cls.intify, r.split('-')))
+            elif type(r) is int:
+                return cls.ver_cmp(map(cls.intify, l.split('-')), [r])
+        elif type(l) is int:
+            return cls.ver_cmp([l], map(cls.intify, r.split('-')))
         else:
-            if v1 < v2:
-                return -1
-            elif v1 == v2:
-                return 0
-            elif v1 > v2:
-                return 1
-            
-    cmp_version_number = classmethod(cmp_version_number)
+            raise RuntimeError, "Invalid arc types"
+    
+    @classmethod
+    def ver_cmp(cls, l, r):
+        assert type(l) is list
+        assert type(r) is list
+
+        # iterate over arcs in turn, zip() returns min(len(l), len(r)) tuples 
+        for la, ra in zip(l, r):
+            ret = cls.arc_cmp(la, ra)
+            if ret != 0:
+                return ret
+
+        # equal to this point, down to list length
+        return (len(l) - len(r))
+
+    def ver_build_cmp(self, v):
+        l = self.ver[:]
+        r = v.ver[:]
+
+        if v.build != None:
+            l.append(self.build == None and -1 or self.build)
+            r.append(v.build)
+
+        return self.ver_cmp(l, r)
+    
+    def __eq__(self, v):
+        return self.ver_build_cmp(v) == 0
+
+    def __ne__(self, v):
+        return self.ver_build_cmp(v) != 0
+
+    def __lt__(self, v):
+        return self.ver_build_cmp(v) < 0
+
+    def __gt__(self, v):
+        return self.ver_build_cmp(v) > 0
+
+    def __le__(self, v):
+        return self.ver_build_cmp(v) <= 0
+
+    def __ge__(self, v):
+        return self.ver_build_cmp(v) >= 0
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
-XENSERVER_5_5_0 = Version(5,5,0)
+XENSERVER_5_5_0 = Version([5, 5, 0])
 
 class ExistingInstallation:
     def __init__(self, primary_disk, boot_device, state_device):

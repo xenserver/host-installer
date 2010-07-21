@@ -112,18 +112,18 @@ class Repository:
         try:
             repo_node = xmldoc.getElementsByTagName('repository')[0]
             desc_node = xmldoc.getElementsByTagName('description')[0]
-            _originator = repo_node.getAttribute("originator")
-            _name = repo_node.getAttribute("name")
-            _product = repo_node.getAttribute("product")
-            _version = repo_node.getAttribute("version")
-            _build = repo_node.getAttribute("build")
+            _originator = repo_node.getAttribute("originator").encode()
+            _name = repo_node.getAttribute("name").encode()
+            _product = repo_node.getAttribute("product").encode()
+            _version = repo_node.getAttribute("version").encode()
+            _build = repo_node.getAttribute("build").encode()
             if _build == '': _build = None
             _description = getText(desc_node.childNodes)
 
             for req_node in xmldoc.getElementsByTagName('requires'):
                 req = {}
                 for attr in ['originator', 'name', 'test', 'version', 'build']:
-                    req[attr] = req_node.getAttribute(attr)
+                    req[attr] = req_node.getAttribute(attr).encode()
                 if req['build'] == '': del req['build']
                 assert req['test'] in self.OPER_MAP
                 self.requires.append(req)
@@ -223,8 +223,8 @@ class Repository:
         """ Return a list the prerequisites that are not yet installed. """
         problems = []
 
-        def fmt_dep(d):
-            text = "%s:%s" % (d['originator'], d['name'])
+        def fmt_dep(id, d):
+            text = "%s requires %s:%s" % (id, d['originator'], d['name'])
             if d['test'] in self.OPER_MAP:
                 text += self.OPER_MAP[d['test']]
             else:
@@ -239,12 +239,12 @@ class Repository:
             found = False
             for repo in installed_repos.values():
                 if repo.identifier() == want_id and eval("repo._product_version.__%s__(want_ver)" % dep['test']):
-                    xelogging.log("Dependency match: %s satisfies test %s" % (str(repo), fmt_dep(dep)))
+                    xelogging.log("Dependency match: %s satisfies test %s" % (str(repo), fmt_dep(self._identifier, dep)))
                     found = True
                     break
             if not found:
-                xelogging.log("Dependency failure: failed test %s" % fmt_dep(dep))
-                problems.append(fmt_dep(dep))
+                xelogging.log("Dependency failure: failed test %s" % fmt_dep(self._identifier, dep))
+                problems.append(fmt_dep(self._identifier, dep))
 
         return problems
 

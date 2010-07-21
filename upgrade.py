@@ -127,7 +127,7 @@ class Upgrader(object):
 class ThirdGenUpgrader(Upgrader):
     """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.Version(5, 5, 0), product.THIS_PRODUCT_VERSION) ]
+    upgrades_versions = [ (product.XENSERVER_5_5_0, product.THIS_PRODUCT_VERSION) ]
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
@@ -277,9 +277,7 @@ class ThirdGenUpgrader(Upgrader):
             dbcache_fd.close()
             util.runCmd2(['cp', '-p', dbcache_file, save_dir])
 
-        v = product.Version(prev_install.version.major,
-                            prev_install.version.minor,
-                            prev_install.version.release)
+        v = product.Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
         f.write("PRODUCT_VERSION='%s'\n" % v)
         f.close()
