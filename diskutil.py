@@ -751,7 +751,7 @@ def process_ibft(ui, interactive):
             nics.sort()
             msg = \
                 "Found iSCSI Boot Firmware Table\n\nAttach to disks specified in iBFT?\n\n" \
-                "This will reserve %s for iSCSI disk access.  Reserved NICs are not be available " \
+                "This will reserve %s for iSCSI disk access.  Reserved NICs are not available " \
                 "for use as the management interface or for use by virtual machines."  % " and ".join(nics)
             button = ButtonChoiceWindowEx(ui.screen, "Attach iSCSI disks" , msg, ['Yes', 'No'], width=60)
             if button == 'no':
