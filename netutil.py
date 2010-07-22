@@ -110,7 +110,7 @@ def _linkUp(interface):
 
     rc, out = util.runCmd2(['ethtool', interface], with_stdout = True)
     if rc != 0:
-        return False
+        return None, None
     for line in out.split('\n'):
         line = line.strip()
         if line.startswith('Link detected:'):
