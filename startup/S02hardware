@@ -9,7 +9,7 @@ start()
       blacklist=*)
         # build user blacklist
         for mod in `echo ${arg#blacklist=} | tr ',' ' '`; do
-	  echo "blacklist $mod" >>/etc/modprobe.d/user-blacklist
+	  echo "blacklist $mod" >>/etc/modprobe.d/user-blacklist.conf
 	done;;
       extramodules=*)
         extramodules=`echo ${arg#extramodules=} | tr ',' ' '`;;
@@ -18,7 +18,7 @@ start()
 
   # create temp blacklist to prevent fibre channel disks etc appearing first
   for mod in lpfc qla2xxx qla4xxx ehci_hcd ohci_hcd uhci_hcd; do
-    echo "blacklist $mod" >>/etc/modprobe.d/temp-blacklist
+    echo "blacklist $mod" >>/etc/modprobe.d/temp-blacklist.conf
   done
 
   mount -t ramfs udev /dev
@@ -39,7 +39,7 @@ start()
 
   # repeat after deleting temp blacklist
   echo -n '.'
-  rm -f /etc/modprobe.d/temp-blacklist
+  rm -f /etc/modprobe.d/temp-blacklist.conf
   udevtrigger
   udevsettle --timeout=180
 

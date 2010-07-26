@@ -6,7 +6,7 @@ install:
 	mkdir -p $(INSTALLER_DIR)
 	install -m775 preinit $(INSTALLER_DIR)
 	install -m644 inittab $(DESTDIR)/etc
-	install -D -m644 blacklist $(DESTDIR)/etc/modprobe.d/blacklist
+	install -D -m644 blacklist $(DESTDIR)/etc/modprobe.d/blacklist.conf
 	install -D -m644 60-firmware.rules $(DESTDIR)/etc/udev/rules.d/60-firmware.rules
 	install -D -m755 firmware.agent $(DESTDIR)/lib/udev/firmware.agent
 	mkdir -p $(DESTDIR)/lib/firmware
