@@ -575,7 +575,7 @@ def createDom0DiskFilesystems(disk, primary_partnum):
 
 def __mkinitrd(mounts, partition, kernel_version):
 
-    cmd = ['mkinitrd', '-v', '--theme=/usr/share/splash', '--with', 'ide-generic']
+    cmd = ['mkinitrd', '-v', '--theme=/usr/share/splash']
     if isDeviceMapperNode(partition):
         # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
         # picks up the master device and not the slave 
