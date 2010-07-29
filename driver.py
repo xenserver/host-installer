@@ -36,26 +36,26 @@ def doInteractiveLoadDriver(ui, answers):
     rc = ui.init.driver_disk_sequence(answers, answers['driver-repos'], answers['loaded-drivers'])
     if rc:
         media, address = rc
-        repos = repository.repositoriesFromDefinition(media, address)
+        repos = answers['repos']
         compat_driver = False
-
+        
         # now load the drivers:
         for r in repos:
+            xelogging.log("Processing repo %s" % r)
             for p in r:
                 if p.type.startswith('driver') and p.is_loadable():
-                    if p.name not in answers['loaded-drivers']:
-                        compat_driver = True
-                        if p.load() == 0:
-                            loaded_drivers.append(p.name)
-                            if r not in required_repo_list:
-                                required_repo_list.append(r)
-                        else:
-                            ButtonChoiceWindow(
-                                ui.screen,
-                                "Problem Loading Driver",
-                                "Setup was unable to load the device driver %s." % p.name,
-                                ['Ok']
-                                )
+                    compat_driver = True
+                    if p.load() == 0:
+                        loaded_drivers.append(p.name)
+                        if r not in required_repo_list:
+                            required_repo_list.append(r)
+                    else:
+                        ButtonChoiceWindow(
+                            ui.screen,
+                            "Problem Loading Driver",
+                            "Setup was unable to load the device driver %s." % p.name,
+                            ['Ok']
+                            )
 
         if not compat_driver:
             ButtonChoiceWindow(
@@ -72,11 +72,11 @@ def doInteractiveLoadDriver(ui, answers):
             for dr in loaded_drivers:
                 text += " * %s\n" % dr
 
-                ButtonChoiceWindow(
-                    ui.screen,
-                    "Drivers Loaded",
-                    text,
-                    ['Ok'])
+            ButtonChoiceWindow(
+                ui.screen,
+                "Drivers Loaded",
+                text,
+                ['Ok'])
 
     return media, address, required_repo_list
 
