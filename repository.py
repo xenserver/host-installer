@@ -88,6 +88,9 @@ class Repository:
 
         accessor.finish()
 
+    def __repr__(self):
+        return self._identifier
+
     def isRepo(cls, accessor, base):
         """ Return whether there is a repository at base address 'base' accessible
         using accessor."""
