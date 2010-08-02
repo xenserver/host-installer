@@ -191,8 +191,17 @@ def more_media_sequence(installed_repos, still_need):
                                       ['Ok', 'Skip'], 40)
             if more == "skip":
                 # they hit cancel:
-                rv = EXIT
-                done = True
+                if len(still_need) > 0:
+                    # check they mean it
+                    check_text = "The following Supplemental Packs could contain packages which are essential:\n\n"
+                    for need in still_need:
+                        check_text += " * %s\n" % need
+                    check_text += "\nAre you sure you wish to skip installing them?"
+                    confirm = ButtonChoiceWindow(tui.screen, "Essential Packages", check_text,
+                                                 ['Back', 'Skip'])
+                    if confirm == "skip":
+                        rv = EXIT
+                        done = True
             else:
                 # they hit OK - check there is a disc
                 repos = repository.repositoriesFromDefinition('local', '')
