@@ -573,9 +573,9 @@ def createDom0DiskFilesystems(disk, primary_partnum):
     if rc != 0:
         raise RuntimeError, "Failed to create filesystem: %s" % err
 
-def __mkinitrd(mounts, partition, kernel_version):
+def __mkinitrd(mounts, partition, kernel_version, extra_args=[], tag=None):
 
-    cmd = ['mkinitrd', '-v', '--theme=/usr/share/splash']
+    cmd = ['mkinitrd', '-v', '--theme=/usr/share/splash'] + extra_args
     if isDeviceMapperNode(partition):
         # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
         # picks up the master device and not the slave 
@@ -590,7 +590,10 @@ def __mkinitrd(mounts, partition, kernel_version):
         util.mount('none', os.path.join(mounts['root'], 'tmp'), None, 'tmpfs')
 
         # Run mkinitrd inside dom0 chroot
-        output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
+        if tag:
+            output_file = os.path.join("/boot", "initrd-%s%s.img" % (kernel_version, tag))
+        else:
+            output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
         cmd.extend([output_file, kernel_version])
         if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
@@ -656,6 +659,8 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                     raise RuntimeError, "Failed to copy initiatorname.iscsi"
 
     __mkinitrd(mounts, partition, xen_kernel_version)
+    __mkinitrd(mounts, partition, xen_kernel_version,
+               ['--without-multipath', '--with-mpp-rdac'], '-mpp')
     __mkinitrd(mounts, partition, kdump_kernel_version)
  
     # make the initrd-2.6-xen.img symlink:
