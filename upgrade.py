@@ -276,6 +276,23 @@ class ThirdGenUpgrader(Upgrader):
 
             dbcache_fd.close()
             util.runCmd2(['cp', '-p', dbcache_file, save_dir])
+        else:
+            # upgrade from 5.6
+            changed = False
+            dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
+            rdbcache_fd = open(dbcache_file)
+            wdbcache_fd = open(dbcache_file + '.new', 'w')
+            for line in rdbcache_fd:
+                wdbcache_fd.write(line)
+                if '<pif ref=' in line:
+                    wdbcache_fd.write("\t\t<tunnel_access_PIF_of/>\n")
+                    changed = True
+            rdbcache_fd.close()
+            wdbcache_fd.close()
+            if changed:
+                os.rename(dbcache_file + '.new', dbcache_file)
+            else:
+                os.remove(dbcache_file + '.new')
 
         v = product.Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
