@@ -449,6 +449,16 @@ def probeDisk(device, justInstall = False):
     state = (False, None)
     storage = (None, None)
     possible_srs = []
+
+    # Determine disk is being used as an LVM SR with no partitioning
+    rv, out = util.runCmd2([ 'pvs', device, '-o', 'vg_name', '--noheadings' ], with_stdout=True)
+    if rv == 0:
+        vg_name = out.strip()
+        if vg_name.startswith('VG_XenStorage-'):
+            # Yes, this is a whole disk SR without partitioning.  No need to do further checks
+            storage = (STORAGE_LVM, device)
+            xelogging.log('Probe of '+device+' found boot='+str(boot)+' state='+str(state)+' storage='+str(storage))
+            return (boot, state, storage)
         
     tool = PartitionTool(device)
     for num, part in tool.iteritems():
