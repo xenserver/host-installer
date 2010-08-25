@@ -579,7 +579,6 @@ Either return to the previous screen and select a different disk or cancel the i
     return EXIT
 
 def select_guest_disks(answers):
-    # if only one disk, set default and skip this screen:
     diskEntries = diskutil.getQualifiedDiskList()
 
     # CA-38329: filter out device mapper nodes (except primary disk) as these won't exist
@@ -591,10 +590,6 @@ def select_guest_disks(answers):
 
     if len(diskEntries) == 0:
         answers['guest-disks'] = []
-        return SKIP_SCREEN
-
-    if len(diskEntries) == 1:
-        answers['guest-disks'] = diskEntries
         return SKIP_SCREEN
 
     # set up defaults:
