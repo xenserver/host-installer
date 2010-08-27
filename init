@@ -93,6 +93,7 @@ def main(args):
     answerfile_address = None
     answerfile_script = None
     mpath = True
+    mpath_force = False
     use_ibft = False
     
     xelogging.log("%s Setup - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
@@ -122,6 +123,9 @@ def main(args):
         elif opt == "--device_mapper_multipath":
             if val.lower() in [ "disabled", "false", "0", "no" ]: 
                 mpath = False
+            elif val.lower() == "force":
+                mpath = True
+                mpath_force = True
         elif opt == "--use_ibft":
             use_ibft = True
 
@@ -174,7 +178,7 @@ def main(args):
     # Ensure multipath devices are created unless installer is being
     # run with the "--device-mapper-multipath=disabled" option
     if mpath:
-        diskutil.mpath_enable()
+        diskutil.mpath_enable(mpath_force)
 
     if init_network:
         configureNetworking(ui, answer_device)

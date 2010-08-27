@@ -92,17 +92,27 @@ def mpath_supported_list():
     # Use mpath on supported HBAs and software iSCSI root disks
     return hba_devs + iscsi_devs
     
-def mpath_enable():
+def mpath_enable(force=False):
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
-    assert 0 == util.runCmd2('multipathd -e -d &> /var/log/multipathd &')
-    wait_for_multipathd()
 
-    # Add multipath nodes for SAN disks
-    slaves = mpath_supported_list()
-    for dev in slaves:
-        mpath_add(dev)
-    
+    if not force:
+        # Use "explicit map instantiation" option (-e) to prevent multipathd
+        # creating maps at start of day
+        assert 0 == util.runCmd2('multipathd -e -d &> /var/log/multipathd &')
+        wait_for_multipathd()
+
+        # Add multipath nodes for SAN disks only
+        slaves = mpath_supported_list()
+        for dev in slaves:
+            mpath_add(dev)
+    else:
+        # Omit "explicit map instantiation" option (-e) so that multipathd
+        # creates maps for everything at start of day
+        assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
+        wait_for_multipathd()
+
+    # Tell DM to create partition nodes for newly created mpath devices
     assert 0 == createMpathPartnodes()
     xelogging.log("created multipath device(s)");
     use_mpath = True
