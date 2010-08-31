@@ -50,8 +50,14 @@ def module_file_uname(module):
     vermagic = vermagic[10:].strip()
     return vermagic.split(" ")[0]
 
-def modprobe_file(module, params = "", name = None):
+def modprobe_file(module, remove = True, params = "", name = None):
     INSMOD = '/sbin/insmod'
+
+    if remove and module_present(module):
+        # Try to remove the module if already loaded
+        rc = util.runCmd2(['rmmod', module])
+        if rc != 0:
+            raise RuntimeError, "Unable to replace module %s which is already loaded.  Please see the documentation for instructions of how to blacklist it." % module
 
     # First use modinfo to find out what the dependants of the
     # module are and modprobe them:
