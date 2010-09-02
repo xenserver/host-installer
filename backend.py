@@ -1109,7 +1109,6 @@ def writeLog(primary_disk, primary_partnum):
             if os.path.islink(log_location):
                 log_location = os.path.join(primary_fs.mount_point, os.readlink(log_location).lstrip("/"))
             util.assertDir(log_location)
-            xelogging.writeLog(os.path.join(log_location, "install-log"))
             xelogging.collectLogs(log_location, os.path.join(primary_fs.mount_point,"root"))
         except:
             pass

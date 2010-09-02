@@ -210,9 +210,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             xelogging.log("A fatal exception occurred:")
             xelogging.log(err)
 
-            # now write out logs where possible:
-            xelogging.writeLog("/tmp/install-log")
-
             # run the user's scripts - an arg of "1" indicates failure
             scripts.run_scripts('installation-complete', '1')
     
@@ -243,7 +240,6 @@ def go(ui, args, answerfile_address, answerfile_script):
         scripts.run_scripts('installation-complete', '0')
 
         # put the log in /tmp:
-        xelogging.writeLog("/tmp/install-log")
         xelogging.collectLogs('/tmp')
 
         # and now on the disk if possible:

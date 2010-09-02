@@ -73,6 +73,7 @@ def main(args):
 
     # log to tty3
     xelogging.openLog('/dev/tty3')
+    xelogging.openLog('/tmp/install-log')
             
     tty = None
     signal.signal(signal.SIGTERM, sig_term)
@@ -97,8 +98,7 @@ def main(args):
     use_ibft = False
     
     xelogging.log("%s Setup - Version %s (#%s)" % (PRODUCT_BRAND, PRODUCT_VERSION, BUILD_NUMBER))
-    xelogging.log("Command line args (raw): %s" % str(sys.argv))
-    xelogging.log("Command line args (processed): %s" % str(args))
+    xelogging.log("Command line args: %s" % str(args))
     for (opt, val) in args.items():
         if opt == "--install":
             operation = init_constants.OPERATION_INSTALL
@@ -161,8 +161,6 @@ def main(args):
         args['--keymap'] = kmap
         xelogging.log("Loading keymap %s" % kmap)
         util.runCmd2(["/bin/loadkeys", kmap])
-
-        xelogging.writeLog("/tmp/startup-log")
 
     # Attaches iSCSI disks listed in iSCSI Boot Firmware Tables.  This may
     # reserve NICs and so should be called before netutil.scanConfiguration

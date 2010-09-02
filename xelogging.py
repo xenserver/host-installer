@@ -12,6 +12,7 @@
 # written by Andrew Peace
 
 import os
+import shutil
 import sys
 import fcntl
 import datetime
@@ -74,14 +75,9 @@ def collectLogs(dst, tarball_dir = None):
     if not tarball_dir:
         tarball_dir = dst
 
-    # now, try to get the startup-log (it won't be in the same directory
-    # most likely, but check in case):
-    if not os.path.exists("%s/startup-log" % dst):
-        # it didn't exist, so we need to try and fetch it -it ought to be in
-        # /tmp:
-        if os.path.exists("/tmp/startup-log"):
-            os.system("cp /tmp/startup-log %s/" % dst)
     if dst != '/tmp':
+        if os.path.exists("/tmp/install-log"):
+            shutil.copy("/tmp/install-log", dst)
         if os.path.exists(constants.SCRIPTS_DIR):
             os.system("cp -r "+constants.SCRIPTS_DIR+" %s/" % dst)
     logs = filter(lambda x: x.endswith('-log') or x == 'answerfile' or
