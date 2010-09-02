@@ -694,7 +694,7 @@ def confirm_installation(answers):
         [ok, 'Back'], default = 1, width = 50, help = 'confirm'
         )
 
-    if button == 'back': return LEFT_BACKWARDS
+    if button == None or button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
 def get_root_password(answers):
