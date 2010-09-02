@@ -337,9 +337,16 @@ def isRemovable(path):
 
 def blockSizeToGBSize(blocks):
     return (long(blocks) * 512) / (1024 * 1024 * 1024)
+
+def blockSizeToMBSize(blocks):
+    return (long(blocks) * 512) / (1024 * 1024)
     
 def getHumanDiskSize(blocks):
-    return "%d GB" % blockSizeToGBSize(blocks)
+    gb = blockSizeToGBSize(blocks)
+    if gb > 0:
+        return "%d GB" % gb
+    else:
+        return "%d MB" % blockSizeToMBSize(blocks)
 
 def getExtendedDiskInfo(disk, inMb = 0):
     return (getDiskDeviceVendor(disk), getDiskDeviceModel(disk),
