@@ -222,7 +222,9 @@ def get_local_disk(answers):
 def get_local_dest(answers):
     partitions = diskutil.partitionsOnDisk(answers['dest-disk'])
 
-    if len(partitions) == 1:
+    if len(partitions) == 0:
+        answers['dest-address'] = answers['dest-disk']
+    elif len(partitions) == 1:
         answers['dest-address'] = '/dev/' + partitions[0]
     else:
         entries = []
