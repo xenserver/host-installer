@@ -22,6 +22,7 @@ import constants
 import upgrade
 import product
 import diskutil
+from disktools import *
 import version
 
 from snack import *
@@ -68,6 +69,13 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     def target_is_sr(answers):
         return 'target-is-sr' in answers and answers['target-is-sr']
+
+    def target_no_space(answers):
+        if 'primary-disk' in answers:
+            tool = LVMTool()
+            sr = tool.srPartition(answers['primary-disk'])
+            return tool.deviceFreeSpace(sr) < 2 * constants.root_size * 2 ** 20
+        return False
 
     def preserve_settings(answers):
         return answers.has_key('preserve-settings') and \
@@ -130,7 +138,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.select_primary_disk,
              predicates=[requires_target]),
         Step(uis.check_sr_space,
-             predicates=[target_is_sr]),
+             predicates=[target_is_sr, target_no_space]),
         Step(uis.repartition_existing,
              predicates=[is_reinstall_fn, requires_repartition]),
         Step(uis.select_guest_disks,

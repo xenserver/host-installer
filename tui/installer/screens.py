@@ -563,6 +563,7 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
                            "The disk selected to install %s to is greater than %s.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, diskutil.getHumanDiskSize(blocks)),
                            ['Ok'])
 
+    if button == None: return SKIP_SCREEN
     if button == 'back': return LEFT_BACKWARDS
 
     return RIGHT_FORWARDS
@@ -572,9 +573,6 @@ def check_sr_space(answers):
     sr = tool.srPartition(answers['primary-disk'])
     assert sr
 
-    if tool.deviceFreeSpace(sr) >= 2 * constants.root_size * 2 ** 20:
-        return SKIP_SCREEN
-    
     button = ButtonChoiceWindow(tui.screen,
                                 "Insufficient Space",
                                 """The disk selected contains a storage repository which does not have enough space to also install %s on.
