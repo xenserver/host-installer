@@ -498,6 +498,7 @@ def disk_more_info(context):
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
+    button = None
     diskEntries = diskutil.getQualifiedDiskList()
 
     entries = []
@@ -505,7 +506,7 @@ def select_primary_disk(answers):
     
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size) <= constants.max_primary_disk_size:
+        if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size):
             # determine current usage
             target_is_sr[de] = False
             (boot, state, storage) = diskutil.probeDisk(de)
@@ -524,37 +525,43 @@ def select_primary_disk(answers):
                            ['Cancel'])
         return EXIT
 
-    # if only one disk, set default and skip this screen:
+    # if only one disk, set default:
     if len(entries) == 1:
         answers['primary-disk'] = entries[0][1]
-        if 'installation-to-overwrite' in answers:
-            answers['target-is-sr'] = target_is_sr[entries[0][1]]
-        return SKIP_SCREEN
+    else:
+        # default value:
+        default = None
+        if answers.has_key('primary-disk'):
+            default = selectDefault(answers['primary-disk'], entries)
 
-    # default value:
-    default = None
-    if answers.has_key('primary-disk'):
-        default = selectDefault(answers['primary-disk'], entries)
+        tui.update_help_line([None, "<F5> more info"])
 
-    tui.update_help_line([None, "<F5> more info"])
-
-    scroll, height = snackutil.scrollHeight(4, len(entries))
-    (button, entry) = snackutil.ListboxChoiceWindowEx(
-        tui.screen,
-        "Select Primary Disk",
-        """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
+        scroll, height = snackutil.scrollHeight(4, len(entries))
+        (button, entry) = snackutil.ListboxChoiceWindowEx(
+            tui.screen,
+            "Select Primary Disk",
+            """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
 
 You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
-        entries,
-        ['Ok', 'Back'], 55, scroll, height, default, help = 'pridisk:info',
-        hotkey = 'F5', hotkey_cb = disk_more_info)
+            entries,
+            ['Ok', 'Back'], 55, scroll, height, default, help = 'pridisk:info',
+            hotkey = 'F5', hotkey_cb = disk_more_info)
 
-    tui.screen.popHelpLine()
+        tui.screen.popHelpLine()
 
-    # entry contains the 'de' part of the tuple passed in
-    answers['primary-disk'] = entry
+        # entry contains the 'de' part of the tuple passed in
+        answers['primary-disk'] = entry
+
     if 'installation-to-overwrite' in answers:
-        answers['target-is-sr'] = target_is_sr[entry]
+        answers['target-is-sr'] = target_is_sr[answers['primary-disk']]
+
+    # warn if not all of the disk is usable
+    blocks = diskutil.getDiskDeviceSize(answers['primary-disk'])
+    if diskutil.blockSizeToGBSize(blocks) > constants.max_primary_disk_size:
+        ButtonChoiceWindow(tui.screen,
+                           "Large Disk Detected",
+                           "The disk selected to install %s to is greater than %s.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, diskutil.getHumanDiskSize(blocks)),
+                           ['Ok'])
 
     if button == 'back': return LEFT_BACKWARDS
 
