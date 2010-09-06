@@ -307,7 +307,7 @@ def getDiskSerialNumber(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return readSerialNumber(getMpathSlaves(dev)[0])
+        return getDiskSerialNumber(getMpathSlaves(dev)[0])
 
     rc, out = util.runCmd2(['/bin/sdparm', '-q', '-i', '-p', 'sn', dev], with_stdout = True)
     if rc == 0:
