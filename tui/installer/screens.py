@@ -491,6 +491,7 @@ def disk_more_info(context):
     snackutil.TableDialog(tui.screen, "Details", ("Disk:", diskutil.getHumanDiskName(context)),
                           ("Vendor:", diskutil.getDiskDeviceVendor(context)),
                           ("Model:", diskutil.getDiskDeviceModel(context)),
+                          ("Serial:", diskutil.getDiskSerialNumber(context)),
                           ("Size:", diskutil.getHumanDiskSize(diskutil.getDiskDeviceSize(context))),
                           ("Current usage:", usage))
     tui.screen.popHelpLine()
