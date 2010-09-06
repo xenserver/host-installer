@@ -302,6 +302,20 @@ def getDiskDeviceSize(dev):
     elif os.path.exists("/sys/block/%s/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/size" % dev))
 
+def getDiskSerialNumber(dev):
+    # For Multipath nodes return info about 1st slave
+    if not dev.startswith("/dev/"):
+        dev = '/dev/' + dev
+    if isDeviceMapperNode(dev):
+        return readSerialNumber(getMpathSlaves(dev)[0])
+
+    rc, out = util.runCmd2(['/bin/sdparm', '-q', '-i', '-p', 'sn', dev], with_stdout = True)
+    if rc == 0:
+        lines = out.split('\n')
+        if len(lines) >= 2:
+            return lines[1].strip()
+    return ""
+
 def isRemovable(path):
 
     if path.startswith('/dev/mapper') or path.startswith('/dev/dm-') or path.startswith('dm-'):
