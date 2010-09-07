@@ -455,10 +455,10 @@ def log_available_disks():
         diskSizesGB = [blockSizeToGBSize(x) for x in diskSizes]
         xelogging.log("Disk sizes: %s" % str(diskSizesGB))
 
-        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x <= constants.max_primary_disk_size,
+        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x,
                            diskSizesGB)
         if len(dom0disks) == 0:
-            xelogging.log("Unable to find a suitable disk (with a size between %dGB and %dGB) to install to." % (constants.min_primary_disk_size, constants.max_primary_disk_size))
+            xelogging.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
 INSTALL_RETAIL = 1
 INSTALL_OEM = 2
