@@ -117,7 +117,7 @@ class FTPAccessor(Accessor):
 
 class ConsoleAccessor(Accessor):
     def writeFile(self, in_fh, out_name):
-        rc, data = util.runCmd2(['/usr/bin/uuencode', in_fh.name, '-'], with_stdout = True)
+        rc, data = util.runCmd2(['/usr/bin/uuencode', in_fh.name, out_name], with_stdout = True)
         if rc == 0:
             print data
         return rc == 0
