@@ -54,7 +54,7 @@ class MountingAccessor(Accessor):
 
 class FileAccessor(Accessor):
     def __init__(self, url):
-        self.path = url[6:]
+        self.path = url[7:]
 
     def writeFile(self, in_fh, out_name):
         xelogging.log("Copying to %s" % os.path.join(self.path, out_name))
@@ -114,6 +114,13 @@ class FTPAccessor(Accessor):
     def writeFile(self, in_fh, out_name):
         xelogging.log("Storing as %s" % out_name)
         self.ftp.storbinary('STOR ' + out_name, in_fh)
+
+class ConsoleAccessor(Accessor):
+    def writeFile(self, in_fh, out_name):
+        rc, data = util.runCmd2(['/usr/bin/uuencode', in_fh.name, '-'], with_stdout = True)
+        if rc == 0:
+            print data
+        return rc == 0
 
 def selectDefault(key, entries):
     """ Given a list of (text, key) and a key to select, returns the appropriate
@@ -364,6 +371,7 @@ def accessor(url):
         'file://': FileAccessor,
         'dev://': DeviceAccessor,
         'ftp://': FTPAccessor,
+        'console://': ConsoleAccessor,
         }        
 
     for prefix, cls in accessors.iteritems():
