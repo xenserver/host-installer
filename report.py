@@ -116,6 +116,9 @@ class FTPAccessor(Accessor):
         self.ftp.storbinary('STOR ' + out_name, in_fh)
 
 class ConsoleAccessor(Accessor):
+    def __init__(self, url):
+        return
+    
     def writeFile(self, in_fh, out_name):
         rc, data = util.runCmd2(['/usr/bin/uuencode', in_fh.name, out_name], with_stdout = True)
         if rc == 0:
