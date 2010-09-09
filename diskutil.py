@@ -15,7 +15,6 @@ import os.path
 import constants
 import CDROM
 import fcntl
-import devscan
 import util
 import netutil
 from util import dev_null
@@ -25,19 +24,6 @@ import time
 from snackutil import ButtonChoiceWindowEx
 
 use_mpath = False
-
-
-regex = re.compile("[0-9]+:[0-9]+:[0-9]+:[0-9]+\s*([a-z]*)")
-regex2 = re.compile("multipathd>(\s*[^:]*:)?\s+(.*)")
-
-def mpath_cli_mpexec(cmd):
-    xelogging.log("mpath cmd: %s" % cmd)
-    (rc,stdout,stderr) = util.runCmd2(["multipathd", "-k"],with_stdout=True, with_stderr=True, inputtext=cmd)
-    if stdout != "multipathd> ok\nmultipathd> ":
-        raise Exception("multipath cli command %s failed\n" % cmd)
-
-def mpath_add(dev):
-    mpath_cli_mpexec("add path %s" % dev)
 
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
@@ -60,57 +46,13 @@ def wait_for_multipathd():
     xelogging.log(msg)
     raise Exception(msg)
 
-def mpath_supported_list():
-    def size(disk):
-        try:
-            return int(open('/sys/block/%s/size' % disk ).read())
-        except:
-            return 0
-    # Create list of devices that support multipathing.
-    
-    # Disks belonging to an HBA adapter that we support
-    adapters = devscan.adapters()
-    hba_devs = adapters['devs'].keys()
-
-    # CA-41530: filter out zero length control LUNs
-    hba_devs = filter(size, hba_devs)
-
-    # CA-38523: debug to help work out why we sometimes multipath SATA disks
-    if hba_devs:
-        xelogging.log("adapters = %s" % str(adapters))
-
-    # iSCSI disks
-    iscsi_devs = os.listdir('/dev/')
-    iscsi_devs = filter(lambda x: x.startswith('sd'), iscsi_devs)
-    iscsi_devs = filter(lambda x: not x[-1].isdigit(), iscsi_devs)
-    iscsi_devs = filter(lambda y: is_iscsi('/dev/'+y), iscsi_devs)
-
-    # CA-38523: debug to help work out why we sometimes multipath SATA disks
-    if iscsi_devs:
-        xelogging.log("iscsi_devs = %s" % str(iscsi_devs))
-
-    # Use mpath on supported HBAs and software iSCSI root disks
-    return hba_devs + iscsi_devs
-    
-def mpath_enable(force=False):
+def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
-    if not force:
-        # Use "explicit map instantiation" option (-e) to prevent multipathd
-        # creating maps at start of day
-        assert 0 == util.runCmd2('multipathd -e -d &> /var/log/multipathd &')
-        wait_for_multipathd()
-
-        # Add multipath nodes for SAN disks only
-        slaves = mpath_supported_list()
-        for dev in slaves:
-            mpath_add(dev)
-    else:
-        # Omit "explicit map instantiation" option (-e) so that multipathd
-        # creates maps for everything at start of day
-        assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
-        wait_for_multipathd()
+    # This creates maps for all disks at start of day (because -e is ommitted)
+    assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
+    wait_for_multipathd()
 
     # Tell DM to create partition nodes for newly created mpath devices
     assert 0 == createMpathPartnodes()
