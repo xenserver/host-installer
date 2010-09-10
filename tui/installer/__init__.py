@@ -74,7 +74,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         if 'primary-disk' in answers:
             tool = LVMTool()
             sr = tool.srPartition(answers['primary-disk'])
-            return tool.deviceFreeSpace(sr) < 2 * constants.root_size * 2 ** 20
+            if sr:
+                return tool.deviceFreeSpace(sr) < 2 * constants.root_size * 2 ** 20
         return False
 
     def preserve_settings(answers):
