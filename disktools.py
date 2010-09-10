@@ -176,6 +176,13 @@ class LVMTool:
         self.lvs = self.readInfo(self.LVS_INFO)
         self.lvSegs = self.readInfo(self.LVS_SEG_INFO)
         self.pvs = self.readInfo(self.PVS_INFO)
+        # For DM nodes "pvs" incorrectly returns /dev/dm-n, which does not exist.
+        # Replace occurrences of /dev/dm-n with the correct node under /dev/mapper/
+        for pv in self.pvs:
+            name = pv['pv_name']
+            if name.startswith('/dev/dm-'):
+                n = int(name[8:])
+                pv['pv_name'] = getDeviceMapperNode(n)
 
     @classmethod
     def decodeSegmentRange(cls, segRange):
@@ -286,7 +293,7 @@ class LVMTool:
     def deviceToPV(self, device):
         pv = self.deviceToPVOrNone(device)
         if pv is None:
-            raise Exception("PV for device '"+device+"' not found")
+            raise Exception("PV for device '"+str(device)+"' not found")
         return pv
 
     def vGContainingLV(self, lvol):
@@ -915,6 +922,17 @@ def hasDeviceMapperHolder(dev):
             if holder.startswith('dm-'):
                 return True
     return False
+
+
+def getDeviceMapperNode(n):
+    "Return the /dev/mapper/node corresponding to /sys/block/dm-n"
+    (major,minor) = map(int,open('/sys/block/dm-%s/dev' % str(n)).read().strip().split(':'))
+    for i in os.listdir('/dev/mapper'):
+        dmdev = '/dev/mapper/%s' % i 
+        if getMajMin(dmdev) == (major,minor):
+            return dmdev
+    return None
+
 
 def getMpathSlaves(disk):
     """ Return the list of slaves for an mpath device or an empty list if not mpath """    
