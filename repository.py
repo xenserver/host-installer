@@ -775,7 +775,7 @@ class DeviceAccessor(MountingAccessor):
 
 class NFSAccessor(MountingAccessor):
     def __init__(self, nfspath):
-        MountingAccessor.__init__(self, ['nfs'], nfspath)
+        MountingAccessor.__init__(self, ['nfs'], nfspath, ['ro', 'tcp'])
 
 class URLFileWrapper:
     "This wrapper emulate seek (forwards) for URL streams"
