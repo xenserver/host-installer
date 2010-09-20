@@ -65,7 +65,7 @@ def collectLogs(dst, tarball_dir = None):
     os.system("cat /proc/modules >%s/modules-log" % dst)
     os.system("uname -a >%s/uname-log" % dst)
     os.system("ls /sys/block >%s/blockdevs-log" % dst)
-    os.system("ls /dev >%s/devcontents-log" % dst)
+    os.system("ls -lR /dev >%s/devcontents-log" % dst)
     os.system("tty >%s/tty-log" % dst)
     os.system("cat /proc/cmdline >%s/cmdline-log" % dst)
     os.system("dmesg >%s/dmesg-log" % dst)
