@@ -366,8 +366,11 @@ class Answerfile:
 
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
-        if len(installations) != 1:
+        if len(installations) == 0:
             raise AnswerfileError, "Could not locate the installation specified to be reinstalled."
+        elif len(installations) > 1:
+            xelogging.log("Warning: multiple paths detected - recommend use of --device_mapper_multipath=yes")
+            xelogging.log("Warning: selecting 1st path from %s" % str(map(lambda x: x.primary_disk, installations)))
         results['installation-to-overwrite'] = installations[0]
         return results
 
