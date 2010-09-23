@@ -796,16 +796,23 @@ def installBootLoader(mounts, disk, primary_partnum, bloader, serial, boot_seria
         util.umount("%s/dev" % mounts['root'])
 
 def installExtLinux(mounts, disk, location = 'mbr'):
+
+    # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
+    # However we continue to copy the ones we need to /boot so we can write the config file there.
+    # We need to do this because old installers are needed to restore old XS images from the backup
+    # partition, and these need to read the config on the current partition.  Oops.
+    # This also means we avoid find and fix all the other scripts which assume extlinux.conf is under /boot.
+
     rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to install bootloader: %s" % err
 
     for m in ["mboot", "menu", "chain"]:
         assert util.runCmd2(["ln", "-f",
-                             "%s/usr/lib/syslinux/%s.c32" % (mounts['root'], m),
+                             "%s/boot/extlinux/%s.c32" % (mounts['root'], m),
                              "%s/%s.c32" % (mounts['boot'], m)]) == 0
     if location == 'mbr':
-        assert util.runCmd2(["dd", "if=%s/usr/lib/syslinux/mbr.bin" % mounts['root'], \
+        assert util.runCmd2(["dd", "if=%s/usr/share/syslinux/mbr.bin" % mounts['root'], \
                                  "of=%s" % disk, "bs=512", "count=1"]) == 0
 
 def installGrub(mounts, disk, primary_partnum, location = 'mbr'):
