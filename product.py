@@ -164,6 +164,7 @@ class ExistingInstallation:
         self.state_device = state_device
         self.state_prefix = ''
         self.settings = None
+        self.root_fs = None
 
     def __str__(self):
         return "%s %s" % (
@@ -470,8 +471,9 @@ class ExistingRetailInstallation(ExistingInstallation):
         self.root_fs = util.TempMount(self.root_device, 'root', ['ro'], 'ext3')
 
     def unmount_root(self):
-        self.root_fs.unmount()
-        self.root_fs = None
+        if self.root_fs:
+            self.root_fs.unmount()
+            self.root_fs = None
 
     def readInventory(self):
         self.mount_root()
@@ -488,6 +490,7 @@ class ExistingRetailInstallation(ExistingInstallation):
 class ExistingOEMInstallation(ExistingInstallation):
     def __init__(self, primary_disk, boot_device, state_device):
         self.variant = "OEM"
+        self.root_fs_outer = None
         ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
 
         # determine active root partition
@@ -571,8 +574,12 @@ class ExistingOEMInstallation(ExistingInstallation):
             self.root_fs_outer = None
 
     def unmount_root(self):
-        self.root_fs.unmount()
-        self.root_fs_outer.unmount()
+        if self.root_fs:
+            self.root_fs.unmount()
+            self.root_fs = None
+        if self.root_fs_outer:
+            self.root_fs_outer.unmount()
+            self.root_fs_outer = None
 
     def join_state_path(self, *path):
         if self.state_prefix != '':
