@@ -62,11 +62,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         return 'installation-to-overwrite' in answers and \
            upgrade.getUpgrader(answers['installation-to-overwrite']).repartition
 
-    def requires_target(answers):
-        return answers['install-type'] == constants.INSTALL_TYPE_FRESH or \
-               answers.has_key("installation-to-overwrite") and \
-               upgrade.getUpgrader(answers['installation-to-overwrite']).prompt_for_target
-
     def target_is_sr(answers):
         return 'target-is-sr' in answers and answers['target-is-sr']
 
@@ -137,7 +132,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.force_backup_screen,
              predicates=[is_reinstall_fn, requires_backup]),
         Step(uis.select_primary_disk,
-             predicates=[requires_target]),
+             predicates=[is_clean_install_fn]),
         Step(uis.check_sr_space,
              predicates=[target_is_sr, target_no_space]),
         Step(uis.repartition_existing,

@@ -308,21 +308,6 @@ def getExtendedDiskInfo(disk, inMb = 0):
     return (getDiskDeviceVendor(disk), getDiskDeviceModel(disk),
             inMb and (getDiskDeviceSize(disk)/2048) or getDiskDeviceSize(disk))
 
-def readFATPartitionLabel(partition):
-    """Read the FAT partition label directly, including whitespace."""
-    fd = open(partition)
-    bytes = fd.read(90)
-    fd.close()
-
-    if bytes[82:87] == "FAT32":
-        label = bytes[71:82]
-    elif bytes[54:59] == "FAT16":
-        label = bytes[43:54]
-    elif bytes[54:59] == "FAT12":
-        label = bytes[43:54]
-    else:
-        raise Exception("%s is not FAT partition" % partition)
-    return label
 
 def readExtPartitionLabel(partition):
     """Read the ext partition label."""
@@ -403,7 +388,6 @@ def log_available_disks():
             xelogging.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
 INSTALL_RETAIL = 1
-INSTALL_OEM = 2
 STORAGE_LVM = 1
 STORAGE_EXT3 = 2
 
@@ -413,7 +397,7 @@ def probeDisk(device, justInstall = False):
     
     Where:
     
-    	boot is a tuple of None, INSTALL_RETAIL or INSTALL_OEM and the partition device
+    	boot is a tuple of None, INSTALL_RETAIL and the partition device
         state is a tuple of True or False and the partition device
         storage is a tuple of None, STORAGE_LVM or STORAGE_EXT3 and the partition device
     """
@@ -443,24 +427,10 @@ def probeDisk(device, justInstall = False):
                     if tool.partitions.has_key(num+2):
                         # George Retail and earlier didn't use the correct id for SRs
                         possible_srs = [num+2]
-            elif part['id'] == tool.ID_FAT16:
-                # probe for OEM
-                try:
-                    label = readFATPartitionLabel(part_device).strip()
-                except:
-                    pass
-                if label == 'IHVCONFIG':
-                    boot = (INSTALL_OEM, part_device)
         else:
             if part['id'] == tool.ID_LINUX_LVM:
                 if num not in possible_srs:
                     possible_srs.append(num)
-            elif part['id'] == tool.ID_LINUX:
-                if num not in possible_srs:
-                    # OEM Flash state partitions are named xe-state, and OEM HDD state partitions have generated
-                    # names of the form xc+dddddddd-dddd where d is any hex digit
-                    if label and (label == 'xe-state' or label.startswith('xc+')):
-                        state = (True, part_device)
 
     if not justInstall:
         lv_tool = len(possible_srs) and LVMTool()

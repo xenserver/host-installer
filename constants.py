@@ -81,8 +81,6 @@ rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
 swap_location = '/var/swap/swap.001'
 swap_size = 512
 
-OEM_BOOT_PARTITION_FAT_LABEL = "IHVCONFIG"
-
 MIN_PASSWD_LEN=6
 
 # file locations - installer filesystem

@@ -217,9 +217,6 @@ class ExistingInstallation:
         else:
             return True
 
-    def partitionWasRenamed(self, srcDevice, destDevice):
-        pass # Only from-OEM upgrades care about this
-
     def _readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
         
@@ -241,7 +238,7 @@ class ExistingInstallation:
                     if line.startswith("ZONE="):
                         tz = line[5:].strip()
             if not tz:
-                # No timezone found: a common case on a default OEM installation.
+                # No timezone found: 
                 # Supply a default and for interactive installs prompt the user.
                 xelogging.log('No timezone configuration found.')
                 results['request-timezone'] = True
@@ -300,7 +297,7 @@ class ExistingInstallation:
                         results['keymap'] = line[9:].strip()
             # Do not error here if no keymap configuration is found.
             # This enables upgrade to still carry state on hosts without
-            # keymap configured: a common case being a default OEM installation.
+            # keymap configured: 
             # A default keymap is assigned in the backend of this installer.
             if not results.has_key('keymap'):
                 xelogging.log('No existing keymap configuration found.')
@@ -486,145 +483,6 @@ class ExistingRetailInstallation(ExistingInstallation):
         finally:
             self.unmount_root()
 
-
-class ExistingOEMInstallation(ExistingInstallation):
-    def __init__(self, primary_disk, boot_device, state_device):
-        self.variant = "OEM"
-        self.root_fs_outer = None
-        ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
-
-        # determine active root partition
-        boot_fs = util.TempMount(boot_device, 'boot-', ['ro'], 'vfat')
-        try:
-            fd = None
-            root_part = -1
-            arm_for_root = False
-            default_label = None
-            try:
-                fd = open(os.path.join(boot_fs.mount_point, constants.SYSLINUX_CFG))
-                for line in fd:
-                    tokens = line.upper().split()
-                    if len(tokens) <= 1: continue
-                    if tokens[0] == 'DEFAULT':
-                        default_label = tokens[1]
-                    elif tokens[0] == 'LABEL':
-                        arm_for_root = (tokens[1] == default_label)
-                    if arm_for_root and tokens[0] == 'APPEND':
-                        root_part = int(tokens[2])
-                        break
-
-            except Exception, e:
-                raise Exception, "Failed to locate root device from %s: %s" % (boot_device, str(e))
-            if root_part == -1:
-                raise Exception, "Failed to locate root device from %s" % boot_device
-        finally:
-            if fd is not None:
-                fd.close()
-            boot_fs.unmount()
-
-        assert root_part > 0
-        self.root_device = PartitionTool.partitionDevice(PartitionTool.diskDevice(boot_device), root_part)
-        self.readInventory()
-
-        self.auxiliary_state_devices = []
-        db_conf = {}
-        try:
-            # read xapi db config
-            self.mount_state()
-            dbcf = open(self.join_state_path('etc/xensource/db.conf'), 'r')
-            for l in dbcf:
-                line = l.strip()
-                if line.startswith('[/'):
-                    filename = line.strip('[]')
-                    db_conf[filename] = {}
-                else:
-                    tokens = line.split(':')
-                    if len(tokens) == 2:
-                        db_conf[filename][tokens[0]] = tokens[1]
-            dbcf.close()
-        finally:
-            self.unmount_state()
-
-        # locate any auxiliary state partitions
-        tool = LVMTool()
-        for k, v in db_conf.items():
-            if k.startswith('/var/xsconfig/LV') and v['is_on_remote_storage'] == 'false':
-                comps = k.split('/')
-                lv = comps[3].replace('--', '-')
-                vg = tool.vGContainingLV(lv)
-                part = None
-                for pv in tool.pvs:
-                    if pv['vg_name'] == vg:
-                        part = pv['pv_name']
-                        break
-                assert part
-                self.auxiliary_state_devices.append({'device': part, 'vg': vg, 'lv': lv})
-
-        xelogging.log('Found auxiliary state devices: '+str(self.auxiliary_state_devices))
-
-    def __repr__(self):
-        return "<ExistingOEMInstallation: %s on %s>" % (str(self), self.root_device)
-
-    def mount_root(self):
-        self.root_fs_outer = util.TempMount(self.root_device, 'root-', ['ro'], 'ext3')
-        try:
-            self.root_fs = util.TempMount(os.path.join(self.root_fs_outer.mount_point, 'rootfs'), 'loop-', ['loop', 'ro'], 'squashfs')
-        except:
-            self.root_fs_outer.unmount()
-            self.root_fs_outer = None
-
-    def unmount_root(self):
-        if self.root_fs:
-            self.root_fs.unmount()
-            self.root_fs = None
-        if self.root_fs_outer:
-            self.root_fs_outer.unmount()
-            self.root_fs_outer = None
-
-    def join_state_path(self, *path):
-        if self.state_prefix != '':
-            p = os.path.join(self.state_fs.mount_point, self.state_prefix, 'etc/freq-etc', *path)
-            if os.path.exists(p):
-                return p
-        return os.path.join(self.state_fs.mount_point, self.state_prefix, *path)
-
-    def readInventory(self):
-        self.mount_root()
-        try:
-            # read read-only inventory to determine build
-            ro_inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
-            self.build = ro_inventory['BUILD_NUMBER']
-        finally:
-            self.unmount_root()
-
-        self.state_prefix = "xe-%s" % self.build
-        self.mount_state()
-        try:
-            # read inventory in state partition
-            self.inventory = util.readKeyValueFile(self.join_state_path(constants.INVENTORY_FILE), strip_quotes = True)
-            self.name = self.inventory['PRODUCT_NAME']
-            self.brand = self.inventory['PRODUCT_BRAND']
-            self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
-        finally:
-            self.unmount_state()
-
-
-    def partitionWasRenamed(self, srcDevice, destDevice):
-        # Update self.auxiliary_state_devices to reflect the new partition name
-        for dev in self.auxiliary_state_devices:
-            if dev['device'] == srcDevice:
-                dev['device'] = destDevice
-                xelogging.log("Existing installation noted that auxiliary state partition '" +
-                    srcDevice + "' was renamed as '" + destDevice+"'")
-        if  srcDevice == self.root_device:
-            self.root_device = destDevice
-            xelogging.log("Existing installation noted that root partition '" +
-                srcDevice + "' was renamed as '" + destDevice+"'")
-        if  srcDevice == self.state_device:
-            self.state_device = destDevice
-            xelogging.log("Existing installation noted that state partition '" +
-                srcDevice + "' was renamed as '" + destDevice+"'")
-
 class XenServerBackup:
     def __init__(self, part, mnt):
         self.partition = part
@@ -678,8 +536,6 @@ def findXenSourceProducts():
         try:
             if boot[0] == diskutil.INSTALL_RETAIL:
                 inst = ExistingRetailInstallation(disk, boot[1], state[1], storage)
-            elif boot[0] == diskutil.INSTALL_OEM:
-                inst = ExistingOEMInstallation(disk, boot[1], state[1])
         except Exception, e:
             xelogging.log("A problem occurred whilst scanning for existing installations:")
             xelogging.log_exception(e)
