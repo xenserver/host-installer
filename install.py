@@ -95,12 +95,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             xelogging.log("Keymap specified on command-line: %s" % val)
         elif opt == "--extrarepo":
             extra_repo_defs += val
-        elif opt == "--bootloader":
-            xelogging.log("Bootloader specified on command-line: %s" % val)
-            if val == "grub":
-                results['bootloader'] = constants.BOOTLOADER_TYPE_GRUB
-            elif val == "extlinux":
-                results['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
         elif opt == "--onecd":
             suppress_extra_cd_dialog = True
 

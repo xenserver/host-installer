@@ -46,14 +46,21 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     except:
         pass
 
-    # first, format the primary disk:
-    if util.runCmd2(['mkfs.ext3', restore_partition]) != 0:
-        raise RuntimeError, "Failed to create filesystem"
+    # mount the backup fs
+    backup_fs = util.TempMount(backup_partition, 'restore-backup-', options = ['ro'])
+    try:        
+        # extract the bootloader config
+        boot_config = bootloader.Bootloader.loadExisting(backup_fs.mount_point)
+        if boot_config.src_fmt == 'grub':
+            raise RuntimeError, "Backup uses grub bootloader which is no longer supported - " + \
+                "to restore please use a version of the installer that matches the backup partition"
 
-    # mount both volumes:
-    dest_fs = util.TempMount(restore_partition, 'restore-dest-')
-    try:
-        backup_fs = util.TempMount(backup_partition, 'restore-backup-', options = ['ro'])
+        # format the restore partition:
+        if util.runCmd2(['mkfs.ext3', restore_partition]) != 0:
+            raise RuntimeError, "Failed to create filesystem"
+
+        # mount restore partition:
+        dest_fs = util.TempMount(restore_partition, 'restore-dest-')
         try:
 
             # copy files from the backup partition to the restore partition:
@@ -72,7 +79,6 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
 
             xelogging.log("Data restoration complete.  About to re-install bootloader.")
 
-            boot_config = bootloader.Bootloader.loadExisting(backup_fs.mount_point)
             location = boot_config.location
             m = re.search(r'root=LABEL=(\S+)', boot_config.menu[boot_config.default].kernel_args)
             if m:
@@ -84,18 +90,16 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                 location = 'mbr'
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            backend.installBootLoader(mounts, disk, primary_partnum,
-                                      boot_config.src_fmt == 'grub' and constants.BOOTLOADER_TYPE_GRUB or \
-                                      constants.BOOTLOADER_TYPE_EXTLINUX, None, False, [], location)
+            backend.installBootLoader(mounts, disk, primary_partnum, None, False, [], location)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
             util.assertDir(os.path.dirname(dst_file))
             boot_config.commit(dst_file)
         finally:
-            backup_fs.unmount()
+            dest_fs.unmount()
     finally:
-        dest_fs.unmount()
+        backup_fs.unmount()
 
     if not label:
         raise RuntimeError, "Failed to find label required for root filesystem."

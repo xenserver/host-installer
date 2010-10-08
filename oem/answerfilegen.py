@@ -18,7 +18,7 @@ if __name__ == "__main__":
     print """<?xml version="1.0"?>
    <installation>
       <primary-disk>%s</primary-disk>
-      <bootloader location="partition">extlinux</bootloader>
+      <bootloader location="partition"/>
       <keymap>%s</keymap>
       <hostname>%s</hostname>
       <source type="url">file:///tmp/ramdisk/</source>

@@ -161,7 +161,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'bootloader', 'serial-console', 'boot-serial', 'xen-cpuid-masks', 'bootloader-location'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'serial-console', 'boot-serial', 'xen-cpuid-masks', 'bootloader-location'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -297,9 +297,6 @@ def performInstallation(answers, ui_package):
     else:
         if not answers.has_key('sr-type'):
             answers['sr-type'] = constants.SR_TYPE_LVM
-
-    if not answers.has_key('bootloader'):
-        answers['bootloader'] = constants.BOOTLOADER_TYPE_EXTLINUX
 
     if not answers.has_key('bootloader-location'):
         answers['bootloader-location'] = 'mbr'
@@ -729,7 +726,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "%s (Serial, Xen %s / Linux %s)" % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, primary_partnum, bloader, serial, boot_serial, cpuid_masks, location = 'mbr'):
+def installBootLoader(mounts, disk, primary_partnum, serial, boot_serial, cpuid_masks, location = 'mbr'):
     
     assert(location == 'mbr' or location == 'partition')
     
@@ -752,26 +749,15 @@ def installBootLoader(mounts, disk, primary_partnum, bloader, serial, boot_seria
         f.close()
 
     try:
-        if bloader == constants.BOOTLOADER_TYPE_GRUB:
-            bt = 'grub'
-            fn = os.path.join(mounts['boot'], "grub/menu.lst")
-        elif bloader == constants.BOOTLOADER_TYPE_EXTLINUX:
-            bt = 'extlinux'
-            fn = os.path.join(mounts['boot'], "extlinux.conf")
-        else:
-            raise RuntimeError, "Unknown bootloader."
-
-        boot_config = bootloader.Bootloader(bt, fn, default = boot_serial and 'xe-serial' or 'xe', timeout = 50,
+        fn = os.path.join(mounts['boot'], "extlinux.conf")
+        boot_config = bootloader.Bootloader('extlinux', fn, default = boot_serial and 'xe-serial' or 'xe', timeout = 50,
                                             serial = serial and {'port': serial.id, 'baud': int(serial.baud)} or None,
                                             location = location)
         buildBootLoaderMenu(getKernelVersion(mounts['root'], 'xen'), boot_config, serial, cpuid_masks)
         util.assertDir(os.path.dirname(fn))
         boot_config.commit()
 
-        if bloader == constants.BOOTLOADER_TYPE_GRUB:
-            installGrub(mounts, disk, primary_partnum, location)
-        elif bloader == constants.BOOTLOADER_TYPE_EXTLINUX:
-            installExtLinux(mounts, disk, location)
+        installExtLinux(mounts, disk, location)
 
         if serial:
             # ensure a getty will run on the serial console
@@ -814,21 +800,6 @@ def installExtLinux(mounts, disk, location = 'mbr'):
     if location == 'mbr':
         assert util.runCmd2(["dd", "if=%s/usr/share/syslinux/mbr.bin" % mounts['root'], \
                                  "of=%s" % disk, "bs=512", "count=1"]) == 0
-
-def installGrub(mounts, disk, primary_partnum, location = 'mbr'):
-
-    assert(location == 'mbr' or location == 'partition')
-
-    if location == 'mbr':
-        grubroot = disk
-    else:
-        grubroot = PartitionTool.partitionDevice(disk, primary_partnum)
-
-    # now perform our own installation, onto the MBR of the selected disk:
-    xelogging.log("About to install GRUB.  Install to disk %s" % grubroot)
-    rc, err = util.runCmd2(["chroot", mounts['root'], "grub-install", "--no-floppy", "--recheck", grubroot], with_stderr = True)
-    if rc != 0:
-        raise RuntimeError, "Failed to install bootloader: %s" % err
 
 ##########
 # mounting and unmounting of various volumes

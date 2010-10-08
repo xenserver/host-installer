@@ -28,10 +28,6 @@ INSTALL_TYPE_RESTORE = 3
 SR_TYPE_LVM = 1
 SR_TYPE_EXT = 2
 
-# bootloader types:
-BOOTLOADER_TYPE_GRUB = 1
-BOOTLOADER_TYPE_EXTLINUX = 2
-
 # network backend types:
 NETWORK_BACKEND_BRIDGE = "bridge"
 NETWORK_BACKEND_VSWITCH = "openvswitch"
