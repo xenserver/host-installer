@@ -746,6 +746,10 @@ class PartitionTool:
 
             sizeSectors = sizeBytes / self.sectorSize
 
+        if sizeSectors < 0:
+            self.dump()
+            raise Exception("Partition size in sectors ("+str(sizeSectors)+") is negative")
+
         self.partitions[newNumber] = {
             'start': startSector,
             'size': sizeSectors,
