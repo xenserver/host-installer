@@ -561,6 +561,12 @@ class PartitionTool:
         self.heads = int(matches.group(2))
         self.sectors = int(matches.group(3))
         self.sectorExtent = self.cylinders * self.heads * self.sectors
+
+        # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
+        # Actually truncate a bit more because sfdisk has unfathomablely lower limit
+        self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
+        self.cylinders = int(self.sectorExtent/(self.heads * self.sectors))
+        self.sectorExtent = self.cylinders * self.heads * self.sectors # Ignore partial cylinder at end
     
         # Read sector size.  This will fail if the disk has no partition table at all
         self.sectorSize = None
@@ -587,6 +593,9 @@ class PartitionTool:
         self.sectorSize = 512
         out = self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])
         self.sectorExtent = int(out)/self.sectorSize
+        # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
+        # Actually truncate a bit more because sfdisk has unfathomablely lower limit
+        self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
         self.cylinders = int(self.sectorExtent/(self.heads * self.sectors))
         self.sectorExtent = self.cylinders * self.heads * self.sectors # Ignore partial cylinder at end
         self.byteExtent = self.sectorExtent * self.sectorSize
