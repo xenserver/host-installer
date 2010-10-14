@@ -713,6 +713,10 @@ class PartitionTool:
             except Exception, e2:
                 raise Exception('The new partition table could not be written: '+str(e)+'\nReversion also failed: '+str(e2))
             raise Exception('The new partition table could not be written but was reverted successfully: '+str(e))
+        else:
+            # Ensure new device nodes are available before we continue
+            self.cmdWrap(['udevtrigger'])
+            self.cmdWrap(['udevsettle', '--timeout=1'])
 
     # Public methods from here onward:
     def getPartition(self, number, default = None):
