@@ -562,7 +562,7 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
     if diskutil.blockSizeToGBSize(blocks) > constants.max_primary_disk_size:
         ButtonChoiceWindow(tui.screen,
                            "Large Disk Detected",
-                           "The disk selected to install %s to is greater than %s.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, diskutil.getHumanDiskSize(constants.max_primary_disk_size)),
+                           "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, constants.max_primary_disk_size),
                            ['Ok'])
 
     if button == None: return SKIP_SCREEN
