@@ -716,7 +716,11 @@ class PartitionTool:
         else:
             # Ensure new device nodes are available before we continue
             self.cmdWrap(['udevtrigger'])
-            self.cmdWrap(['udevsettle', '--timeout=1'])
+            timeout = 10
+            try:
+                self.cmdWrap(['udevsettle', '--timeout=%d' % timeout ])
+            except:
+                xelogging.log('udevsettle with %d second timeout failed' % timeout)
 
     # Public methods from here onward:
     def getPartition(self, number, default = None):
