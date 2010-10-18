@@ -483,6 +483,10 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
     if not os.path.exists(disk):
         raise RuntimeError, "The disk %s could not be found." % disk
 
+    # check disk is large enough
+    if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
+        raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size)
+
     tool = PartitionTool(disk)
     for num, part in tool.iteritems():
         if num >= primary_partnum:
