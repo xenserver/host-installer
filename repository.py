@@ -15,6 +15,7 @@ import errno
 import md5
 import tempfile
 import urlparse
+import urllib
 import urllib2
 import ftplib
 import subprocess
@@ -824,6 +825,9 @@ class URLAccessor(Accessor):
             baseAddress += '/'
 
         if baseAddress.startswith('http://'):
+            sep = baseAddress.index('//')
+            baseAddress = baseAddress[:sep] + urllib.quote(baseAddress[sep:])
+
             (scheme, netloc, path, params, query) = urlparse.urlsplit(baseAddress)
             (hostname, username, password) = util.splitNetloc(netloc)
             if username != None:
@@ -847,7 +851,7 @@ class URLAccessor(Accessor):
     def _url_concat(url1, end):
         assert url1.endswith('/')
         end = end.lstrip('/')
-        return url1 + end
+        return url1 + urllib.quote(end)
     _url_concat = staticmethod(_url_concat)
 
     def _url_decode(url):
