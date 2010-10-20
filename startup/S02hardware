@@ -11,6 +11,12 @@ start()
         for mod in `echo ${arg#blacklist=} | tr ',' ' '`; do
 	  echo "blacklist $mod" >>/etc/modprobe.d/user-blacklist.conf
 	done;;
+      blacklist-ide)
+        # build blacklist of legacy IDE drivers
+        for file in /lib/modules/*/kernel/drivers/ide/*.ko; do
+	  b=`basename $file .ko`
+	  echo "blacklist $b" >>/etc/modprobe.d/user-blacklist.conf
+	done;;
       extramodules=*)
         extramodules=`echo ${arg#extramodules=} | tr ',' ' '`;;
     esac
