@@ -199,6 +199,9 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [ 'etc/resolv.conf', 'etc/nsswitch.conf', 'etc/krb5.conf', 'etc/krb5.keytab', 'etc/pam.d/sshd' ]
         self.restore_list.append({'dir': 'var/lib/likewise'})
 
+        # CA-47142: preserve v6 cache
+        self.restore_list += [{'dir': 'var/xapi/lpe-cache'}]
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
