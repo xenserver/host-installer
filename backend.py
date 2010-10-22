@@ -946,6 +946,12 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     xelogging.log("Writing %s to /etc/xensource/network.conf" % network_backend)
     nwconf.close()
 
+    # dump relationship between MAC address and device
+    netdevs = netutil.NetDevices()
+    ndmap = open("%s/etc/sysconfig/netdevs.xml" % mounts["root"], "w")
+    ndmap.write(netdevs.as_xml())
+    ndmap.close()
+
     if preserve_settings:
         return
 

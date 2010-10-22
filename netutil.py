@@ -203,3 +203,31 @@ def network(ipaddr, netmask):
     nm = map(int,netmask.split('.',3))
     nw = map(lambda i: ip[i] & nm[i], range(4))
     return ".".join(map(str,nw))
+
+class NetDevices:
+    def __init__(self):
+        self.netdev = []
+        details = {}
+
+        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize = 1, stdout = subprocess.PIPE)
+        for line in pipe.stdout:
+            l = line.strip('\n')
+            if len(l) == 0:
+                self.netdev.append(details)
+                details = {}
+            else:
+                (k, v) = l.split(':', 1)
+                details[k.strip().lower().replace(' ', '-')] = v.strip()
+        pipe.wait()
+
+    def as_xml(self):
+        output = '<net-devices>\n'
+
+        for d in self.netdev:
+            output += ' <net-device'
+            for k, v in d.items():
+                output += ' %s="%s"' % (k, v)
+            output += '/>\n'
+
+        output += '</net-devices>\n'
+        return output
