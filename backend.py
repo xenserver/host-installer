@@ -668,7 +668,7 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 def configureKdump(mounts):
     # set kdump config to handle known errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
-    if rc == 0 and ('01de:0360' in out or '01de:0364' in out):
+    if rc == 0 and ('10de:0360' in out or '10de:0364' in out):
         kdcfile = open("%s/etc/sysconfig/kdump" % mounts['root'], 'a')
         kdcfile.write('KDUMP_KERNEL_CMDLINE_EXTRA="irqpoll maxcpus=1 reset_devices no-hlt"\n')
         kdcfile.close()
