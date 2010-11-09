@@ -617,8 +617,8 @@ def getKernelVersion(rootfs_mount, kextra):
         raise KernelNotFound, "Required package kernel-%s not found." % kextra
 
     out = out.strip().split("\n")
-    assert len(out) == 1, "Installer only supports having a single kernel of each type installed.  Found %d of kernel-%s" % (len(out), kextra)
-    return out[0]
+    assert len(out) >= 1, "Required package kernel-%s not found." % kextra
+    return out[-1]
 
 def configureSRMultipathing(mounts, primary_disk):
     # Only called on fresh installs:
