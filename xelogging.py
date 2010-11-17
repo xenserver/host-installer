@@ -71,6 +71,7 @@ def collectLogs(dst, tarball_dir = None):
     os.system("dmesg >%s/dmesg-log" % dst)
     os.system("ps axf >%s/processes-log" % dst)
     os.system("vgscan -P >%s/vgscan-log 2>&1" % dst)
+    os.system("cat /var/log/multipathd >%s/multipathd-log 2>&1" % dst)
 
     if not tarball_dir:
         tarball_dir = dst
