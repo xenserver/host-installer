@@ -171,6 +171,7 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
+        Task(configureKdump, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
@@ -625,8 +626,8 @@ def getKernelVersion(rootfs_mount, kextra):
         raise KernelNotFound, "Required package kernel-%s not found." % kextra
 
     out = out.strip().split("\n")
-    assert len(out) == 1, "Installer only supports having a single kernel of each type installed.  Found %d of kernel-%s" % (len(out), kextra)
-    return out[0]
+    assert len(out) >= 1, "Required package kernel-%s not found." % kextra
+    return out[-1]
 
 def configureSRMultipathing(mounts, primary_disk):
     # Only called on fresh installs:
@@ -672,6 +673,14 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
  
     # make the initrd-2.6-xen.img symlink:
     os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
+
+def configureKdump(mounts):
+    # set kdump config to handle known errata
+    rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
+    if rc == 0 and ('10de:0360' in out or '10de:0364' in out):
+        kdcfile = open("%s/etc/sysconfig/kdump" % mounts['root'], 'a')
+        kdcfile.write('KDUMP_KERNEL_CMDLINE_EXTRA="irqpoll maxcpus=1 reset_devices no-hlt"\n')
+        kdcfile.close()
 
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks):
     common_xen_params = "dom0_mem=%dM" % constants.DOM0_MEM
