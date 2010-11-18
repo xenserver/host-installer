@@ -312,8 +312,9 @@ def remind_driver_repos(answers):
     driver_list = []
     settings = answers['installation-to-overwrite'].readSettings()
     for repo in settings['repo-list']:
-        id, name, is_supp = repo
-        if is_supp and name not in driver_list:
+        pkid, name, is_supp = repo
+        if is_supp and name not in driver_list and \
+               pkid not in constants.INTERNAL_REPOS:
             driver_list.append(name)
 
     if len(driver_list) == 0:
