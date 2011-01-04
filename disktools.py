@@ -671,7 +671,7 @@ class PartitionTool:
                 raise Exception('Failed to destroy partitions on ' + self.device)
             cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '-f', '-C%s' % str(self.cylinders), '-H%s' % str(self.heads), '-S%s' % str(self.sectors), self.device]
         else:
-            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', self.device]
+            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '-f', self.device]
         xelogging.log('sfdisk command: %s' % ' '.join(cmd))
         process = subprocess.Popen(
             cmd,
@@ -701,7 +701,14 @@ class PartitionTool:
             if 'BLKRRPART: Device or resource busy' in output:
                 raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
             # Verify the table - raises exception on failure
-            self.cmdWrap([self.SFDISK, '-LVquS', self.device])
+            # Ignore warnings about partitions apparently with ends beyond the end of the disk
+            rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr = True)
+            if rc == 1:
+                lines = err.split('\n')
+                if len(filter(lambda x : x != '' and not x.endswith('extends past end of disk'), lines)) != 0:
+                    raise Exception(err)
+            elif rc != 0:
+                raise Exception(err)
         
     def writePartitionTable(self, dryrun = False, log = False):
         try:

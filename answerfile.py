@@ -245,7 +245,7 @@ class Answerfile:
         for node in script_nodes:
             stage = node.getAttribute("stage").lower()
             stype = node.getAttribute("type").lower()
-            script = buildURL(type, getText(node.childNodes))
+            script = buildURL(stype, getText(node.childNodes))
             scripts.add_script(stage, script)
 
         pis_nodes = self.nodelist.getElementsByTagName('post-install-script')

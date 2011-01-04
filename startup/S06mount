@@ -24,6 +24,16 @@ start()
 	    mnt=$2
 	fi
 
+	case "$device" in
+	  VG_*)
+	  # Logical volume
+	  lvchange -a y $device || continue
+	  set -- `echo $device | tr / ' '`
+	  vg=`echo $1 | sed -e 's/-/--/g'`
+	  lv=`echo $2 | sed -e 's/-/--/g'`
+	  device="/dev/mapper/$vg-$lv"
+	esac
+
 	[ -r $mnt ] || mkdir -p $mnt
 	[ -d $mnt ] || continue
 
