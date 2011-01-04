@@ -584,7 +584,7 @@ def __mkinitrd(mounts, partition, kernel_version):
     if isDeviceMapperNode(partition):
         # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
         # picks up the master device and not the slave 
-        args.extend(['--rootdev=', partition])
+        args.append('--rootdev='+ partition)
     else:
         args.append('--without-multipath')
 
