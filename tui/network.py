@@ -131,6 +131,7 @@ def select_netif(text, conf, offer_existing = False, default = None):
 
     if default not in netifs:
         # find first link that is up
+        default = None
         for iface in netifs:
             if netutil.linkUp(iface):
                 default = iface
