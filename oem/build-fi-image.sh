@@ -83,6 +83,14 @@ do
     cp -rp $mnt/* $workdir/$packdir
     echo "$packdir" >>$workdir/XS-REPOSITORY-LIST
   fi
+  if [ -r $mnt/XS-REPOSITORY-LIST ]; then
+    while read packdir
+    do
+      [ -d $mnt/$packdir ] || continue
+      cp -rp $mnt/$packdir $workdir
+      echo "$packdir" >>$workdir/XS-REPOSITORY-LIST
+    done <$mnt/XS-REPOSITORY-LIST
+  fi
 
   umount $mnt
 done
