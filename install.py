@@ -147,6 +147,8 @@ def go(ui, args, answerfile_address, answerfile_script):
         results['extra-repos'] += extra_repo_defs
         xelogging.log("Driver repos: %s" % str(results['extra-repos']))
 
+        scripts.run_scripts('installation-start')
+
         # log the modules that we loaded:
         xelogging.log("All needed modules should now be loaded. We have loaded:")
         util.runCmd2(["/bin/lsmod"])
