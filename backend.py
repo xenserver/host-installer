@@ -111,10 +111,7 @@ def getPrepSequence(ans):
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
             Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end'), []),
             ]
-        for gd in ans['guest-disks']:
-            if gd != ans['primary-disk']:
-                seq.append(Task(writeGuestDiskPartitions,
-                                (lambda mygd: (lambda _: [mygd]))(gd), []))
+        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(prepareTarget,
@@ -523,14 +520,16 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
 
     tool.commit(log = True)
 
-def writeGuestDiskPartitions(disk):
-    # we really don't want to screw this up...
-    assert type(disk) == str
-    assert disk[:5] == '/dev/'
+def writeGuestDiskPartitions(primary_disk, guest_disks):
+    for gd in guest_disks:
+        if gd != primary_disk:
+            # we really don't want to screw this up...
+            assert type(gd) == str
+            assert gd[:5] == '/dev/'
 
-    tool = PartitionTool(disk)
-    tool.deletePartitions(tool.partitions.keys())
-    tool.commit(log = True)
+            tool = PartitionTool(gd)
+            tool.deletePartitions(tool.partitions.keys())
+            tool.commit(log = True)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
