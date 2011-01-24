@@ -353,7 +353,7 @@ def performInstallation(answers, ui_package):
     if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         # mount backup and advertise mountpoint for Supplemental Packs
         chroot_dir = 'tmp/backup'
-        backup_device = PartitionTool.partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum'])
+        backup_device = partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum'])
         backup_fs = util.TempMount(backup_device, 'backup-', options = ['ro'])
         util.assertDir(os.path.join(new_ans['mounts']['root'], chroot_dir))
         util.bindMount(backup_fs.mount_point, os.path.join(new_ans['mounts']['root'], chroot_dir))
@@ -535,7 +535,7 @@ def writeGuestDiskPartitions(disk):
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
         if disk == primary_disk:
-            return PartitionTool.partitionDevice(disk, storage_partnum)
+            return partitionDevice(disk, storage_partnum)
         else:
             return disk
 
@@ -570,7 +570,7 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 # Create dom0 disk file-systems:
 
 def createDom0DiskFilesystems(disk, primary_partnum):
-    rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, PartitionTool.partitionDevice(disk, primary_partnum)], with_stderr = True)
+    rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, partitionDevice(disk, primary_partnum)], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to create filesystem: %s" % err
 
@@ -639,7 +639,7 @@ def configureSRMultipathing(mounts, primary_disk):
 def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
-    partition = PartitionTool.partitionDevice(primary_disk, primary_partnum)
+    partition = partitionDevice(primary_disk, primary_partnum)
 
     if diskutil.is_iscsi(primary_disk):
 
@@ -741,11 +741,11 @@ def installBootLoader(mounts, disk, primary_partnum, serial, boot_serial, cpuid_
     # /proc/mounts with the correct data. If /etc/mtab is not a
     # symlink (to /proc/mounts) then we fake that out too.
     f = open("%s/proc/mounts" % mounts['root'], 'w')
-    f.write("%s / %s rw 0 0\n" % (PartitionTool.partitionDevice(disk, primary_partnum), constants.rootfs_type))
+    f.write("%s / %s rw 0 0\n" % (partitionDevice(disk, primary_partnum), constants.rootfs_type))
     f.close()
     if not os.path.islink("%s/etc/mtab" % mounts['root']):
         f = open("%s/etc/mtab" % mounts['root'], 'w')
-        f.write("%s / %s rw 0 0\n" % (PartitionTool.partitionDevice(disk, primary_partnum), constants.rootfs_type))
+        f.write("%s / %s rw 0 0\n" % (partitionDevice(disk, primary_partnum), constants.rootfs_type))
         f.close()
 
     try:
@@ -808,7 +808,7 @@ def mountVolumes(primary_disk, primary_partnum, cleanup):
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
-    rootp = PartitionTool.partitionDevice(primary_disk, primary_partnum)
+    rootp = partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
@@ -1087,7 +1087,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
     if backup_partnum > 0:
-        inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(PartitionTool.partitionDevice(primary_disk, backup_partnum)) or PartitionTool.partitionDevice(primary_disk, backup_partnum)))
+        inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(partitionDevice(primary_disk, backup_partnum)) or partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
@@ -1108,7 +1108,7 @@ def touchSshAuthorizedKeys(mounts):
 # within the main exception handler.
 def writeLog(primary_disk, primary_partnum):
     try: 
-        bootnode = PartitionTool.partitionDevice(primary_disk, primary_partnum)
+        bootnode = partitionDevice(primary_disk, primary_partnum)
         primary_fs = util.TempMount(bootnode, 'install-')
         try:
             log_location = os.path.join(primary_fs.mount_point, "var/log/installer")

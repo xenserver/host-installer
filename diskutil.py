@@ -343,7 +343,7 @@ def findProblematicVGs(disks):
     for pv in tool.pvs:
         if pv['vg_name'] not in vgdiskmap: vgdiskmap[pv['vg_name']] = []
         try:
-            device = PartitionTool.diskDevice(pv['pv_name'])
+            device = diskDevice(pv['pv_name'])
         except:
             # CA-35020: whole disk
             device = pv['pv_name']

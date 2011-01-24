@@ -98,7 +98,7 @@ class Upgrader(object):
             else:
                 xelogging.log("WARNING: /%s did not exist in the backup image." % f)
 
-        backup_volume = PartitionTool.partitionDevice(target_disk, backup_partnum)
+        backup_volume = partitionDevice(target_disk, backup_partnum)
         tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
         try:
             self.buildRestoreList()
@@ -139,7 +139,7 @@ class ThirdGenUpgrader(Upgrader):
     def doBackup(self, progress_callback, target_disk, backup_partnum):
 
         # format the backup partition:
-        backup_partition = PartitionTool.partitionDevice(target_disk, backup_partnum)
+        backup_partition = partitionDevice(target_disk, backup_partnum)
         if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
             raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
         progress_callback(10)

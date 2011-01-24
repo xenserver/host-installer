@@ -30,7 +30,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
 
     label = None
     primary_partnum, _, __ = backend.inspectTargetDisk(disk, [])
-    restore_partition = PartitionTool.partitionDevice(disk, primary_partnum)
+    restore_partition = partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
     # determine current location of bootloader

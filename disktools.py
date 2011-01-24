@@ -476,13 +476,35 @@ class LVMTool:
     def dump(self):
         pprint(self.__dict__)
 
-class PartitionTool:
-    SFDISK = '/sbin/sfdisk'
-    BLOCKDEV = '/sbin/blockdev'
-    
+def diskDevice(partitionDevice):
+    matches = re.match(r'(.+)(p|(-part))\d+$', partitionDevice)
+    if matches:
+        return matches.group(1)
+    matches = re.match(r'(.+\D)\d+$', partitionDevice)
+    if not matches:
+        raise Exception("Could not determine disk device for device '"+partitionDevice+"'")
+    return matches.group(1)
+
+def determineMidfix(device):
     DISK_PREFIX = '/dev/'
     P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel', 'mapper/']
     PART_STYLE_DISKS = [ 'disk/by-id' ]
+
+    for key in P_STYLE_DISKS:
+        if device.startswith(DISK_PREFIX + key):
+            return 'p'
+    for key in PART_STYLE_DISKS:
+        if device.startswith(DISK_PREFIX + key):
+            return '-part'
+    return ''
+
+def partitionDevice(device, deviceNum):
+    return device + determineMidfix(device) + str(deviceNum) 
+
+
+class PartitionTool:
+    SFDISK = '/sbin/sfdisk'
+    BLOCKDEV = '/sbin/blockdev'
     
     DEFAULT_SECTOR_SIZE = 512 # Used if sfdisk won't print its (hardcoded) value
     
@@ -499,25 +521,11 @@ class PartitionTool:
     
     def __init__(self, device):
         self.device = device
-        self.midfix = self.determineMidfix(device)
+        self.midfix = determineMidfix(device)
         self.readDiskDetails()
         self.partitions = self.partitionTable()
         self.origPartitions = deepcopy(self.partitions)
 
-    @staticmethod
-    def partitionDevice(device, deviceNum):
-        return device + PartitionTool.determineMidfix(device) + str(deviceNum) 
-
-    @staticmethod
-    def diskDevice(partitionDevice):
-        matches = re.match(r'(.+)(p|(-part))\d+$', partitionDevice)
-        if matches:
-            return matches.group(1)
-        matches = re.match(r'(.+\D)\d+$', partitionDevice)
-        if not matches:
-            raise Exception("Could not determine disk device for device '"+partitionDevice+"'")
-        return matches.group(1)
-        
     def partitionNumber(self, partitionDevice):
         matches = re.match(self.device + self.midfix + r'(\d+)$', partitionDevice)
         if not matches:
@@ -531,16 +539,6 @@ class PartitionTool:
             raise Exception(err)
         return out
     
-    @staticmethod
-    def determineMidfix(device):
-        for key in PartitionTool.P_STYLE_DISKS:
-            if device.startswith(PartitionTool.DISK_PREFIX + key):
-                return 'p'
-        for key in PartitionTool.PART_STYLE_DISKS:
-            if device.startswith(PartitionTool.DISK_PREFIX + key):
-                return '-part'
-        return ''
-
     def _partitionDevice(self, deviceNum):
         return self.device + self.midfix + str(deviceNum)
 
