@@ -502,22 +502,14 @@ def partitionDevice(device, deviceNum):
     return device + determineMidfix(device) + str(deviceNum) 
 
 
-class PartitionTool:
-    SFDISK = '/sbin/sfdisk'
+class PartitionToolBase:
+    """
+    Base class for the DOS and GPT Partition Tool classes.
+    Contains common code.
+    """
     BLOCKDEV = '/sbin/blockdev'
     
     DEFAULT_SECTOR_SIZE = 512 # Used if sfdisk won't print its (hardcoded) value
-    
-    ID_EXTENDED = 0x5
-    ID_FAT16 = 0x6
-    ID_W95_EXTENDED = 0x0f
-    ID_LINUX_SWAP = 0x82
-    ID_LINUX = 0x83
-    ID_LINUX_EXTENDED = 0x85
-    ID_LINUX_LVM = 0x8e
-    ID_DELL_UTILITY = 0xde
-    
-    IDS_EXTENDED = [ID_EXTENDED, ID_W95_EXTENDED, ID_LINUX_EXTENDED]
     
     def __init__(self, device):
         self.device = device
@@ -548,165 +540,6 @@ class PartitionTool:
         if not matches:
             raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
         return int(matches.group(1))
-
-    def __readDiskDetails(self):
-        # Read basic geometry
-        out = self.cmdWrap([self.SFDISK, '-Lg', self.device])
-        matches = re.match(r'^[^:]*:\s*(\d+)\s+cylinders,\s*(\d+)\s+heads,\s*(\d+)\s+sectors', out)
-        if not matches:
-            raise Exception("Couldn't decode sfdisk output: "+out)
-        self.cylinders = int(matches.group(1))
-        self.heads = int(matches.group(2))
-        self.sectors = int(matches.group(3))
-        self.sectorExtent = self.cylinders * self.heads * self.sectors
-
-        # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
-        # Actually truncate a bit more because sfdisk has unfathomablely lower limit
-        self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
-        self.cylinders = int(self.sectorExtent/(self.heads * self.sectors))
-        self.sectorExtent = self.cylinders * self.heads * self.sectors # Ignore partial cylinder at end
-    
-        # Read sector size.  This will fail if the disk has no partition table at all
-        self.sectorSize = None
-        
-        out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
-        for line in out.split("\n"):
-            matches = re.match(r'^\s*Units\s*=\s*sectors\s*of\s*(\d+)\s*bytes', line)
-            if matches:
-                self.sectorSize = int(matches.group(1))
-                break
-        
-        if self.sectorSize is None:
-            self.sectorSize = self.DEFAULT_SECTOR_SIZE
-            xelogging.log("Couldn't determine sector size from sfdisk output - no partition table?\n"+
-                "Using default value: "+str(self.sectorSize)+"\nsfdisk output:"+out)
-                
-        self.byteExtent = self.sectorExtent * self.sectorSize
-
-    def __readDeviceMapperDiskDetails(self):
-        # DM nodes don't have a geometry and this version of sfdisk will return nothing.
-        # Later versions return the default geometry below.
-        self.heads = 255
-        self.sectors = 63
-        self.sectorSize = 512
-        out = self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])
-        self.sectorExtent = int(out)/self.sectorSize
-        # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
-        # Actually truncate a bit more because sfdisk has unfathomablely lower limit
-        self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
-        self.cylinders = int(self.sectorExtent/(self.heads * self.sectors))
-        self.sectorExtent = self.cylinders * self.heads * self.sectors # Ignore partial cylinder at end
-        self.byteExtent = self.sectorExtent * self.sectorSize
-
-    def readDiskDetails(self):
-        if isDeviceMapperNode(self.device):
-            self.__readDeviceMapperDiskDetails()
-        else:
-            self.__readDiskDetails()
-
-    def partitionTable(self):
-        out = self.cmdWrap([self.SFDISK, '-Ld', self.device])
-        state = 0
-        partitions = {}
-        for line in out.split("\n"):
-            if line == '' or line[0] == '#':
-                pass # Skip comments and blank lines
-            elif state == 0:
-                if line != 'unit: sectors':
-                    raise Exception("Expecting 'unit: sectors' but got '"+line+"'")
-                state += 1
-            elif state == 1:
-                matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*(,\s*bootable)?', line)
-                if matches:
-                    idt = int(matches.group(4), 16) # Base 16
-                    active = (matches.group(5) is not None)
-                else:
-                    # extended BSD partition?
-                    idt = 0
-                    active = False
-                    matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+)', line)
-                    if not matches:
-                        raise Exception("Could not decode partition line: '"+line+"'")
-                
-                size = int(matches.group(3))
-                if size != 0: # Treat partitions of size 0 as not present
-                    number = self._partitionNumber(matches.group(1))
-    
-                    partitions[number] = {
-                        'start': int(matches.group(2)),
-                        'size': size,
-                        'id': idt,
-                        'active': active
-                        }
-        return partitions
-
-    def writeThisPartitionTable(self, table, dryrun = False, log = False):
-        input = 'unit: sectors\n\n'
-    
-        # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
-        for number in range(1, 1+max([1]+table.keys())):
-            partition = table.get(number, {
-                'start': 0,
-                'size': 0,
-                'id': 0,
-                'active': False
-            })
-            line = self._partitionDevice(number)+' :'
-            line += ' start='+str(partition['start'])+','
-            line += ' size='+str(partition['size'])+','
-            line += ' Id=%x' % partition['id']
-            if partition['active']:
-                line += ', bootable'
-                
-            input += line+'\n'
-        if log:
-            xelogging.log('Input to sfdisk:\n'+input)
-
-        if isDeviceMapperNode(self.device):
-            # Destroy device mapper partitions before re-writing partition table on mpath device
-            rv = destroyPartnodes(self.device)
-            if rv:
-                raise Exception('Failed to destroy partitions on ' + self.device)
-            cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '-f', '-C%s' % str(self.cylinders), '-H%s' % str(self.heads), '-S%s' % str(self.sectors), self.device]
-        else:
-            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '-f', self.device]
-        xelogging.log('sfdisk command: %s' % ' '.join(cmd))
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            )
-        output = process.communicate(input)
-        if log:
-            xelogging.log('Output from sfdisk:\n'+output[0])
-
-        if isDeviceMapperNode(self.device):
-            # Create partitions using device mapper
-            rv = createPartnodes(self.device)
-            if rv:
-                raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
-            for number in table.keys():
-                size = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', '%sp%d' % (self.device, number)]))/self.sectorSize
-                if size != table[number]['size']:
-                    raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, table[number]['size']))
-
-        else:
-            if process.returncode != 0:
-                raise Exception('Partition changes could not be applied: '+str(output[0]))
-
-            # CA-35300: sfdisk doesn't return non-zero when the BLKRRPART ioctl fails
-            if 'BLKRRPART: Device or resource busy' in output:
-                raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
-            # Verify the table - raises exception on failure
-            # Ignore warnings about partitions apparently with ends beyond the end of the disk
-            rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr = True)
-            if rc == 1:
-                lines = err.split('\n')
-                if len(filter(lambda x : x != '' and not x.endswith('extends past end of disk'), lines)) != 0:
-                    raise Exception(err)
-            elif rc != 0:
-                raise Exception(err)
         
     def writePartitionTable(self, dryrun = False, log = False):
         try:
@@ -747,7 +580,7 @@ class PartitionTool:
             previousPartitions = [part for num, part in reversed(sorted(self.partitions.iteritems())) if num < newNumber]
             
             if len(previousPartitions) == 0:
-                startSector = 63
+                startSector = self.sectorFirstUsable
             else:
                 startSector =  previousPartitions[0]['start'] + previousPartitions[0]['size']
         else:
@@ -759,7 +592,7 @@ class PartitionTool:
             # Get an array of subsequent partitions
             nextPartitions = [part for num, part in sorted(self.partitions.iteritems()) if num > newNumber]
             if len(nextPartitions) == 0:
-                sizeSectors = self.sectorExtent - startSector
+                sizeSectors = self.sectorLastUsable + 1 - startSector
             else:
                 sizeSectors =  nextPartitions[0]['start'] - startSector
         else:
@@ -836,6 +669,10 @@ class PartitionTool:
         for number, partition in self.partitions.iteritems():
             if partition['active']:
                 self.setActiveFlag(False, number)
+    
+    def utilityPartitions(self):
+        # Return list of partition numbers for partitions we should preserve
+        return [num for num in self.partitions.keys() if self.partitions[num]['id'] == self.ID_DELL_UTILITY]
 
     def iteritems(self):
         # sorted() creates a new list, so you can delete partitions whilst iterating
@@ -849,12 +686,10 @@ class PartitionTool:
             self.origPartitions = deepcopy(self.partitions)
 
     def dump(self):
-        output = "Cylinders     : "+str(self.cylinders) + "\n"
-        output += "Heads         : "+str(self.heads) + "\n"
-        output += "Sectors       : "+str(self.sectors) + "\n"
-        output += "Sector size   : "+str(self.sectorSize) + "\n"
-        output += "Sector extent : "+str(self.sectorExtent)+" sectors\n"
-        output += "Byte extent   : "+str(self.byteExtent)+" bytes\n"
+        output  = "Sector size         : "+str(self.sectorSize) + "\n"
+        output += "Sector extent       : "+str(self.sectorExtent)+" sectors\n"
+        output += "Sector last usable  : "+str(self.sectorLastUsable)+"\n"
+        output += "Sector first usable : "+str(self.sectorFirstUsable)+"\n"
         output += "Partition size and start addresses in sectors:\n"
         for number, partition in sorted(self.origPartitions.iteritems()):
             output += "Old partition "+str(number)+":"
@@ -868,6 +703,320 @@ class PartitionTool:
             output += "\n"
         xelogging.log(output)
 
+
+class DOSPartitionTool(PartitionToolBase):
+
+    ID_LINUX_SWAP = 0x82
+    ID_LINUX = 0x83
+    ID_LINUX_LVM = 0x8e
+    ID_DELL_UTILITY = 0xde
+    
+    SFDISK = '/sbin/sfdisk'
+    partTableType = 'DOS'
+
+    def __readDiskDetails(self):
+        # Read basic geometry
+        out = self.cmdWrap([self.SFDISK, '-Lg', self.device])
+        matches = re.match(r'^[^:]*:\s*(\d+)\s+cylinders,\s*(\d+)\s+heads,\s*(\d+)\s+sectors', out)
+        if not matches:
+            raise Exception("Couldn't decode sfdisk output: "+out)
+        cylinders = int(matches.group(1))
+        heads = int(matches.group(2))
+        sectors = int(matches.group(3))
+        self.sectorExtent = cylinders * heads * sectors
+
+        # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
+        # Actually truncate a bit more because sfdisk has unfathomablely lower limit
+        self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
+        cylinders = int(self.sectorExtent/(heads * sectors))
+        self.sectorExtent = cylinders * heads * sectors # Ignore partial cylinder at end
+
+        self.sectorFirstUsable = sectors # Some SANs require bootable disks to start on sector boundary
+        self.sectorLastUsable = self.sectorExtent - 1
+    
+        # Read sector size.  This will fail if the disk has no partition table at all
+        self.sectorSize = None
+        
+        out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
+        for line in out.split("\n"):
+            matches = re.match(r'^\s*Units\s*=\s*sectors\s*of\s*(\d+)\s*bytes', line)
+            if matches:
+                self.sectorSize = int(matches.group(1))
+                break
+        
+        if self.sectorSize is None:
+            self.sectorSize = self.DEFAULT_SECTOR_SIZE
+            xelogging.log("Couldn't determine sector size from sfdisk output - no partition table?\n"+
+                "Using default value: "+str(self.sectorSize)+"\nsfdisk output:"+out)
+                
+    def __readDeviceMapperDiskDetails(self):
+        # DM nodes don't have a geometry and this version of sfdisk will return nothing.
+        # Later versions return the default geometry below.
+        heads = 255
+        sectors = 63
+        self.sectorSize = 512
+        out = self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])
+        self.sectorExtent = int(out)/self.sectorSize
+        # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
+        # Actually truncate a bit more because sfdisk has unfathomablely lower limit
+        self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
+        cylinders = int(self.sectorExtent/(heads * sectors))
+        self.sectorExtent = cylinders * heads * sectors # Ignore partial cylinder at end
+        self.sectorFirstUsable = sectors # Some SANs require bootable disks to start on sector boundary
+        self.sectorLastUsable = self.sectorExtent - 1
+
+    def readDiskDetails(self):
+        if isDeviceMapperNode(self.device):
+            self.__readDeviceMapperDiskDetails()
+        else:
+            self.__readDiskDetails()
+
+    def partitionTable(self):
+        out = self.cmdWrap([self.SFDISK, '-Ld', self.device])
+        state = 0
+        partitions = {}
+        for line in out.split("\n"):
+            if line == '' or line[0] == '#':
+                pass # Skip comments and blank lines
+            elif state == 0:
+                if line != 'unit: sectors':
+                    raise Exception("Expecting 'unit: sectors' but got '"+line+"'")
+                state += 1
+            elif state == 1:
+                matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*(,\s*bootable)?', line)
+                if matches:
+                    idt = int(matches.group(4), 16) # Base 16
+                    active = (matches.group(5) is not None)
+                else:
+                    # extended BSD partition?
+                    idt = 0
+                    active = False
+                    matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+)', line)
+                    if not matches:
+                        raise Exception("Could not decode partition line: '"+line+"'")
+                
+                size = int(matches.group(3))
+                if size != 0: # Treat partitions of size 0 as not present
+                    number = self._partitionNumber(matches.group(1))
+    
+                    partitions[number] = {
+                        'start': int(matches.group(2)),
+                        'size': size,
+                        'id': idt,
+                        'active': active
+                        }
+        return partitions
+
+    def writeThisPartitionTable(self, table, dryrun = False, log = False):
+        input = 'unit: sectors\n\n'
+    
+        # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
+        for number in range(1, 1+max([1]+table.keys())):
+            partition = table.get(number, {
+                'start': 0,
+                'size': 0,
+                'id': 0,
+                'active': False
+            })
+            line = self._partitionDevice(number)+' :'
+            line += ' start='+str(partition['start'])+','
+            line += ' size='+str(partition['size'])+','
+            line += ' Id=%x' % partition['id']
+            if partition['active']:
+                line += ', bootable'
+                
+            input += line+'\n'
+        if log:
+            xelogging.log('Input to sfdisk:\n'+input)
+
+        if isDeviceMapperNode(self.device):
+            # Destroy device mapper partitions before re-writing partition table on mpath device
+            rv = destroyPartnodes(self.device)
+            if rv:
+                raise Exception('Failed to destroy partitions on ' + self.device)
+            heads = 255
+            sectors = 63
+            cylinders = self.sectorExtent/(heads * sectors)
+            cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '-f', '-C%d' % cylinders, '-H%d' % heads, '-S%d' % sectors, self.device]
+        else:
+            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '-f', self.device]
+        xelogging.log('sfdisk command: %s' % ' '.join(cmd))
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            )
+        output = process.communicate(input)
+        if log:
+            xelogging.log('Output from sfdisk:\n'+output[0])
+
+        if isDeviceMapperNode(self.device):
+            # Create partitions using device mapper
+            rv = createPartnodes(self.device)
+            if rv:
+                raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
+            for number in table.keys():
+                size = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', '%sp%d' % (self.device, number)]))/self.sectorSize
+                if size != table[number]['size']:
+                    raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, table[number]['size']))
+
+        else:
+            if process.returncode != 0:
+                raise Exception('Partition changes could not be applied: '+str(output[0]))
+
+            # CA-35300: sfdisk doesn't return non-zero when the BLKRRPART ioctl fails
+            if 'BLKRRPART: Device or resource busy' in output:
+                raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
+
+            # Verify the table 
+            # Ignore warnings about partitions apparently with ends beyond the end of the disk
+            rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr = True)
+            if rc == 1:
+                lines = err.split('\n')
+                if len(filter(lambda x : x != '' and not x.endswith('extends past end of disk'), lines)) != 0:
+                    raise Exception(err)
+            elif rc != 0:
+                raise Exception(err)
+        
+
+
+class GPTPartitionTool(PartitionToolBase):
+
+    # These are partition type GUIDs
+    ID_LINUX_SWAP   = "0657FD6D-A4AB-43C4-84E5-0933C84B4F4F"
+    ID_LINUX        = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
+    ID_LINUX_LVM    = "E6D6D379-F507-44C2-A23C-238F2A3DF928"
+    ID_DELL_UTILITY = "TODOFIND-OUTF-ROMD-ELLW-HATTOPUTHERE"
+    
+    # Lookup used for creating partitions
+    GUID_to_type_code = {
+        ID_LINUX_SWAP:   '8200',
+        ID_LINUX:        '0700',
+        ID_LINUX_LVM:    '8e00',
+#       We don't have a DELL TC but we should never need to create a DELL partition
+#       ID_DELL_UTILITY: = ????
+        }
+
+    SGDISK = '/sbin/sgdisk'
+    partTableType = 'GPT'
+
+    def readDiskDetails(self):
+        self.sectorSize        = int(self.cmdWrap(['blockdev', '--getss', self.device]))
+        self.sectorExtent      = int(self.cmdWrap(['blockdev', '--getsize64', self.device])) / self.sectorSize
+        self.sectorFirstUsable = 34
+        self.sectorLastUsable  = self.sectorExtent - 34
+            
+    def partitionTable(self):
+        cmd = [self.SGDISK, '--print', self.device]
+        try:
+            out = self.cmdWrap(cmd)
+        except:
+            # invalid partition table - return empty partition table
+            return {}
+        matchWarning   = re.compile('Found invalid GPT and valid MBR; converting MBR to GPT format.')
+        matchHeader    = re.compile('Number\s+Start \(sector\)\s+End \(sector\)\s+Size\s+Code\s+Name')
+        matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})\s+(\w.*)?$') # num start end sz typecode name
+        matchActive    = re.compile('.*\(legacy BIOS bootable\)')
+        matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
+        partitions = {}
+        lines = out.split('\n')
+        gotHeader = False
+        for line in lines:
+            if not line.strip():
+                continue
+            if not gotHeader:
+                if matchWarning.match(line):
+                    xelogging.log("Warning: GPTPartitionTool found DOS partition table on device %s" % self.device)
+                elif matchHeader.match(line):
+                    gotHeader = True
+            else:
+                matches = matchPartition.match(line)
+                if not matches:
+                    raise Exception("Could not parse sgdisk output line: %s" % line)
+                number  = int(matches.group(1))
+                start   = int(matches.group(2))
+                _end    = int(matches.group(3))
+                size    = _end + 1 - start
+                partitions[number] = {
+                    'start': int(matches.group(2)),
+                    'size': size,
+                    }
+        # For each partition determine the active state.
+        # By active we mean "BIOS bootable"
+        for number in partitions:
+            out = self.cmdWrap([self.SGDISK, '--attributes=%d:show' % number, self.device])
+            partitions[number]['active'] = matchActive.match(out) and True or False
+            out = self.cmdWrap([self.SGDISK, '--info=%d' % number, self.device])
+            for line in out.split('\n'):
+                m = matchId.match(line)
+                if m:
+                    partitions[number]['id'] = m.group(1)
+            assert partitions[number].has_key('id')
+            
+        return partitions
+
+    def writeThisPartitionTable(self, table, dryrun = False, log = False):
+        for part in table.values():
+            if not self.GUID_to_type_code.has_key(part['id']):
+                raise Exception("GPT partitions with part type GUID %s unsupported" % part['id'])
+
+        if isDeviceMapperNode(self.device):
+            # Destroy device mapper partitions before re-writing partition table on mpath device
+            rv = destroyPartnodes(self.device)
+            if rv:
+                raise Exception('Failed to destroy GPT partitions on ' + self.device)
+
+        try:
+            # Bring us to a known state.
+            self.cmdWrap([self.SGDISK, '--zap-all', self.device])
+        except:
+            # Ignore error code which results from inconsistent initial state 
+            pass
+        self.cmdWrap([self.SGDISK, '--mbrtogpt', '--clear', self.device])
+        for num,part in table.items():
+            start  = part['start']
+            end    = part['size'] + start - 1
+            idt    = part['id']
+            active = part['active']            
+            self.cmdWrap([self.SGDISK, '--new=%d:%d:%d' % (num,start,end), self.device])
+            self.cmdWrap([self.SGDISK, '--typecode=%d:%s' % (num,self.GUID_to_type_code[idt]), self.device])
+            if active:
+                self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag
+
+        if isDeviceMapperNode(self.device):
+            # Create partitions using device mapper
+            rv = createPartnodes(self.device)
+            if rv:
+                raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
+            
+def PartitionTool(device, partitionType=None):
+    """
+    By default PartitionTool() will return the tool appropriate to the partitioning 
+    system currently in use on device
+    """
+    if partitionType == None:
+        # Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt
+        rv, out, err = util.runCmd2(['fdisk', '-l', device], with_stdout=True, with_stderr=True)
+        lines = out.split('\n') + err.split('\n')
+        def matchline(s):
+            match = re.compile(s)
+            for l in lines:
+                if match.match(l):
+                    return True
+            return False
+        if rv:
+            partitionType = 'GPT'   # default 
+        elif matchline("^.*doesn't contain a valid partition table$"):
+            partitionType = 'GPT'   # default
+        elif matchline("^.*EFI GPT$"):
+            partitionType = 'GPT'   # default
+        else:
+            partitionType = 'DOS'
+    if partitionType == 'DOS':
+        return DOSPartitionTool(device)
+    elif partitionType == 'GPT':
+        return GPTPartitionTool(device)
 
 def destroyPartnodes(dev):
     # Destroy partition nodes for a device-mapper device

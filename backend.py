@@ -104,14 +104,15 @@ def getPrepSequence(ans):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions', 'zap-utility-partitions'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
             ]
-        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
+        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(prepareTarget,
@@ -158,7 +159,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum', 'serial-console', 'boot-serial', 'xen-cpuid-masks', 'bootloader-location'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type', 'primary-partnum', 'serial-console', 'boot-serial', 'xen-cpuid-masks', 'bootloader-location'), []),
         Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -441,25 +442,47 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 
-def inspectTargetDisk(disk, initial_partitions):
-    preserved_partitions = [PartitionTool.ID_DELL_UTILITY]
-    primary_part = 1
+def inspectTargetDisk(disk, initial_partitions, zap_utility_partitions):
     
     tool = PartitionTool(disk)
 
+    # If answerfile says to fake a utility partition then do it here
     if len(initial_partitions) > 0:
         for part in initial_partitions:
             tool.deletePartition(part['number'])
             tool.createPartition(part['id'], part['size'], part['number'])
         tool.commit(log = True)
 
-    for num, part in tool.iteritems():
-        if part['id'] in preserved_partitions:
-            primary_part += 1
+    # Preserve any utility partitions unless user told us to zap 'em
+    primary_part = 1
+    if not zap_utility_partitions:
+        utilparts = tool.utilityPartitions()
+        primary_part += max(utilparts+[0])
+        if primary_part > 2:
+            raise RuntimeError, "Installer only supports a single Utility Partition at partition 1, but found Utility Partitions at %s" % str(utilparts)
 
-    if primary_part > 2:
-        raise RuntimeError, "Target disk contains more than one Utility Partition."
+    # Return numbers of primary, backup, and SR partitions
     return (primary_part, primary_part+1, primary_part+2)
+
+# Determine which partition table type to use
+def selectPartitionTableType(disk, install_type, primary_part):
+    if not constants.GPT_SUPPORT:
+        return 'DOS'
+
+    tool = PartitionTool(disk)
+
+    # If not a fresh install then use same partition table as before
+    if install_type != INSTALL_TYPE_FRESH:
+        return tool.partTableType
+
+    # If we are preserving partition 1 then we need to preserve the 
+    # partition table type as we are probably chain booting from that.
+    if primary_part > 1:
+        return tool.partTableType
+
+    # This is a fresh install and we do not need to preserve partition1
+    # Use GPT because it is better.
+    return 'GPT'
 
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
@@ -470,7 +493,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum, sr_at_end):
+def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum, sr_at_end, partition_table_type):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -482,7 +505,7 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
     if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
         raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size)
 
-    tool = PartitionTool(disk)
+    tool = PartitionTool(disk, partition_table_type)
     for num, part in tool.iteritems():
         if num >= primary_partnum:
             tool.deletePartition(num)
@@ -520,14 +543,17 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
 
     tool.commit(log = True)
 
-def writeGuestDiskPartitions(primary_disk, guest_disks):
+def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
+    # At the moment this code uses the same partition table type for Guest Disks as it 
+    # does for the root disk.  But we could choose to always use 'GPT' for guest disks.
+    # TODO: Decide!
     for gd in guest_disks:
         if gd != primary_disk:
             # we really don't want to screw this up...
             assert type(gd) == str
             assert gd[:5] == '/dev/'
 
-            tool = PartitionTool(gd)
+            tool = PartitionTool(gd, partition_table_type)
             tool.deletePartitions(tool.partitions.keys())
             tool.commit(log = True)
 
@@ -725,7 +751,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "%s (Serial, Xen %s / Linux %s)" % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, primary_partnum, serial, boot_serial, cpuid_masks, location = 'mbr'):
+def installBootLoader(mounts, disk, partition_table_type, primary_partnum, serial, boot_serial, cpuid_masks, location = 'mbr'):
     
     assert(location == 'mbr' or location == 'partition')
     
@@ -756,7 +782,7 @@ def installBootLoader(mounts, disk, primary_partnum, serial, boot_serial, cpuid_
         util.assertDir(os.path.dirname(fn))
         boot_config.commit()
 
-        installExtLinux(mounts, disk, location)
+        installExtLinux(mounts, disk, partition_table_type, location)
 
         if serial:
             # ensure a getty will run on the serial console
@@ -780,7 +806,7 @@ def installBootLoader(mounts, disk, primary_partnum, serial, boot_serial, cpuid_
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
-def installExtLinux(mounts, disk, location = 'mbr'):
+def installExtLinux(mounts, disk, partition_table_type, location = 'mbr'):
 
     # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
     # However we continue to copy the ones we need to /boot so we can write the config file there.
@@ -797,8 +823,16 @@ def installExtLinux(mounts, disk, location = 'mbr'):
                              "%s/boot/extlinux/%s.c32" % (mounts['root'], m),
                              "%s/%s.c32" % (mounts['boot'], m)]) == 0
     if location == 'mbr':
-        assert util.runCmd2(["dd", "if=%s/usr/share/syslinux/mbr.bin" % mounts['root'], \
-                                 "of=%s" % disk, "bs=512", "count=1"]) == 0
+        if partition_table_type == 'DOS':
+            mbr = "%s/usr/share/syslinux/mbr.bin" % mounts['root']
+        elif partition_table_type == 'GPT':
+            mbr = "%s/usr/share/syslinux/gptmbr.bin" % mounts['root']
+        else:
+            raise Exception("Only DOS and GPT partition tables supported")
+
+        # Write image to MBR
+        xelogging.log("Installing %s to %s" % (mbr,disk))
+        assert util.runCmd2(["dd", "if=%s" % mbr, "of=%s" % disk]) == 0
 
 ##########
 # mounting and unmounting of various volumes

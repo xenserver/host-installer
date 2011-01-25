@@ -558,13 +558,23 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
     if 'installation-to-overwrite' in answers:
         answers['target-is-sr'] = target_is_sr[answers['primary-disk']]
 
-    # warn if not all of the disk is usable
+    # Warn if not all of the disk is usable.
+    # This can happen if we are unable to use GPT because we are currently
+    # using DOS and need to preserve some utility partitions.
     blocks = diskutil.getDiskDeviceSize(answers['primary-disk'])
-    if diskutil.blockSizeToGBSize(blocks) > constants.max_primary_disk_size:
-        ButtonChoiceWindow(tui.screen,
-                           "Large Disk Detected",
-                           "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, constants.max_primary_disk_size),
-                           ['Ok'])
+    tool = PartitionTool(answers['primary-disk'])
+    if diskutil.blockSizeToGBSize(blocks) > constants.max_primary_disk_size_dos and tool.partTableType == 'DOS':
+        if constants.GPT_SUPPORT and tool.utilityPartitions():
+            val = snackutil.ButtonChoiceWindowEx(tui.screen,
+                               "Large Disk Detected",
+                               "The disk selected is larger than the %d GB limit imposed by the DOS partitioning scheme.  Would you like to remove the OEM partitions that require the DOS partitioning scheme, so that the whole disk can be used?" % constants.max_primary_disk_size_dos,
+                               ['Yes', 'No'], default=1)
+            answers['zap-utility-partitions'] = (val == 'yes')
+        else:
+            ButtonChoiceWindow(tui.screen,
+                               "Large Disk Detected",
+                               "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, constants.max_primary_disk_size_dos),
+                               ['Ok'])
 
     if button == None: return SKIP_SCREEN
     if button == 'back': return LEFT_BACKWARDS

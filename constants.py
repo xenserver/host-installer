@@ -63,9 +63,12 @@ def error_string(error, logname, with_hd):
 # reports the total system ram after the Xen heap.  The UI should
 # display the value given by MIN_SYSTEM_RAM_MB_RAW.
 min_primary_disk_size = 12 #GB
-max_primary_disk_size = 2047 #GB
+max_primary_disk_size_dos = 2047 #GB
 MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
 MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
+
+# Change this to True to enable GPT partitioning instead of DOS partitioning
+GPT_SUPPORT = False
 
 DOM0_MEM=752
 

@@ -127,6 +127,15 @@ class Answerfile:
                 except:
                     pass
 
+        # zap-utility-partitions: do not preserve UP at install.
+        #
+        # Dell 11G servers (and later) only use the UP for factory install of XS but don't
+        # need it thereafter as they have a seperate utility flash drive for diagnostics.
+        # Installs to Dell 10G servers, however, should not zap the UP as they don't have a flash 
+        # drive and need the UP persisted for diags.  If UP present, it boots 1st & chainloads XS.
+        nodes = self.nodelist.getElementsByTagName('zap-utility-partitions')
+        results['zap-utility-partitions'] = (len(nodes) > 0)
+
         # primary-disk:
         pd = self.nodelist.getElementsByTagName('primary-disk')
         pd_text = getText(pd[0].childNodes)
