@@ -356,7 +356,7 @@ class Answerfile:
             # Convert this spec into a disk location.
             disk = diskutil.rfc4173_to_disk(ei)
         else:
-            disk = "/dev/" + ei
+            disk = normalize_disk(ei)
 
         # If answerfile names a multipath replace with the master!
         master = disktools.getMpathMaster(disk)
