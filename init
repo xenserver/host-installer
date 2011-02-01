@@ -127,17 +127,20 @@ def main(args):
         elif opt == "--answerfile":
             answerfile_address = val
             interactive = False
-            init_network = not val.startswith('file://')
+            if not val.startswith('file://'):
+                init_network = True
         elif opt == "--rt_answerfile":
             answerfile_address = val
             interactive = False
-            init_network = not val.startswith('file://')
+            if not val.startswith('file://'):
+                init_network = True
             ui = None
             xelogging.openLog(sys.stdout)
         elif opt == "--answerfile_generator":
             answerfile_script = val
             interactive = False
-            init_network = not val.startswith('file://')
+            if not val.startswith('file://'):
+                init_network = True
         elif opt in ['--answerfile_device', '--network_device']:
             answer_device = val.lower()
             init_network = True
