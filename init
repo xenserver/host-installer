@@ -32,19 +32,41 @@ from netinterface import *
 from version import *
 
 # Attempt to configure the network:
-def configureNetworking(ui, device):
+def configureNetworking(ui, device, config):
     if ui:
         ui.progress.showMessageDialog(
             "Preparing for installation",
             "Attempting to configure networking..."
             )
 
+    if device == 'all':
+        config = 'dhcp'
+    config_dict = None
+    try:
+        if config.startswith('static:'):
+            config_dict = {'gateway': None, 'dns': None, 'domain': None}
+            for el in config[7:].split(';'):
+                k, v = el.split('=', 1)
+                config_dict[k] = v
+            if 'dns' in config_dict:
+                config_dict['dns'] = config_dict['dns'].split(',')
+            assert 'ip' in config_dict and 'netmask' in config_dict
+    except:
+        pass
+
     nethw = netutil.scanConfiguration()
     netcfg = {}
     for i in nethw.keys():
-        netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr)
+        if (device == i or device == nethw[i].hwaddr) and config_dict:
+            netcfg[i] = NetInterface(NetInterface.Static, nethw[i].hwaddr,
+                                     config_dict['ip'], config_dict['netmask'],
+                                     config_dict['gateway'], config_dict['dns'],
+                                     config_dict['domain'])
+        else:
+            netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr)
 
     netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
+    netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
     if device == 'all':
         for i in nethw.keys():
@@ -89,6 +111,7 @@ def main(args):
     ui = tui
     interactive = True
     answer_device = 'all'
+    answer_config = 'dhcp'
     init_network = False
     reboot = False
     answerfile_address = None
@@ -115,8 +138,11 @@ def main(args):
             answerfile_script = val
             interactive = False
             init_network = not val.startswith('file://')
-        elif opt == '--answerfile_device':
+        elif opt in ['--answerfile_device', '--network_device']:
             answer_device = val.lower()
+            init_network = True
+        elif opt == '--network_config':
+            answer_config = val.lower()
         elif opt == "--reboot":
             reboot = True
         elif opt == "--device_mapper_multipath":
@@ -177,7 +203,7 @@ def main(args):
         diskutil.mpath_enable()
 
     if init_network:
-        configureNetworking(ui, answer_device)
+        configureNetworking(ui, answer_device, answer_config)
 
     xelogging.log("Starting installation/upgrade/restore")
 
