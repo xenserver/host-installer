@@ -341,6 +341,12 @@ class ExistingInstallation:
                         network = node
                     else:
                         continue
+                    # CA-50971: handle renamed networks in MNR
+                    if len(network.getElementsByTagName('bridge')) == 0 or \
+                       len(network.getElementsByTagName('PIFs')) == 0 or \
+                       len(network.getElementsByTagName('PIFs')[0].getElementsByTagName('PIF')) == 0:
+                        continue
+                
                     if getText(network.getElementsByTagName('bridge')[0].childNodes) == mgmt_iface:
                         pif_uid = getText(network.getElementsByTagName('PIFs')[0].getElementsByTagName('PIF')[0].childNodes)
                         break
