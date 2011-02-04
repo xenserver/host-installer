@@ -201,6 +201,9 @@ class ThirdGenUpgrader(Upgrader):
         # CA-47142: preserve v6 cache
         self.restore_list += [{'dir': 'var/xapi/lpe-cache'}]
 
+        # CP-2056: preserve RRDs etc
+        self.restore_list += [{'dir': 'var/xapi/blobs'}]
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
