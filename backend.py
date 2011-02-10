@@ -104,7 +104,7 @@ def getPrepSequence(ans):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions', 'zap-utility-partitions'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions', 'zap-utility-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
@@ -314,6 +314,9 @@ def performInstallation(answers, ui_package):
 
     if 'sr-at-end' not in answers:
         answers['sr-at-end'] = True
+
+    if 'preserve-first-partition' not in answers:
+        answers['preserve-first-partition'] = False
  
     # perform installation:
     prep_seq = getPrepSequence(answers)
@@ -442,7 +445,7 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 
-def inspectTargetDisk(disk, initial_partitions, zap_utility_partitions):
+def inspectTargetDisk(disk, initial_partitions, zap_utility_partitions ,preserve_first_partition):
     
     tool = PartitionTool(disk)
 
@@ -455,7 +458,9 @@ def inspectTargetDisk(disk, initial_partitions, zap_utility_partitions):
 
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
-    if not zap_utility_partitions:
+    if preserve_first_partition:
+        primary_part += 1
+    elif not zap_utility_partitions:
         utilparts = tool.utilityPartitions()
         primary_part += max(utilparts+[0])
         if primary_part > 2:
