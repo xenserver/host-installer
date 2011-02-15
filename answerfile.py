@@ -157,7 +157,7 @@ class Answerfile:
 
         pd_has_guest_storage = pd[0].getAttribute("gueststorage").lower() in ["", "yes", "true"]
         results['sr-at-end'] = pd[0].getAttribute("sr-at-end").lower() in ["", "yes", "true"]
-        results['preserve-first-partition'] = pd[0].getAttribute("preserve-first-partition").lower() in ["", "yes", "true"]
+        results['preserve-first-partition'] = pd[0].getAttribute("preserve-first-partition").lower() in ["yes", "true"]
 
         # guest-disks:
         results['guest-disks'] = []
