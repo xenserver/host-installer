@@ -1,55 +1,5 @@
 # blacklist ethernet over Firewire, it causes real ethernet interfaces to be out of order
 blacklist eth1394
 
-# blacklist framebuffer drivers (we don't need them):
-blacklist arcfb
-blacklist arkfb
-blacklist aty128fb
-blacklist atyfb
-blacklist carminefb
-blacklist cirrusfb
-blacklist cyber2000fb
-blacklist gx1fb
-blacklist gxfb
-blacklist hgafb
-blacklist i810fb
-blacklist kyrofb
-blacklist matroxfb_accel
-blacklist matroxfb_base
-blacklist matroxfb_crtc2
-blacklist matroxfb_DAC1064
-blacklist matroxfb_g450
-blacklist matroxfb_misc
-blacklist matroxfb_Ti3026
-blacklist neofb
-blacklist nvidiafb
-blacklist pm2fb
-blacklist radeonfb
-blacklist rivafb
-blacklist s1d13xxxfb
-blacklist s3fb
-blacklist savagefb
-blacklist sisfb
-blacklist sstfb
-blacklist tdfxfb
-blacklist tridentfb
-blacklist vfb
-blacklist vga16fb
-blacklist vmlfb
-blacklist vt8623fb
-
-# blacklist agp modules (we don't need them and they can cause compatibility issues):
-blacklist agpgart
-blacklist ali-agp
-blacklist amd64-agp
-blacklist via-agp
-blacklist intel-agp
-blacklist sworks-agp
-blacklist sis-agp
-blacklist nvidia-agp
-blacklist ati-agp
-blacklist amd-k7-agp
-blacklist efficeon-agp
-
 # CA-30550 can hang on some hardware
 blacklist ipmi_si
