@@ -44,7 +44,7 @@ for arg in $args; do
       copy=0;;
     blacklist=* | enable-ide | extramodules=* | make-ramdisk=*)
       copy=0;;
-    mount=*)
+    mount=* | start=*)
       copy=0;;
   esac
   [ $copy -eq 1 ] && set -- "$@" "--$arg"

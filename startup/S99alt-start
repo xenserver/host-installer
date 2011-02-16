@@ -1,0 +1,27 @@
+#!/bin/sh
+
+start()
+{
+  for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+    case "$arg" in
+      start=*)
+        exec ${arg#start=};;
+    esac
+  done
+}
+
+
+RET=0
+case "$1" in
+  start)
+    start
+    RET=$?;;
+  stop)
+    stop
+    RET=$?;;
+  *)
+    echo "Usage: $0 start"
+    RET=1
+esac
+
+exit $RET
