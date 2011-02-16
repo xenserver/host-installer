@@ -100,6 +100,33 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
             settings = answers['installation-to-overwrite'].readSettings()
         return settings.has_key('ha-armed') and settings['ha-armed']
 
+    def out_of_order_pool_upgrade_fn(answers):
+        if 'installation-to-overwrite' not in answers:
+            return False
+
+        ret = False
+        settings = answers['installation-to-overwrite'].readSettings()
+        if settings['master'] and netutil.networkingUp():
+            try:
+                # query version number of master
+                a = repository.URLAccessor("http://"+settings['master']+'/')
+                a.start()
+                f = a.openAddress("Citrix-index.html")
+                for line in f:
+                    if '<title>' in line:
+                        m = re.search('\S+ (\S+)</title>', line)
+                        if m:
+                            # compare versions
+                            master_ver = product.Version.from_string(m.group(1))
+                            if master_ver < product.THIS_PRODUCT_VERSION:
+                                ret = True
+                        break
+                a.finish()
+            except:
+                pass
+
+        return ret
+
     # initialise the list of installed/upgradeable products.
     tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
     results['installed-products'] = product.find_installed_products()
@@ -148,6 +175,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[local_media_predicate]),
         Step(uis.setup_runtime_networking, 
              predicates=[is_using_remote_media_fn]),
+        Step(uis.master_not_upgraded,
+             predicates=[out_of_order_pool_upgrade_fn]),
         Step(tui.repo.get_source_location,
              args=[True],
              predicates=[is_using_remote_media_fn]),

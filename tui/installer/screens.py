@@ -294,6 +294,18 @@ Please reboot this host, disable High Availability on the pool, check which serv
     if button == 'back': return LEFT_BACKWARDS
     return EXIT
 
+def master_not_upgraded(answers):
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "Pool Master Version",
+        "The master host of this pool must be upgraded before this slave.",
+        ['Cancel', 'Back'],
+        width = 60, help = 'masterwarn'
+        )
+
+    if button == 'back': return LEFT_BACKWARDS
+    return EXIT
+
 def upgrade_settings_warning(answers):
     button = ButtonChoiceWindow(
         tui.screen,

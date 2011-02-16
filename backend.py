@@ -318,6 +318,9 @@ def performInstallation(answers, ui_package):
     if 'preserve-first-partition' not in answers:
         answers['preserve-first-partition'] = False
  
+    if 'master' not in answers:
+        answers['master'] = None
+ 
     # perform installation:
     prep_seq = getPrepSequence(answers)
     new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)

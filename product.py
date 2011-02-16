@@ -433,6 +433,17 @@ class ExistingInstallation:
                     raise SettingsNotAvailable, "unknown network backend %s" % network_backend
             except:
                 pass
+
+            results['master'] = None
+            try:
+                pc = open(self.join_state_path("etc/xensource/pool.conf"), 'r')
+                line = pc.readline().strip()
+                if line.startswith('slave:'):
+                    results['master'] = line[6:]
+                pc.close()
+            except:
+                pass
+
         finally:
             self.unmount_state()
 
