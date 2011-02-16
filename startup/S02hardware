@@ -4,6 +4,12 @@ debug=0
 
 start()
 {
+  # build blacklist of legacy IDE drivers
+    for file in /lib/modules/*/kernel/drivers/ide/*.ko; do
+      b=`basename $file .ko`
+      echo "blacklist $b" >>/etc/modprobe.d/ide-blacklist.conf
+    done
+
   for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
     case "$arg" in
       blacklist=*)
@@ -11,12 +17,8 @@ start()
         for mod in `echo ${arg#blacklist=} | tr ',' ' '`; do
 	  echo "blacklist $mod" >>/etc/modprobe.d/user-blacklist.conf
 	done;;
-      blacklist-ide)
-        # build blacklist of legacy IDE drivers
-        for file in /lib/modules/*/kernel/drivers/ide/*.ko; do
-	  b=`basename $file .ko`
-	  echo "blacklist $b" >>/etc/modprobe.d/user-blacklist.conf
-	done;;
+      enable-ide)
+        rm -f /etc/modprobe.d/ide-blacklist.conf;;
       extramodules=*)
         extramodules=`echo ${arg#extramodules=} | tr ',' ' '`;;
     esac

@@ -42,7 +42,7 @@ for arg in $args; do
     bash-shell)
       bash_shell=1
       copy=0;;
-    blacklist=* | blacklist-ide | extramodules=* | make-ramdisk=*)
+    blacklist=* | enable-ide | extramodules=* | make-ramdisk=*)
       copy=0;;
     mount=*)
       copy=0;;
