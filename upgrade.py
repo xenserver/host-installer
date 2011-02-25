@@ -160,6 +160,14 @@ class ThirdGenUpgrader(Upgrader):
                     val += 90 / len(top_dirs)
                     progress_callback(val)
             finally:
+                # replace rolling pool upgrade bootloader config
+                src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'menu.lst')
+                if os.path.exists(src):
+                    util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, 'boot/grub')])
+                src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'extlinux.conf')
+                if os.path.exists(src):
+                    util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, 'boot')])
+                
                 fh = open(os.path.join(backup_fs.mount_point, '.xen-backup-partition'), 'w')
                 fh.close()
                 backup_fs.unmount()

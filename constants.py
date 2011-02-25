@@ -110,5 +110,6 @@ NET_SCR_DIR = "etc/sysconfig/network-scripts"
 POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
 
 SYSLINUX_CFG = "syslinux.cfg"
+ROLLING_POOL_DIR = "boot/installer"
 
 HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"
