@@ -456,7 +456,8 @@ class ExistingInstallation:
                 results['serial-console'] = hardware.SerialPort(boot_config.serial['port'],
                                                                 baud = str(boot_config.serial['baud']))
             results['bootloader-location'] = boot_config.location
-            results['boot-serial'] = (boot_config.default == 'xe-serial')
+            if boot_config.default != 'upgrade':
+                results['boot-serial'] = (boot_config.default == 'xe-serial')
             results['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), boot_config.menu[boot_config.default].getHypervisorArgs())
         except:
             pass
