@@ -205,7 +205,8 @@ def main(args):
     if mpath:
         diskutil.mpath_enable()
 
-    netutil.setAllLinksUp()
+    if ui:
+        netutil.setAllLinksUp()
     if init_network:
         configureNetworking(ui, answer_device, answer_config)
 
