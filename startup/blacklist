@@ -6,4 +6,4 @@ blacklist ipmi_si
 
 # ignore Virtual Function devices
 blacklist igbvf
-blacklist igbevf
+blacklist ixgbevf
