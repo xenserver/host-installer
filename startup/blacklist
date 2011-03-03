@@ -3,3 +3,7 @@ blacklist eth1394
 
 # CA-30550 can hang on some hardware
 blacklist ipmi_si
+
+# ignore Virtual Function devices
+blacklist igbvf
+blacklist igbevf
