@@ -29,7 +29,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     assert disk.startswith('/dev/')
 
     label = None
-    primary_partnum, _, __ = backend.inspectTargetDisk(disk, [])
+    primary_partnum, _, __ = backend.inspectTargetDisk(disk, [], False, False)
     restore_partition = partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
@@ -90,7 +90,8 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                 location = 'mbr'
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            backend.installBootLoader(mounts, disk, primary_partnum, None, False, [], location)
+            # FIXME need to determine existing partition scheme?
+            backend.installBootLoader(mounts, disk, 'DOS', primary_partnum, None, False, [], location)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
