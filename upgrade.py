@@ -149,14 +149,20 @@ class ThirdGenUpgrader(Upgrader):
         try:
             backup_fs = util.TempMount(backup_partition, 'backup-')
             try:
+                just_dirs = ['dev', 'proc', 'lost+found', 'sys']
                 top_dirs = os.listdir(primary_fs.mount_point)
                 val = 10
                 for x in top_dirs:
-                    cmd = ['cp', '-a'] + \
-                          [ os.path.join(primary_fs.mount_point, x) ] + \
-                          ['%s/' % backup_fs.mount_point]
-                    if util.runCmd2(cmd) != 0:
-                        raise RuntimeError, "Backup of %d directory failed" % x
+                    if x in just_dirs:
+                        path = os.path.join(backup_fs.mount_point, x)
+                        if not os.path.exists(path):
+                            os.mkdir(path, 0755)
+                    else:
+                        cmd = ['cp', '-a'] + \
+                              [ os.path.join(primary_fs.mount_point, x) ] + \
+                              ['%s/' % backup_fs.mount_point]
+                        if util.runCmd2(cmd) != 0:
+                            raise RuntimeError, "Backup of %d directory failed" % x
                     val += 90 / len(top_dirs)
                     progress_callback(val)
             finally:
