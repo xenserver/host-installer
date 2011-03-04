@@ -30,7 +30,7 @@ import hardware
 import upgrade
 import init_constants
 import scripts
-import bootloader
+import xcp.bootloader as bootloader
 
 # Product version and constants:
 import version

@@ -24,7 +24,7 @@ import xelogging
 import repository
 from disktools import *
 import hardware
-import bootloader
+import xcp.bootloader as bootloader
 import xml.dom.minidom
 
 class SettingsNotAvailable(Exception):

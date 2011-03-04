@@ -18,7 +18,7 @@ import os
 import os.path
 import constants
 import re
-import bootloader
+import xcp.bootloader as bootloader
 
 def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     """ Restore files from backup_partition to the root partition on disk.
