@@ -212,6 +212,8 @@ class ThirdGenUpgrader(Upgrader):
         # CP-2056: preserve RRDs etc
         self.restore_list += [{'dir': 'var/xapi/blobs'}]
 
+        self.restore_list.append('etc/sysconfig/mkinitrd.latches')
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
