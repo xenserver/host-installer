@@ -17,6 +17,7 @@ import os
 import re
 
 import product
+from xcp.version import *
 from disktools import *
 from netinterface import *
 import util
@@ -315,7 +316,7 @@ class ThirdGenUpgrader(Upgrader):
             else:
                 os.remove(dbcache_file + '.new')
 
-        v = product.Version(prev_install.version.ver)
+        v = Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
         f.write("PRODUCT_VERSION='%s'\n" % v)
         f.close()
