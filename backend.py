@@ -30,7 +30,7 @@ import hardware
 import upgrade
 import init_constants
 import scripts
-import bootloader
+import xcp.bootloader as bootloader
 
 # Product version and constants:
 import version
@@ -1097,6 +1097,12 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     else:
         nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
+
+    if network_backend == constants.NETWORK_BACKEND_VSWITCH:
+        # CA-51684: blacklist bridge module
+        bfd = open("%s/etc/modprobe.d/blacklist-bridge" % mounts["root"], "w")
+        bfd.write("install bridge /bin/true\n")
+        bfd.close()
 
 # use kudzu to write initial modprobe-conf:
 def writeModprobeConf(mounts):

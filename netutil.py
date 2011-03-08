@@ -16,6 +16,8 @@ import util
 import re
 import subprocess
 from xcp.biosdevname import BiosDevName
+import time
+
 
 class NIC:
     def __init__(self, nic_dict):
@@ -121,38 +123,28 @@ def interfaceUp(interface):
     inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
     return len(inets) == 1
 
-def _linkUp(interface):
+# work out if a link is up:
+def linkUp(interface):
     linkUp = None
-    duplexSet = None
 
     rc, out = util.runCmd2(['ethtool', interface], with_stdout = True)
     if rc != 0:
-        return None, None
+        return None
     for line in out.split('\n'):
         line = line.strip()
         if line.startswith('Link detected:'):
             linkUp = line.endswith('yes')
-        elif line.startswith('Duplex:'):
-            duplexSet = line.find('Unknown!') == -1
-    return linkUp, duplexSet
+    return linkUp
 
-# the following NICs always reflect link status in duplex
-duplex_always = ['e1000', 'e1000e']
+def setAllLinksUp():
+    subprocs = []
+    
+    for nif in getNetifList():
+        if nif not in diskutil.ibft_reserved_nics:
+            subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up']))
 
-# work out if a link is up:
-def linkUp(interface):
-    up = False
-
-    if getDriver(interface) in duplex_always:
-        _, up = _linkUp(interface)
-    else:
-        # need interface to be up before we can probe
-        if interface not in interface_up:
-            util.runCmd2(['ifconfig', interface, 'up'])
-            interface_up[interface] = True
-        up, _ = _linkUp(interface)
-
-    return up
+    while None in map(lambda x: x.poll(), subprocs):
+        time.sleep(1)
 
 def networkingUp():
     rc, out = util.runCmd2(['ip', 'route'], with_stdout = True)

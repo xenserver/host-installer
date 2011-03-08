@@ -17,6 +17,7 @@ import os
 import re
 
 import product
+from xcp.version import *
 from disktools import *
 from netinterface import *
 import util
@@ -149,14 +150,20 @@ class ThirdGenUpgrader(Upgrader):
         try:
             backup_fs = util.TempMount(backup_partition, 'backup-')
             try:
+                just_dirs = ['dev', 'proc', 'lost+found', 'sys']
                 top_dirs = os.listdir(primary_fs.mount_point)
                 val = 10
                 for x in top_dirs:
-                    cmd = ['cp', '-a'] + \
-                          [ os.path.join(primary_fs.mount_point, x) ] + \
-                          ['%s/' % backup_fs.mount_point]
-                    if util.runCmd2(cmd) != 0:
-                        raise RuntimeError, "Backup of %d directory failed" % x
+                    if x in just_dirs:
+                        path = os.path.join(backup_fs.mount_point, x)
+                        if not os.path.exists(path):
+                            os.mkdir(path, 0755)
+                    else:
+                        cmd = ['cp', '-a'] + \
+                              [ os.path.join(primary_fs.mount_point, x) ] + \
+                              ['%s/' % backup_fs.mount_point]
+                        if util.runCmd2(cmd) != 0:
+                            raise RuntimeError, "Backup of %d directory failed" % x
                     val += 90 / len(top_dirs)
                     progress_callback(val)
             finally:
@@ -211,6 +218,8 @@ class ThirdGenUpgrader(Upgrader):
 
         # CP-2056: preserve RRDs etc
         self.restore_list += [{'dir': 'var/xapi/blobs'}]
+
+        self.restore_list.append('etc/sysconfig/mkinitrd.latches')
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
@@ -307,7 +316,7 @@ class ThirdGenUpgrader(Upgrader):
             else:
                 os.remove(dbcache_file + '.new')
 
-        v = product.Version(prev_install.version.ver)
+        v = Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
         f.write("PRODUCT_VERSION='%s'\n" % v)
         f.close()

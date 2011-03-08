@@ -27,7 +27,7 @@ import hardware
 import version
 import util
 from util import dev_null
-import product
+from xcp.version import *
 import cpiofile
 from constants import *
 import xml.dom.minidom
@@ -140,7 +140,7 @@ class Repository:
         self._product_brand = _product
         ver_str = _version
         if _build: ver_str += '-'+_build
-        self._product_version = product.Version.from_string(ver_str)
+        self._product_version = Version.from_string(ver_str)
 
     def compatible_with(self, brand, version):
         return self._product_brand in [brand, None]
@@ -239,7 +239,7 @@ class Repository:
 
         for dep in self.requires:
             want_id = "%s:%s" % (dep['originator'], dep['name'])
-            want_ver = product.Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
+            want_ver = Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
             found = False
             for repo in installed_repos.values():
                 if repo.identifier() == want_id and eval("repo._product_version.__%s__(want_ver)" % dep['test']):

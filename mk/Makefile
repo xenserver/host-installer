@@ -1,17 +1,20 @@
 USE_BRANDING := yes
 include $(B_BASE)/common.mk
+include $(PROJECT_OUTPUTDIR)/python-libs/python-libs.inc
 
 # inputs
 BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.$(DOMAIN0_ARCH_OPTIMIZED).ext2
+PYTHON_LIBS_RPM := $(PROJECT_OUTPUTDIR)/python-libs/$(PYTHON_LIBS_PKG_FILE)
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
-MBOOTPACK = $(MY_OUTPUT_DIR)/mbootpack
+MBOOT_IMG = $(MY_OUTPUT_DIR)/mboot.img
 BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 
 # intermediate:
 KERNEL_CONFIGURED_STAMP = $(MY_OBJ_DIR)/.kernel-configured.stamp
 BASE_IMAGE_EXTRACTED_STAMP = $(MY_OBJ_DIR)/.base-image-extracted.stamp
+PYTHON_LIBS_INSTALLED_STAMP = $(MY_OBJ_DIR)/.python-libs-installed.stamp
 INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.installer-installed.stamp
 FILES_COLLECTED_STAMP = $(MY_OBJ_DIR)/.files-collected.stamp
 ISSUE_CUSTOMISED_STAMP = $(MY_OBJ_DIR)/.issue-customised.stamp
@@ -27,9 +30,17 @@ INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
+	zcat $(PROJECT_OUTPUTDIR)/xen/CD_FILES.main/boot/xen.gz >$(MY_OBJ_DIR)/xen
+	zcat $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinuz >$(MY_OBJ_DIR)/vmlinux
+	mbootpack -o $(MBOOT_IMG) $(MY_OBJ_DIR)/xen -m $(MY_OBJ_DIR)/vmlinux -m $(INSTALL_IMG)
+	rm -f $(MY_OBJ_DIR)/xen $(MY_OBJ_DIR)/vmlinux
 
 $(BASE_IMAGE_EXTRACTED_STAMP): $(BASE_INSTALLER_IMAGE)
 	./extract-fs $(BASE_INSTALLER_IMAGE) $(INSTALLER_FILESYSTEM)
+	touch $@
+
+$(PYTHON_LIBS_INSTALLED_STAMP): $(PYTHON_LIBS_RPM)
+	rpm2cpio $^ | ( cd $(INSTALLER_FILESYSTEM) && cpio -idv )
 	touch $@
 
 $(ISSUE_CUSTOMISED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
@@ -70,18 +81,12 @@ $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
 	done
 	touch $@
 
-$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(ISSUE_CUSTOMISED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) \
+$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(ISSUE_CUSTOMISED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) \
 		 $(MY_OUTPUT_DIR)/.dirstamp
 	rm -f $(INSTALL_IMG)
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG)
 	chmod 644 $@
 
 # Dell factory installation
-$(MBOOTPACK):
-	$(call mkdir_clean,$(MY_OBJ_DIR)/mbootpack)
-	( cd $(call hg_loc,host-installer)/mbootpack && find . -type f | cpio -dp $(MY_OBJ_DIR)/mbootpack )
-	$(MAKE) -C $(MY_OBJ_DIR)/mbootpack
-	cp -fp $(MY_OBJ_DIR)/mbootpack/mbootpack $@
-
 $(BUILD_FI_IMAGE):
 	$(MAKE) -C $(call hg_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
