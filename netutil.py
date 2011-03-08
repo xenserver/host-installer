@@ -15,12 +15,16 @@ import diskutil
 import util
 import re
 import subprocess
+from xcp.biosdevname import BiosDevName
 
 class NIC:
-    def __init__(self, name, hwaddr, pci_string):
-        self.name = name
-        self.hwaddr = hwaddr
-        self.pci_string = pci_string
+    def __init__(self, nic_dict):
+        self.name = nic_dict.get("Kernel name", "")
+        self.hwaddr = nic_dict.get("Assigned MAC", "")
+        self.pci_string = nic_dict.get("Bus Info", "")
+        self.driver = "%s (%s)" % (nic_dict.get("Driver", ""),
+                                   nic_dict.get("Driver version", ""))
+        self.smbioslabel = nic_dict.get("SMBIOS Label", "")
 
     def __repr__(self):
         return "<NIC: %s (%s)>" % (self.name, self.hwaddr)
@@ -35,10 +39,20 @@ def scanConfiguration():
     LUNs for other purposes e.g. XenServer Management.
     """
     conf = {}
+    nics = []
+
+    bdn = BiosDevName()
+    bdn.run()
 
     for nif in getNetifList():
         if nif not in diskutil.ibft_reserved_nics:
-            conf[nif] = NIC(nif, getHWAddr(nif), getPCIInfo(nif))
+            nics.append(nif)
+
+    for nic in bdn.devices:
+        name = nic.get("Kernel name", "")
+        if name in nics:
+            conf[name] = NIC(nic)
+
     return conf
 
 def getNetifList():
