@@ -8,7 +8,7 @@ PYTHON_LIBS_RPM := $(PROJECT_OUTPUTDIR)/python-libs/$(PYTHON_LIBS_PKG_FILE)
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
-MBOOTPACK = $(MY_OUTPUT_DIR)/mbootpack
+MBOOT_IMG = $(MY_OUTPUT_DIR)/mboot.img
 BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 
 # intermediate:
@@ -30,6 +30,10 @@ INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
+	zcat $(PROJECT_OUTPUTDIR)/xen/CD_FILES.main/boot/xen.gz >$(MY_OBJ_DIR)/xen
+	zcat $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinuz >$(MY_OBJ_DIR)/vmlinux
+	mbootpack -o $(MBOOT_IMG) $(MY_OBJ_DIR)/xen -m $(MY_OBJ_DIR)/vmlinux -m $(INSTALL_IMG)
+	rm -f $(MY_OBJ_DIR)/xen $(MY_OBJ_DIR)/vmlinux
 
 $(BASE_IMAGE_EXTRACTED_STAMP): $(BASE_INSTALLER_IMAGE)
 	./extract-fs $(BASE_INSTALLER_IMAGE) $(INSTALLER_FILESYSTEM)
@@ -84,11 +88,5 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) $(KE
 	chmod 644 $@
 
 # Dell factory installation
-$(MBOOTPACK):
-	$(call mkdir_clean,$(MY_OBJ_DIR)/mbootpack)
-	( cd $(call hg_loc,host-installer)/mbootpack && find . -type f | cpio -dp $(MY_OBJ_DIR)/mbootpack )
-	$(MAKE) -C $(MY_OBJ_DIR)/mbootpack
-	cp -fp $(MY_OBJ_DIR)/mbootpack/mbootpack $@
-
 $(BUILD_FI_IMAGE):
 	$(MAKE) -C $(call hg_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
