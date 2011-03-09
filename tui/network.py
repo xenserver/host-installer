@@ -147,15 +147,10 @@ def select_netif(text, conf, offer_existing = False, default = None):
         tui.update_help_line([' ', ' '])
         if context:
             nic = conf[context]
-
-            table = [ ("Name:", nic.name),
-                      ("Driver:", nic.driver),
-                      ("MAC Address:", nic.hwaddr),
-                      ("PCI Details:", nic.pci_string) ]
-            if nic.smbioslabel != "":
-                table.append(("BIOS Label:", nic.smbioslabel))
-
-            snackutil.TableDialog(tui.screen, "Interface Details", *table)
+            snackutil.TableDialog(tui.screen, "Interface Details", ("Name:", nic.name),
+                                  ("Driver:", netutil.getDriver(nic.name)),
+                                  ("MAC Address:", nic.hwaddr),
+                                  ("PCI Details:", nic.pci_string))
         else:
             details = map(lambda x: (x, netutil.ipaddr(x)), filter(netutil.interfaceUp, netifs))
 
