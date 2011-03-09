@@ -68,7 +68,7 @@ MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
 MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 
 # Change this to True to enable GPT partitioning instead of DOS partitioning
-GPT_SUPPORT = False
+GPT_SUPPORT = True
 
 DOM0_MEM=752
 
