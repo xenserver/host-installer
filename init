@@ -89,10 +89,6 @@ def sig_term(x, y):
     sys.exit(0)
 
 def main(args):
-    # switch to ISO 8859-1 mode so line drawing characters work as expected on 
-    # vt100 terminals.
-    print "\033%@"
-
     # log to tty3
     xelogging.openLog('/dev/tty3')
     xelogging.openLog('/tmp/install-log')
@@ -164,6 +160,10 @@ def main(args):
 
     # start the user interface:
     if ui:
+        # switch to ISO 8859-1 mode so line drawing characters work as expected on 
+        # vt100 terminals.
+        print "\033%@"
+
         xelogging.log("Starting 'init' user interface on %s" % tty)
         ui.init_ui()
 
