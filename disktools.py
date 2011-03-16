@@ -974,6 +974,14 @@ class GPTPartitionTool(PartitionToolBase):
             # Ignore error code which results from inconsistent initial state 
             pass
         self.cmdWrap([self.SGDISK, '--mbrtogpt', '--clear', self.device])
+
+        # CA-54144: Some _stupid_ BIOSes refuse to boot disks that don't have a DOS partition table 
+        # with an active partition.  This is incorrect because it makes the assumption that the 
+        # bootloader uses a DOS partition table.  Instead the BIOSes _should_ just check for 0x55,0xaa
+        # at location 0x1fe.
+        # However, let's keep them happy by making the single partition in the protective MBR "active".
+        self.cmdWrap(['sfdisk', '-A1', self.device])
+
         for num,part in table.items():
             start  = part['start']
             end    = part['size'] + start - 1
