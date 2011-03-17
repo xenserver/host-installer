@@ -429,8 +429,14 @@ class Answerfile:
             results['source-media'] = 'local'
             results['source-address'] = "Install disc"
         elif source.getAttribute('type') == 'url':
-            results['source-media'] = 'url'
-            results['source-address'] = getText(source.childNodes)
+            # handle nfs 'URLs'
+            address = getText(source.childNodes)
+            if address.startswith('nfs://'):
+                results['source-media'] = 'nfs'
+                results['source-address'] = address[6:]
+            else:
+                results['source-media'] = 'url'
+                results['source-address'] = address
         elif source.getAttribute('type') == 'nfs':
             results['source-media'] = 'nfs'
             results['source-address'] = getText(source.childNodes)
@@ -444,11 +450,15 @@ class Answerfile:
             if not results.has_key('extra-repos'):
                 results['extra-repos'] = []
 
-            if source.getAttribute('type') == 'local':
+            rtype = source.getAttribute('type')
+            if rtype == 'local':
                 address = "Install disc"
-            elif source.getAttribute('type') in ['url', 'nfs']:
+            elif rtype in ['url', 'nfs']:
                 address = getText(source.childNodes)
             else:
                 raise AnswerfileError, "Invalid type for driver-source media specified."
-            results['extra-repos'].append((source.getAttribute('type'), address, []))
+            if rtype == 'url' and address.startswith('nfs://'):
+                rtype = 'nfs'
+                address = address[6:]
+            results['extra-repos'].append((rtype, address, []))
         return results
