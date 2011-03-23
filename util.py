@@ -80,7 +80,7 @@ def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None)
     # the above has a deadlock condition.
     # The following should suffice in all cases
     (out, err) = cmd.communicate(inputtext)
-    rv = cmd.returnvalue
+    rv = cmd.returncode
 
     l = "ran %s; rc %d" % (str(command), rv)
     if inputtext:
