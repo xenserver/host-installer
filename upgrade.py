@@ -25,12 +25,6 @@ import util
 import constants
 import xelogging
 
-try:
-    import json
-except ImportError:
-    import simplejson as json
-
-
 def upgradeAvailable(src):
     return __upgraders__.hasUpgrader(src.name, src.version, src.variant)
 
@@ -407,8 +401,11 @@ class ThirdGenUpgrader(Upgrader):
                 if line == "<device>":
                     eth_next = True
 
+            def jsonify(mac, pci, dev):
+                return '[ "%s", "%s", "%s" ]' % (mac, pci, dev)
+
             dynamic_text = ("# Automatically adjusted file.  Do not edit unless you are certain you know how to\n")
-            dynamic_text += json.dumps({"lastboot":past_devs, "old":[]}, indent=4, sort_keys=True)
+            dynamic_text += '{"lastboot":[%s],"old":[]}' % (','.join(map(jsonify, past_devs)), )
 
             fout3 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json'), "w")
             fout3.write(static_text)
