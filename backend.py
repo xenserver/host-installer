@@ -31,6 +31,7 @@ import upgrade
 import init_constants
 import scripts
 import xcp.bootloader as bootloader
+import netinterface
 
 # Product version and constants:
 import version
