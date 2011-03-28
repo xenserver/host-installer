@@ -989,12 +989,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     ndmap.write(netdevs.as_xml())
     ndmap.close()
 
-    mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')
-    mc = open(mgmt_conf_file, 'w')
-    print >>mc, "LABEL='%s'" % admin_iface
-    print >>mc, "MODE='%s'" % ((admin_config.mode == netinterface.Static) and 'static' or 'dhcp')
-    mc.close()
-
     if preserve_settings:
         return
 
@@ -1028,6 +1022,50 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     lo.write("ONBOOT=yes\n")
     lo.write("NAME=loopback\n")
     lo.close()
+
+    network_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'network.conf')
+    # write the master network configuration file; the firstboot script has the
+    # ability to configure multiple interfaces but we only configure one.  When
+    # upgrading the script should only modify the admin interface:
+    nc = open(network_conf_file, 'w')
+    print >>nc, "ADMIN_INTERFACE='%s'" % admin_config.hwaddr
+    # This tells /etc/firstboot.d/30-prepare-networking to pif-introduce all the network devices we've discovered
+    print >>nc, "INTERFACES='%s'" % str.join(" ", [nethw[x].hwaddr for x in nethw.keys() ])
+    nc.close()
+
+    # Write out the networking configuration.  Note that when doing a fresh
+    # install the interface configuration will be made to look like the current
+    # runtime configuration.  When doing an upgrade, the interface
+    # configuration previously used needs to be preserved but we also don't
+    # need to re-seed the configuration via firstboot, so we only write out a 
+    # sysconfig file for the management interface to get networking going.
+    ###
+
+
+    # Write a firstboot config file for every interface we know about
+    for intf in [ x for x in nethw.keys() ]:
+        hwaddr = nethw[intf].hwaddr
+        conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'interface-%s.conf' % hwaddr)
+        ac = open(conf_file, 'w')
+        print >>ac, "LABEL='%s'" % intf
+        if intf == admin_iface:
+             # FIXME still needed?
+             if not admin_config.isStatic():
+                print >>ac, "MODE=dhcp"
+             else:
+                print >>ac, "MODE=static"
+                print >>ac, "IP=%s" % admin_config.ipaddr
+                print >>ac, "NETMASK=%s" % admin_config.netmask
+                if admin_config.gateway:
+                    print >>ac, "GATEWAY=%s" % admin_config.gateway
+                if manual_nameservers:
+                    for i in range(len(nameservers)):
+                        print >>ac, "DNS%d=%s" % (i+1, nameservers[i])
+                if domain:
+                    print >>ac, "DOMAIN=%s" % domain
+        else:
+            print >>ac, "MODE=none"
+        ac.close()
 
     save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
     util.assertDir(save_dir)
