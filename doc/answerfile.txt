@@ -1,0 +1,234 @@
+Answerfile Schema
+=================
+
+Optional features are marked '?'
+Features that can appear zero or more times are marked '*'
+Deprecated features are marked '[D]'
+
+
+Clean install (no backup, no config preservation):
+
+<installation> | <installation mode="fresh">
+  ...
+</installation>
+
+
+Re-install (backup, no config preservation):
+
+<installation mode="reinstall">
+  ...
+</installation>
+
+
+Upgrade (backup, preserve config):
+
+<installation mode="upgrade">
+  ...
+</installation>
+
+
+Common Elements
+---------------
+
+  <source type="type">repo</source>
+  <driver-source type="type">repo</driver-source>*
+
+  where type is one of:
+
+    local (repo ignored)
+    url
+    nfs
+
+  'source' defines the location of the installation repository.
+
+  'driver-source' defines the source of a Supplemental Pack containing
+  device drivers to be loaded by the installer and included after
+  installation of the main repository.
+
+  Repository formats:
+
+    nfs - server:/path/
+
+    url - one of:
+
+      http://[user[:passwd]]@host[:port]/path/
+      https://[user[:passwd]]@host[:port]/path/
+      ftp://[user[:passwd]]@host[:port]/path/
+      file:///path/
+      nfs://server:/path/
+
+
+  <bootloader location="mbr|partition">extlinux|grub[D]</bootloader>?
+
+    default: mbr
+
+    grub is no longer supported as of 6.0
+
+    Defines the bootloader variant and location.
+
+
+  <network-backend>bridge|openvswitch|vswitch</network-backend>?
+
+    default: bridge (5.6 FP1 and earlier), vswitch (6.0 and later)
+
+    Defines the network stack variant.
+
+
+  <script stage="stage" type="type">url</script>*
+
+    where stage is one of:
+
+      installation-start (new in 6.0)
+      filesystem-populated
+      installation-complete
+
+    and type is one of:
+
+      nfs
+      url
+
+    Defines a shell or python script to be invoked at the defined
+    stage. Args passed to the script:
+
+      installation-start - None
+
+      filesystem-populated - mnt (mount point of root filesystem)
+
+      installation-complete - 0 | 1 (success or failure)
+
+  <post-install-script>url</post-install-script>[D]
+
+    Replaced by <script stage="filesystem-populated">
+
+  <install-failed-script>url</install-failed-script>[D]
+
+    Replaced by <script stage="installation-complete">
+
+
+(Re)Install Elements
+--------------------
+
+  <initial-partitions>
+    <partition number="n" size="sz" id="id"/>*
+  </initial-partitions>?
+
+    Create primary partitions before installation. Used by XenRT to
+    test preservation of Dell utility partitions.
+
+  <zap-utility-partitions/>?
+
+    Used by Dell factory install to destroy utility partitions to
+    allow GPT to be used.
+
+
+  <primary-disk>dev</primary-disk>
+
+    Specifies the target disk for installation.
+
+    Optional attributes:
+
+      gueststorage=bool
+
+        Include the remaining space of the primary disk in the local SR.
+
+        Default: True
+
+      sr-at-end=bool
+
+        Location of SR partition on the physical disk. Used by XenRT
+        to simulate a host that has been migrated from an OEM release.
+
+        Default: True
+
+      preserve-first-partition=bool
+
+        Used by NetScaler to unconditionally preserve
+
+        Default: False
+
+
+  <guest-disks>
+    <guest-disk>dev</guest-disk>*
+  </guest-disks>?
+
+    Specifies additional devices to be included in the local SR.
+
+
+  <admin-interface name="eth"/> | <admin-interface hwaddr="mac"/>
+
+    Specifies the initial management interface.
+
+    Mandatory attributes:
+
+      proto="static|dhcp"
+
+    If the interface is static then the following attributes must be
+    present:
+
+      ip="ip"
+
+      subnet-mask="subnet"
+
+      gateway="gw"
+
+
+  <root-password type="plaintext|hash"*>passwd</root-password>*
+
+    Specifies the root password. The value '!!' and a type of "hash"
+    defers setting a password until first boot.
+
+    Default: type="hash", !!
+
+
+  <nameserver>ip</nameserver>*
+
+    Specifies one or more DNS entries.
+
+
+  <hostname>name</hostname>?
+
+    Specifies the hostname.
+
+    Default: localhost.localdomain
+
+
+  <timezone>tz</timezone>?
+
+    Specifies the timezone (region/city)
+
+
+  <ntp-servers>ntp</ntp-servers>*
+
+    Specifies one or more NTP servers.
+
+
+  <keymap>kbd</keymap>?
+
+    Specifies the console keymap.
+
+    Default: us
+
+
+(Re)Install Attributes
+----------------------
+
+  <installation srtype="lvm|ext"?>
+
+    Local SR type.
+
+    default: lvm (5.6 FP1 and earlier), ext (6.0)
+
+
+Upgrade Elements
+----------------
+
+  <existing-installation>dev</existing-installation>
+
+    Specifies the device containing the XenServer installation to be
+    upgraded.
+
+
+  <primary-disk>dev</primary-disk>?[D]
+
+    Specifies the target disk to migrate a flash-based OEM
+    installation to. (5.6 & 5.6 FP1)
