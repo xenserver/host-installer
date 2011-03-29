@@ -358,9 +358,8 @@ class ThirdGenUpgrader(Upgrader):
                 "#   ppn: value should be the result of the biosdevname physical naming policy of a device (e.g. pci1p1)\n"
                 "#   label: value should be the SMBios label of a device (for SMBios 2.6 or above)\n")
 
-            if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/')):
-                os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/'), 0775)
-                os.mkdir(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0775)
+            if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/')):
+                os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0775)
             
             fout1 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf'), "w")
             fout1.write(static_text)
@@ -408,10 +407,10 @@ class ThirdGenUpgrader(Upgrader):
             dynamic_text += '{"lastboot":[%s],"old":[]}' % (','.join(map(jsonify, past_devs)), )
 
             fout3 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json'), "w")
-            fout3.write(static_text)
+            fout3.write(dynamic_text)
             fout3.close()
             fout4 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/dynamic-rules.json'), "w")
-            fout4.write(static_text)
+            fout4.write(dynamic_text)
             fout4.close()
 
         if ad_on:
