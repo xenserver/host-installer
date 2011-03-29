@@ -993,7 +993,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')
     mc = open(mgmt_conf_file, 'w')
     print >>mc, "LABEL='%s'" % admin_iface
-    print >>mc, "MODE='%s'" % ((admin_config.mode == netinterface.Static) and 'static' or 'dhcp')
+    print >>mc, "MODE='%s'" % ((admin_config.mode == netinterface.NetInterface.Static) and 'static' or 'dhcp')
     mc.close()
 
     if preserve_settings:
