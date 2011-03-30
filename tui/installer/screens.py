@@ -368,9 +368,6 @@ Continue with installation?""" % (COMPANY_NAME_SHORT, PRODUCT_BRAND),
 
 def force_backup_screen(answers):
     text = "The installer needs to create a backup of your existing installation. This will erase all data currently on the backup partition (including previous backups)."
-    if 'installation-to-overwrite' in answers and \
-       answers['installation-to-overwrite'].version == product.XENSERVER_5_5_0:
-        text += "\n\nIMPORTANT: Paid editions of %s now require a %s License Server to operate. Your system will enter a 30 day license grace period after install.\nWe recommend visiting www.mycitrix.com to verify your license entitlement before proceeding." % (PRODUCT_BRAND, COMPANY_NAME_SHORT)
     button = ButtonChoiceWindow(
         tui.screen,
         "Previous Installation Detected",
