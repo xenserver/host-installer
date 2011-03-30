@@ -127,7 +127,7 @@ class Upgrader(object):
 class ThirdGenUpgrader(Upgrader):
     """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.XENSERVER_5_5_0, product.THIS_PRODUCT_VERSION) ]
+    upgrades_versions = [ (product.XENSERVER_5_6_0, product.THIS_PRODUCT_VERSION) ]
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False

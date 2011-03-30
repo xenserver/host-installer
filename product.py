@@ -32,7 +32,7 @@ class SettingsNotAvailable(Exception):
     pass
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
-XENSERVER_5_5_0 = Version([5, 5, 0])
+XENSERVER_5_6_0 = Version([5, 6, 0])
 
 class ExistingInstallation:
     def __init__(self, primary_disk, boot_device, state_device):
@@ -98,7 +98,7 @@ class ExistingInstallation:
         """ Read settings from the installation, returns a results dictionary. """
         
         results = {}
-        if self.version < XENSERVER_5_5_0:
+        if self.version < XENSERVER_5_6_0:
             raise SettingsNotAvailable, "version too old"
 
         self.mount_state()
