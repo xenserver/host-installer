@@ -100,7 +100,7 @@ INVENTORY_FILE = "etc/xensource-inventory"
 BLOB_DIRECTORY = "var/xapi/blobs"
 
 MAIN_REPOSITORY_NAME = 'xs:main'
-INTERNAL_REPOS = ["xs:xenserver-transfer-vm", "xs:xenserver"]
+INTERNAL_REPOS = ["xs:xenserver-transfer-vm", "xs:xenserver", "xs:linux"]
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
