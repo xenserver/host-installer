@@ -405,7 +405,7 @@ class ThirdGenUpgrader(Upgrader):
                 return '[ "%s", "%s", "%s" ]' % (mac, pci, dev)
 
             dynamic_text = ("# Automatically adjusted file.  Do not edit unless you are certain you know how to\n")
-            dynamic_text += '{"lastboot":[%s],"old":[]}' % (','.join(map(lambda x: jsonify(*x) past_devs)), )
+            dynamic_text += '{"lastboot":[%s],"old":[]}' % (','.join(map(lambda x: jsonify(*x), past_devs)), )
 
             fout3 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json'), "w")
             fout3.write(dynamic_text)
