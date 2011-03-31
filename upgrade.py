@@ -369,7 +369,8 @@ class ThirdGenUpgrader(Upgrader):
             fout2.close()
 
             bdn = BiosDevName()
-            devices = bdn.run()
+            bdn.run()
+            devices = bdn.devices
 
             # this is a dirty hack but I cant think of much better
             dbcache = open(os.path.join(mounts['root'], constants.DBCACHE), "r")
@@ -404,7 +405,7 @@ class ThirdGenUpgrader(Upgrader):
                 return '[ "%s", "%s", "%s" ]' % (mac, pci, dev)
 
             dynamic_text = ("# Automatically adjusted file.  Do not edit unless you are certain you know how to\n")
-            dynamic_text += '{"lastboot":[%s],"old":[]}' % (','.join(map(jsonify, past_devs)), )
+            dynamic_text += '{"lastboot":[%s],"old":[]}' % (','.join(map(lambda x: jsonify(*x) past_devs)), )
 
             fout3 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json'), "w")
             fout3.write(dynamic_text)
