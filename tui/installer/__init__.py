@@ -85,6 +85,15 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
 
+    def need_networking(answers):
+        if 'source-media' in answers and \
+               answers['source-media'] in ['url', 'nfs']:
+            return True
+        if 'installation-to-overwrite' in answers:
+            settings = answers['installation-to-overwrite'].readSettings()
+            return (settings['master'] != None)
+        return False
+        
     def preserve_timezone(answers):
         if not_preserve_settings(answers):
             return False
@@ -106,7 +115,10 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
         ret = False
         settings = answers['installation-to-overwrite'].readSettings()
-        if settings['master'] and netutil.networkingUp():
+        if settings['master']:
+            if not netutil.networkingUp():
+                pass
+
             try:
                 # query version number of master
                 a = repository.URLAccessor("http://"+settings['master']+'/')
@@ -174,7 +186,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.use_extra_media, args=[vt_warning],
              predicates=[local_media_predicate]),
         Step(uis.setup_runtime_networking, 
-             predicates=[is_using_remote_media_fn]),
+             predicates=[need_networking]),
         Step(uis.master_not_upgraded,
              predicates=[out_of_order_pool_upgrade_fn]),
         Step(tui.repo.get_source_location,
