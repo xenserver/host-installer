@@ -24,6 +24,7 @@ import product
 import diskutil
 from disktools import *
 import version
+import xmlrpclib
 
 from snack import *
 
@@ -120,20 +121,16 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                 pass
 
             try:
-                # query version number of master
-                a = repository.URLAccessor("http://"+settings['master']+'/')
-                a.start()
-                f = a.openAddress("Citrix-index.html")
-                for line in f:
-                    if '<title>' in line:
-                        m = re.search('\S+ (\S+)</title>', line)
-                        if m:
-                            # compare versions
-                            master_ver = product.Version.from_string(m.group(1))
-                            if master_ver < product.THIS_PRODUCT_VERSION:
-                                ret = True
-                        break
-                a.finish()
+                s = xmlrpclib.Server("http://"+settings['master'])
+                session = s.session.slave_login("", settings['pool-token'])["Value"]
+                pool = s.pool.get_all(session)["Value"][0]
+                master = s.pool.get_master(session, pool)["Value"]
+                software_version = s.host.get_software_version(session, master)["Value"]
+
+                # compare versions
+                master_ver = product.Version.from_string(software_version['product_version'])
+                if master_ver < product.THIS_PRODUCT_VERSION:
+                    ret = True
             except:
                 pass
 

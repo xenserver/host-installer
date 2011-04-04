@@ -313,6 +313,9 @@ class ExistingInstallation:
 
             results['master'] = None
             try:
+                pt = open(self.join_state_path("etc/xensource/ptoken"), 'r')
+                results['pool-token'] = pt.readline().strip()
+                pt.close()
                 pc = open(self.join_state_path("etc/xensource/pool.conf"), 'r')
                 line = pc.readline().strip()
                 if line.startswith('slave:'):
