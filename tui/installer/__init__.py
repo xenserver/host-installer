@@ -126,6 +126,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                 pool = s.pool.get_all(session)["Value"][0]
                 master = s.pool.get_master(session, pool)["Value"]
                 software_version = s.host.get_software_version(session, master)["Value"]
+                s.session.logout(session)
 
                 # compare versions
                 master_ver = product.Version.from_string(software_version['product_version'])
