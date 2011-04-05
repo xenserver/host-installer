@@ -16,13 +16,17 @@ import util
 import re
 import subprocess
 import time
-
+from xcp.biosdevname import BiosDevName
+import xelogging
 
 class NIC:
-    def __init__(self, name, hwaddr, pci_string):
-        self.name = name
-        self.hwaddr = hwaddr
-        self.pci_string = pci_string
+    def __init__(self, nic_dict):
+        self.name = nic_dict.get("Kernel name", "")
+        self.hwaddr = nic_dict.get("Assigned MAC", "").lower()
+        self.pci_string = nic_dict.get("Bus Info", "").lower()
+        self.driver = "%s (%s)" % (nic_dict.get("Driver", ""),
+                                   nic_dict.get("Driver version", ""))
+        self.smbioslabel = nic_dict.get("SMBIOS Label", "")
 
     def __repr__(self):
         return "<NIC: %s (%s)>" % (self.name, self.hwaddr)
@@ -37,10 +41,20 @@ def scanConfiguration():
     LUNs for other purposes e.g. XenServer Management.
     """
     conf = {}
+    nics = []
+
+    bdn = BiosDevName()
+    bdn.run()
 
     for nif in getNetifList():
         if nif not in diskutil.ibft_reserved_nics:
-            conf[nif] = NIC(nif, getHWAddr(nif), getPCIInfo(nif))
+            nics.append(nif)
+
+    for nic in bdn.devices:
+        name = nic.get("Kernel name", "")
+        if name in nics:
+            conf[name] = NIC(nic)
+
     return conf
 
 def getNetifList():
@@ -226,3 +240,191 @@ class NetDevices:
 
         output += '</net-devices>\n'
         return output
+
+### EA-1069
+
+srules = []
+drules = []
+
+RX_ETH = re.compile(r"^eth\d+$")
+RX_MAC = re.compile(r"^(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
+RX_PCI = re.compile(r"^0000:[\da-fA-F]{2}:[\da-fA-F]{2}\.[\da-fA-F]$")
+RX_PPN = re.compile(r"^em\d+|pci\d+p\d+$")
+
+DEV_STATIC  = 0
+DEV_DYNAMIC = 1
+
+METH_MAC    = 0
+METH_PCI    = 1
+METH_PPN    = 2
+METH_LABEL  = 3
+
+def parse_arg(arg):
+    
+    split = arg.split(":", 2)
+
+    if len(split) != 3:
+        xelogging.log("Invalid device mapping '%s' - Ignoring" % arg)
+        return None
+
+    eth, sd, val = split
+
+    if RX_ETH.match(eth) is None:
+        xelogging.log("'%s' is not a valid device name - Ignoring" % eth)
+        return None
+
+    if sd not in ['s', 'd']:
+        xelogging.log("'%s' is not valid to distinguish between static/dynamic rules" % sd)
+        return None
+    else:
+        if sd == 's':
+            sd = DEV_STATIC
+        else:
+            sd = DEV_DYNAMIC
+
+    if len(val) < 3:
+        xelogging.log("'%s' is not a valid mapping target - Ignoring" % val)
+        return None
+
+    if val[0] == '"' and val[-1] == '"':
+        return (eth, sd, METH_LABEL, val[1:-1])
+    elif RX_MAC.match(val) is not None:
+        return (eth, sd, METH_MAC, val.lower())
+    elif RX_PCI.match(val) is not None:
+        return (eth, sd, METH_PCI, val.lower())
+    elif RX_PPN.match(val) is not None:
+        return (eth, sd, METH_PPN, val)
+    else:
+        xelogging.log("'%s' is not a recognised mapping target - Ignoring" % val)
+        return None
+
+def remap_netdevs(remap_list):
+    
+    # rename everything sideways to safe faffing with temp renanes
+    for x in ( x for x in os.listdir("/sys/class/net/") if x[:3] == "eth" ):
+        util.runCmd2(['ip', 'link', 'set', x, 'name', 'side-'+x])
+
+    bdn = BiosDevName()
+    bdn.run(policy="physical")
+
+    parsed_list = filter(lambda x: x is not None, map(parse_arg, remap_list))
+
+    # python sorting is stable so the following results in sorted by
+    # static/dynamic, then subsorted by ethname
+    parsed_list.sort(key=lambda x: x[0])
+    parsed_list.sort(key=lambda x: x[1])
+    
+    for rule in parsed_list:
+
+        target, sd, method, val = rule
+
+        # If the rule specifies an SMBios Label
+        if method == METH_LABEL:
+
+            dev = None
+            for d in bdn.devices:
+                if 'SMBIOS Label' in d and d['SMBIOS Label'] == val:
+                    dev = d
+                    break
+            if dev is None:
+                xelogging.log("No SMBios Label found for %s rule - Discarding"
+                              % target)
+                continue
+            else:
+                bdn.devices.remove(dev)
+            
+            if sd == DEV_STATIC:
+                srules.append('%s: label="%s"' % (target, val))
+            else:
+                drules.append([dev['Assigned MAC'].lower(),
+                               dev['Bus Info'].lower(),
+                               target])
+
+            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
+                          'name', target])
+
+        elif method == METH_MAC:
+
+            dev = None
+            for d in bdn.devices:
+                if d['Assigned MAC'].lower() == val:
+                    dev = d
+                    break
+            if dev is None:
+                xelogging.log("No device with mac address '%s' found for %s "
+                              "rule - Discarding" % (val, target))
+                continue
+            else:
+                bdn.devices.remove(dev)
+
+            if sd == DEV_STATIC:
+                srules.append('%s: mac="%s"' % (target, val))
+            else:
+                drules.append([val, dev['Bus Info'].lower(), target])
+
+            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
+                          'name', target])
+
+        elif method == METH_PCI:
+
+            dev = None
+            for d in bdn.devices:
+                if d['Bus Info'].lower() == val:
+                    dev = d
+                    break
+            if dev is None:
+                xelogging.log("No device with pci address '%s' found for %s "
+                              "rule - Discarding" % (val, target))
+                continue
+            else:
+                bdn.devices.remove(dev)
+
+            if sd == DEV_STATIC:
+                srules.append('%s: pci="%s"' % (target, val))
+            else:
+                drules.append([dev['Assigned MAC'].lower(),
+                               val, target])
+
+            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
+                          'name', target])
+
+        elif method == METH_PPN:
+
+            dev = None
+            for d in bdn.devices:
+                if d['BIOS device'] == val:
+                    dev = d
+                    break
+            if dev is None:
+                xelogging.log("No device with physical address '%s' found for "
+                              "%s rule - Discarding" % (val, target))
+                continue
+            else:
+                bdn.devices.remove(dev)
+
+            if sd == DEV_STATIC:
+                srules.append('%s: ppn="%s"' % (target, val))
+            else:
+                drules.append([dev['Assigned MAC'].lower(),
+                               dev['Bus Info'].lower(),
+                               target])
+
+            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
+                          'name', target])
+        else:
+            xelogging.log("Unrecognised method - Ignoring")
+
+    def gen_free_netdev():
+        x = -1
+        while True:
+            x += 1
+            if os.path.exists("/sys/class/net/eth%d" % x):
+                continue
+            else:
+                yield "eth%d" % x
+    free_netdev = gen_free_netdev()
+    
+    for x in ( x for x in os.listdir("/sys/class/net/") if x[:5] == "side-" ):
+        util.runCmd2(['ip', 'link', 'set', x, 'name', free_netdev.next()])
+
+

@@ -59,24 +59,28 @@ def copyFilesFromDir(sourcedir, dest):
 # shell
 
 def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None):
-    out = ""
-    err = ""
+
     cmd = subprocess.Popen(command, bufsize = 1,
                            stdin = (inputtext and subprocess.PIPE or None),
                            stdout = subprocess.PIPE,
                            stderr = subprocess.PIPE,
                            shell = isinstance(command, str))
 
-    if inputtext:
-        (out, err) = cmd.communicate(inputtext)
-        rv = cmd.returncode
-    else:
-        (stdout, stderr) = (cmd.stdout, cmd.stderr)
-        for line in stdout:
-            out += line
-        for line in stderr:
-            err += line
-        rv = cmd.wait()
+#     if inputtext:
+#      (out, err) = cmd.communicate(inputtext)
+#         rv = cmd.returncode
+#     else:
+#         (stdout, stderr) = (cmd.stdout, cmd.stderr)
+#         for line in stdout:
+#             out += line
+#         for line in stderr:
+#             err += line
+#         rv = cmd.wait()
+
+    # the above has a deadlock condition.
+    # The following should suffice in all cases
+    (out, err) = cmd.communicate(inputtext)
+    rv = cmd.returncode
 
     l = "ran %s; rc %d" % (str(command), rv)
     if inputtext:

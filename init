@@ -151,6 +151,8 @@ def main(args):
                 mpath = True
         elif opt == "--use_ibft":
             use_ibft = True
+        elif opt == "--map_netdev":
+            netutil.remap_netdevs(val)
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
@@ -232,6 +234,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    reboot = main(util.splitArgs(sys.argv[1:], ('--console')))
+    reboot = main(util.splitArgs(sys.argv[1:], ('--console', '--map_netdev')))
     if reboot:
         os.system("reboot")
