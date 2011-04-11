@@ -129,3 +129,7 @@ Installer
   --onecd?
 
     Do not prompt for additional media.
+
+  --disable-gpt?
+
+    Revert to DOS partitioning for clean installs.

@@ -97,6 +97,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             extra_repo_defs += val
         elif opt == "--onecd":
             suppress_extra_cd_dialog = True
+        elif opt == "--disable-gpt":
+            constants.GPT_SUPPORT = False
 
     if boot_console and not serial_console:
         serial_console = boot_console
