@@ -894,6 +894,8 @@ def get_name_service_configuration(answers):
                 answers['manual-nameservers'][1].append(ns2_entry.value())
                 if ns3_entry.value() != '':
                     answers['manual-nameservers'][1].append(ns3_entry.value())
+            if 'net-admin-configuration' in answers and answers['net-admin-configuration'].isStatic():
+                answers['net-admin-configuration'].dns = answers['manual-nameservers'][1]
         else:
             answers['manual-nameservers'] = (False, None)
             
