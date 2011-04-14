@@ -977,6 +977,14 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     to /etc/sysconfig/network-scripts, and removes any other configuration
     files from that directory."""
 
+    (manual_hostname, hostname) = hn_conf
+    (manual_nameservers, nameservers) = ns_conf
+    domain = None
+    if manual_hostname:
+        dot = hostname.find('.')
+        if dot != -1:
+            domain = hostname[dot+1:]
+
     # always set network backend
     util.assertDir(os.path.join(mounts['root'], 'etc/xensource'))
     nwconf = open("%s/etc/xensource/network.conf" % mounts["root"], "w")
@@ -985,10 +993,21 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     nwconf.close()
 
     mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')
-    mc = open(mgmt_conf_file, 'w')
-    print >>mc, "LABEL='%s'" % admin_iface
-    print >>mc, "MODE='%s'" % ((admin_config.mode == netinterface.NetInterface.Static) and 'static' or 'dhcp')
-    mc.close()
+    if not os.path.exists(mgmt_conf_file):
+        mc = open(mgmt_conf_file, 'w')
+        print >>mc, "LABEL='%s'" % admin_iface
+        print >>mc, "MODE='%s'" % ((admin_config.mode == netinterface.NetInterface.Static) and 'static' or 'dhcp')
+        if admin_config.mode == netinterface.NetInterface.Static:
+            print >>mc, "IP='%s'" % admin_config.ipaddr
+            print >>mc, "NETMASK='%s'" % admin_config.netmask
+            if admin_config.gateway:
+                print >>mc, "GATEWAY='%s'" % admin_config.gateway
+            if manual_nameservers:
+                for i in range(len(nameservers)):
+                    print >>mc, "DNS%d='%s'" % (i+1, nameservers[i])
+            if domain:
+                print >>mc, "DOMAIN='%s'" % domain
+        mc.close()
 
     if preserve_settings:
         return
@@ -998,14 +1017,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts')
-
-    (manual_hostname, hostname) = hn_conf
-    (manual_nameservers, nameservers) = ns_conf
-    domain = None
-    if manual_hostname:
-        dot = hostname.find('.')
-        if dot != -1:
-            domain = hostname[dot+1:]
 
     # remove any files that may be present in the filesystem already, 
     # particularly those created by kudzu:
