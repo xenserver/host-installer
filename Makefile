@@ -59,5 +59,4 @@ install:
 # answerfiles
 	install -m644 sdk.answerfile $(DESTDIR)
 
-	[ ! -e /output/eulas/EULA ] || install -m644 /output/eulas/EULA $(INSTALLER_DATA_DIR)
 

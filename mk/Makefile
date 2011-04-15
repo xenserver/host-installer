@@ -80,6 +80,7 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) $(KE
 	rm -f $(INSTALL_IMG)
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
+	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG)
 	chmod 644 $@
 
@@ -88,6 +89,7 @@ $(INSTALL_IMG_XCP): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) 
 	rm -f $(INSTALL_IMG_XCP)
 	$(call brand-python-xcp) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand-xcp,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
+	install -m644 /output/eulas/EULA_XCP $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG_XCP)
 	chmod 644 $@
 
