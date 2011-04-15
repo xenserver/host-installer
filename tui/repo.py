@@ -85,7 +85,7 @@ def interactive_check_repo_def(definition, require_base_repo):
         cont = ButtonChoiceWindow(
             tui.screen,
             "Version Mismatch",
-            "The location you specified contains packages designed for a different version of %s.\n\nThis may result in failures during installation, or an incorrect installation of the product." % version.PRODUCT_BRAND,
+            "The location you specified contains packages designed for a different version of %s.\n\nThis may result in failures during installation, or an incorrect installation of the product." % (version.PRODUCT_BRAND or version.PLATFORM_NAME),
             ['Continue anyway', 'Back']
             )
         return cont in ['continue anyway', None]
@@ -247,7 +247,7 @@ def confirm_load_repo(answers, label, installed_repos):
     if len(repos) == 0:
         ButtonChoiceWindow(
             tui.screen, "No %s Found" % cap_label,
-            """No %s compatible %ss were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""" % (version.PRODUCT_BRAND, label),
+            """No %s compatible %ss were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""" % (version.PRODUCT_BRAND or version.PLATFORM_NAME, label),
             ['Back'])
         return LEFT_BACKWARDS
 

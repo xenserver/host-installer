@@ -278,7 +278,7 @@ def more_media_sequence(installed_repos, still_need):
             text2 += " * %s\n" % r
 
         if main_repo_missing:
-            text = "This Supplemental Pack is not compatible with this version of %s." % version.PRODUCT_BRAND
+            text = "This Supplemental Pack is not compatible with this version of %s." % (version.PRODUCT_BRAND or version.PLATFORM_NAME)
         else:
             text = "The following dependencies have not yet been installed:\n\n" + text2 + \
                    "\nPlease install them first and try again."

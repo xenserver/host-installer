@@ -219,7 +219,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         if answers.has_key('interface'):
             default = answers['interface']
         if msg == None:
-            msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND, version.PRODUCT_BRAND)
+            msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND or version.PLATFORM_NAME, version.PRODUCT_BRAND or version.PLATFORM_NAME)
         direction, iface = select_netif(msg, nethw, True, default)
         if direction == RIGHT_FORWARDS:
             answers['reuse-networking'] = (iface == None)
@@ -253,7 +253,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         seq = [ uicontroller.Step(select_interface, args=[def_iface, msg]), 
                 uicontroller.Step(specify_configuration, args=[None, def_conf]) ]
     else:
-        text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % version.PRODUCT_BRAND
+        text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % (version.PRODUCT_BRAND or version.PLATFORM_NAME)
         conf_dict['interface'] = nethw.keys()[0]
         seq = [ uicontroller.Step(specify_configuration, args=[text, def_conf]) ]
     direction = uicontroller.runSequence(seq, conf_dict)

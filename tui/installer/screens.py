@@ -34,6 +34,9 @@ import tui.network
 import tui.progress
 import driver
 
+MY_PRODUCT_VERSION = PRODUCT_VERSION or PLATFORM_VERSION
+MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
+
 def selectDefault(key, entries):
     """ Given a list of (text, key) and a key to select, returns the appropriate
     text,key pair, or None if not in entries. """
@@ -73,13 +76,13 @@ def welcome_screen(answers):
         driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
 
         button = snackutil.ButtonChoiceWindowEx(tui.screen,
-                                "Welcome to %s Setup" % PRODUCT_BRAND,
+                                "Welcome to %s Setup" % MY_PRODUCT_BRAND,
                                 """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
 
 Please make sure you have backed up any data you wish to preserve before proceeding.
 
 To load a device driver press <F9>.
-""" % (PRODUCT_BRAND, PRODUCT_BRAND),
+""" % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND),
                                 ['Ok', 'Reboot'], width = 60, help = "welcome",
                                 hotkey = 'F9', hotkey_cb = fn9)
         if loop:
@@ -112,14 +115,14 @@ If %s are present you may need to load a device driver on the previous screen fo
 
 def hardware_warnings(answers, ram_warning, vt_warning):
     vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
-    not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
+    not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (MY_PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
 
     text = "The following problem(s) were found with your hardware:\n\n"
     if vt_warning:
         text += vt_not_found_text + "\n\n"
     if ram_warning:
         text += not_enough_ram_text + "\n\n"
-    text += "You may continue with the installation, though %s might have limited functionality until you have addressed these problems." % PRODUCT_BRAND
+    text += "You may continue with the installation, though %s might have limited functionality until you have addressed these problems." % MY_PRODUCT_BRAND
 
     button = ButtonChoiceWindow(
         tui.screen,
@@ -219,9 +222,9 @@ def get_installation_type(answers):
         if not context: return True
         obj, _ = context
         if isinstance(obj, product.ExistingInstallation):
-            use = "%s installation" % PRODUCT_BRAND
+            use = "%s installation" % MY_PRODUCT_BRAND
         elif isinstance(obj, product.XenServerBackup):
-            use = "%s backup" % PRODUCT_BRAND
+            use = "%s backup" % MY_PRODUCT_BRAND
         else:
             return True
 
@@ -342,7 +345,7 @@ def remind_driver_repos(answers):
         """The following Supplemental Packs are present in the current installation:
 
 %s
-Please ensure that the functionality they provide is either included in the version of %s being installed or by a Supplemental Pack for this release.""" % (text, PRODUCT_BRAND),
+Please ensure that the functionality they provide is either included in the version of %s being installed or by a Supplemental Pack for this release.""" % (text, MY_PRODUCT_BRAND),
         ['Ok', 'Back'],
         width = 60, help = "suppackremind"
         )
@@ -358,7 +361,7 @@ def repartition_existing(answers):
 
 The conversion will replace all previous system image partitions to create the %s %s disk partition layout.
 
-Continue with installation?""" % (COMPANY_NAME_SHORT, PRODUCT_BRAND),
+Continue with installation?""" % (COMPANY_NAME_SHORT, MY_PRODUCT_BRAND),
         ['Continue', 'Back'], help = 'repartwarn'
         )
     if button == 'back': return LEFT_BACKWARDS
@@ -394,7 +397,7 @@ def backup_existing_installation(answers):
         "Back-up Existing Installation?",
         """Would you like to back-up your existing installation before re-installing %s?
 
-The backup will be placed on the backup partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (PRODUCT_BRAND, answers['installation-to-overwrite'].primary_disk),
+The backup will be placed on the backup partition of the destination disk (%s), overwriting any previous backups on that volume.""" % (MY_PRODUCT_BRAND, answers['installation-to-overwrite'].primary_disk),
         ['Yes', 'No', 'Back'], default = default, help = 'optbackup'
         )
 
@@ -441,7 +444,7 @@ def confirm_erase_volume_groups(answers):
                                 "Conflicting LVM Volume Groups",
                                 """Some or all of the disks you selected to install %s onto contain parts of LVM volume groups.  Proceeding with the installation will cause these volume groups to be deleted.
 
-%s""" % (PRODUCT_BRAND, affected),
+%s""" % (MY_PRODUCT_BRAND, affected),
                                 ['Continue', 'Back'], width=60, help = 'erasevg')
 
     if button == 'back': return LEFT_BACKWARDS
@@ -487,7 +490,7 @@ def disk_more_info(context):
     usage = 'unknown'
     (boot, state, storage) = diskutil.probeDisk(context)
     if boot[0]:
-        usage = "%s installation" % PRODUCT_BRAND
+        usage = "%s installation" % MY_PRODUCT_BRAND
     elif storage[0]:
         usage = 'VM storage'
     else:
@@ -533,7 +536,7 @@ def select_primary_disk(answers):
     if len(entries) == 0:
         ButtonChoiceWindow(tui.screen,
                            "No Primary Disk",
-                           "No disk with sufficient space to install %s on was found." % PRODUCT_BRAND,
+                           "No disk with sufficient space to install %s on was found." % MY_PRODUCT_BRAND,
                            ['Cancel'])
         return EXIT
 
@@ -554,7 +557,7 @@ def select_primary_disk(answers):
             "Select Primary Disk",
             """Please select the disk you would like to install %s on (disks with insufficient space are not shown).
 
-You may need to change your system settings to boot from this disk.""" % (PRODUCT_BRAND),
+You may need to change your system settings to boot from this disk.""" % (MY_PRODUCT_BRAND),
             entries,
             ['Ok', 'Back'], 55, scroll, height, default, help = 'pridisk:info',
             hotkey = 'F5', hotkey_cb = disk_more_info)
@@ -582,7 +585,7 @@ You may need to change your system settings to boot from this disk.""" % (PRODUC
         else:
             ButtonChoiceWindow(tui.screen,
                                "Large Disk Detected",
-                               "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (PRODUCT_BRAND, constants.max_primary_disk_size_dos),
+                               "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (MY_PRODUCT_BRAND, constants.max_primary_disk_size_dos),
                                ['Ok'])
 
     if button == None: return SKIP_SCREEN
@@ -595,11 +598,14 @@ def check_sr_space(answers):
     sr = tool.srPartition(answers['primary-disk'])
     assert sr
 
+# NB. there's some stuff here that's not really consistent with XCP
+# but that's ok, since it's never called on an XCP host
+
     button = ButtonChoiceWindow(tui.screen,
                                 "Insufficient Space",
                                 """The disk selected contains a storage repository which does not have enough space to also install %s on.
 
-Either return to the previous screen and select a different disk or cancel the installation, restart the %s and use %s to free up %dMB of space in the local storage repository.""" % (PRODUCT_BRAND, BRAND_SERVER, BRAND_CONSOLE, 2 * constants.root_size),
+Either return to the previous screen and select a different disk or cancel the installation, restart the %s and use %s to free up %dMB of space in the local storage repository.""" % (MY_PRODUCT_BRAND, BRAND_SERVER, BRAND_CONSOLE, 2 * constants.root_size),
                                 ['Back', 'Cancel'], width = 60, help = 'insuffsr')
     if button == 'back': return LEFT_BACKWARDS
 
@@ -690,10 +696,10 @@ def confirm_installation(answers):
         backup = answers['backup-to-restore']
         label = "Confirm Restore"
         text = "Are you sure you want to restore your installation with the backup on %s?\n\nYour existing installation will be overwritten with the backup (though VMs will still be intact).\n\nTHIS OPERATION CANNOT BE UNDONE." % diskutil.getHumanDiskName(backup.partition)
-        ok = 'Restore %s' % PRODUCT_BRAND
+        ok = 'Restore %s' % MY_PRODUCT_BRAND
     else:
         label = "Confirm Installation"
-        text1 = "We have collected all the information required to install %s. " % PRODUCT_BRAND
+        text1 = "We have collected all the information required to install %s. " % MY_PRODUCT_BRAND
         if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
             disks = map(diskutil.getHumanDiskName, answers['guest-disks'])
             if diskutil.getHumanDiskName(answers['primary-disk']) not in disks:
@@ -714,7 +720,7 @@ def confirm_installation(answers):
                                                                                   diskutil.getHumanDiskName(answers['primary-disk']))
             text2 += ", preserving existing %s in your storage repository." % BRAND_GUESTS
         text = text1 + "\n\n" + text2
-        ok = 'Install %s' % PRODUCT_BRAND
+        ok = 'Install %s' % MY_PRODUCT_BRAND
 
     button = snackutil.ButtonChoiceWindowEx(
         tui.screen, label, text,
@@ -1144,7 +1150,7 @@ def installation_complete():
                        "Installation Complete",
                        """The %s installation has completed.
 
-Please remove any local media from the drive, and press Enter to reboot.""" % PRODUCT_BRAND,
+Please remove any local media from the drive, and press Enter to reboot.""" % MY_PRODUCT_BRAND,
                        ['Ok'])
 
     return RIGHT_FORWARDS

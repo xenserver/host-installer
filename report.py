@@ -173,7 +173,7 @@ def disk_more_info(context):
     usage = 'unknown'
     (boot, state, storage) = diskutil.probeDisk(context)
     if boot[0]:
-        usage = "%s installation" % PRODUCT_BRAND
+        usage = "%s installation" % (PRODUCT_BRAND or PLATFORM_NAME)
     elif storage[0]:
         usage = 'VM storage'
 

@@ -61,7 +61,7 @@ def doInteractiveLoadDriver(ui, answers):
             ButtonChoiceWindow(
                 ui.screen,
                 "No Compatible Drivers",
-                "Setup was unable to find any drivers compatible with this version of %s." % PRODUCT_BRAND,
+                "Setup was unable to find any drivers compatible with this version of %s." % (PRODUCT_BRAND or PLATFORM_NAME),
                 ['Ok']
                 )
         elif len(loaded_drivers) > 0:

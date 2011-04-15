@@ -46,7 +46,7 @@ def choose_operation(display_restore):
         entries.append( (' * Restore from backup', init_constants.OPERATION_RESTORE) )
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
-                                          "Welcome to %s" % PRODUCT_BRAND,
+                                          "Welcome to %s" % (PRODUCT_BRAND or PLATFORM_NAME),
                                           """Please select an operation:""",
                                           entries,
                                           ['Ok', 'Load driver', 'Exit and reboot'], width=70)
@@ -112,7 +112,7 @@ def confirm_load_drivers(answers):
             tui.screen, "No Drivers Found",
             """No compatible drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
 
-Note that this driver-loading mechanism is only compatible with media/locations containing %s repositories.  Check the installation guide for more information.""" % PRODUCT_BRAND,
+Note that this driver-loading mechanism is only compatible with media/locations containing %s repositories.  Check the installation guide for more information.""" % (PRODUCT_BRAND or PLATFORM_NAME),
             ['Back'], width = 50)
         return LEFT_BACKWARDS
     else:

@@ -38,6 +38,9 @@ import version
 from version import *
 from constants import *
 
+MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
+MY_PRODUCT_VERSION = PRODUCT_VERSION or PLATFORM_VERSION
+
 class InvalidInstallerConfiguration(Exception):
     pass
 
@@ -222,7 +225,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
     pd = None
     if ui:
         pd = ui.progress.initProgressDialog(
-            "Installing %s" % PRODUCT_BRAND,
+            "Installing %s" % MY_PRODUCT_BRAND,
             seq_name, progress_total
             )
     xelogging.log("DISPATCH: NEW PHASE: %s" % seq_name)
@@ -637,7 +640,7 @@ def __mkinitrd(mounts, partition, kernel_version):
         cmd.extend( args )
         cmd.extend([output_file, kernel_version])
         if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
-            raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, version.PRODUCT_BRAND)
+            raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
         # Save command used to create initrd in <initrd_filename>.cmd
         cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
         open(cmd_logfile, "w").write(' '.join(cmd) + '\n')
@@ -727,7 +730,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                              common_xen_params+" "+xen_mem_params+mask_params+" console= vga=mode-0x0311",
                              "/boot/vmlinuz-2.6-xen",
                              common_kernel_params+" "+kernel_console_params+" console=tty0 quiet vga=785 splash",
-                             "/boot/initrd-2.6-xen.img", PRODUCT_BRAND)
+                             "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND)
     boot_config.append("xe", e)
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
@@ -736,20 +739,20 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  ' '.join([xen_serial_params, common_xen_params, xen_mem_params+mask_params]),
                                  "/boot/vmlinuz-2.6-xen",
                                  common_kernel_params+" console=tty0 "+kernel_console_params,
-                                 "/boot/initrd-2.6-xen.img", PRODUCT_BRAND+" (Serial)")
+                                 "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND+" (Serial)")
         boot_config.append("xe-serial", e)
         e = bootloader.MenuEntry("/boot/xen.gz",
                                  ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
                                  "/boot/vmlinuz-2.6-xen",
                                  ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
-                                 "/boot/initrd-2.6-xen.img", PRODUCT_BRAND+" in Safe Mode")
+                                 "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
     e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
                              common_xen_params+" "+xen_mem_params+mask_params,
                              "/boot/vmlinuz-%s" % xen_kernel_version,
                              ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              "/boot/initrd-%s.img" % xen_kernel_version, 
-                             "%s (Xen %s / Linux %s)" % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+                             "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
@@ -757,7 +760,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "/boot/vmlinuz-%s" % xen_kernel_version,
                                  common_kernel_params+" console=tty0 "+kernel_console_params,
                                  "/boot/initrd-%s.img" % xen_kernel_version, 
-                                 "%s (Serial, Xen %s / Linux %s)" % (PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+                                 "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, partition_table_type, primary_partnum, serial, boot_serial, cpuid_masks, location = 'mbr'):
@@ -1131,9 +1134,21 @@ def writeModprobeConf(mounts):
 def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     default_sr_physdevs = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
-    inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
-    inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
-    inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
+    if PRODUCT_BRAND:
+       inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
+    if PRODUCT_NAME:
+       inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
+    if PRODUCT_VERSION:
+       inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
+    if COMPANY_NAME:
+       inv.write("COMPANY_NAME='%s'\n" % COMPANY_NAME)
+    if COMPANY_NAME_SHORT:
+       inv.write("COMPANY_NAME_SHORT='%s'\n" % COMPANY_NAME_SHORT)
+    if BRAND_CONSOLE:
+       inv.write("BRAND_CONSOLE='%s'\n" % BRAND_CONSOLE) 
+    inv.write("PLATFORM_NAME='%s'\n" % version.PLATFORM_NAME)
+    inv.write("PLATFORM_VERSION='%s'\n" % version.PLATFORM_VERSION)
+
     inv.write("BUILD_NUMBER='%s'\n" % BUILD_NUMBER)
     inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
