@@ -831,19 +831,24 @@ def installExtLinux(mounts, disk, partition_table_type, location = 'mbr'):
         raise RuntimeError, "Failed to install bootloader: %s" % err
 
     for m in ["mboot", "menu", "chain"]:
-        assert util.runCmd2(["ln", "-f",
-                             "%s/boot/extlinux/%s.c32" % (mounts['root'], m),
-                             "%s/%s.c32" % (mounts['boot'], m)]) == 0
+        if not os.path.exists("%s/%s.c32" % (mounts['boot'], m)):
+            os.link("%s/extlinux/%s.c32" % (mounts['boot'], m), "%s/%s.c32" % (mounts['boot'], m))
+
+    # must be able to restore pre-6.0 systems
+    base_dir = mounts['root'] + "/usr/share/syslinux"
+    if not os.path.exists(base_dir):
+        base_dir = mounts['root']+"/usr/lib/syslinux"
     if location == 'mbr':
         if partition_table_type == 'DOS':
-            mbr = "%s/usr/share/syslinux/mbr.bin" % mounts['root']
+            mbr = base_dir + "/mbr.bin"
         elif partition_table_type == 'GPT':
-            mbr = "%s/usr/share/syslinux/gptmbr.bin" % mounts['root']
+            mbr = base_dir + "/gptmbr.bin"
         else:
             raise Exception("Only DOS and GPT partition tables supported")
 
         # Write image to MBR
-        xelogging.log("Installing %s to %s" % (mbr,disk))
+        xelogging.log("Installing %s to %s" % (mbr, disk))
+        assert os.path.exists(mbr)
         assert util.runCmd2(["dd", "if=%s" % mbr, "of=%s" % disk]) == 0
 
 ##########
