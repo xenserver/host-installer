@@ -136,14 +136,14 @@ def hardware_warnings(answers, ram_warning, vt_warning):
     return RIGHT_FORWARDS
 
 def overwrite_warning(answers):
+    warning_string = "Continuing will result in a clean installation, all existing configuration will be lost."
+    if version.PRODUCT_VERSION:
+        warning_string += "\n\nAlternatively, please contact a Technical Support Representative for the recommended upgrade path."
+
     button = snackutil.ButtonChoiceWindowEx(
         tui.screen,
         "Warning",
-        """Only product installations that cannot be upgraded have been detected.
-
-Continuing will result in a clean installation, all existing configuration will be lost.
-
-Alternatively, please contact a Technical Support Representative for the recommended upgrade path.""",
+        ("Only product installations that cannot be upgraded have been detected.\n\n%s" % warning_string),
         ['Ok', 'Back'],
         width = 60, help = "overwrtwarn", default = 1,
         )
@@ -732,11 +732,15 @@ def confirm_installation(answers):
 
 def get_root_password(answers):
     done = False
-        
+
+    password_txt = "Please specify a password of at least %d characters for the root account." % (constants.MIN_PASSWD_LEN)
+    
+    if PRODUCT_BRAND:       
+        password_txt = "Please specify a password of at least %d characters for the root account. \n\n(This is the password used when connecting to the %s from %s.)" % (constants.MIN_PASSWD_LEN, BRAND_SERVER, BRAND_CONSOLE)
+ 
     while not done:
         (button, result) = snackutil.PasswordEntryWindow(
-            tui.screen, "Set Password",
-            "Please specify a password of at least %d characters for the root account. \n\n(This is the password used when connecting to the %s from %s.)" % (constants.MIN_PASSWD_LEN, BRAND_SERVER, BRAND_CONSOLE), 
+            tui.screen, "Set Password", password_txt,
             ['Password', 'Confirm'], buttons = ['Ok', 'Back'],
             )
         if button == 'back': return LEFT_BACKWARDS
