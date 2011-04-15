@@ -24,6 +24,7 @@ from netinterface import *
 import util
 import constants
 import xelogging
+import version
 
 def upgradeAvailable(src):
     return __upgraders__.hasUpgrader(src.name, src.version, src.variant)
@@ -134,6 +135,12 @@ class ThirdGenUpgrader(Upgrader):
     optional_backup = False
     
     def __init__(self, source):
+        if version.PRODUCT_VERSION:
+            self.upgrades_versions = [ (product.XENSERVER_5_6_0, product.THIS_PRODUCT_VERSION) ]
+            self.upgrades_variants = [ 'Retail' ]
+        else:
+            self.upgrades_versions = [ (product.XCP_1_0_0, product.THIS_PLATFORM_VERSION) ]
+            self.upgrades_variants = [ 'Retail' ]
         Upgrader.__init__(self, source)
 
     doBackupArgs = ['primary-disk', 'backup-partnum']
