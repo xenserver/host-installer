@@ -142,8 +142,8 @@ class Repository:
         if _build: ver_str += '-'+_build
         self._product_version = Version.from_string(ver_str)
 
-    def compatible_with(self, brand, version):
-        return self._product_brand in [brand, None]
+    def compatible_with(self, platform, brand):
+        return self._product_brand in [brand, platform, None]
 
     def __str__(self):
         return self._identifier + ' ' + str(self._product_version)

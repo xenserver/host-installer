@@ -56,7 +56,7 @@ def check_repo_def(definition, require_base_repo):
             return REPOCHK_NO_REPO
         elif constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in repos] and require_base_repo:
             return REPOCHK_NO_BASE_REPO
-        elif False in [ r.compatible_with(version.PRODUCT_BRAND, product.THIS_PRODUCT_VERSION) for r in repos ]:
+        elif False in [ r.compatible_with(version.PLATFORM_NAME, version.PRODUCT_BRAND) for r in repos ]:
             return REPOCHK_PRODUCT_VERSION_MISMATCH
 
     return REPOCHK_NO_ERRORS
