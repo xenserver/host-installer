@@ -32,7 +32,7 @@ class SettingsNotAvailable(Exception):
     pass
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
-THIS_PLATFORM_VERSION = Version.from_string(version.PRODUCT_VERSION)
+THIS_PLATFORM_VERSION = Version.from_string(version.PLATFORM_VERSION)
 XENSERVER_5_6_0 = Version([5, 6, 0])
 XCP_1_0_0 = Version([1, 0, 0])
 
