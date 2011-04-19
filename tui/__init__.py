@@ -62,7 +62,7 @@ def update_help_line(help):
 def OKDialog(title, text, hasCancel = False, width = 40):
     return snackutil.OKDialog(screen, title, text, hasCancel, width)
 
-def exn_error_dialog(logname, with_hd):
+def exn_error_dialog(logname, with_hd, interactive = True):
     if screen:
         _, exn, _ = sys.exc_info()
         exn_str = str(exn)
@@ -76,6 +76,8 @@ def exn_error_dialog(logname, with_hd):
         g.add(t, 0, 0, padding = (0, 0, 0, 1))
         g.add(bb, 0, 1, growx = 1)
         g.addHotKey("F2")
+        if not interactive:
+            g.setTimer(constants.AUTO_EXIT_TIMER)
         result = g.runOnce()
         screen.popHelpLine()
 
