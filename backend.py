@@ -32,6 +32,7 @@ import init_constants
 import scripts
 import xcp.bootloader as bootloader
 import netinterface
+import tui.repo
 
 # Product version and constants:
 import version
@@ -104,7 +105,7 @@ class Task:
 A = lambda ans, *params: ( lambda a: [a.get(param) for param in params] )
 As = lambda ans, *params: ( lambda _: [ans.get(param) for param in params] )
 
-def getPrepSequence(ans):
+def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
@@ -118,6 +119,8 @@ def getPrepSequence(ans):
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
+        if not interactive:
+            seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address'), []))
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(prepareTarget,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
@@ -274,7 +277,7 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     return answers
 
-def performInstallation(answers, ui_package):
+def performInstallation(answers, ui_package, interactive):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
     xelogging.log("SCRIPTS DICTIONARY:")
@@ -326,7 +329,7 @@ def performInstallation(answers, ui_package):
         answers['master'] = None
  
     # perform installation:
-    prep_seq = getPrepSequence(answers)
+    prep_seq = getPrepSequence(answers, interactive)
     new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
 
     # install from main repositories:
@@ -1201,6 +1204,11 @@ def writei18n(mounts):
     fd.write('LANG="en_US.UTF-8"\n')
     fd.write('SYSFONT="drdos8x8"\n')
     fd.close()
+
+def verifyRepo(media, address):
+    """ Check repo is accessible """
+    if tui.repo.check_repo_def((media, address), True) != tui.repo.REPOCHK_NO_ERRORS:
+        raise RuntimeError, "Unable to access repository"
 
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
