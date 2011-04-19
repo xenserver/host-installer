@@ -112,6 +112,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         except:
             pass
 
+    interactive = True
     try:
         # loading an answerfile?
         assert ui != None or answerfile_address != None or answerfile_script != None
@@ -119,14 +120,13 @@ def go(ui, args, answerfile_address, answerfile_script):
         if answerfile_address and answerfile_script:
             raise RuntimeError, "Both answerfile and answerfile generator passed on command line."
 
-        using_answerfile = False
         a = None
         if answerfile_address:
             a = answerfile.Answerfile(answerfile_address)
         elif answerfile_script:
             a = answerfile.Answerfile.generate(answerfile_script)
         if a:
-            using_answerfile = True
+            interactive = False
             results['network-hardware'] = netutil.scanConfiguration()
             results.update(a.parseScripts())
             results.update(a.processAnswerfile())
@@ -166,7 +166,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         # be moved into the sequence definition and evaluated by the
         # UI dispatcher.
         aborted = False
-        if ui and not using_answerfile:
+        if ui and interactive:
             uiexit = ui.installer.runMainSequence(
                 results, ram_warning, vt_warning, suppress_extra_cd_dialog
                 )
@@ -190,9 +190,9 @@ def go(ui, args, answerfile_address, answerfile_script):
                     tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
             else:
                 xelogging.log("Starting actual installation")
-                results = backend.performInstallation(results, ui)
+                results = backend.performInstallation(results, ui, interactive)
 
-                if ui and not using_answerfile:
+                if ui and interactive:
                     ui.installer.screens.installation_complete()
             
                 xelogging.log("The installation completed successfully.")
@@ -216,7 +216,7 @@ def go(ui, args, answerfile_address, answerfile_script):
     
             # now display a friendly error dialog:
             if ui:
-                ui.exn_error_dialog("install-log", True)
+                ui.exn_error_dialog("install-log", True, interactive)
             else:
                 txt = constants.error_string(str(e), 'install-log', True)
                 xelogging.log(txt)
