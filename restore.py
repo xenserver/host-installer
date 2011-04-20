@@ -90,8 +90,8 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                 location = 'mbr'
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            # FIXME need to determine existing partition scheme?
-            backend.installBootLoader(mounts, disk, 'DOS', primary_partnum, None, False, [], location)
+            backend.installBootLoader(mounts, disk, probePartitioningScheme(disk), primary_partnum,
+                                      None, False, [], location)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)

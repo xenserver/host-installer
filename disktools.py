@@ -997,30 +997,34 @@ class GPTPartitionTool(PartitionToolBase):
             rv = createPartnodes(self.device)
             if rv:
                 raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
-            
+
+def probePartitioningScheme(device):
+    """Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt"""
+    rv, out, err = util.runCmd2(['fdisk', '-l', device], with_stdout=True, with_stderr=True)
+    lines = out.split('\n') + err.split('\n')
+    def matchline(s):
+        match = re.compile(s)
+        for l in lines:
+            if match.match(l):
+                return True
+        return False
+    if rv:
+        partitionType = 'GPT'   # default 
+    elif matchline("^.*doesn't contain a valid partition table$"):
+        partitionType = 'GPT'   # default
+    elif matchline("^.*EFI GPT$"):
+        partitionType = 'GPT'   # default
+    else:
+        partitionType = 'DOS'
+    return partitionType
+    
 def PartitionTool(device, partitionType=None):
     """
     By default PartitionTool() will return the tool appropriate to the partitioning 
     system currently in use on device
     """
     if partitionType == None:
-        # Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt
-        rv, out, err = util.runCmd2(['fdisk', '-l', device], with_stdout=True, with_stderr=True)
-        lines = out.split('\n') + err.split('\n')
-        def matchline(s):
-            match = re.compile(s)
-            for l in lines:
-                if match.match(l):
-                    return True
-            return False
-        if rv:
-            partitionType = 'GPT'   # default 
-        elif matchline("^.*doesn't contain a valid partition table$"):
-            partitionType = 'GPT'   # default
-        elif matchline("^.*EFI GPT$"):
-            partitionType = 'GPT'   # default
-        else:
-            partitionType = 'DOS'
+        partitionType = probePartitioningScheme(device)
     if partitionType == 'DOS':
         return DOSPartitionTool(device)
     elif partitionType == 'GPT':
