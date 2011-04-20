@@ -54,7 +54,7 @@ class Upgrader(object):
     def upgrades(cls, product, version, variant):
         return (cls.upgrades_product == product and
                 variant in cls.upgrades_variants and
-                True in [ _min <= version < _max for (_min, _max) in cls.upgrades_versions ])
+                True in [ _min <= version <= _max for (_min, _max) in cls.upgrades_versions ])
 
     upgrades = classmethod(upgrades)
 
