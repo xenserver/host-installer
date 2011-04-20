@@ -137,7 +137,7 @@ def hardware_warnings(answers, ram_warning, vt_warning):
 
 def overwrite_warning(answers):
     warning_string = "Continuing will result in a clean installation, all existing configuration will be lost."
-    if version.PRODUCT_VERSION:
+    if PRODUCT_VERSION:
         warning_string += "\n\nAlternatively, please contact a Technical Support Representative for the recommended upgrade path."
 
     button = snackutil.ButtonChoiceWindowEx(
