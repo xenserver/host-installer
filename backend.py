@@ -895,7 +895,11 @@ def prepareSwapfile(mounts):
     util.runCmd2(['dd', 'if=/dev/zero',
                   'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
                   'bs=1024', 'count=%d' % (constants.swap_size * 1024)])
+    util.bindMount("/proc", "%s/proc" % mounts['root'])
+    util.bindMount("/sys", "%s/sys" % mounts['root'])
     util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_location])
+    util.umount("%s/proc" % mounts['root'])
+    util.umount("%s/sys" % mounts['root'])
 
 def writeFstab(mounts):
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
