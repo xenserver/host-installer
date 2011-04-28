@@ -16,13 +16,13 @@ def getText(nodelist):
     for node in nodelist:
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
-    return rc.encode()
+    return rc.strip().encode()
 def getTextOrNone(nodelist):
     rc = ""
     for node in nodelist:
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
-    return rc == "" and None or rc.encode()
+    return rc == "" and None or rc.strip().encode()
 
 class NetInterface:
     """ Represents the configuration of a network interface. """
