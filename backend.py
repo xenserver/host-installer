@@ -120,7 +120,7 @@ def getPrepSequence(ans, interactive):
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         if not interactive:
-            seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address'), []))
+            seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address', 'ui'), []))
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(prepareTarget,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
@@ -1209,9 +1209,22 @@ def writei18n(mounts):
     fd.write('SYSFONT="drdos8x8"\n')
     fd.close()
 
-def verifyRepo(media, address):
+def verifyRepo(media, address, ui):
     """ Check repo is accessible """
-    if tui.repo.check_repo_def((media, address), True) != tui.repo.REPOCHK_NO_ERRORS:
+    repo_good = False
+    
+    if ui:
+        if tui.repo.check_repo_def((media, address), True) == tui.repo.REPOCHK_NO_ERRORS:
+           repo_good = True
+    else:
+        try:
+            repos = repository.repositoriesFromDefinition(media, address)
+            if len(repos) > 0:
+                repo_good = True
+        except:
+            pass
+
+    if not repo_good:
         raise RuntimeError, "Unable to access repository"
 
 def getUpgrader(source):
