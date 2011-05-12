@@ -455,6 +455,10 @@ def probeDisk(device, justInstall = False):
 class IscsiDeviceException(Exception):
     pass
 
+# Keep track of iscsi disks we have logged into
+iscsi_disks = []
+
+# Return True if this is an iscsi device that we have previously logged into
 def is_iscsi(device):
 
     # If this is a multipath device check whether the first slave is iSCSI
@@ -462,41 +466,17 @@ def is_iscsi(device):
         slaves = getMpathSlaves(device)
         if slaves:
             device = slaves[0]        
-
-    # Return True if this is an iscsi device
+    
     major, minor = getMajMin(device)
-
-    # find /sys/block node
-    sysblockdir = None
-    sysblockdirs = [ "/sys/block/" + dev for dev in os.listdir("/sys/block")
-                     if (not dev.startswith('loop')) and (not dev.startswith('ram')) ]
-    for d in sysblockdirs:
-        if os.path.isfile(d + "/dev") and os.path.isfile(d + "/range"):
-            __major, __minor = map(int, open(d + "/dev").read().split(':'))
-            __range  = int(open(d + "/range").read())
-            if major == __major and __minor <= minor < __minor + __range:
-                sysblockdir = d
-                break
     
-    if not sysblockdir:
-        raise IscsiDeviceException, "Cannot find " + device + " in /sys/block"
-    
-    devpath = os.path.realpath(sysblockdir + "/device")
+    for d in iscsi_disks:
+        try:
+            if (major,minor) == getMajMin(d):
+                return True
+        except:
+            pass
 
-    if not os.path.isdir("/sys/class/iscsi_session"):
-        # iscsi modules not even loaded
-        return False 
-
-    # find list of iSCSI block devs
-    for d in os.listdir("/sys/class/iscsi_session"):
-        __devpath = os.path.realpath("/sys/class/iscsi_session/" + d + "/device")
-        if devpath.startswith(__devpath):
-            # we have a match!
-            return True
-    
     return False
-
-
 
 def iscsi_get_sid(targetip, iqn):
     "Get the Session ID corresponding to an IQN to which we are logged in"
@@ -585,6 +565,8 @@ def attach_rfc4173(iname, rfc4173_spec):
         util.runCmd2([ '/sbin/udevsettle' ])           # update /dev
 
     disk = rfc4173_to_disk(rfc4173_spec)
+    iscsi_disks.append(disk)
+
     return disk
 
 
@@ -728,3 +710,4 @@ def release_ibft_disks():
     if util.pidof('iscsid'):
         util.runCmd2([ '/sbin/iscsiadm', '-m', 'session', '-u'])
         util.runCmd2([ '/sbin/iscsiadm', '-k', '0'])
+        iscsi_disks = []
