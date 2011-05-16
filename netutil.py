@@ -425,6 +425,23 @@ def remap_netdevs(remap_list):
     free_netdev = gen_free_netdev()
     
     for x in ( x for x in os.listdir("/sys/class/net/") if x[:5] == "side-" ):
-        util.runCmd2(['ip', 'link', 'set', x, 'name', free_netdev.next()])
 
+        dev = None
+        for d in bdn.devices:
+            if d['Kernel name'].lower() == x:
+                dev = d
+                break
+        if dev is None:
+            xelogging.log("No device with kernel name '%s' found"
+                          " - Discarding" % (x,))
+            continue
+        else:
+            bdn.devices.remove(dev)
 
+        name = free_netdev.next()
+
+        drules.append([dev['Assigned MAC'].lower(),
+                       dev['Bus Info'].lower(),
+                       name])
+
+        util.runCmd2(['ip', 'link', 'set', x, 'name', name])
