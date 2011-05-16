@@ -1,0 +1,66 @@
+USE_BRANDING := yes
+IMPORT_BRANDING := yes
+REPONAME := host-installer
+include $(B_BASE)/common.mk
+include $(B_BASE)/rpmbuild.mk
+
+-include $(MY_OBJ_DIR)/version.inc
+.PHONY: $(MY_OBJ_DIR)/version.inc
+$(MY_OBJ_DIR)/version.inc:
+	$(version-makefile) > $@
+	$(call hg_cset_number,$(REPONAME)) >> $@
+	echo UPGRADE_PLUGIN_VERSION := \$$\(PRODUCT_VERSION\) >> $@
+	echo UPGRADE_PLUGIN_RELEASE := xs\$$\(CSET_NUMBER\) >> $@
+
+UPGRADE_PLUGIN_SOURCES := $(wildcard *.py)
+
+UPGRADE_PLUGIN_SPEC := upgrade-plugin.spec
+UPGRADE_PLUGIN_SRC_DIR := upgrade-plugin-$(UPGRADE_PLUGIN_VERSION)
+UPGRADE_PLUGIN_SRC := $(RPM_SOURCESDIR)/upgrade-plugin-$(UPGRADE_PLUGIN_VERSION).tar.gz
+UPGRADE_PLUGIN_SRPM := upgrade-plugin-$(UPGRADE_PLUGIN_VERSION)-$(UPGRADE_PLUGIN_RELEASE).src.rpm
+UPGRADE_PLUGIN_STAMP := $(MY_OBJ_DIR)/.rpmbuild.upgrade_plugin.stamp
+
+.PHONY: build
+build: $(UPGRADE_PLUGIN_STAMP)
+
+$(MY_SOURCES)/MANIFEST: $(MY_SOURCES_DIRSTAMP) $(RPM_BUILD_COOKIE)
+	( echo "$(COMPONENT) gpl file $(RPM_SRPMSDIR)/$(UPGRADE_PLUGIN_SRPM)" ; \
+	) >$@
+
+.PHONY: pylint
+pylint:
+	run-pylint.sh $(UPGRADE_PLUGIN_SOURCES)
+
+.PHONY: sources
+sources: $(MY_SOURCES)/MANIFEST
+
+.PHONY: clean
+clean:
+	rm -f $(UPGRADE_PLUGIN_STAMP) $(UPGRADE_PLUGIN_SRC) $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC)
+
+.SECONDARY: $(UPGRADE_PLUGIN_SRC)
+$(UPGRADE_PLUGIN_SRC): $(UPGRADE_PLUGIN_SOURCES)
+	$(call mkdir_clean,$(MY_OBJ_DIR)/$(UPGRADE_PLUGIN_SRC_DIR))
+	mkdir -p $(MY_OBJ_DIR)/$(UPGRADE_PLUGIN_SRC_DIR)
+	cp -f $^ $(MY_OBJ_DIR)/$(UPGRADE_PLUGIN_SRC_DIR)
+	tar zcf $@ -C $(MY_OBJ_DIR) $(UPGRADE_PLUGIN_SRC_DIR)
+	rm -rf $(MY_OBJ_DIR)/$(UPGRADE_PLUGIN_SRC_DIR)
+
+.SECONDARY: $(RPM_SPECSDIR)/%.spec
+$(RPM_SPECSDIR)/%.spec: *.spec.in
+	sed -e 's/@UPGRADE_PLUGIN_VERSION@/$(UPGRADE_PLUGIN_VERSION)/g' \
+	  -e 's/@UPGRADE_PLUGIN_RELEASE@/$(UPGRADE_PLUGIN_RELEASE)/g' \
+	  < $< \
+	  > $@
+
+$(RPM_SRPMSDIR)/$(UPGRADE_PLUGIN_SRPM): $(RPM_DIRECTORIES) $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC) $(UPGRADE_PLUGIN_SRC)
+	$(RPMBUILD) -bs $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC)
+
+$(UPGRADE_PLUGIN_STAMP): $(RPM_SRPMSDIR)/$(UPGRADE_PLUGIN_SRPM)
+	# work around rpmbuild removing source and spec
+	ln -f $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC) $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC).keep
+	ln -f $(UPGRADE_PLUGIN_SRC) $(UPGRADE_PLUGIN_SRC).keep
+	$(RPMBUILD) --rebuild $(RPM_SRPMSDIR)/$(UPGRADE_PLUGIN_SRPM)
+	mv -f $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC).keep $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPEC)
+	mv -f $(UPGRADE_PLUGIN_SRC).keep $(UPGRADE_PLUGIN_SRC)
+	touch $@

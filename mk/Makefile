@@ -28,6 +28,7 @@ INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
 build: $(INSTALL_IMG) $(INSTALL_IMG_XCP) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
+	$(MAKE) -C $(call hg_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 	zcat $(PROJECT_OUTPUTDIR)/xen/CD_FILES.main/boot/xen.gz >$(MY_OBJ_DIR)/xen

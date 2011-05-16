@@ -1,0 +1,34 @@
+Summary: Host upgrade plugin
+Name: upgrade-plugin
+Version: @UPGRADE_PLUGIN_VERSION@
+Release: @UPGRADE_PLUGIN_RELEASE@
+Source: %{name}-%{version}.tar.gz
+License: GPL
+Group: Applications/System
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-buildroot
+BuildArch: noarch
+ 
+%description
+Host upgrade plugin.
+
+%prep
+%setup -q
+
+%build
+:
+ 
+%install
+rm -rf $RPM_BUILD_ROOT
+install -D -p prepare_host_upgrade.py %{buildroot}/etc/xapi.d/plugins/prepare_host_upgrade.py
+ 
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(-,root,root)
+/etc/xapi.d/plugins/prepare_host_upgrade.py
+/etc/xapi.d/plugins/prepare_host_upgrade.pyc
+/etc/xapi.d/plugins/prepare_host_upgrade.pyo
+
+
+%changelog
