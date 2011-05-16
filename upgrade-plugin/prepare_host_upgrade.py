@@ -158,9 +158,9 @@ def set_boot_config(installer_dir):
 
         pif = get_mgmt_config()
 
-        xen_args = ['dom0_mem=752M']
+        xen_args = ['dom0_max_vcpus=2', 'dom0_mem=752M']
         xen_args.extend(filter(lambda x: x.startswith('com') or x.startswith('console='), default.hypervisor_args.split()))
-        kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons='), default.kernel_args.split())
+        kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
 
         if pif['ip_configuration_mode'] == 'Static':
