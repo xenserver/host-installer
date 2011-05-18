@@ -16,6 +16,7 @@ import xcp.accessor as accessor
 import xcp.bootloader as bootloader
 import xcp.cpiofile as cpiofile
 import xcp.repository as repository
+import xcp.version as version
 import xcp.xelogging as xelogging
 import XenAPI
 import XenAPIPlugin
@@ -186,15 +187,45 @@ def set_boot_config(installer_dir):
 
     return True
 
+TEST_REPO_GOOD = 0
+TEST_URL_INVALID = 1
+TEST_VER_INVALID = 2
+
 def test_repo(url):
     try:
         a = accessor.createAccessor(url)
     except:
-        return False
+        return TEST_URL_INVALID
     if not get_boot_files(a, None):
-        return False
-    r = repository.Repository.findRepositories(a)
-    return len(r) > 0
+        return TEST_URL_INVALID
+    repos = repository.Repository.findRepositories(a)
+    if len(repos) == 0:
+        return TEST_URL_INVALID
+
+    repo_ver = None
+    for r in repos:
+        if r.identifier == repository.Repository.XS_MAIN_IDENT:
+            xelogging.log("Repository found: " + str(r))
+            repo_ver = r.product_version
+            break
+
+    # read current host version
+    curr_ver = None
+    try:
+        i = open('/etc/xensource-inventory')
+        for line in i:
+            if line.startswith('PRODUCT_VERSION'):
+                curr_ver = version.Version.from_string(line.strip()[16:].strip("'"))
+                break
+        i.close()
+    except:
+        pass    
+    
+    # verify repo version
+    if repo_ver and curr_ver and repo_ver >= curr_ver:
+        return TEST_REPO_GOOD
+
+    return TEST_VER_INVALID
 
 def prepare_host_upgrade(url):
     installer_dir = '/boot/installer'
@@ -226,15 +257,20 @@ def prepare_host_upgrade(url):
 
 # plugin url test
 def testUrl(session, args):
+    xelogging.logToStderr()
+
     try:
         url = args['url']
     except KeyError:
         raise Exception('MISSING_URL')
 
-    if not test_repo(url):
+    ret = test_repo(url)
+    if ret == TEST_URL_INVALID:
         raise Exception('INVALID_URL')
-    else:
-        return "true"
+    elif ret == TEST_VER_INVALID:
+        raise Exception('INVALID_VER')
+
+    return "true"
     
 # plugin entry point
 def main(session, args):
