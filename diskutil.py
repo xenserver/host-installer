@@ -46,11 +46,25 @@ def wait_for_multipathd():
     xelogging.log(msg)
     raise Exception(msg)
 
+# CA-58939: create udev rule to enslave paths which come up after multipathd has started
+#           this needs to be run before 50-udev.rules so that by the time the symlink 
+#           is created the new path is already enslaved to a master
+rules = '/etc/udev/rules.d/45-multipath.rules'
+def add_mpath_udev_rule():
+    fd = open(rules,'w')
+    rule = "ACTION==\"add\", RUN+=\"/bin/bash -c 'echo add path %k | /sbin/multipathd -k > /dev/null'\""
+    fd.write(rule)
+    fd.close()
+    
+def del_mpath_udev_rule():
+    os.unlink(rules)
+
 def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
     # This creates maps for all disks at start of day (because -e is ommitted)
+    add_mpath_udev_rule()
     assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
     wait_for_multipathd()
 
@@ -62,6 +76,7 @@ def mpath_enable():
 def mpath_disable():
     destroyMpathPartnodes()
     util.runCmd2(['killall','multipathd'])
+    del_mpath_udev_rule()
     util.runCmd2(['/sbin/multipath','-F'])
     use_mpath = False
 
