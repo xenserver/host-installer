@@ -689,8 +689,8 @@ class Accessor:
                 for line in extra:
                     package_list.append(line.strip())
                 extra.close()
-        except:
-            pass
+        except Exception, e:
+            xelogging.log("Failed to open %s: %s" % (Repository.REPOLIST_FILENAME, str(e)))
 
         for loc in package_list:
             if Repository.isRepo(self, loc):
