@@ -95,7 +95,7 @@ class Repository:
     def isRepo(cls, accessor, base):
         """ Return whether there is a repository at base address 'base' accessible
         using accessor."""
-        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.REPOSITORY_FILENAME, cls.PKGDATA_FILENAME] ]
+        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.REPOSITORY_FILENAME, cls.PKGDATA_FILENAME, cls.REPOLIST_FILENAME] ]
     isRepo = classmethod(isRepo)
 
     def _parse_repofile(self, repofile):
