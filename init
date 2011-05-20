@@ -114,7 +114,6 @@ def main(args):
     answerfile_script = None
     mpath = False
     use_ibft = False
-    netdev_map = []
     
     xelogging.log("%s Setup - Version %s (#%s)" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION or PLATFORM_VERSION, BUILD_NUMBER))
     xelogging.log("Command line args: %s" % str(args))
@@ -153,11 +152,7 @@ def main(args):
         elif opt == "--use_ibft":
             use_ibft = True
         elif opt == "--map_netdev":
-            netdev_map = val
-
-    # We must always call remap_netdevs, even if nothing is passed on the commandline
-    # as it reorderes devices according to biosdevname for a consistent state
-    netutil.remap_netdevs(netdev_map)
+            netutil.remap_netdevs(val)
 
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
