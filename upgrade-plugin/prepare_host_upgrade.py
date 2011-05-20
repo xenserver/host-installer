@@ -284,7 +284,7 @@ def main(session, args):
 
     xelogging.log("Verifying repo...")
     succeeded = False
-    if not test_repo(url):
+    if test_repo(url) != TEST_REPO_GOOD:
         xelogging.log("%s is not a valid repo" % url)
         raise Exception('INVALID_URL')
     else:
