@@ -7,3 +7,6 @@ blacklist ipmi_si
 # ignore Virtual Function devices
 blacklist igbvf
 blacklist ixgbevf
+
+# CA-59480 corrupts /proc/interrupts
+blacklist be2iscsi
