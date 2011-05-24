@@ -350,8 +350,11 @@ class ExistingRetailInstallation(ExistingInstallation):
     def __repr__(self):
         return "<ExistingRetailInstallation: %s on %s>" % (str(self), self.root_device)
 
-    def mount_root(self):
-        self.root_fs = util.TempMount(self.root_device, 'root', ['ro'], 'ext3')
+    def mount_root(self, ro = True):
+        opts = None
+        if ro:
+            opts = ['ro']
+        self.root_fs = util.TempMount(self.root_device, 'root', opts, 'ext3')
 
     def unmount_root(self):
         if self.root_fs:
