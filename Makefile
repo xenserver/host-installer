@@ -17,6 +17,7 @@ install:
 # Executables
 	install -m755 init $(INSTALLER_DIR)
 	install -m755 report.py $(INSTALLER_DIR)
+	install -m755 bugtool.py $(INSTALLER_DIR)
 	install -m755 support.sh $(SUPPORT_DIR)
 
 # Others
