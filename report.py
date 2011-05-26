@@ -17,113 +17,11 @@ import uicontroller
 import urlparse
 import util
 from version import *
-import xelogging
+from xelogging import collectLogs
 
-class Accessor:
-    def mount(self):
-        return True
+import xcp.accessor
+import xcp.logger as xelogging
 
-    def unmount(self):
-        return True
-        
-class MountingAccessor(Accessor):
-    def mount(self):
-        self.tmount = None
-        for fstype in self.fstypes:
-            try:
-                self.tmount = util.TempMount(self.device, 'report-', fstype = fstype)
-                break
-            except:
-                pass
-        return (self.tmount != None)
-
-    def unmount(self):
-        self.tmount.unmount()
-        return True
-
-    def writeFile(self, in_fh, out_name):
-        xelogging.log("Copying to %s" % os.path.join(self.tmount.mount_point, self.path, out_name))
-        out_fh = open(os.path.join(self.tmount.mount_point, self.path, out_name), 'w')
-        while out_fh:
-            data = in_fh.read(8192)
-            if len(data) == 0:
-                break
-            out_fh.write(data)
-        out_fh.close()
-        return True
-
-class FileAccessor(Accessor):
-    def __init__(self, url):
-        self.path = url[7:]
-
-    def writeFile(self, in_fh, out_name):
-        xelogging.log("Copying to %s" % os.path.join(self.path, out_name))
-        out_fh = open(os.path.join(self.path, out_name), 'w')
-        while out_fh:
-            data = in_fh.read(8192)
-            if len(data) == 0:
-                break
-            out_fh.write(data)
-        out_fh.close()
-        return True
-
-class NFSAccessor(MountingAccessor):
-    def __init__(self, url):
-        self.device = url[6:]
-        self.path = ''
-        self.fstypes = ['nfs']
-
-class DeviceAccessor(MountingAccessor):
-    def __init__(self, url):
-        self.device, self.path = url[6:].split(':', 1)
-        self.fstypes = ['vfat', 'ext3']
-
-class FTPAccessor(Accessor):
-    def __init__(self, url):
-        self.login = 'anonymous'
-        self.password = 'root@example.com'
-
-        if '@' in url:
-            user, rest = url[6:].split('@', 1)
-            if ':' in user:
-                self.login, self.password = user.split(':', 1)
-        else:
-            rest = url[6:]
-
-        if not '/' in rest:
-            rest += '/'
-        self.host, self.directory = rest.split('/', 1)
-        if self.directory == '':
-            self.directory = None
-
-    def mount(self):
-        self.ftp = ftplib.FTP()
-        xelogging.log("Connecting to %s" % self.host)
-        self.ftp.connect(self.host)
-        xelogging.log("Logging in as %s" % self.login)
-        self.ftp.login(self.login, self.password)
-        if self.directory:
-            xelogging.log("Changing to %s" % self.directory)
-            self.ftp.cwd(self.directory)
-        return True
-
-    def unmount(self):
-        self.ftp.quit()
-        return True
-
-    def writeFile(self, in_fh, out_name):
-        xelogging.log("Storing as %s" % out_name)
-        self.ftp.storbinary('STOR ' + out_name, in_fh)
-
-class ConsoleAccessor(Accessor):
-    def __init__(self, url):
-        return
-    
-    def writeFile(self, in_fh, out_name):
-        rc, data = util.runCmd2(['/usr/bin/uuencode', in_fh.name, out_name], with_stdout = True)
-        if rc == 0:
-            print data
-        return rc == 0
 
 def selectDefault(key, entries):
     """ Given a list of (text, key) and a key to select, returns the appropriate
@@ -368,19 +266,6 @@ def report_complete(report_saved):
 
     return uicontroller.RIGHT_FORWARDS
 
-def accessor(url):
-    accessors = {
-        'nfs://': NFSAccessor,
-        'file://': FileAccessor,
-        'dev://': DeviceAccessor,
-        'ftp://': FTPAccessor,
-        'console://': ConsoleAccessor,
-        }        
-
-    for prefix, cls in accessors.iteritems():
-        if url.startswith(prefix):
-            return cls(url)
-    return None
 
 def main(args):
     results = {}
@@ -414,26 +299,26 @@ def main(args):
             xelogging.log(str(results))
 
             if results['dest-media'] == 'local':
-                dests.append("dev://" + results['dest-address'] + ':')
+                dests.append("dev://" + results['dest-address'])
             elif results['dest-media'] == 'ftp':
                 dests.append(results['dest-address'])
             elif results['dest-media'] == 'nfs':
                 dests.append("nfs://" + results['dest-address'])
 
     # create tarball
-    xelogging.collectLogs('/tmp', '/tmp')
+    collectLogs('/tmp', '/tmp')
 
     report_saved = False
     for dest in dests:
         xelogging.log("Saving report to: " + dest)
         try:
-            a = accessor(dest)
-            if a.mount():
-                fh = open('/tmp/support.tar.bz2')
-                a.writeFile(fh, 'support.tar.bz2')
-                fh.close()
-                a.unmount()
-                report_saved = True
+            a = xcp.accessor.createAccessor(dest, False)
+            a.start()
+            fh = open('/tmp/support.tar.bz2')
+            a.writeFile(fh, 'support.tar.bz2')
+            fh.close()
+            a.finish()
+            report_saved = True
         except Exception, e:
             xelogging.log("Failed: " + str(e))
             report_saved = False
