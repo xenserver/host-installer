@@ -6,6 +6,7 @@
 # trademarks of Citrix Systems, Inc. in the United States and/or other 
 # countries.
 
+import logging
 import os
 import shutil
 import sys
@@ -17,25 +18,39 @@ import xcp.bootloader as bootloader
 import xcp.cpiofile as cpiofile
 import xcp.repository as repository
 import xcp.version as version
-import xcp.xelogging as xelogging
+import xcp.logger as logger
 import XenAPI
 import XenAPIPlugin
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz']
+
+def test_boot_files(accessor):
+    done = True
+    accessor.start()
+    for f in boot_files:
+        try:
+            logger.info("Testing "+f)
+            done = accessor.access(f)
+        except Exception, e:
+            logger.error(str(e))
+            done = False
+        
+    accessor.finish()
+    return done
 
 def get_boot_files(accessor, dest_dir):
     done = True
     accessor.start()
     for f in boot_files:
         try:
-            xelogging.log("Fetching "+f)
+            logger.info("Fetching "+f)
             inf = accessor.openAddress(f)
-            if dest_dir:
-                outf = open(os.path.join(dest_dir, os.path.basename(f)), 'w')
-                outf.writelines(inf)
-                outf.close()
+            outf = open(os.path.join(dest_dir, os.path.basename(f)), 'w')
+            outf.writelines(inf)
+            outf.close()
             inf.close()
-        except:
+        except Exception, e:
+            logger.error(str(e))
             done = False
             break
     accessor.finish()
@@ -75,15 +90,15 @@ def gen_answerfile(installer_dir, url):
     if not root_label:
         return False
 
-    xelogging.log("Root device: "+root_device)
-    xelogging.log("Root label: "+root_label)
+    logger.debug("Root device: "+root_device)
+    logger.debug("Root label: "+root_label)
     
     in_arc = cpiofile.CpioFile.open(installer_dir+'/install.img', 'r|*')
     out_arc = cpiofile.CpioFile.open(installer_dir+'/upgrade.img', 'w|gz')
     out_arc.hardlinks = False
 
     # copy initrd
-    xelogging.log("Copying initrd...")
+    logger.info("Copying initrd...")
     for f in in_arc:
         data = None
         if f.size > 0:
@@ -94,7 +109,7 @@ def gen_answerfile(installer_dir, url):
     # create bootloader revert script
     config = bootloader.Bootloader.loadExisting()
 
-    xelogging.log("Creating revert script")
+    logger.info("Creating revert script")
     text = '#!/usr/bin/env python\n'
     text += '\nimport xcp.bootloader as bootloader\n'
     text += 'import xcp.mount as mount\n'
@@ -112,7 +127,7 @@ def gen_answerfile(installer_dir, url):
     out_arc.addfile(f, contents)
 
     # create answerfile
-    xelogging.log("Creating answerfile")
+    logger.info("Creating answerfile")
     text = '<?xml version="1.0"?>\n'
     text += ' <installation mode="upgrade">\n'
     text += '  <existing-installation>%s</existing-installation>\n' % root_device
@@ -180,7 +195,7 @@ def set_boot_config(installer_dir):
                                  installer_dir+'/upgrade.img', 'Rolling pool upgrade')
         config.append('upgrade', e)
         config.default = 'upgrade'
-        xelogging.log("Writing updated bootloader config")
+        logger.info("Writing updated bootloader config")
         config.commit()
     except:
         return False
@@ -192,11 +207,13 @@ TEST_URL_INVALID = 1
 TEST_VER_INVALID = 2
 
 def test_repo(url):
+    logger.debug("Testing "+url)
     try:
-        a = accessor.createAccessor(url)
-    except:
-        return TEST_URL_INVALID
-    if not get_boot_files(a, None):
+        a = accessor.createAccessor(url, True)
+        if not test_boot_files(a):
+            return TEST_URL_INVALID
+    except Exception, e:
+        logger.error(str(e))
         return TEST_URL_INVALID
     repos = repository.Repository.findRepositories(a)
     if len(repos) == 0:
@@ -205,7 +222,7 @@ def test_repo(url):
     repo_ver = None
     for r in repos:
         if r.identifier == repository.Repository.XS_MAIN_IDENT:
-            xelogging.log("Repository found: " + str(r))
+            logger.debug("Repository found: " + str(r))
             repo_ver = r.product_version
             break
 
@@ -223,8 +240,10 @@ def test_repo(url):
     
     # verify repo version
     if repo_ver and curr_ver and repo_ver >= curr_ver:
+        logger.info("Repo version OK: " + str(repo_ver))
         return TEST_REPO_GOOD
 
+    logger.error("Repo version ERR: " + str(repo_ver))
     return TEST_VER_INVALID
 
 def prepare_host_upgrade(url):
@@ -238,7 +257,7 @@ def prepare_host_upgrade(url):
         pass
     os.mkdir(installer_dir, 0700)
 
-    a = accessor.createAccessor(url)
+    a = accessor.createAccessor(url, True)
     done = get_boot_files(a, installer_dir)
 
     if done:
@@ -257,7 +276,7 @@ def prepare_host_upgrade(url):
 
 # plugin url test
 def testUrl(session, args):
-    xelogging.logToStderr()
+    logger.logToSyslog(level = logging.INFO)
 
     try:
         url = args['url']
@@ -274,29 +293,27 @@ def testUrl(session, args):
     
 # plugin entry point
 def main(session, args):
-    xelogging.logToStderr()
+    logger.logToSyslog(level = logging.INFO)
 
     try:
         url = args['url']
     except KeyError:
-        xelogging.log("Missing argument 'url'")
+        logger.critical("Missing argument 'url'")
         raise Exception('MISSING_URL')
 
-    xelogging.log("Verifying repo...")
-    succeeded = False
+    logger.info("Verifying repo...")
     if test_repo(url) != TEST_REPO_GOOD:
-        xelogging.log("%s is not a valid repo" % url)
+        logger.error("%s is not a valid repo" % url)
         raise Exception('INVALID_URL')
-    else:
-        xelogging.log("Repo ok, preparing for upgrade.")
-        succeeded = prepare_host_upgrade(url)
 
-    if succeeded:
-        xelogging.log("Preparation succeeded, ready for upgrade.")
-        return "true"
-    else:
-        xelogging.log("There was an error in preparing the host for upgrade.")
+    logger.info("Repo ok, preparing for upgrade")
+    if not prepare_host_upgrade(url):
+        logger.error("There was an error in preparing the host for upgrade.")
         raise Exception('ERROR_PREPARING_HOST')
+
+    logger.info("Preparation succeeded, ready for upgrade.")
+    return "true"
+
 
 if __name__ == '__main__':
     XenAPIPlugin.dispatch({"main": main,
