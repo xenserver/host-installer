@@ -260,7 +260,13 @@ METH_PPN    = 2
 METH_LABEL  = 3
 
 def parse_arg(arg):
-    
+    """
+    Takes list from the code which parses the installer commandline.
+    Returns a tupe:
+            (Target eth name, Static/Dynamic, Method of id, Val of id)
+    or None if the parse was not successful
+    """
+
     split = arg.split(":", 2)
 
     if len(split) != 3:
@@ -299,13 +305,14 @@ def parse_arg(arg):
         return None
 
 def remap_netdevs(remap_list):
-    
+
     # rename everything sideways to safe faffing with temp renanes
     for x in ( x for x in os.listdir("/sys/class/net/") if x[:3] == "eth" ):
         util.runCmd2(['ip', 'link', 'set', x, 'name', 'side-'+x])
 
     bdn = BiosDevName()
     bdn.run(policy="physical")
+    all_devices = bdn.devices[:]
 
     parsed_list = filter(lambda x: x is not None, map(parse_arg, remap_list))
 
@@ -313,7 +320,7 @@ def remap_netdevs(remap_list):
     # static/dynamic, then subsorted by ethname
     parsed_list.sort(key=lambda x: x[0])
     parsed_list.sort(key=lambda x: x[1])
-    
+
     for rule in parsed_list:
 
         target, sd, method, val = rule
@@ -332,14 +339,15 @@ def remap_netdevs(remap_list):
                 continue
             else:
                 bdn.devices.remove(dev)
-            
+
             if sd == DEV_STATIC:
                 srules.append('%s: label="%s"' % (target, val))
             else:
                 drules.append([dev['Assigned MAC'].lower(),
                                dev['Bus Info'].lower(),
                                target])
-
+            xelogging.log("Renaming '%s' to '%s' due to SMBIOS Label" %
+                          ( dev['Kernel name'], target ))
             util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
                           'name', target])
 
@@ -362,6 +370,8 @@ def remap_netdevs(remap_list):
             else:
                 drules.append([val, dev['Bus Info'].lower(), target])
 
+            xelogging.log("Renaming '%s' to '%s' due to MAC address" %
+                          ( dev['Kernel name'], target ))
             util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
                           'name', target])
 
@@ -385,6 +395,8 @@ def remap_netdevs(remap_list):
                 drules.append([dev['Assigned MAC'].lower(),
                                val, target])
 
+            xelogging.log("Renaming '%s' to '%s' due to PCI mapping" %
+                          ( dev['Kernel name'], target ))
             util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
                           'name', target])
 
@@ -409,22 +421,52 @@ def remap_netdevs(remap_list):
                                dev['Bus Info'].lower(),
                                target])
 
+            xelogging.log("Renaming '%s' to '%s' due to Physical name" %
+                          ( dev['Kernel name'], target ))
             util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
                           'name', target])
         else:
             xelogging.log("Unrecognised method - Ignoring")
 
+
+    side_devs = [ x for x in os.listdir("/sys/class/net") if x[:5] == "side-" ]
+    side_devs.sort(key=lambda x: int(x[8:]))
+
+    if len(side_devs):
+        xelogging.log("Renaming devices which have not been displaced by mapping rules")
+    for x in side_devs:
+        if not os.path.exists("/sys/class/net/"+x[5:]):
+            for dev in all_devices:
+                if dev['Kernel name'] == x:
+                    drules.append([dev['Assigned MAC'].lower(),
+                                   dev['Bus Info'].lower(),
+                                   x[5:]])
+            util.runCmd2(['ip', 'link', 'set', x, 'name', x[5:]])
+
     def gen_free_netdev():
         x = -1
         while True:
             x += 1
-            if os.path.exists("/sys/class/net/eth%d" % x):
-                continue
-            else:
+            if not os.path.exists("/sys/class/net/eth%d" % x):
                 yield "eth%d" % x
     free_netdev = gen_free_netdev()
-    
-    for x in ( x for x in os.listdir("/sys/class/net/") if x[:5] == "side-" ):
-        util.runCmd2(['ip', 'link', 'set', x, 'name', free_netdev.next()])
 
 
+    side_devs = [ x for x in os.listdir("/sys/class/net") if x[:5] == "side-" ]
+    side_devs.sort(key=lambda x: int(x[8:]))
+
+    if len(side_devs):
+        xelogging.log("Reallocating names for devices which have been displaced")
+    for x in side_devs:
+        free_dev = free_netdev.next()
+        for dev in all_devices:
+            if dev['Kernel name'] == x:
+                drules.append([dev['Assigned MAC'].lower(),
+                               dev['Bus Info'].lower(),
+                               free_dev])
+        util.runCmd2(['ip', 'link', 'set', x, 'name', free_dev])
+
+    xelogging.log("All done ordering the network devices")
+
+    xelogging.log("Static rules = %r" % srules)
+    xelogging.log("Dynamic rules = %r" % drules)
