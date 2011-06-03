@@ -349,6 +349,10 @@ class ThirdGenUpgrader(Upgrader):
         except:
             pass
 
+        if ad_on:
+            for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
+                util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
+
         # EA-1069: create interface-rename state from old xapi database if it doesnt currently exist (static-rules.conf)
         if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
             static_text = (
@@ -420,10 +424,6 @@ class ThirdGenUpgrader(Upgrader):
             fout4 = open(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/dynamic-rules.json'), "w")
             fout4.write(dynamic_text)
             fout4.close()
-
-        if ad_on:
-            for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
-                util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
 
 
 
