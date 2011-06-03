@@ -425,6 +425,17 @@ class ThirdGenUpgrader(Upgrader):
             fout4.write(dynamic_text)
             fout4.close()
 
+            if Version(prev_install.version.ver) < product.THIS_PRODUCT_VERSION:
+                # set journalling option on EXT local SRs
+                l = LVMTool()
+                for lv in l.lvs:
+                    if lv['vg_name'].startswith(l.VG_EXT_SR_PREFIX):
+                        l.activateVG(lv['vg_name'])
+                        path = '/dev/mapper/%s-%s' % (lv['vg_name'].replace('-', '--'),
+                                                      lv['lv_name'].replace('-', '--'))
+                        xelogging.log("Setting ordered on " + path)
+                        util.runCmd2(['tune2fs', '-o', 'journal_data_ordered', path])
+                        l.deactivateVG(lv['vg_name'])
 
 
 ################################################################################
