@@ -155,10 +155,6 @@ def main(args):
         elif opt == "--map_netdev":
             netdev_map = val
 
-    # Always sanitise netdevs - it generates
-    # data for later in the install
-    netutil.remap_netdevs(netdev_map)
-
     # check that an answerfile was specified if we're being non-interactive:
     if not interactive and not operation:
         xelogging.log("No operation specified for answerfile - dropping back to interactive mode.")
@@ -195,6 +191,13 @@ def main(args):
         args['--keymap'] = kmap
         xelogging.log("Loading keymap %s" % kmap)
         util.runCmd2(["/bin/loadkeys", kmap])
+
+    # Always sanitise netdevs - it generates
+    # data for later in the install
+    # CA-60620 - dont try and run remap_netdevs in the codepath where we are
+    # running several concurrent instances.  It causes fun with competing
+    # /sbin/ip renames
+    netutil.remap_netdevs(netdev_map)
 
     # Attaches iSCSI disks listed in iSCSI Boot Firmware Tables.  This may
     # reserve NICs and so should be called before netutil.scanConfiguration
