@@ -412,6 +412,8 @@ class ThirdGenUpgrader(Upgrader):
                 if line == "<device>":
                     eth_next = True
 
+            dbcache.close()
+
             def jsonify(mac, pci, dev):
                 return '[ "%s", "%s", "%s" ]' % (mac, pci, dev)
 
