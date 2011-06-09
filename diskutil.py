@@ -67,6 +67,8 @@ def mpath_enable():
     add_mpath_udev_rule()
     assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
     wait_for_multipathd()
+    # CA-48440: Cope with lost udev events
+    util.runCmd2(["multipathd","-k"], inputtext="reconfigure")
 
     # Tell DM to create partition nodes for newly created mpath devices
     assert 0 == createMpathPartnodes()
