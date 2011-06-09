@@ -64,10 +64,10 @@ def mpath_enable():
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
     # This creates maps for all disks at start of day (because -e is ommitted)
-    add_mpath_udev_rule()
     assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
     wait_for_multipathd()
     # CA-48440: Cope with lost udev events
+    add_mpath_udev_rule()
     util.runCmd2(["multipathd","-k"], inputtext="reconfigure")
 
     # Tell DM to create partition nodes for newly created mpath devices
