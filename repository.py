@@ -825,10 +825,15 @@ class URLAccessor(Accessor):
             baseAddress += '/'
 
         if baseAddress.startswith('http://'):
-            sep = baseAddress.index('//')
-            baseAddress = baseAddress[:sep] + urllib.quote(baseAddress[sep:])
-
             (scheme, netloc, path, params, query) = urlparse.urlsplit(baseAddress)
+            if netloc.endswith(':'):
+                baseAddress = baseAddress.replace(netloc, netloc[:-1])
+                netloc = netloc[:-1]
+            pos = baseAddress[7:].index('/')+7
+            path2 = baseAddress[pos:]
+            if '#' in path2:
+                new_path = path2.replace('#', '%23')
+                baseAddress = baseAddress.replace(path2, new_path)
             (hostname, username, password) = util.splitNetloc(netloc)
             if username != None:
                 xelogging.log("Using basic HTTP authentication: %s %s" % (username, password))
