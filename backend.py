@@ -109,7 +109,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'initial-partitions', 'zap-utility-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'zap-utility-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
@@ -455,7 +455,14 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 
-def inspectTargetDisk(disk, initial_partitions, zap_utility_partitions ,preserve_first_partition):
+def inspectTargetDisk(disk, existing, initial_partitions, zap_utility_partitions ,preserve_first_partition):
+    
+    if existing:
+        # upgrade, use existing partitioning scheme
+        tool = PartitionTool(existing.primary_disk)
+        
+        primary_part = tool.partitionNumber(existing.root_device)
+        return (primary_part, primary_part+1, primary_part+2)
     
     tool = PartitionTool(disk)
 
