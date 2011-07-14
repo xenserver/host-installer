@@ -150,7 +150,7 @@ def getPrepSequence(ans, interactive):
 def getRepoSequence(ans, repos):
     seq = []
     for repo in repos:
-        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos']])(repo), []))
+        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos'], a['branding']])(repo), ['branding']))
         seq.append(Task(repo.accessor().start, lambda x: [], []))
         for package in repo:
             seq += [
