@@ -177,7 +177,7 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(configureKdump, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge', 'branding'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -327,6 +327,7 @@ def performInstallation(answers, ui_package, interactive):
  
     if 'master' not in answers:
         answers['master'] = None
+    answers['branding'] = {}
  
     # perform installation:
     prep_seq = getPrepSequence(answers, interactive)
@@ -407,13 +408,23 @@ def performInstallation(answers, ui_package, interactive):
 
     return new_ans
 
-def checkRepoDeps(repo, installed_repos):
+def checkRepoDeps(repo, installed_repos, branding):
     xelogging.log("Checking for dependencies of %s" % repo.identifier())
     missing_repos = repo.check_requires(installed_repos)
     if len(missing_repos) > 0:
         text = "Repository dependency error:\n\n"
         text += '\n'.join(missing_repos)
         raise RuntimeError, text
+
+    # preserve branding
+    if repo.identifier() == MAIN_REPOSITORY_NAME:
+        branding.update({ 'platform-name': repo._product_brand,
+                          'platform-version': repo._product_version.ver_as_string() })
+    elif repo.identifier() == MAIN_XS_REPOSITORY_NAME:
+        branding.update({ 'product-brand': repo._product_brand,
+                          'product-version': repo._product_version.ver_as_string(),
+                          'product-build': repo._product_version.build_as_string() })
+    return branding
 
 def installPackage(progress_callback, mounts, package):
     package.install(mounts['root'], progress_callback)
@@ -1150,25 +1161,25 @@ def writeModprobeConf(mounts):
     os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
               "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     default_sr_physdevs = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
-    if PRODUCT_BRAND:
-       inv.write("PRODUCT_BRAND='%s'\n" % PRODUCT_BRAND)
+    if 'product-brand' in branding:
+       inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
     if PRODUCT_NAME:
        inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
-    if PRODUCT_VERSION:
-       inv.write("PRODUCT_VERSION='%s'\n" % PRODUCT_VERSION)
+    if 'product-version' in branding:
+       inv.write("PRODUCT_VERSION='%s'\n" % branding['product-version'])
     if COMPANY_NAME:
        inv.write("COMPANY_NAME='%s'\n" % COMPANY_NAME)
     if COMPANY_NAME_SHORT:
        inv.write("COMPANY_NAME_SHORT='%s'\n" % COMPANY_NAME_SHORT)
     if BRAND_CONSOLE:
        inv.write("BRAND_CONSOLE='%s'\n" % BRAND_CONSOLE) 
-    inv.write("PLATFORM_NAME='%s'\n" % version.PLATFORM_NAME)
-    inv.write("PLATFORM_VERSION='%s'\n" % version.PLATFORM_VERSION)
+    inv.write("PLATFORM_NAME='%s'\n" % branding['platform-name'])
+    inv.write("PLATFORM_VERSION='%s'\n" % branding['platform-version'])
 
-    inv.write("BUILD_NUMBER='%s'\n" % BUILD_NUMBER)
+    inv.write("BUILD_NUMBER='%s'\n" % branding.get('product-build', BUILD_NUMBER))
     inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
