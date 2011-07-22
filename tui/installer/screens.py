@@ -630,7 +630,7 @@ def select_guest_disks(answers):
         currently_selected = answers['guest-disks']
     else:
         currently_selected = answers['primary-disk']
-    srtype = constants.SR_TYPE_EXT
+    srtype = constants.SR_TYPE_LVM
     if 'sr-type' in answers:
         srtype = answers['sr-type']
 

@@ -301,7 +301,7 @@ def performInstallation(answers, ui_package, interactive):
         answers['guest-disks'] = []
     else:
         if not answers.has_key('sr-type'):
-            answers['sr-type'] = constants.SR_TYPE_EXT
+            answers['sr-type'] = constants.SR_TYPE_LVM
 
     if not answers.has_key('bootloader-location'):
         answers['bootloader-location'] = 'mbr'
