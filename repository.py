@@ -85,7 +85,7 @@ class Repository:
             accessor.finish()
             raise NoRepository, e
         self._parse_packages(pkgfile)
-        repofile.close()
+        pkgfile.close()
 
         accessor.finish()
 
