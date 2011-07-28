@@ -1,31 +1,36 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
-# trademarks of XenSource Inc. in the United States and/or other countries.
 
-###
-# XEN CLEAN INSTALLER
-# Version information
-#
-# AUTOMATICALLY GENERATED (do not edit by hand)
-
-KERNEL_VERSION = "2.6.12.6-xen"
-XEN_VERSION = "3.0.1"
-
+KERNEL_VERSION = "2.6.32.12-0.7.1.xs5.9.960.517.170657xen"
 PRODUCT_BRAND = "XenServer"
-PRODUCT_NAME = "XenServer"
-PRODUCT_VERSION = "4.0.0"
-BUILD_NUMBER = "1"
-COMPANY_NAME_LEGAL = "XenSource, Inc."
-COMPANY_NAME_SHORT = "XenSource"
-COPYRIGHT_YEARS = "2006"
-
-BRAND_GUEST = "mirtual machine"
 BRAND_GUEST_SHORT = "VM"
-BRAND_GUESTS = "virtual machines"
+COMPANY_NAME = "Citrix Systems, Inc."
+PRODUCT_VERSION_TEXT_SHORT = "6.0"
+BRAND_GUEST = "Virtual Machine"
+COMPANY_NAME_DIR = "Citrix"
+PLATFORM_MICRO_VERSION = "99"
+COMPANY = "Citrix"
+PRODUCT_MINOR_VERSION = "9"
+PRODUCT_NAME = "xenenterprise"
+COMPANY_NAME_SHORT = "Citrix"
+PRODUCT_VERSION = "5.9.960"
 BRAND_GUESTS_SHORT = "VMs"
+PLATFORM_ORGANISATION = "xen.org"
+PRODUCT_MAJOR_VERSION = "5"
+BUILD_NUMBER = "49413c"
+BRAND_SERVER = "XenServer Host"
+PLATFORM_MINOR_VERSION = "0"
+PLATFORM_NAME = "XCP"
+KDUMP_VERSION = "2.6.32.12-0.7.1.xs5.9.960.517.170657kdump"
+COMPANY_WEBSITE = "www.citrix.com"
+NUMERIC_BUILD_NUMBER = "49413"
+PRODUCT_VERSION_TEXT = "6.0"
+PLATFORM_MAJOR_VERSION = "1"
+PLATFORM_VERSION = "1.0.99"
+PLATFORM_WEBSITE = "www.xen.org"
+COMPANY_NAME_LEGAL = "Citrix Systems, Inc."
+BRAND_GUESTS = "Virtual Machines"
+COMPANY_DOMAIN = "citrix.com"
+COPYRIGHT_YEARS = "2011"
 BRAND_CONSOLE = "XenCenter"
-BRAND_SERVER = "XenServer host"
-
-KDUMP_VERSION = "kdump_version"
+PRODUCT_MICRO_VERSION = "960"
+XEN_VERSION = "4.1.1"
+BRAND_SERVERS = "XenServer Hosts"
