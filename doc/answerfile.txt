@@ -162,14 +162,14 @@ Common Elements
 
       proto="static|dhcp"
 
-    If the interface is static then the following attributes must be
+    If the interface is static then the following elements must be
     present:
 
-      ip="ip"
+      <ip>ip</ip>
 
-      subnet-mask="subnet"
+      <subnet-mask>subnet</subnet-mask>
 
-      gateway="gw"
+      <gateway>gw</gateway>
 
 
   <root-password type="plaintext|hash"*>passwd</root-password>*
@@ -216,7 +216,7 @@ Common Elements
 
     Local SR type.
 
-    default: lvm (5.6 FP1 and earlier), ext (6.0)
+    default: lvm
 
 
 Upgrade Elements
