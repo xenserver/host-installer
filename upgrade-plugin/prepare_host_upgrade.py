@@ -162,7 +162,7 @@ def get_mgmt_config():
     session.xenapi.session.logout()
     return ret
 
-def set_boot_config(installer_dir):
+def set_boot_config(installer_dir, url):
     try:
         config = bootloader.Bootloader.loadExisting()
 
@@ -172,23 +172,61 @@ def set_boot_config(installer_dir):
         else:
             config.commit(os.path.join(installer_dir, os.path.basename(config.src_file)))
 
-        pif = get_mgmt_config()
-
         xen_args = ['dom0_max_vcpus=2', 'dom0_mem=752M']
         xen_args.extend(filter(lambda x: x.startswith('com') or x.startswith('console='), default.hypervisor_args.split()))
         kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
 
-        if pif['ip_configuration_mode'] == 'Static':
-            config_str = "static:ip=%s;netmask=%s" % (pif['IP'], pif['netmask'])
-            if 'gateway' in pif:
-                config_str += ";gateway=" + pif['gateway']
-            if 'DNS' in pif:
-                config_str += ";dns=" + pif['DNS']
-            kernel_args.extend(['network_device='+pif['MAC'],
+        scheme = url[:url.index('://')]
+        if scheme in ['http', 'nfs', 'ftp']:
+            pif = get_mgmt_config()
+
+            if pif['ip_configuration_mode'] == 'Static':
+                config_str = "static:ip=%s;netmask=%s" % (pif['IP'], pif['netmask'])
+                if 'gateway' in pif:
+                    config_str += ";gateway=" + pif['gateway']
+                if 'DNS' in pif:
+                    config_str += ";dns=" + pif['DNS']
+                kernel_args.extend(['network_device='+pif['MAC'],
                                 'network_config='+config_str])
-        else:
-            kernel_args.append('network_device=' + pif['MAC'])
+            else:
+                kernel_args.append('network_device=' + pif['MAC'])
+        elif scheme == 'file':
+            # locate major/minor of device url is on
+            s = os.stat(url[7:])
+            major = s[2] / 256
+            minor = s[2] % 256
+
+            # locate device name
+            dev = None
+            fh = open('/proc/partitions')
+            fh.readline()
+            fh.readline()
+            for line in fh:
+                v = line.split()
+                if int(v[0]) == major and int(v[1]) == minor:
+                    dev = v[3]
+                    break
+            fh.close()
+            if not dev:
+                return False
+            dev = '/dev/' + dev
+
+            # locate mount pount
+            mnt = None
+            fs = None
+            fh = open('/proc/mounts')
+            for line in fh:
+                v = line.split()
+                if v[0] == dev:
+                    mnt = v[1]
+                    fs = v[2]
+                    break
+            fh.close()
+            if not mnt:
+                return False
+
+            kernel_args.append("mount=%s:%s:%s" % (dev, fs, mnt))
 
         e = bootloader.MenuEntry(installer_dir+'/xen.gz', ' '.join(xen_args),
                                  installer_dir+'/vmlinuz', ' '.join(kernel_args),
@@ -265,7 +303,7 @@ def prepare_host_upgrade(url):
         
     if done:
         # create bootloader entry
-        set_boot_config(installer_dir)
+        set_boot_config(installer_dir, url)
         
     if not done:
         try:
