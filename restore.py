@@ -83,11 +83,11 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
             m = re.search(r'root=LABEL=(\S+)', boot_config.menu[boot_config.default].kernel_args)
             if m:
                 label = m.group(1)
-            if location == 'partition' and current_location == 'mbr':
+            if location == constants.BOOT_LOCATION_PARTITION and current_location == constants.BOOT_LOCATION_MBR:
                 # if bootloader in the MBR it's probably not safe to restore with it
                 # on the partition
                 xelogging.log("Bootloader is currently installed to MBR, restoring to MBR instead of partition")
-                location = 'mbr'
+                location = constants.BOOT_LOCATION_MBR
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
             backend.installBootLoader(mounts, disk, probePartitioningScheme(disk), primary_partnum,
