@@ -20,13 +20,21 @@ EXIT_ERROR = 1
 EXIT_USER_CANCEL = 2
 
 # install types:
-INSTALL_TYPE_FRESH = 1
-INSTALL_TYPE_REINSTALL = 2
-INSTALL_TYPE_RESTORE = 3
+INSTALL_TYPE_FRESH = "fresh"
+INSTALL_TYPE_REINSTALL = "reinstall"
+INSTALL_TYPE_RESTORE = "restore"
 
 # sr types:
-SR_TYPE_LVM = 1
-SR_TYPE_EXT = 2
+SR_TYPE_LVM = "lvm"
+SR_TYPE_EXT = "ext"
+
+# partition schemes:
+PARTITION_DOS = "DOS"
+PARTITION_GPT = "GPT"
+
+# bootloader locations:
+BOOT_LOCATION_MBR = "mbr"
+BOOT_LOCATION_PARTITION = "partition"
 
 # network backend types:
 NETWORK_BACKEND_BRIDGE = "bridge"
