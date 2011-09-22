@@ -4,6 +4,7 @@
 # trademarks of Citrix Systems, Inc., in the United States and other
 # countries.
 
+import constants
 import re, subprocess, types, os
 from pprint import pprint
 from copy import copy, deepcopy
@@ -712,7 +713,7 @@ class DOSPartitionTool(PartitionToolBase):
     ID_DELL_UTILITY = 0xde
     
     SFDISK = '/sbin/sfdisk'
-    partTableType = 'DOS'
+    partTableType = constants.PARTITION_DOS
 
     def __readDiskDetails(self):
         # Read basic geometry
@@ -899,7 +900,7 @@ class GPTPartitionTool(PartitionToolBase):
         }
 
     SGDISK = '/sbin/sgdisk'
-    partTableType = 'GPT'
+    partTableType = constants.PARTITION_GPT
 
     def readDiskDetails(self):
         self.sectorSize        = int(self.cmdWrap(['blockdev', '--getss', self.device]))
@@ -1009,13 +1010,13 @@ def probePartitioningScheme(device):
                 return True
         return False
     if rv:
-        partitionType = 'GPT'   # default 
+        partitionType = constants.PARTITION_GPT   # default 
     elif matchline("^.*doesn't contain a valid partition table$"):
-        partitionType = 'GPT'   # default
+        partitionType = constants.PARTITION_GPT   # default 
     elif matchline("^.*EFI GPT$"):
-        partitionType = 'GPT'   # default
+        partitionType = constants.PARTITION_GPT   # default 
     else:
-        partitionType = 'DOS'
+        partitionType = constants.PARTITION_DOS
     return partitionType
     
 def PartitionTool(device, partitionType=None):
@@ -1025,9 +1026,9 @@ def PartitionTool(device, partitionType=None):
     """
     if partitionType == None:
         partitionType = probePartitioningScheme(device)
-    if partitionType == 'DOS':
+    if partitionType == constants.PARTITION_DOS:
         return DOSPartitionTool(device)
-    elif partitionType == 'GPT':
+    elif partitionType == constants.PARTITION_GPT:
         return GPTPartitionTool(device)
 
 def destroyPartnodes(dev):

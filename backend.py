@@ -500,7 +500,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, zap_utility_partitions
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
     if not constants.GPT_SUPPORT:
-        return 'DOS'
+        return constants.PARTITION_DOS
 
     tool = PartitionTool(disk)
 
@@ -515,7 +515,7 @@ def selectPartitionTableType(disk, install_type, primary_part):
 
     # This is a fresh install and we do not need to preserve partition1
     # Use GPT because it is better.
-    return 'GPT'
+    return constants.PARTITION_GPT
 
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
@@ -784,9 +784,9 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, partition_table_type, primary_partnum, serial, boot_serial, cpuid_masks, location = 'mbr'):
+def installBootLoader(mounts, disk, partition_table_type, primary_partnum, serial, boot_serial, cpuid_masks, location = constants.BOOT_LOCATION_MBR):
     
-    assert(location == 'mbr' or location == 'partition')
+    assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
     
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
@@ -839,7 +839,7 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, seria
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
-def installExtLinux(mounts, disk, partition_table_type, location = 'mbr'):
+def installExtLinux(mounts, disk, partition_table_type, location = constants.BOOT_LOCATION_MBR):
 
     # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
     # However we continue to copy the ones we need to /boot so we can write the config file there.
@@ -859,10 +859,10 @@ def installExtLinux(mounts, disk, partition_table_type, location = 'mbr'):
     base_dir = mounts['root'] + "/usr/share/syslinux"
     if not os.path.exists(base_dir):
         base_dir = mounts['root']+"/usr/lib/syslinux"
-    if location == 'mbr':
-        if partition_table_type == 'DOS':
+    if location == constants.BOOT_LOCATION_MBR:
+        if partition_table_type == constants.PARTITION_DOS:
             mbr = base_dir + "/mbr.bin"
-        elif partition_table_type == 'GPT':
+        elif partition_table_type == constants.PARTITION_GPT:
             mbr = base_dir + "/gptmbr.bin"
         else:
             raise Exception("Only DOS and GPT partition tables supported")

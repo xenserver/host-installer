@@ -287,9 +287,9 @@ class Answerfile:
         if len(keymap_nodes) == 1:
             location = keymap_nodes[0].getAttribute("location").lower()
             if location == 'partition':
-                results['bootloader-location'] = 'partition'
+                results['bootloader-location'] = constants.BOOT_LOCATION_PARTITION
             elif location in [ 'mbr', '' ]:
-                results['bootloader-location'] = 'mbr'
+                results['bootloader-location'] = constants.BOOT_LOCATION_MBR
             else:
                 xelogging.log("Unknown bootloader location %s specified in answer file" % location)
         else:
