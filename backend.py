@@ -109,7 +109,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'zap-utility-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if ans['install-type'] == INSTALL_TYPE_FRESH:
@@ -283,31 +283,29 @@ def performInstallation(answers, ui_package, interactive):
     xelogging.log("SCRIPTS DICTIONARY:")
     prettyLogAnswers(scripts.script_dict)
 
+    defaults = { 'branding': {} }
+
     # update the settings:
-    if answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
-        if answers['preserve-settings'] == True:
-            xelogging.log("Updating answers dictionary based on existing installation")
-            answers.update(answers['installation-to-overwrite'].readSettings())
-            xelogging.log("UPDATED ANSWERS DICTIONARY:")
-            prettyLogAnswers(answers)
-        else:
-            # still need to have same keys present in the reinstall (non upgrade)
-            # case, but we'll set them to None:
-            answers['preserved-license-data'] = None
+    if answers['preserve-settings'] == True:
+        defaults.update({ 'guest-disks': [] })
 
-        # we require guest-disks to always be present, but it is not used other than
-        # for status reporting when doing a re-install, so set it to empty rather than
-        # trying to guess what the correct value should be.
-        answers['guest-disks'] = []
+        xelogging.log("Updating answers dictionary based on existing installation")
+        answers.update(answers['installation-to-overwrite'].readSettings())
     else:
-        if not answers.has_key('sr-type'):
-            answers['sr-type'] = constants.SR_TYPE_LVM
+        defaults.update({ 'master': None, 'xen-cpuid-masks': [], 
+                          'sr-type': constants.SR_TYPE_LVM, 
+                          'bootloader-location': constants.BOOT_LOCATION_MBR,
+                          'initial-partitions': [], 
+                          'preserve-first-partition': 'if-utility', 
+                          'sr-at-end': True })
 
-    if not answers.has_key('bootloader-location'):
-        answers['bootloader-location'] = 'mbr'
+        xelogging.log("Updating answers dictionary based on defaults")
 
-    if 'xen-cpuid-masks' not in answers:
-        answers['xen-cpuid-masks'] = []
+    for k, v in defaults.items():
+        if k not in answers:
+            answers[k] = v
+    xelogging.log("UPDATED ANSWERS DICTIONARY:")
+    prettyLogAnswers(answers)
 
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
@@ -315,19 +313,6 @@ def performInstallation(answers, ui_package, interactive):
     if not answers.has_key('net-admin-bridge'):
         assert answers['net-admin-interface'].startswith("eth")
         answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
-
-    if 'initial-partitions' not in answers:
-        answers['initial-partitions'] = []
-
-    if 'sr-at-end' not in answers:
-        answers['sr-at-end'] = True
-
-    if 'preserve-first-partition' not in answers:
-        answers['preserve-first-partition'] = False
- 
-    if 'master' not in answers:
-        answers['master'] = None
-    answers['branding'] = {}
  
     # perform installation:
     prep_seq = getPrepSequence(answers, interactive)
@@ -466,7 +451,7 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 
-def inspectTargetDisk(disk, existing, initial_partitions, zap_utility_partitions ,preserve_first_partition):
+def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition):
     
     if existing:
         # upgrade, use existing partitioning scheme
@@ -486,9 +471,9 @@ def inspectTargetDisk(disk, existing, initial_partitions, zap_utility_partitions
 
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
-    if preserve_first_partition:
+    if preserve_first_partition == 'true':
         primary_part += 1
-    elif not zap_utility_partitions:
+    elif preserve_first_partition == constants.PRESERVE_IF_UTILITY:
         utilparts = tool.utilityPartitions()
         primary_part += max(utilparts+[0])
         if primary_part > 2:
