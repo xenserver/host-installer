@@ -114,14 +114,10 @@ class Answerfile:
         # depreciated formats
         nodes = getElementsByTagName(self.top_node, ['post-install-script'])
         if len(nodes) == 1:
-            stype = getStrAttribute(nodes[0], ['type'], mandatory = True).lower()
-            script = buildURL(stype, getText(nodes[0]))
-            scripts.add_script('filesystem-populated', script)
+            scripts.add_script('filesystem-populated', getText(nodes[0]))
         nodes = getElementsByTagName(self.top_node, ['install-failed-script'])
         if len(nodes) == 1:
-            stype = getStrAttribute(nodes[0], ['type'], mandatory = True).lower()
-            script = buildURL(stype, getText(nodes[0]))
-            scripts.add_script('installation-complete', script)
+            scripts.add_script('installation-complete', getText(nodes[0]))
         return {}
 
     def parseFreshInstall(self):
