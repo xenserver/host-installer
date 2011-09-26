@@ -36,6 +36,9 @@ PARTITION_GPT = "GPT"
 BOOT_LOCATION_MBR = "mbr"
 BOOT_LOCATION_PARTITION = "partition"
 
+# first partition preservation:
+PRESERVE_IF_UTILITY = "if-utility"
+
 # network backend types:
 NETWORK_BACKEND_BRIDGE = "bridge"
 NETWORK_BACKEND_VSWITCH = "openvswitch"
