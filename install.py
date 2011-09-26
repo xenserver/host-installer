@@ -122,7 +122,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         a = None
         if answerfile_address:
-            a = answerfile.Answerfile(answerfile_address)
+            a = answerfile.Answerfile.fetch(answerfile_address)
         elif answerfile_script:
             a = answerfile.Answerfile.generate(answerfile_script)
         if a:
