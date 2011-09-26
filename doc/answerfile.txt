@@ -115,7 +115,8 @@ Common Elements
     Create primary partitions before installation. Used by XenRT to
     test preservation of Dell utility partitions.
 
-  <zap-utility-partitions/>?
+
+  <zap-utility-partitions/>?[D]
 
     Used by Dell factory install to destroy utility partitions to
     allow GPT to be used.
@@ -127,7 +128,8 @@ Common Elements
 
     Optional attributes:
 
-      gueststorage=bool
+      guest-storage=bool
+      gueststorage=bool[D]
 
         Include the remaining space of the primary disk in the local SR.
 
@@ -140,11 +142,18 @@ Common Elements
 
         Default: True
 
-      preserve-first-partition=bool
+      preserve-first-partition="true|yes|false|no|if-utility"
 
-        Used by NetScaler to unconditionally preserve
+        Defines the action to perform on detecting a non-XS partition
+	at the start of the disk.
 
-        Default: False
+	  true|yes - Unconditionally preserve
+
+	  false|no - Unconditionally destroy
+
+	  if-utility - Preserve if ID == 0xDE
+
+        Default: if-utility
 
 
   <guest-disks>
@@ -165,9 +174,11 @@ Common Elements
     If the interface is static then the following elements must be
     present:
 
-      <ip>ip</ip>
+      <ipaddr>ip</ipaddr>
+      <ip>ip</ip>[D]
 
-      <subnet-mask>subnet</subnet-mask>
+      <subnet>subnet</subnet>
+      <subnet-mask>subnet</subnet-mask>[D]
 
       <gateway>gw</gateway>
 
@@ -180,7 +191,8 @@ Common Elements
     Default: type="hash", !!
 
 
-  <nameserver>ip</nameserver>*
+  <name-server>ip</name-server>*
+  <nameserver>ip</nameserver>*[D]
 
     Specifies one or more DNS entries.
 
@@ -197,7 +209,8 @@ Common Elements
     Specifies the timezone (region/city)
 
 
-  <ntp-servers>ntp</ntp-servers>*
+  <ntp-server>ntp</ntp-server>*
+  <ntp-servers>ntp</ntp-servers>*[D]
 
     Specifies one or more NTP servers.
 
@@ -212,7 +225,8 @@ Common Elements
 (Re)Install Attributes
 ----------------------
 
-  <installation srtype="lvm|ext"?>
+  <installation sr-type="lvm|ext"?>
+  <installation srtype="lvm|ext"?>[D]
 
     Local SR type.
 
