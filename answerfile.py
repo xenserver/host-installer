@@ -327,11 +327,11 @@ class Answerfile:
         if if_name and if_name in nethw:
             if_hwaddr = nethw[if_name].hwaddr
         else:
-            if_hwaddr = getStrAttribute(node, ['name'])
+            if_hwaddr = getStrAttribute(node, ['hwaddr'])
             if if_hwaddr:
                 matching_list = filter(lambda x: x.hwaddr == if_hwaddr.lower(), nethw.values())
-            if len(matching_list) == 1:
-                if_name = matching_list[0].name
+                if len(matching_list) == 1:
+                    if_name = matching_list[0].name
         if not if_name and not if_hwaddr:
              raise AnswerfileException, "<admin-interface> tag must have one of 'name' or 'hwaddr'"
 
