@@ -58,7 +58,7 @@ start()
   	    fssize=`df -k /tmp/src | sed -ne 's#^/[^ ]\+ \+[0-9]\+ \+\([0-9]\+\).*#\1#p'`
 	  fi
 	  mkdir /tmp/ramdisk
-	  mount -t tmpfs -o size=$((fssize+1000))k tmpfs /tmp/ramdisk
+	  mount -t tmpfs -o size=$((fssize+2000))k tmpfs /tmp/ramdisk
           if [ -d /tmp/src/xsinst ]; then
 	    # ISO mode. Iterate through ISOs in the xsinst directory
 	    # unpacking each one to the ramdisk
