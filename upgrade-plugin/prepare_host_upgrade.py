@@ -70,11 +70,14 @@ def gen_answerfile(installer_dir, url):
                 break
         f.close()
     except:
+        logger.error("Failed to read inventory")
         return False
     if not root_device:
+        logger.error("Failed to determine root disk")
         return False
 
     if not os.path.exists(root_device):
+        logger.error("Root disk %s not found" % root_disk)
         return False
 
     try:
@@ -86,8 +89,10 @@ def gen_answerfile(installer_dir, url):
             v, _ = line.split(None, 1)
             root_label = v[6:]
     except:
+        logger.error("Failed to read fstab")
         return False
     if not root_label:
+        logger.error("Failed to determine root label")
         return False
 
     logger.debug("Root device: "+root_device)
@@ -209,6 +214,7 @@ def set_boot_config(installer_dir, url):
                     break
             fh.close()
             if not dev:
+                logger.error("Unable to locate name for %d:%d" % (major, minor))
                 return False
             dev = '/dev/' + dev
 
@@ -224,6 +230,7 @@ def set_boot_config(installer_dir, url):
                     break
             fh.close()
             if not mnt:
+                logger.error("Unable to locate mount point for " + dev)
                 return False
 
             kernel_args.append("mount=%s:%s:%s" % (dev, fs, mnt))
@@ -236,6 +243,7 @@ def set_boot_config(installer_dir, url):
         logger.info("Writing updated bootloader config")
         config.commit()
     except:
+        logger.error("Failed to set up bootloader")
         return False
 
     return True
