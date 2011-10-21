@@ -1079,6 +1079,8 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
     nfd.write("NETWORKING=yes\n")
+    nfd.write("NETWORKING_IPv6=yes\n")
+    nfd.write("IPV6_AUTOCONF=no\n")
     if manual_hostname:
         nfd.write("HOSTNAME=%s\n" % hostname)
     else:
