@@ -233,6 +233,9 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [{'dir': '/etc/sysconfig/network-scripts/interface-rename-data'}]
         self.restore_list += [{'dir': '/etc/sysconfig/network-scripts/interface-rename-data/.from_install'}]
 
+        # CA-67890: preserve root's ssh state
+        self.restore_list += [{'dir': '/root/.ssh'}]
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
