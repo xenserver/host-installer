@@ -31,6 +31,8 @@ def test_boot_files(accessor):
         try:
             logger.info("Testing "+f)
             done = accessor.access(f)
+            if done:
+                logger.info("    success")
         except Exception, e:
             logger.error(str(e))
             done = False
@@ -258,10 +260,10 @@ def test_repo(url):
         a = accessor.createAccessor(url, True)
         if not test_boot_files(a):
             return TEST_URL_INVALID
+        repos = repository.Repository.findRepositories(a)
     except Exception, e:
         logger.error(str(e))
         return TEST_URL_INVALID
-    repos = repository.Repository.findRepositories(a)
     if len(repos) == 0:
         return TEST_URL_INVALID
 
