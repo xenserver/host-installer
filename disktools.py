@@ -917,7 +917,7 @@ class GPTPartitionTool(PartitionToolBase):
             return {}
         matchWarning   = re.compile('Found invalid GPT and valid MBR; converting MBR to GPT format.')
         matchHeader    = re.compile('Number\s+Start \(sector\)\s+End \(sector\)\s+Size\s+Code\s+Name')
-        matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})\s+(\w.*)?$') # num start end sz typecode name
+        matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})(\s+(.*))?$') # num start end sz typecode name
         matchActive    = re.compile('.*\(legacy BIOS bootable\)')
         matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
         partitions = {}
