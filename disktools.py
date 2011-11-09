@@ -711,7 +711,8 @@ class DOSPartitionTool(PartitionToolBase):
     ID_LINUX = 0x83
     ID_LINUX_LVM = 0x8e
     ID_DELL_UTILITY = 0xde
-    
+    ID_EFI_BOOT = 0xef
+
     SFDISK = '/sbin/sfdisk'
     partTableType = constants.PARTITION_DOS
 
@@ -889,6 +890,7 @@ class GPTPartitionTool(PartitionToolBase):
     ID_LINUX        = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
     ID_LINUX_LVM    = "E6D6D379-F507-44C2-A23C-238F2A3DF928"
     ID_DELL_UTILITY = "TODOFIND-OUTF-ROMD-ELLW-HATTOPUTHERE"
+    ID_EFI_BOOT     = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     
     # Lookup used for creating partitions
     GUID_to_type_code = {
@@ -897,6 +899,7 @@ class GPTPartitionTool(PartitionToolBase):
         ID_LINUX_LVM:    '8e00',
 #       We don't have a DELL TC but we should never need to create a DELL partition
 #       ID_DELL_UTILITY: = ????
+        ID_EFI_BOOT:     'ef00',
         }
 
     SGDISK = '/sbin/sgdisk'
