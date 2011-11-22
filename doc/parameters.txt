@@ -57,6 +57,17 @@ Startup
     set TERM.
 
 
+  atexit=reboot|shell
+
+    Action to perform when installer exits. (new in 6.1)
+
+      reboot - reboot system
+
+      shell - drop to shell
+
+    Default: reboot
+
+
 Installer
 ---------
 

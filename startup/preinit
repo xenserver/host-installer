@@ -24,6 +24,7 @@ console=tty0
 term=vt102
 interactive=1
 bash_shell=0
+atexit=reboot
 OLDIFS="$IFS"
 IFS="
 "
@@ -39,8 +40,11 @@ for arg in $args; do
       console=${arg#console=};;
     term=*)
       term=${arg#term=};;
-    bash-shell)
+    bash-shell | shell)
       bash_shell=1
+      copy=0;;
+    atexit=*)
+      atexit=${arg#atexit=}
       copy=0;;
     blacklist=* | enable-ide | extramodules=* | make-ramdisk=*)
       copy=0;;
@@ -86,4 +90,6 @@ if [ $started_by_init -eq 1 ]; then
   fi
 fi
 
-/opt/xensource/installer/init "$@" --reboot
+[ $atexit = reboot ] && extra_args=--reboot
+/opt/xensource/installer/init "$@" $extra_args
+[ $atexit = shell ] && IFS="$OLDIFS" /bin/bash
