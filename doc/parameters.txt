@@ -1,6 +1,9 @@
 Commandline Parameters
 ======================
 
+All parameters are optional unless otherwise specified.
+
+
 Startup
 -------
 
@@ -119,35 +122,41 @@ Installer
     Reboot host after installation
 
 
-  --device_mapper_multipath=disabled|enabled?
+  --device_mapper_multipath=disabled|enabled
 
     Default: disabled
 
 
-  --use_ibft?
+  --use_ibft
 
     Read IBFT to determine iSCSI boot configuration.
 
 
-  --boot_console=
+  --boot_console=con
 
-  --console=
+    Use con as the console for XenServer rather than that specified by
+    --console.
 
-  --keymap=kbd?
+
+  --keymap=kbd
 
     Specifies the console keymap.
 
     Default: us
 
 
-  --extrarepo=repo?
+  --extrarepo=repo*
 
-  --onecd?
+    Install repo in addition to repositories defined by answerfile
+    etc.
+
+
+  --onecd
 
     Do not prompt for additional media.
 
 
-  --disable-gpt?
+  --disable-gpt
 
     Revert to DOS partitioning for clean installs.
 
