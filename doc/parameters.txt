@@ -57,6 +57,11 @@ Startup
     set TERM.
 
 
+  bash-shell|shell
+
+   Start a shell before running the installer.
+
+
   atexit=reboot|shell
 
     Action to perform when installer exits. (new in 6.1)
@@ -93,7 +98,7 @@ Installer
     Run script and use the output of it as an answerfile.
 
 
-  --answerfile_device[D]=eth|mac|all | network_device=eth|mac|all
+  --answerfile_device[D]=eth|mac|all | --network_device=eth|mac|all
 
     Bring up networking on the given interface to allow access to
     answerfiles.
