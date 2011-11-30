@@ -45,11 +45,11 @@ $(PYTHON_LIBS_INSTALLED_STAMP): $(PYTHON_LIBS_RPM)
 	touch $@
 
 $(INIT_CREATED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
-	ln $(INSTALLER_FILESYSTEM)/bin/busybox $(INSTALLER_FILESYSTEM)/init
+	ln -f $(INSTALLER_FILESYSTEM)/bin/busybox $(INSTALLER_FILESYSTEM)/init
 	touch $@
 
 $(PROC_ADDED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
-	mkdir $(INSTALLER_FILESYSTEM)/proc
+	mkdir -p $(INSTALLER_FILESYSTEM)/proc
 	mkdir -p $(INSTALLER_FILESYSTEM)/lib/firmware
 	mkdir -p $(INSTALLER_FILESYSTEM)/{var/lib,var/lock,var/log,var/run}
 	mkdir -p $(INSTALLER_FILESYSTEM)/tmp/lvm
