@@ -75,6 +75,9 @@ Startup
 
     Default: reboot
 
+  sshpassword=<password>
+
+    Start the dropbear ssh server with the root password set as requested
 
 Installer
 ---------
