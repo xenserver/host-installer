@@ -88,8 +88,9 @@ MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 # Change this to True to enable GPT partitioning instead of DOS partitioning
 GPT_SUPPORT = True
 
+XEN_MEM=1024 #GB
 DOM0_VCPUS=4
-DOM0_MEM=752
+DOM0_MEM=752 #MB
 
 # filesystems and partitions (sizes in MB):
 root_size = 4096
