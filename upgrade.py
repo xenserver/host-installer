@@ -171,7 +171,7 @@ class ThirdGenUpgrader(Upgrader):
                               [ os.path.join(primary_fs.mount_point, x) ] + \
                               ['%s/' % backup_fs.mount_point]
                         if util.runCmd2(cmd) != 0:
-                            raise RuntimeError, "Backup of %d directory failed" % x
+                            raise RuntimeError, "Backup of %s directory failed" % x
                     val += 90 / len(top_dirs)
                     progress_callback(val)
             finally:
