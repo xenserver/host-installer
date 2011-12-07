@@ -1155,6 +1155,10 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
        inv.write("PRODUCT_NAME='%s'\n" % PRODUCT_NAME)
     if 'product-version' in branding:
        inv.write("PRODUCT_VERSION='%s'\n" % branding['product-version'])
+    if PRODUCT_VERSION_TEXT:
+       inv.write("PRODUCT_VERSION_TEXT='%s'\n" % PRODUCT_VERSION_TEXT)
+    if PRODUCT_VERSION_TEXT_SHORT:
+       inv.write("PRODUCT_VERSION_TEXT_SHORT='%s'\n" % PRODUCT_VERSION_TEXT_SHORT)
     if COMPANY_NAME:
        inv.write("COMPANY_NAME='%s'\n" % COMPANY_NAME)
     if COMPANY_NAME_SHORT:
