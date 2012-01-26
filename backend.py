@@ -733,7 +733,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
     kernel_console_params = "xencons=hvc console=hvc0"
 
     e = bootloader.MenuEntry("/boot/xen.gz",
-                             common_xen_params+" "+xen_mem_params+mask_params+" console= vga=mode-0x0311",
+                             common_xen_params+" "+xen_mem_params+mask_params+" console=none vga=mode-0x0311",
                              "/boot/vmlinuz-2.6-xen",
                              common_kernel_params+" "+kernel_console_params+" console=tty0 quiet vga=785 splash",
                              "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND)
