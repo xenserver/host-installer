@@ -33,6 +33,8 @@ def test_boot_files(accessor):
             done = accessor.access(f)
             if done:
                 logger.info("    success")
+            else:
+                logger.error("    failed")
         except Exception, e:
             logger.error(str(e))
             done = False
