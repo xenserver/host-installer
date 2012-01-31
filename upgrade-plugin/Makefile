@@ -9,7 +9,7 @@ include $(B_BASE)/rpmbuild.mk
 $(MY_OBJ_DIR)/version.inc:
 	$(version-makefile) > $@
 	$(call hg_cset_number,$(REPONAME)) >> $@
-	echo UPGRADE_PLUGIN_VERSION := \$$\(PRODUCT_VERSION\) >> $@
+	echo UPGRADE_PLUGIN_VERSION := \$$\(PLATFORM_VERSION\) >> $@
 	echo UPGRADE_PLUGIN_RELEASE := xs\$$\(CSET_NUMBER\) >> $@
 
 UPGRADE_PLUGIN_SOURCES := $(wildcard *.py)
