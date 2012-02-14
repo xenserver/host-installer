@@ -38,7 +38,7 @@ def getText(nodelist):
     for node in nodelist:
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
-    return rc.encode()
+    return rc.encode().strip()
 
 class NoRepository(Exception):
     pass
