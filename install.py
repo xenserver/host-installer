@@ -70,6 +70,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'boot-serial': False,
         'extra-repos': [],
         'network-backend': constants.NETWORK_BACKEND_DEFAULT,
+        'root-password': ('pwdhash', '!!'),
         }
     suppress_extra_cd_dialog = False
     serial_console = None
