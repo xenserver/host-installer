@@ -29,7 +29,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     assert disk.startswith('/dev/')
 
     label = None
-    primary_partnum, _, __ = backend.inspectTargetDisk(disk, None, [], False)
+    primary_partnum, _, __ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY)
     restore_partition = partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
