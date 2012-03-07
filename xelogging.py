@@ -19,43 +19,21 @@ import datetime
 import traceback
 import constants
 
-continuous_logs = []
-__log__ = ""
+import xcp.logger as logger
 
-def log(txt):
-    """ Write txt to the log. """
 
-    global __log__
+# These hacks^H fixes are to allow the installer to use the new logging
+# facilities in xcp.logger without makeing sweaping changes to the source
+# code.  Newer functionality should reference xcp.logger directly
+THIS = sys.modules[__name__]
 
-    prefix = '[%s]' % str(datetime.datetime.now().replace(microsecond=0))
+_this_keys = frozenset(THIS.__dict__.keys())
+THIS.__dict__.update(
+    dict( (k, v) for (k, v) in logger.__dict__.iteritems()
+          if k not in _this_keys ))
 
-    txt = "%s %s\n" % (prefix, txt)
-    __log__ += txt
+THIS.__dict__["log_exception"] = THIS.__dict__["logException"]
 
-    for fd in continuous_logs:
-        fd.write(txt)
-        fd.flush()
-
-def log_exception(e):
-    """ Formats exception and logs it """
-    ex = sys.exc_info()
-    err = traceback.format_exception(*ex)
-    errmsg = "\n".join([ str(x) for x in e.args ])
-
-    # print the exception args nicely
-    log(errmsg)
-
-    # now print the traceback
-    for exline in err:
-        log(exline)
-
-def writeLog(destination):
-    """ Write the log as it stands to 'destination'. """
-    global __log__
-    
-    dfd = open(destination, "w")
-    dfd.write(__log__)
-    dfd.close()
 
 def collectLogs(dst, tarball_dir = None):
     """ Make a support tarball including all logs (and some more) from 'dst'."""
@@ -89,31 +67,8 @@ def collectLogs(dst, tarball_dir = None):
         # tar up contents
         os.system("tar -C %s -cjf %s/support.tar.bz2 %s" % (dst, tarball_dir, logs))
 
-def openLog(lfile):
-    if hasattr(lfile, 'name'):
-        # file object
-        continuous_logs.append(lfile)
-    else:
-        try:
-            f = open(lfile, 'w', 1)
-            continuous_logs.append(f)
-            # set close-on-exec
-            old = fcntl.fcntl(f.fileno(), fcntl.F_GETFD)
-            fcntl.fcntl(f.fileno(), fcntl.F_SETFD, old | fcntl.FD_CLOEXEC)
-        except:
-            log("Error opening %s as a log output." % lfile)
-            return False
-    return True
-
-def closeLogs():
-    for fd in continuous_logs:
-        if not fd.name.startswith('<'):
-            fd.close()
-
-
 def main():
     collectLogs("/tmp")
-    
+
 if __name__ == "__main__":
     main()
- 
