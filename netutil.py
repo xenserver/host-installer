@@ -16,8 +16,8 @@ import util
 import re
 import subprocess
 import time
-from xcp.biosdevname import BiosDevName
 import xelogging
+from xcp.net.biosdevname import all_devices_all_names
 
 class NIC:
     def __init__(self, nic_dict):
@@ -34,7 +34,7 @@ class NIC:
 def scanConfiguration():
     """ Returns a dictionary of string -> NIC with a snapshot of the NIC
     configuration.
-    
+
     Filter out any NICs that have been reserved by the iBFT for use
     with boot time iSCSI targets.  (iBFT = iSCSI Boot Firmware Tables.)
     This is because we cannot use NICs that are used to access iSCSI
@@ -43,14 +43,11 @@ def scanConfiguration():
     conf = {}
     nics = []
 
-    bdn = BiosDevName()
-    bdn.run()
-
     for nif in getNetifList():
         if nif not in diskutil.ibft_reserved_nics:
             nics.append(nif)
 
-    for nic in bdn.devices:
+    for nic in all_devices_all_names().values():
         name = nic.get("Kernel name", "")
         if name in nics:
             conf[name] = NIC(nic)
@@ -243,21 +240,23 @@ class NetDevices:
 
 ### EA-1069
 
-srules = []
-drules = []
+import xcp.logger as LOG
+from xcp.pci import VALID_SBDF
+from xcp.net.mac import VALID_COLON_MAC
+from xcp.net.ip import ip_link_set_name
+from xcp.net.ifrename.logic import rename, VALID_ETH_NAME
+from xcp.net.ifrename.macpci import MACPCI
+from xcp.net.ifrename.static import StaticRules
+from xcp.net.ifrename.dynamic import DynamicRules
+from xcp.net.ifrename.util import niceformat
 
-RX_ETH = re.compile(r"^eth\d+$")
-RX_MAC = re.compile(r"^(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$")
-RX_PCI = re.compile(r"^0000:[\da-fA-F]{2}:[\da-fA-F]{2}\.[\da-fA-F]$")
-RX_PPN = re.compile(r"^em\d+|pci\d+p\d+$")
+static_rules = StaticRules()
+dynamic_rules = DynamicRules()
 
-DEV_STATIC  = 0
-DEV_DYNAMIC = 1
-
-METH_MAC    = 0
-METH_PCI    = 1
-METH_PPN    = 2
-METH_LABEL  = 3
+RX_ETH = VALID_ETH_NAME
+RX_MAC = VALID_COLON_MAC
+RX_PCI = VALID_SBDF
+RX_PPN = re.compile(r"^(?:em\d+|pci\d+p\d+)$")
 
 def parse_arg(arg):
     """
@@ -270,203 +269,117 @@ def parse_arg(arg):
     split = arg.split(":", 2)
 
     if len(split) != 3:
-        xelogging.log("Invalid device mapping '%s' - Ignoring" % arg)
-        return None
+        LOG.warning("Invalid device mapping '%s' - Ignoring" % (arg,))
+        return
 
     eth, sd, val = split
 
     if RX_ETH.match(eth) is None:
-        xelogging.log("'%s' is not a valid device name - Ignoring" % eth)
-        return None
+        LOG.warning("'%s' is not a valid device name - Ignoring" % (eth,))
+        return
 
     if sd not in ['s', 'd']:
-        xelogging.log("'%s' is not valid to distinguish between static/dynamic rules" % sd)
-        return None
+        LOG.warning("'%s' is not valid to distinguish between static/dynamic rules" % (sd,))
+        return
     else:
         if sd == 's':
-            sd = DEV_STATIC
+            formulae = static_rules.formulae
         else:
-            sd = DEV_DYNAMIC
+            formulae = dynamic_rules.formulae
 
-    if len(val) < 3:
-        xelogging.log("'%s' is not a valid mapping target - Ignoring" % val)
-        return None
+    if len(val) < 2:
+        LOG.warning("'%s' is not a valid mapping target - Ignoring" % (val,))
+        return
 
     if val[0] == '"' and val[-1] == '"':
-        return (eth, sd, METH_LABEL, val[1:-1])
+        formulae[eth] = ('label', val[1:-1])
     elif RX_MAC.match(val) is not None:
-        return (eth, sd, METH_MAC, val.lower())
+        formulae[eth] = ('mac', val.lower())
     elif RX_PCI.match(val) is not None:
-        return (eth, sd, METH_PCI, val.lower())
+        formulae[eth] = ('pci', val.lower())
     elif RX_PPN.match(val) is not None:
-        return (eth, sd, METH_PPN, val)
+        formulae[eth] = ('ppn', val.lower())
     else:
-        xelogging.log("'%s' is not a recognised mapping target - Ignoring" % val)
-        return None
+        LOG.warning("'%s' is not a recognised mapping target - Ignoring" % (val,))
+
 
 def remap_netdevs(remap_list):
 
-    # rename everything sideways to safe faffing with temp renanes
-    for x in ( x for x in os.listdir("/sys/class/net/") if x[:3] == "eth" ):
-        util.runCmd2(['ip', 'link', 'set', x, 'name', 'side-'+x])
+    # # rename everything sideways to safe faffing with temp renanes
+    # for x in ( x for x in os.listdir("/sys/class/net/") if x[:3] == "eth" ):
+    #     util.runCmd2(['ip', 'link', 'set', x, 'name', 'side-'+x])
 
-    bdn = BiosDevName()
-    bdn.run(policy="physical")
-    all_devices = bdn.devices[:]
+    for cmd in remap_list:
+        parse_arg(cmd)
 
-    parsed_list = filter(lambda x: x is not None, map(parse_arg, remap_list))
+        # Grab the current state from biosdevname
+    current_eths = all_devices_all_names()
+    current_state = []
 
-    # python sorting is stable so the following results in sorted by
-    # static/dynamic, then subsorted by ethname
-    parsed_list.sort(key=lambda x: x[0])
-    parsed_list.sort(key=lambda x: x[1])
+    for nic in current_eths.keys():
+        eth = current_eths[nic]
 
-    for rule in parsed_list:
+        if not ( "BIOS device" in eth and
+                 "Kernel name" in eth and
+                 "Assigned MAC" in eth and
+                 "Bus Info" in eth and
+                 "all_ethN" in eth["BIOS device"] and
+                 "physical" in eth["BIOS device"]
+                  ):
+            LOG.error("Interface information for '%s' from biosdevname is "
+                      "incomplete; Discarding."
+                      % (eth.get("Kernel name", "Unknown"),))
 
-        target, sd, method, val = rule
+        try:
+            current_state.append(
+                MACPCI(eth["Assigned MAC"],
+                       eth["Bus Info"],
+                       kname = eth["Kernel name"],
+                       order = int(eth["BIOS device"]["all_ethN"][3:]),
+                       ppn = eth["BIOS device"]["physical"],
+                       label = eth.get("SMBIOS Label", "")
+                       ))
+        except Exception, e:
+            LOG.error("Can't generate current state for interface '%s' - "
+                      "%s" % (eth, e))
+    current_state.sort()
 
-        # If the rule specifies an SMBios Label
-        if method == METH_LABEL:
+    LOG.debug("Current state = %s" % (niceformat(current_state),))
 
-            dev = None
-            for d in bdn.devices:
-                if 'SMBIOS Label' in d and d['SMBIOS Label'] == val:
-                    dev = d
-                    break
-            if dev is None:
-                xelogging.log("No SMBios Label found for %s rule - Discarding"
-                              % target)
-                continue
-            else:
-                bdn.devices.remove(dev)
+    static_rules.generate(current_state)
+    dynamic_rules.generate(current_state)
 
-            if sd == DEV_STATIC:
-                srules.append('%s: label="%s"' % (target, val))
-            else:
-                drules.append([dev['Assigned MAC'].lower(),
-                               dev['Bus Info'].lower(),
-                               target])
-            xelogging.log("Renaming '%s' to '%s' due to SMBIOS Label" %
-                          ( dev['Kernel name'], target ))
-            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
-                          'name', target])
+    static_eths = [ x.tname for x in static_rules.rules ]
+    last_boot = [ x for x in dynamic_rules.rules if x.tname not in static_eths ]
 
-        elif method == METH_MAC:
+    LOG.debug("StaticRules Formulae = %s" %(niceformat(static_rules.formulae),))
+    LOG.debug("StaticRules Rules = %s" %(niceformat(static_rules.rules),))
+    LOG.debug("DynamicRules Lastboot = %s" % (niceformat(dynamic_rules.lastboot),))
+    LOG.debug("DynamicRules Old = %s" % (niceformat(dynamic_rules.old),))
 
-            dev = None
-            for d in bdn.devices:
-                if d['Assigned MAC'].lower() == val:
-                    dev = d
-                    break
-            if dev is None:
-                xelogging.log("No device with mac address '%s' found for %s "
-                              "rule - Discarding" % (val, target))
-                continue
-            else:
-                bdn.devices.remove(dev)
+    # Invoke the renaming logic
+    try:
+        transactions = rename(static_rules = static_rules.rules,
+                              cur_state = current_state,
+                              last_state = dynamic_rules.lastboot,
+                              old_state = dynamic_rules.old)
+    except Exception, e:
+        LOG.critical("Problem from rename logic: %s.  Giving up" % (e,))
+        return
 
-            if sd == DEV_STATIC:
-                srules.append('%s: mac="%s"' % (target, val))
-            else:
-                drules.append([val, dev['Bus Info'].lower(), target])
-
-            xelogging.log("Renaming '%s' to '%s' due to MAC address" %
-                          ( dev['Kernel name'], target ))
-            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
-                          'name', target])
-
-        elif method == METH_PCI:
-
-            dev = None
-            for d in bdn.devices:
-                if d['Bus Info'].lower() == val:
-                    dev = d
-                    break
-            if dev is None:
-                xelogging.log("No device with pci address '%s' found for %s "
-                              "rule - Discarding" % (val, target))
-                continue
-            else:
-                bdn.devices.remove(dev)
-
-            if sd == DEV_STATIC:
-                srules.append('%s: pci="%s"' % (target, val))
-            else:
-                drules.append([dev['Assigned MAC'].lower(),
-                               val, target])
-
-            xelogging.log("Renaming '%s' to '%s' due to PCI mapping" %
-                          ( dev['Kernel name'], target ))
-            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
-                          'name', target])
-
-        elif method == METH_PPN:
-
-            dev = None
-            for d in bdn.devices:
-                if d['BIOS device'] == val:
-                    dev = d
-                    break
-            if dev is None:
-                xelogging.log("No device with physical address '%s' found for "
-                              "%s rule - Discarding" % (val, target))
-                continue
-            else:
-                bdn.devices.remove(dev)
-
-            if sd == DEV_STATIC:
-                srules.append('%s: ppn="%s"' % (target, val))
-            else:
-                drules.append([dev['Assigned MAC'].lower(),
-                               dev['Bus Info'].lower(),
-                               target])
-
-            xelogging.log("Renaming '%s' to '%s' due to Physical name" %
-                          ( dev['Kernel name'], target ))
-            util.runCmd2(['ip', 'link', 'set', dev['Kernel name'],
-                          'name', target])
-        else:
-            xelogging.log("Unrecognised method - Ignoring")
+    # Apply transactions, or explicitly state that there are none
+    if len (transactions):
+        for src, dst in transactions:
+            ip_link_set_name(src, dst)
+    else:
+        LOG.info("No transactions.  No need to rename any nics")
 
 
-    side_devs = [ x for x in os.listdir("/sys/class/net") if x[:5] == "side-" ]
-    side_devs.sort(key=lambda x: int(x[8:]))
+    # Regenerate dynamic configuration
+    def macpci_as_list(x):
+        return [str(x.mac), str(x.pci), x.tname]
 
-    if len(side_devs):
-        xelogging.log("Renaming devices which have not been displaced by mapping rules")
-    for x in side_devs:
-        if not os.path.exists("/sys/class/net/"+x[5:]):
-            for dev in all_devices:
-                if dev['Kernel name'] == x:
-                    drules.append([dev['Assigned MAC'].lower(),
-                                   dev['Bus Info'].lower(),
-                                   x[5:]])
-            util.runCmd2(['ip', 'link', 'set', x, 'name', x[5:]])
+    new_lastboot = map(macpci_as_list, current_state)
+    dynamic_rules.lastboot = new_lastboot
 
-    def gen_free_netdev():
-        x = -1
-        while True:
-            x += 1
-            if not os.path.exists("/sys/class/net/eth%d" % x):
-                yield "eth%d" % x
-    free_netdev = gen_free_netdev()
-
-
-    side_devs = [ x for x in os.listdir("/sys/class/net") if x[:5] == "side-" ]
-    side_devs.sort(key=lambda x: int(x[8:]))
-
-    if len(side_devs):
-        xelogging.log("Reallocating names for devices which have been displaced")
-    for x in side_devs:
-        free_dev = free_netdev.next()
-        for dev in all_devices:
-            if dev['Kernel name'] == x:
-                drules.append([dev['Assigned MAC'].lower(),
-                               dev['Bus Info'].lower(),
-                               free_dev])
-        util.runCmd2(['ip', 'link', 'set', x, 'name', free_dev])
-
-    xelogging.log("All done ordering the network devices")
-
-    xelogging.log("Static rules = %r" % srules)
-    xelogging.log("Dynamic rules = %r" % drules)
+    LOG.info("All done ordering the network devices")
