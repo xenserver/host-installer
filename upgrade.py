@@ -387,7 +387,7 @@ class ThirdGenUpgrader(Upgrader):
 
                 if eth_next:
                     for bdev in devices.values():
-                        if bdev.get('Assigned MAC', None) == past_devs[-1][0] and 'Bus Info' in bdev:
+                        if bdev.get('Assigned MAC', None) == dr.lastboot[-1][0] and 'Bus Info' in bdev:
                             dr.lastboot[-1].extend([bdev['Bus Info'], line])
                             break
                     eth_next = False
