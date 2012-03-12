@@ -724,6 +724,7 @@ def configureKdump(mounts):
 
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks):
     common_xen_params = "mem=%dG dom0_max_vcpus=%d dom0_mem=%dM" % (constants.XEN_MEM, constants.DOM0_VCPUS, constants.DOM0_MEM)
+    common_xen_unsafe_params = "watchdog_timeout=%d" % (constants.XEN_WATCHDOG_TIMEOUT)
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
     mask_params = ' '.join(xen_cpuid_masks)
@@ -733,7 +734,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
     kernel_console_params = "xencons=hvc console=hvc0"
 
     e = bootloader.MenuEntry("/boot/xen.gz",
-                             common_xen_params+" "+xen_mem_params+mask_params+" console=vga vga=mode-0x0311",
+                             common_xen_params+" "+common_xen_unsafe_params+" "+xen_mem_params+mask_params+" console=vga vga=mode-0x0311",
                              "/boot/vmlinuz-2.6-xen",
                              common_kernel_params+" "+kernel_console_params+" console=tty0 quiet vga=785 splash",
                              "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND)
@@ -742,7 +743,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
         
         e = bootloader.MenuEntry("/boot/xen.gz",
-                                 ' '.join([xen_serial_params, common_xen_params, xen_mem_params+mask_params]),
+                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params+mask_params]),
                                  "/boot/vmlinuz-2.6-xen",
                                  common_kernel_params+" console=tty0 "+kernel_console_params,
                                  "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND+" (Serial)")
@@ -754,7 +755,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
     e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
-                             common_xen_params+" "+xen_mem_params+mask_params,
+                             common_xen_params+" "+common_xen_unsafe_params+" "+xen_mem_params+mask_params,
                              "/boot/vmlinuz-%s" % xen_kernel_version,
                              ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              "/boot/initrd-%s.img" % xen_kernel_version, 
@@ -762,7 +763,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
-                                 ' '.join([xen_serial_params, common_xen_params, xen_mem_params+mask_params]),
+                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params+mask_params]),
                                  "/boot/vmlinuz-%s" % xen_kernel_version,
                                  common_kernel_params+" console=tty0 "+kernel_console_params,
                                  "/boot/initrd-%s.img" % xen_kernel_version, 
