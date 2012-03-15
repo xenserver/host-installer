@@ -8,13 +8,17 @@
 
 import logging
 import os
+import re
 import shutil
+import socket
 import sys
 import tempfile
+import urlparse
 import StringIO
 
 import xcp.accessor as accessor
 import xcp.bootloader as bootloader
+import xcp.cmd as cmd
 import xcp.cpiofile as cpiofile
 import xcp.repository as repository
 import xcp.version as version
@@ -154,19 +158,18 @@ def gen_answerfile(installer_dir, url):
 
     return True
 
-def get_mgmt_config():
+def get_iface_config(iface):
     ret = None
 
     session = XenAPI.xapi_local()
     session.xenapi.login_with_password('', '')
-    this_host = session.xenapi.session.get_this_host(session._session)
-    host_record = session.xenapi.host.get_record(this_host)
 
-    for pif in host_record['PIFs']:
-        pif_record = session.xenapi.PIF.get_record(pif)
-        if pif_record['management']:
-            ret = pif_record
-            break
+    for net in session.xenapi.network.get_all_records().values():
+        if net.get('bridge', '') == iface:
+            pifs = net.get('PIFs', [])
+            if len(pifs) > 0:
+                ret = session.xenapi.PIF.get_record(pifs[0])
+                break
         
     session.xenapi.session.logout()
     return ret
@@ -186,9 +189,27 @@ def set_boot_config(installer_dir, url):
         kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
 
-        scheme = url[:url.index('://')]
+        (scheme, host, _, __, ___) = urlparse.urlsplit(url)
         if scheme in ['http', 'nfs', 'ftp']:
-            pif = get_mgmt_config()
+            if ':' in host:
+                host = host[:host.index(':')]
+
+            # determine interface host is accessible over
+            (rc, out) = cmd.runCmd(['ip', 'route', 'get', socket.gethostbyname(host)], 
+                                   with_stdout = True)
+            if rc != 0:
+                logger.error("Unable to resolve IP address of " + host)
+                return False
+            m = re.search(r' dev (\w+) ', out)
+            if not m:
+                logger.error("Unable to determine route to " + host)
+                return False
+            iface = m.group(1)
+            pif = get_iface_config(iface)
+            if not pif:
+                logger.error("Unable to determine configuration of " + iface)
+                return False
+            logger.info("%s accessible via %s (%s)" % (host, iface, pif['device']))
 
             if pif['ip_configuration_mode'] == 'Static':
                 config_str = "static:ip=%s;netmask=%s" % (pif['IP'], pif['netmask'])
@@ -315,7 +336,7 @@ def prepare_host_upgrade(url):
         
     if done:
         # create bootloader entry
-        set_boot_config(installer_dir, url)
+        done = set_boot_config(installer_dir, url)
         
     if not done:
         try:
