@@ -184,7 +184,7 @@ def set_boot_config(installer_dir, url):
         else:
             config.commit(os.path.join(installer_dir, os.path.basename(config.src_file)))
 
-        xen_args = ['dom0_max_vcpus=2', 'dom0_mem=752M']
+        xen_args = ['dom0_max_vcpus=2', 'dom0_mem=752M,max:752M']
         xen_args.extend(filter(lambda x: x.startswith('com') or x.startswith('console='), default.hypervisor_args.split()))
         kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
