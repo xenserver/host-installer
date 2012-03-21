@@ -29,6 +29,7 @@ class NetInterface:
 
     Static = 1
     DHCP = 2
+    Autoconf = 3
 
     def __init__(self, mode, hwaddr, ipaddr=None, netmask=None, gateway=None, dns=None, domain=None):
         assert mode == None or mode == self.Static or mode == self.DHCP
@@ -61,15 +62,35 @@ class NetInterface:
             self.dns = None
             self.domain = None
 
+        # Initialise IPv6 to None.
+        self.modev6 = None
+        self.ipv6addr = None
+        self.ipv6_gateway = None
+
     def __repr__(self):
-        if self.mode == None:
-            return "<NetInterface: None, hwaddr = '%s'>" % self.hwaddr
-        elif self.mode == self.DHCP:
-            return "<NetInterface: DHCP, hwaddr = '%s'>" % self.hwaddr
-        else:
-            return "<NetInterface: Static, hwaddr = '%s', " % self.hwaddr + \
-                "ipaddr = '%s', netmask = '%s', gateway = '%s', dns = '%s' domain = '%s'>" % \
+        hw = "hwaddr = '%s' " % self.hwaddr
+
+        if self.mode == self.Static:
+            ipv4 = "Static;" + \
+                "ipaddr='%s';netmask='%s';gateway='%s';dns='%s';domain='%s'>" % \
                 (self.ipaddr, self.netmask, self.gateway, self.dns, self.domain)
+        elif self.mode == self.DHCP:
+            ipv4 = "DHCP"
+        else:
+            ipv4 = "None"
+
+        if self.modev6 == self.Static:
+            ipv6 = "Static;" + \
+                "ipaddr='%s';gateway='%s'>" % \
+                (self.ipv6addr, self.ipv6_gateway)
+        elif self.modev6 == self.DHCP:
+            ipv6 = "DHCP"
+        elif self.modev6 == self.Autoconf:
+            ipv6 = "autoconf"
+        else:
+            ipv6 = "None"
+
+        return "<NetInterface: %s ipv4:%s ipv6:%s>" % (hw, ipv4, ipv6)
 
     def get(self, name, default = None):
         retval = default
@@ -79,6 +100,29 @@ class NetInterface:
                 retval = attr
         return retval
         
+    def addIPv6(self, modev6, ipv6addr=None, ipv6gw=None):
+        assert modev6 == None or modev6 == self.Static or modev6 == self.DHCP or modev6 == self.Autoconf
+        if ipv6addr == '':
+            ipv6addr = None
+        if ipv6gw == '':
+            ipv6gw = None
+        if modev6 == self.Static:
+            assert ipv6addr
+
+        self.modev6 = modev6
+        if modev6 == self.Static:
+            self.ipv6addr = ipv6addr
+            self.ipv6_gateway = ipv6gw
+        else:
+            self.ipv6addr = None
+            self.ipv6_gateway = None
+
+    def valid(self):
+        if (self.mode == self.Static) and ((self.ipaddr is None) or (self.netmask is None)):
+                return False
+        if (self.modev6 == self.Static) and (self.ipv6addr is None):
+                return False
+        return self.mode or self.modev6
 
     def isStatic(self):
         """ Returns true if a static interface configuration is represented. """
@@ -87,6 +131,10 @@ class NetInterface:
     def writeDebStyleInterface(self, iface, f):
         """ Write a Debian-style configuration entry for this interface to 
         file object f using interface name iface. """
+
+        # Debian style interfaces are only used for the installer; dom0 only uses CentOS style
+        # IPv6 is only enabled through answerfiles and so is not supported here.
+        assert self.modev6 == None
 
         assert self.mode
         if self.mode == self.DHCP:
@@ -145,7 +193,34 @@ class NetInterface:
         else:
             f.write('\t\t<ip_configuration_mode>None</ip_configuration_mode>\n')
             f.write('\t\t<DNS></DNS>\n')
+
+        if self.modev6 == self.Static:
+            f.write('\t\t<ipv6_configuration_mode>Static</ipv6_configuration_mode>\n')
+            f.write('\t\t<IPv6>%s</IPv6>\n' % ipv6addr)
+            if gateway is not None:
+                f.write('\t\t<IPv6_gateway>%s</IPv6_gateway>\n' % ipv6_gateway)
+        elif self.modev6 == self.DHCP:
+            f.write('\t\t<ipv6_configuration_mode>DHCP</ipv6_configuration_mode>\n')
+            f.write('\t\t<IPv6></IPv6>\n')
+            f.write('\t\t<IPv6_gateway></IPv6_gateway>\n')
+        elif self.modev6 == self.Autoconf:
+            f.write('\t\t<ipv6_configuration_mode>Autoconf</ipv6_configuration_mode>\n')
+            f.write('\t\t<IPv6></IPv6>\n')
+            f.write('\t\t<IPv6_gateway></IPv6_gateway>\n')
+        else:
+            f.write('\t\t<ipv6_configuration_mode>None</ipv6_configuration_mode>\n')
+
         f.write('\t</pif>\n')
+
+    @staticmethod
+    def getModeStr(mode):
+        if mode == NetInterface.Static:
+            return 'static'
+        if mode == NetInterface.DHCP:
+            return 'dhcp'
+        if mode == NetInterface.Autoconf:
+            return 'autoconf'
+        return 'none'
 
     @staticmethod
     def loadFromIfcfg(filename):
@@ -175,8 +250,18 @@ class NetInterface:
             dns.append(conf['DNS%d' % n])
             n += 1
 
-        return NetInterface(mode, hwaddr, valOrNone(conf, 'IPADDR'), valOrNone(conf, 'NETMASK'),
+        modev6 = None
+        if conf.has_key('DHCPV6C'):
+            modev6 = NetInterface.DHCP
+        elif conf.has_key('IPV6_AUTOCONF'):
+            modev6 = NetInterface.Autoconf
+        elif conf.has_key('IPV6INIT'):
+            modev6 = NetInterface.Static
+
+        ni = NetInterface(mode, hwaddr, valOrNone(conf, 'IPADDR'), valOrNone(conf, 'NETMASK'),
                             valOrNone(conf, 'GATEWAY'), dns, valOrNone(conf, 'DOMAIN'))
+        ni.addIPv6(modev6, valOrNone(conf, 'IPV6ADDR'), valOrNone(conf, 'IPV6_DEFAULTGW'))
+        return ni
 
     @staticmethod
     def loadFromPif(pif):
@@ -204,5 +289,21 @@ class NetInterface:
             domain_list = pif.getElementsByTagName('other_config')[0].getElementsByTagName('domain')
             if len(domain_list) == 1:
                 domain = getText(domain_list[0].childNodes)
+
+        mode_txt = getText(pif.getElementsByTagName('ipv6_configuration_mode')[0].childNodes)
+        modev6 = None
+        ipv6addr = None
+        gatewayv6 = None
+        if mode_txt == 'Static':
+            modev6 = NetInterface.Static
+        elif mode_txt == 'DHCP':
+            modev6 = NetInterface.DHCP
+        elif mode_txt == 'Autoconf':
+            modev6 = NetInterface.Autconf
+        if modev6 == NetInterface.Static:
+            ipv6addr = getTextOrNone(pif.getElementsByTagName('IPv6')[0].childNodes)
+            gatewayv6 = getTextOrNone(pif.getElementsByTagName('IPv6_gateway')[0].childNodes)
     
-        return NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
+        ni = NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
+        ni.addIPv6(modev6, ipv6addr, gatewayv6)
+        return ni

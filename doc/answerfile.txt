@@ -169,7 +169,7 @@ Common Elements
 
     Mandatory attributes:
 
-      proto="static|dhcp"
+      proto="static|dhcp|none"
 
     If the interface is static then the following elements must be
     present:
@@ -181,6 +181,19 @@ Common Elements
       <subnet-mask>subnet</subnet-mask>[D]
 
       <gateway>gw</gateway>
+
+    If proto is specified as "none" then protov6 must be specified and must not be none
+
+    Optional attributes:
+
+      protov6="static|dhcp|autoconf|none"
+
+    If protov6 is static then the following attributes must be
+    present:
+
+      ipv6="ipv6/prefix_length"
+
+      gatewayv6="gw"
 
 
   <root-password type="plaintext|hash"*>passwd</root-password>*

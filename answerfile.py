@@ -346,7 +346,20 @@ class Answerfile:
         elif proto == 'dhcp':
             results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, if_hwaddr)
         else:
-            raise AnswerfileException, "<admin-interface> tag must have attribute proto='static' or proto='dhcp'."
+            results['net-admin-configuration'] = NetInterface(None, requested_hwaddr)
+
+        protov6 = getStrAttribute(node, ['protov6'])
+        if protov6 == 'static':
+            ipv6 = getText(getElementsByTagName(node, ['ipv6'], mandatory = True)[0])
+            gatewayv6 = getText(getElementsByTagName(node, ['gatewayv6'], mandatory = True)[0])
+            results['net-admin-configuration'].addIPv6(NetInterface.Static, ipv6, gatewayv6)
+        elif protov6 == 'dhcp':
+            results['net-admin-configuration'].addIPv6(NetInterface.DHCP)
+        elif protov6 == 'autoconf':
+            results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
+
+        if not results['net-admin-configuration'].valid():
+            raise AnswerfileException, "<admin-interface> tag must have IPv4 or IPv6 defined."
         return results
 
     def parseRootPassword(self):

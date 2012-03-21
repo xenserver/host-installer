@@ -177,7 +177,7 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(configureKdump, A(ans, 'mounts'), []),
-        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge', 'branding'), []),
+        Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge', 'branding', 'net-admin-configuration'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -1015,7 +1015,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     if not os.path.exists(mgmt_conf_file):
         mc = open(mgmt_conf_file, 'w')
         print >>mc, "LABEL='%s'" % admin_iface
-        print >>mc, "MODE='%s'" % ((admin_config.mode == netinterface.NetInterface.Static) and 'static' or 'dhcp')
+        print >>mc, "MODE='%s'" % netinterface.NetInterface.getModeStr(admin_config.mode)
         if admin_config.mode == netinterface.NetInterface.Static:
             print >>mc, "IP='%s'" % admin_config.ipaddr
             print >>mc, "NETMASK='%s'" % admin_config.netmask
@@ -1026,6 +1026,11 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
                     print >>mc, "DNS%d='%s'" % (i+1, nameservers[i])
             if domain:
                 print >>mc, "DOMAIN='%s'" % domain
+        print >>mc, "MODEV6='%s'" % netinterface.NetInterface.getModeStr(admin_config.modev6)
+        if admin_config.modev6 == netinterface.NetInterface.Static:
+            print >>mc, "IPv6='%s'" % admin_config.ipv6addr
+            if admin_config.ipv6_gateway:
+                print >>mc, "IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway
         mc.close()
 
     if preserve_settings:
@@ -1126,7 +1131,7 @@ def writeModprobeConf(mounts):
     os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
               "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     default_sr_physdevs = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
     if 'product-brand' in branding:
@@ -1160,6 +1165,11 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.write("DOM0_MEM='%d'\n" % constants.DOM0_MEM)
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
+    # Default to IPv4 unless we have only got an IPv6 admin interface
+    if ((not admin_config.mode) and admin_config.modev6):
+        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv6'")
+    else:
+        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv4'")
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
