@@ -5,7 +5,7 @@ include $(PROJECT_OUTPUTDIR)/python-libs/python-libs.inc
 # inputs
 BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.$(DOMAIN0_ARCH_OPTIMIZED).ext2
 PYTHON_LIBS_RPM := $(PROJECT_OUTPUTDIR)/python-libs/$(PYTHON_LIBS_PKG_FILE)
-FIRMWARE_RPMS := $(wildcard $(PROJECT_OUTPUTDIR)/guest-packages-dom0/RPMS/noarch/firmware-*.noarch.rpm)
+FIRMWARE_RPMS_LIST := $(PROJECT_OUTPUTDIR)/guest-packages-dom0/guest-packages-dom0-firmware-rpms.inc
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
@@ -46,8 +46,10 @@ $(PYTHON_LIBS_INSTALLED_STAMP): $(PYTHON_LIBS_RPM)
 	rpm2cpio $^ | ( cd $(INSTALLER_FILESYSTEM) && cpio -idv )
 	touch $@
 
-$(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS)
-	for rpm in $^; do rpm2cpio $$rpm | (cd $(INSTALLER_FILESYSTEM) && cpio -idv ); done
+$(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
+	cat $(FIRMWARE_RPMS_LIST) | while read rpm; \
+		do rpm2cpio $(PROJECT_OUTPUTDIR)/guest-packages-dom0/RPMS/noarch/$$rpm | \
+		(cd $(INSTALLER_FILESYSTEM) && cpio -idv ); done
 	touch $@
 
 $(INIT_CREATED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
