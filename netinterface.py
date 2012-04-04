@@ -119,9 +119,9 @@ class NetInterface:
 
     def valid(self):
         if (self.mode == self.Static) and ((self.ipaddr is None) or (self.netmask is None)):
-                return False
+            return False
         if (self.modev6 == self.Static) and (self.ipv6addr is None):
-                return False
+            return False
         return self.mode or self.modev6
 
     def isStatic(self):
@@ -196,9 +196,9 @@ class NetInterface:
 
         if self.modev6 == self.Static:
             f.write('\t\t<ipv6_configuration_mode>Static</ipv6_configuration_mode>\n')
-            f.write('\t\t<IPv6>%s</IPv6>\n' % ipv6addr)
-            if gateway is not None:
-                f.write('\t\t<IPv6_gateway>%s</IPv6_gateway>\n' % ipv6_gateway)
+            f.write('\t\t<IPv6>%s</IPv6>\n' % self.ipv6addr)
+            if self.ipv6_gateway is not None:
+                f.write('\t\t<IPv6_gateway>%s</IPv6_gateway>\n' % self.ipv6_gateway)
         elif self.modev6 == self.DHCP:
             f.write('\t\t<ipv6_configuration_mode>DHCP</ipv6_configuration_mode>\n')
             f.write('\t\t<IPv6></IPv6>\n')
@@ -290,20 +290,28 @@ class NetInterface:
             if len(domain_list) == 1:
                 domain = getText(domain_list[0].childNodes)
 
-        mode_txt = getText(pif.getElementsByTagName('ipv6_configuration_mode')[0].childNodes)
+        mode_txt = ''
         modev6 = None
         ipv6addr = None
         gatewayv6 = None
+        try:
+            mode_txt = getText(pif.getElementsByTagName('ipv6_configuration_mode')[0].childNodes)
+        except:
+            pass
+
         if mode_txt == 'Static':
             modev6 = NetInterface.Static
         elif mode_txt == 'DHCP':
             modev6 = NetInterface.DHCP
         elif mode_txt == 'Autoconf':
-            modev6 = NetInterface.Autconf
+            modev6 = NetInterface.Autoconf
         if modev6 == NetInterface.Static:
             ipv6addr = getTextOrNone(pif.getElementsByTagName('IPv6')[0].childNodes)
-            gatewayv6 = getTextOrNone(pif.getElementsByTagName('IPv6_gateway')[0].childNodes)
+            try:
+                gatewayv6 = getTextOrNone(pif.getElementsByTagName('IPv6_gateway')[0].childNodes)
+            except:
+                gatewayv6 = None
     
-        ni = NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
-        ni.addIPv6(modev6, ipv6addr, gatewayv6)
-        return ni
+        nic = NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
+        nic.addIPv6(modev6, ipv6addr, gatewayv6)
+        return nic
