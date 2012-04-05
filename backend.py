@@ -382,6 +382,11 @@ def performInstallation(answers, ui_package, interactive):
         os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
         backup_fs.unmount()
 
+    # pick up any scripts dropped by supplemental packs
+    if os.path.isdir(constants.EXTRA_SCRIPTS_DIR):
+        for scr in os.listdir(constants.EXTRA_SCRIPTS_DIR):
+            scripts.add_script('filesystem-populated', os.path.join(constants.EXTRA_SCRIPTS_DIR, scr))
+
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
     new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
