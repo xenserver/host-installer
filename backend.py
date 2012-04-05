@@ -383,9 +383,9 @@ def performInstallation(answers, ui_package, interactive):
         backup_fs.unmount()
 
     # pick up any scripts dropped by supplemental packs
-    if os.path.isdir(constants.EXTRA_SCRIPTS_DIR):
-        for scr in os.listdir(constants.EXTRA_SCRIPTS_DIR):
-            scripts.add_script('filesystem-populated', os.path.join(constants.EXTRA_SCRIPTS_DIR, scr))
+    for scr in os.listdir(os.path.join(answers['mounts']['root'], constants.EXTRA_SCRIPTS_DIR)):
+        scripts.add_script('filesystem-populated', os.path.join(answers['mounts']['root'], 
+                                                                constants.EXTRA_SCRIPTS_DIR, scr))
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
@@ -874,10 +874,15 @@ def mountVolumes(primary_disk, primary_partnum, cleanup):
     rootp = partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
+    try:
+        os.mkdir(os.path.join('/tmp/root', constants.EXTRA_SCRIPTS_DIR))
+    except:
+        pass
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
     return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
+    shutil.rmtree(os.path.join(mounts['root'], constants.EXTRA_SCRIPTS_DIR))
     util.umount(mounts['root'])
     cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts['root'],
                      cleanup)
