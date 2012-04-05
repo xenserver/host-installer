@@ -45,7 +45,7 @@ def run_script(script, stage, *args):
     interp = line[2:].split()
     if interp[0] == '/usr/bin/env':
         if len (interp) < 2 or interp[1] not in ['python']:
-            raise RuntimeError, "Invalid interpreter %s in." % (interp[1], script)
+            raise RuntimeError, "Invalid interpreter %s in %s." % (interp[1], script)
     elif interp[0] not in ['/bin/sh', '/bin/bash', '/usr/bin/python']:
         raise RuntimeError, "Invalid interpreter %s in %s." % (interp[0], script)
         
