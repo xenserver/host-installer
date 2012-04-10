@@ -347,6 +347,7 @@ def performInstallation(answers, ui_package, interactive):
             all_repositories += repository.repositoriesFromDefinition(rtype, rloc)
         master_required_list += filter(lambda r: r not in master_required_list, required_list)
 
+    os.environ['XS_INSTALLATION'] = '1'
     if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         # mount backup and advertise mountpoint for Supplemental Packs
         chroot_dir = 'tmp/backup'
@@ -874,17 +875,16 @@ def mountVolumes(primary_disk, primary_partnum, cleanup):
     rootp = partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
-    try:
-        os.mkdir(os.path.join('/tmp/root', constants.EXTRA_SCRIPTS_DIR))
-    except:
-        pass
-    new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )) ]
+    util.assertDir(constants.EXTRA_SCRIPTS_DIR)
+    util.bindMount(constants.EXTRA_SCRIPTS_DIR, os.path.join(new_ans['mounts']['root'], 'mnt'))
+    new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )),
+                              ("umount-/tmp/root/mnt",  util.umount, (os.path.join(new_ans['mounts']['root'], 'mnt'), )) ]
     return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
-    shutil.rmtree(os.path.join(mounts['root'], constants.EXTRA_SCRIPTS_DIR))
+    util.umount(os.path.join(mounts['root'], 'mnt'))
     util.umount(mounts['root'])
-    cleanup = filter(lambda (tag, _, __): tag != "umount-%s" % mounts['root'],
+    cleanup = filter(lambda (tag, _, __): not tag.startswith("umount-%s" % mounts['root']),
                      cleanup)
     return cleanup
 
