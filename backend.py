@@ -383,8 +383,8 @@ def performInstallation(answers, ui_package, interactive):
         backup_fs.unmount()
 
     # pick up any scripts dropped by supplemental packs
-    for scr in os.listdir(os.path.join(answers['mounts']['root'], constants.EXTRA_SCRIPTS_DIR)):
-        scripts.add_script('filesystem-populated', os.path.join(answers['mounts']['root'], 
+    for scr in os.listdir(os.path.join(new_ans['mounts']['root'], constants.EXTRA_SCRIPTS_DIR)):
+        scripts.add_script('filesystem-populated', os.path.join(new_ans['mounts']['root'], 
                                                                 constants.EXTRA_SCRIPTS_DIR, scr))
 
     # complete the installation:
