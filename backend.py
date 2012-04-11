@@ -385,8 +385,8 @@ def performInstallation(answers, ui_package, interactive):
 
     # pick up any scripts dropped by supplemental packs
     for scr in os.listdir(os.path.join(new_ans['mounts']['root'], constants.EXTRA_SCRIPTS_DIR)):
-        scripts.add_script('filesystem-populated', os.path.join(new_ans['mounts']['root'], 
-                                                                constants.EXTRA_SCRIPTS_DIR, scr))
+        scripts.add_script('filesystem-populated', 'file://'+os.path.join(new_ans['mounts']['root'], 
+                                                                          constants.EXTRA_SCRIPTS_DIR, scr))
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
@@ -876,13 +876,16 @@ def mountVolumes(primary_disk, primary_partnum, cleanup):
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
     util.assertDir(constants.EXTRA_SCRIPTS_DIR)
-    util.bindMount(constants.EXTRA_SCRIPTS_DIR, os.path.join(new_ans['mounts']['root'], 'mnt'))
+    util.mount('tmpfs', constants.EXTRA_SCRIPTS_DIR, ['size=2m'], 'tmpfs')
+    util.assertDir(os.path.join(mounts['root'], 'mnt'))
+    util.bindMount(constants.EXTRA_SCRIPTS_DIR, os.path.join(mounts['root'], 'mnt'))
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )),
-                              ("umount-/tmp/root/mnt",  util.umount, (os.path.join(new_ans['mounts']['root'], 'mnt'), )) ]
+                              ("umount-/tmp/root/mnt",  util.umount, (os.path.join(mounts['root'], 'mnt'), )) ]
     return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
     util.umount(os.path.join(mounts['root'], 'mnt'))
+    util.umount(constants.EXTRA_SCRIPTS_DIR)
     util.umount(mounts['root'])
     cleanup = filter(lambda (tag, _, __): not tag.startswith("umount-%s" % mounts['root']),
                      cleanup)
