@@ -348,6 +348,12 @@ def performInstallation(answers, ui_package, interactive):
         master_required_list += filter(lambda r: r not in master_required_list, required_list)
 
     os.environ['XS_INSTALLATION'] = '1'
+    util.assertDir(os.path.join(new_ans['mounts']['root'], 'sys'))
+    util.assertDir(os.path.join(new_ans['mounts']['root'], 'dev'))
+    util.assertDir(os.path.join(new_ans['mounts']['root'], 'proc'))
+    util.bindMount('/sys', os.path.join(new_ans['mounts']['root'], 'sys'))
+    util.bindMount('/dev', os.path.join(new_ans['mounts']['root'], 'dev'))
+    util.bindMount('/proc', os.path.join(new_ans['mounts']['root'], 'proc'))
     if answers['preserve-settings'] and 'backup-partnum' in new_ans:
         # mount backup and advertise mountpoint for Supplemental Packs
         chroot_dir = 'tmp/backup'
@@ -382,6 +388,10 @@ def performInstallation(answers, ui_package, interactive):
         util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
         os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
         backup_fs.unmount()
+
+    util.umount(os.path.join(new_ans['mounts']['root'], 'sys'))
+    util.umount(os.path.join(new_ans['mounts']['root'], 'dev'))
+    util.umount(os.path.join(new_ans['mounts']['root'], 'proc'))
 
     # pick up any scripts dropped by supplemental packs
     for scr in os.listdir(os.path.join(new_ans['mounts']['root'], constants.EXTRA_SCRIPTS_DIR)):
