@@ -386,10 +386,13 @@ class ThirdGenUpgrader(Upgrader):
                     continue
 
                 if eth_next:
+                    # CA-77436 - Only pull real eth devices from network.dbcache, not bonds or other constructs
                     for bdev in devices.values():
-                        if bdev.get('Assigned MAC', None) == dr.lastboot[-1][0] and 'Bus Info' in bdev:
+                        if line.startswith("eth") and bdev.get('Assigned MAC', None) == dr.lastboot[-1][0] and 'Bus Info' in bdev:
                             dr.lastboot[-1].extend([bdev['Bus Info'], line])
                             break
+                    else:
+                        del dr.lastboot[-1]
                     eth_next = False
                     continue
 
