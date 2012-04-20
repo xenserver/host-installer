@@ -31,7 +31,7 @@ def normalize_disk(disk):
         # An rfc4173 spec identifying a LUN in the iBFT.  We
         # should be logged into this already.  Convert this spec into a
         # disk location.
-        return diskutil.rfc4173_to_disk(pd_text)
+        return diskutil.rfc4173_to_disk(disk)
 
     if not disk.startswith('/dev/'):
         disk = '/dev/' + disk
@@ -346,7 +346,7 @@ class Answerfile:
         elif proto == 'dhcp':
             results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, if_hwaddr)
         else:
-            results['net-admin-configuration'] = NetInterface(None, requested_hwaddr)
+            results['net-admin-configuration'] = NetInterface(None, if_hwaddr)
 
         protov6 = getStrAttribute(node, ['protov6'])
         if protov6 == 'static':
