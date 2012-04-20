@@ -252,7 +252,7 @@ class Repository:
 
         return problems
 
-    def copyTo(self, destination, copy_packages = True):
+    def copyTo(self, destination):
         util.assertDir(destination)
 
         # write the XS-REPOSITORY file:
@@ -265,16 +265,6 @@ class Repository:
         xspkg_fd.write(self._pkgfile_contents)
         xspkg_fd.close()
 
-        if copy_packages:
-            repo_dir = os.path.dirname(pkg.repository_filename)
-            target_dir = os.path.join(destination, repo_dir)
-            util.assertDir(target_dir)
-            
-            # pkg.copy will use the full path for us, we just have to make sure
-            # the appropriate directory exists before using it (c.f. the
-            # the assertDir above).
-            pkg.copy(destination)
-
     def accessor(self):
         return self._accessor
 
@@ -282,7 +272,7 @@ class Repository:
         return self._packages.__iter__()
 
     def record_install(self, answers, installed_repos):
-        self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier), False)
+        self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier))
         installed_repos[str(self)] = self
         return installed_repos
 
