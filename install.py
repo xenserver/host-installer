@@ -42,7 +42,7 @@ def main(args):
     ui = tui
     xelogging.log("Starting user interface")
     ui.init_ui()
-    status = go(ui, args)
+    status = go(ui, args, None, None)
     xelogging.log("Shutting down user interface")
     ui.end_ui()
     return status
