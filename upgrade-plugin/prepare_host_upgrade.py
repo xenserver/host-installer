@@ -164,12 +164,15 @@ def get_iface_config(iface):
     session = XenAPI.xapi_local()
     session.xenapi.login_with_password('', '')
 
+    this_host = session.xenapi.session.get_this_host(session._session)
+
     for net in session.xenapi.network.get_all_records().values():
         if net.get('bridge', '') == iface:
-            pifs = net.get('PIFs', [])
-            if len(pifs) > 0:
-                ret = session.xenapi.PIF.get_record(pifs[0])
-                break
+            for p in net.get('PIFs', []):
+                pif = session.xenapi.PIF.get_record(p)
+                if pif.get('host', '') == this_host:
+                    ret = pif
+                    break
         
     session.xenapi.session.logout()
     return ret
