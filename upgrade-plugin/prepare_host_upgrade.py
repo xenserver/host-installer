@@ -305,7 +305,7 @@ def test_repo(url):
     try:
         i = open('/etc/xensource-inventory')
         for line in i:
-            if line.startswith('PRODUCT_VERSION'):
+            if line.startswith('PRODUCT_VERSION='):
                 curr_ver = version.Version.from_string(line.strip()[16:].strip("'"))
                 break
         i.close()
