@@ -166,13 +166,11 @@ def get_iface_config(iface):
     session.xenapi.login_with_password('', '')
 
     this_host = session.xenapi.session.get_this_host(session._session)
-    logger.debug("Host: "+this_host)
 
     for net in session.xenapi.network.get_all_records().values():
         if net.get('bridge', '') == iface:
             for p in net.get('PIFs', []):
                 pif = session.xenapi.PIF.get_record(p)
-                logger.debug("    PIF on "+pif.get('host', ''))
                 if pif.get('host', '') == this_host:
                     ret = pif
                     break
@@ -212,7 +210,6 @@ def set_boot_config(installer_dir, url):
                 logger.error("Unable to determine route to " + host)
                 return False
             iface = m.group(1)
-            logger.debug("Interface: "+iface)
             pif = get_iface_config(iface)
             if not pif:
                 logger.error("Unable to determine configuration of " + iface)
