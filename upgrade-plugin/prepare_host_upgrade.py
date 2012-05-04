@@ -29,6 +29,9 @@ import XenAPIPlugin
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz']
 
+def shell_value(line):
+    return line.split('=', 1)[1].strip("'")
+
 def test_boot_files(accessor):
     done = True
     accessor.start()
@@ -75,7 +78,7 @@ def gen_answerfile(installer_dir, url):
         for l in f:
             line = l.strip()
             if line.startswith('PRIMARY_DISK='):
-                root_device = line[13:].strip("'")
+                root_device = shell_value(line)
                 break
         f.close()
     except:
@@ -307,9 +310,10 @@ def test_repo(url):
     curr_ver = None
     try:
         i = open('/etc/xensource-inventory')
-        for line in i:
+        for l in i:
+            line = l.strip()
             if line.startswith('PRODUCT_VERSION='):
-                curr_ver = version.Version.from_string(line.strip()[16:].strip("'"))
+                curr_ver = version.Version.from_string(shell_value(line))
                 break
         i.close()
     except:
