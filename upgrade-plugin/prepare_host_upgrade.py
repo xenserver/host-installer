@@ -8,6 +8,7 @@
 
 import logging
 import os
+import os.path
 import re
 import shutil
 import socket
@@ -165,11 +166,13 @@ def get_iface_config(iface):
     session.xenapi.login_with_password('', '')
 
     this_host = session.xenapi.session.get_this_host(session._session)
+    logger.debug("Host: "+this_host)
 
     for net in session.xenapi.network.get_all_records().values():
         if net.get('bridge', '') == iface:
             for p in net.get('PIFs', []):
                 pif = session.xenapi.PIF.get_record(p)
+                logger.debug("    PIF on "+pif.get('host', ''))
                 if pif.get('host', '') == this_host:
                     ret = pif
                     break
@@ -198,6 +201,7 @@ def set_boot_config(installer_dir, url):
                 host = host[:host.index(':')]
 
             # determine interface host is accessible over
+            logger.debug("Repo host: "+host)
             (rc, out) = cmd.runCmd(['ip', 'route', 'get', socket.gethostbyname(host)], 
                                    with_stdout = True)
             if rc != 0:
@@ -208,6 +212,7 @@ def set_boot_config(installer_dir, url):
                 logger.error("Unable to determine route to " + host)
                 return False
             iface = m.group(1)
+            logger.debug("Interface: "+iface)
             pif = get_iface_config(iface)
             if not pif:
                 logger.error("Unable to determine configuration of " + iface)
@@ -286,6 +291,7 @@ def test_repo(url):
         a = accessor.createAccessor(url, True)
         if not test_boot_files(a):
             return TEST_URL_INVALID
+        logger.debug("Boot files ok, testing repository...")
         repos = repository.Repository.findRepositories(a)
     except Exception, e:
         logger.error(str(e))
@@ -350,7 +356,10 @@ def prepare_host_upgrade(url):
 
 # plugin url test
 def testUrl(session, args):
-    logger.logToSyslog(level = logging.INFO)
+    if os.path.exists('/var/tmp/plugin_debug'):
+        logger.logToSyslog(level = logging.DEBUG)
+    else:
+        logger.logToSyslog(level = logging.INFO)
 
     try:
         url = args['url']
@@ -367,7 +376,10 @@ def testUrl(session, args):
     
 # plugin entry point
 def main(session, args):
-    logger.logToSyslog(level = logging.INFO)
+    if os.path.exists('/var/tmp/plugin_debug'):
+        logger.logToSyslog(level = logging.DEBUG)
+    else:
+        logger.logToSyslog(level = logging.INFO)
 
     try:
         url = args['url']
