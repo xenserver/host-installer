@@ -106,7 +106,7 @@ echo "Creating boot image..."
 rm -f $workdir/xen $workdir/vmlinux $workdir/install.img
 
 cat >$workdir/xscli <<EOF
-dom0_max_vcpus=${dom0vcpus} dom0_mem=${dom0mem},max:${dom0mem}M com1=115200,8n1 console=com1,vga -- xencons=hvc console=hvc0 console=tty0$extra_cli
+dom0_max_vcpus=1-${dom0vcpus} dom0_mem=${dom0mem},max:${dom0mem}M com1=115200,8n1 console=com1,vga -- xencons=hvc console=hvc0 console=tty0$extra_cli
 EOF
 
 echo "Creating zipfile..."
