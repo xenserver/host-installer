@@ -154,64 +154,6 @@ class NetInterface:
             if self.gateway:
                 f.write("   gateway %s\n" % self.gateway)
 
-    def writePif(self, iface, f, pif_uid, network_uid, bonding = None):
-        """ Write PIF XML element for this interface to 
-        file object f using interface name iface. """
-
-        f.write('\t<pif ref="OpaqueRef:%s">\n' % pif_uid)
-        f.write('\t\t<network>OpaqueRef:%s</network>\n' % network_uid)
-        f.write('\t\t<management>True</management>\n')
-        f.write('\t\t<uuid>%sPif</uuid>\n' % iface)
-
-        f.write('\t\t<bond_slave_of>OpaqueRef:%s</bond_slave_of>\n' % ((bonding and bonding[0] == 'slave-of') and bonding[1] or 'NULL'))
-        if (bonding and bonding[0] == 'master-of'):
-            f.write('\t\t<bond_master_of>\n\t\t\t<slave>OpaqueRef:%s</slave>\n\t\t</bond_master_of>\n' % bonding[1])
-        else:
-            f.write('\t\t<bond_master_of/>\n')
-
-        f.write('\t\t<VLAN_slave_of/>\n\t\t<VLAN_master_of>OpaqueRef:NULL</VLAN_master_of>\n\t\t<VLAN>-1</VLAN>\n')
-        f.write('\t\t<tunnel_access_PIF_of/>\n')
-        f.write('\t\t<tunnel_transport_PIF_of/>\n')
-        f.write('\t\t<device>%s</device>\n' % iface)
-        f.write('\t\t<MAC>%s</MAC>\n' % self.hwaddr)
-        if self.domain:
-            f.write('\t\t<other_config><domain>%s</domain></other_config>\n' % self.domain)
-        else:
-            f.write('\t\t<other_config/>\n')
-
-        if self.mode == self.Static:
-            f.write('\t\t<ip_configuration_mode>Static</ip_configuration_mode>\n')
-            f.write('\t\t<IP>%s</IP>\n' % self.ipaddr)
-            f.write('\t\t<netmask>%s</netmask>\n' % self.netmask)
-            f.write('\t\t<gateway>%s</gateway>\n' % (self.gateway and self.gateway or ''))
-            f.write('\t\t<DNS>%s</DNS>\n' % (self.dns and ','.join(self.dns) or ''))
-        elif self.mode == self.DHCP:
-            f.write('\t\t<ip_configuration_mode>DHCP</ip_configuration_mode>\n')
-            f.write('\t\t<IP></IP>\n\t\t<netmask></netmask>\n')
-            f.write('\t\t<gateway></gateway>\n')
-            f.write('\t\t<DNS></DNS>\n')
-        else:
-            f.write('\t\t<ip_configuration_mode>None</ip_configuration_mode>\n')
-            f.write('\t\t<DNS></DNS>\n')
-
-        if self.modev6 == self.Static:
-            f.write('\t\t<ipv6_configuration_mode>Static</ipv6_configuration_mode>\n')
-            f.write('\t\t<IPv6>%s</IPv6>\n' % self.ipv6addr)
-            if self.ipv6_gateway is not None:
-                f.write('\t\t<IPv6_gateway>%s</IPv6_gateway>\n' % self.ipv6_gateway)
-        elif self.modev6 == self.DHCP:
-            f.write('\t\t<ipv6_configuration_mode>DHCP</ipv6_configuration_mode>\n')
-            f.write('\t\t<IPv6></IPv6>\n')
-            f.write('\t\t<IPv6_gateway></IPv6_gateway>\n')
-        elif self.modev6 == self.Autoconf:
-            f.write('\t\t<ipv6_configuration_mode>Autoconf</ipv6_configuration_mode>\n')
-            f.write('\t\t<IPv6></IPv6>\n')
-            f.write('\t\t<IPv6_gateway></IPv6_gateway>\n')
-        else:
-            f.write('\t\t<ipv6_configuration_mode>None</ipv6_configuration_mode>\n')
-
-        f.write('\t</pif>\n')
-
     @staticmethod
     def getModeStr(mode):
         if mode == NetInterface.Static:
