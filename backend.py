@@ -1084,25 +1084,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
     util.assertDir(save_dir)
 
-    # Write out initial network configuration file for management interface:
-    dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
-    util.assertDir(os.path.dirname(dbcache_file))
-    dbcache_fd = open(dbcache_file, 'w')
-    pif_uid = util.getUUID()
-    network_uid = util.getUUID()
-
-    dbcache_fd.write('<?xml version="1.0" ?>\n<xenserver-network-configuration>\n')
-    admin_config.writePif(admin_iface, dbcache_fd, pif_uid, network_uid)
-    dbcache_fd.write('\t<network ref="OpaqueRef:%s">\n' % network_uid)
-    dbcache_fd.write('\t\t<uuid>InitialManagementNetwork</uuid>\n')
-    dbcache_fd.write('\t\t<PIFs>\n\t\t\t<PIF>OpaqueRef:%s</PIF>\n\t\t</PIFs>\n' % pif_uid)
-    dbcache_fd.write('\t\t<bridge>%s</bridge>\n' % admin_bridge)
-    dbcache_fd.write('\t\t<other_config/>\n\t</network>\n')
-    dbcache_fd.write('</xenserver-network-configuration>\n')
-
-    dbcache_fd.close()
-    util.runCmd2(['cp', '-p', dbcache_file, save_dir])
-
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
     nfd.write("NETWORKING=yes\n")
