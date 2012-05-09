@@ -181,6 +181,18 @@ def get_iface_config(iface):
     session.xenapi.session.logout()
     return ret
 
+def urlsplit(url):
+    host = ''
+    (scheme, netloc, path, _, __) = urlparse.urlsplit(url)
+    if scheme == 'nfs':
+        host = path.split(':', 1)[0][2:]
+    elif scheme in ['http', 'ftp']:
+        if ':' in netloc:
+            host = netloc.split(':', 1)[0]
+        else:
+            host = netloc
+    return (scheme, host)
+
 def set_boot_config(installer_dir, url):
     try:
         config = bootloader.Bootloader.loadExisting()
@@ -196,11 +208,8 @@ def set_boot_config(installer_dir, url):
         kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
 
-        (scheme, host, _, __, ___) = urlparse.urlsplit(url)
+        (scheme, host) = urlsplit(url)
         if scheme in ['http', 'nfs', 'ftp']:
-            if ':' in host:
-                host = host[:host.index(':')]
-
             # determine interface host is accessible over
             logger.debug("Repo host: "+host)
             (rc, out) = cmd.runCmd(['ip', 'route', 'get', socket.gethostbyname(host)], 
