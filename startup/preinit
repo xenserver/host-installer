@@ -102,3 +102,4 @@ fi
 [ $atexit = reboot ] && extra_args=--reboot
 /opt/xensource/installer/init "$@" $extra_args
 [ $atexit = shell ] && IFS="$OLDIFS" /bin/bash
+[ $atexit = poweroff ] && poweroff

@@ -65,19 +65,23 @@ Startup
    Start a shell before running the installer.
 
 
-  atexit=reboot|shell
+  atexit=reboot|poweroff|shell
 
     Action to perform when installer exits. (new in 6.1)
 
       reboot - reboot system
 
+      poweroff - power off system
+
       shell - drop to shell
 
     Default: reboot
 
+
   sshpassword=<password>
 
-    Start the dropbear ssh server with the root password set as requested
+    Start the dropbear ssh server with the root password set as requested.
+
 
 Installer
 ---------
