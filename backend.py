@@ -741,7 +741,7 @@ def configureKdump(mounts):
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks):
     common_xen_params = "mem=%dG dom0_max_vcpus=1-%d dom0_mem=%dM,max:%dM" % (
         constants.XEN_MEM, constants.DOM0_VCPUS, constants.DOM0_MEM, constants.DOM0_MEM)
-    common_xen_unsafe_params = "watchdog_timeout=%d" % (constants.XEN_WATCHDOG_TIMEOUT)
+    common_xen_unsafe_params = "watchdog_timeout=%d cpuid_mask_xsave_eax=0" % (constants.XEN_WATCHDOG_TIMEOUT)
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
     mask_params = ' '.join(xen_cpuid_masks)
