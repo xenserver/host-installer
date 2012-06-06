@@ -660,12 +660,13 @@ def __mkinitrd(mounts, partition, kernel_version):
         
         cmd = ['mkinitrd', '-v']
         cmd.extend( args )
-        cmd.extend([output_file, kernel_version])
-        if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
+        # Split suffix from cmd so "$@" can be inserted into the .cmd file
+        cmd_suffix = [output_file, kernel_version]
+        if util.runCmd2(['chroot', mounts['root']] + cmd + cmd_suffix) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
         # Save command used to create initrd in <initrd_filename>.cmd
         cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
-        open(cmd_logfile, "w").write(' '.join(cmd) + '\n')
+        open(cmd_logfile, "w").write(' '.join(cmd + ['"$@"'] + cmd_suffix) + '\n')
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
