@@ -183,15 +183,12 @@ def get_iface_config(iface):
 
 def urlsplit(url):
     host = ''
-    (scheme, netloc, path, _, __) = urlparse.urlsplit(url)
-    if scheme == 'nfs':
-        host = path.split(':', 1)[0][2:]
-    elif scheme in ['http', 'ftp']:
-        if ':' in netloc:
-            host = netloc.split(':', 1)[0]
-        else:
-            host = netloc
-    return (scheme, host)
+    parts = accessor.compat_urlsplit(url)
+    if parts.scheme == 'nfs':
+        host = parts.path.split(':', 1)[0][2:]
+    elif parts.scheme in ['http', 'ftp']:
+        host = parts.hostname
+    return (parts.scheme, host)
 
 def set_boot_config(installer_dir, url):
     try:
