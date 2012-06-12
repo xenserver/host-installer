@@ -1094,6 +1094,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     nfd.write("NETWORKING=yes\n")
     if admin_config.modev6:
         nfd.write("NETWORKING_IPV6=yes\n")
+        util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', 'ip6tables'])
     else:
         nfd.write("NETWORKING_IPV6=no\n")
         dv6fd = open("%s/etc/modprobe.d/disable-ipv6" % mounts["root"], "w")
