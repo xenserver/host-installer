@@ -229,11 +229,14 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append('etc/sysconfig/mkinitrd.latches')
 
         # EA-1069: Udev network device naming
-        self.restore_list += [{'dir': '/etc/sysconfig/network-scripts/interface-rename-data'}]
-        self.restore_list += [{'dir': '/etc/sysconfig/network-scripts/interface-rename-data/.from_install'}]
+        self.restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data'}]
+        self.restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data/.from_install'}]
 
         # CA-67890: preserve root's ssh state
         self.restore_list += [{'dir': '/root/.ssh'}]
+
+        # CA-82709: preserve networkd.db for Tampa upgrades
+        self.restore_list += [{'dir': 'var/xapi/networkd.db'}]
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
@@ -268,6 +271,7 @@ class ThirdGenUpgrader(Upgrader):
             for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
                 util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
 
+        # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
         if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
             # CA-82901 - convert any old style ppn referenced to new style ppn references
             util.runCmd2(['sed', r's/pci\([0-9]\+p[0-9]\+\)/p\1/g', '-i',
