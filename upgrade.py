@@ -268,8 +268,13 @@ class ThirdGenUpgrader(Upgrader):
             for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
                 util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
 
+        if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
+            # CA-82901 - convert any old style ppn referenced to new style ppn references
+            util.runCmd2(['sed', r's/pci\([0-9]\+p[0-9]\+\)/p\1/g', '-i',
+                          os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')])
+
         # EA-1069: create interface-rename state from old xapi database if it doesnt currently exist (static-rules.conf)
-        if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
+        else:
             if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/')):
                 os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0775)
 
