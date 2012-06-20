@@ -112,6 +112,8 @@ def getPrepSequence(ans, interactive):
         Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
+    if not interactive:
+        seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
@@ -119,8 +121,6 @@ def getPrepSequence(ans, interactive):
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
-        if not interactive:
-            seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address', 'ui'), []))
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(prepareTarget,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
