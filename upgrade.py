@@ -236,7 +236,7 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [{'dir': '/root/.ssh'}]
 
         # CA-82709: preserve networkd.db for Tampa upgrades
-        self.restore_list += [{'dir': 'var/xapi/networkd.db'}]
+        self.restore_list.append('var/xapi/networkd.db')
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
