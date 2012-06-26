@@ -60,7 +60,7 @@ Common Elements
 
   <bootloader location="mbr|partition">extlinux|grub[D]</bootloader>?
 
-    default: mbr
+    Default: mbr
 
     grub is no longer supported as of 6.0
 
@@ -69,7 +69,7 @@ Common Elements
 
   <network-backend>bridge|openvswitch|vswitch</network-backend>?
 
-    default: bridge (5.6 FP1 and earlier), vswitch (6.0 and later)
+    Default: bridge (5.6 FP1 and earlier), vswitch (6.0 and later)
 
     Defines the network stack variant.
 
@@ -188,6 +188,8 @@ Common Elements
 
       protov6="static|dhcp|autoconf|none"
 
+      Default: none
+
     If protov6 is static then the following attributes must be
     present:
 
@@ -243,7 +245,7 @@ Common Elements
 
     Local SR type.
 
-    default: lvm
+    Default: lvm
 
 
 Upgrade Elements
