@@ -1183,9 +1183,9 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     # Default to IPv4 unless we have only got an IPv6 admin interface
     if ((not admin_config.mode) and admin_config.modev6):
-        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv6'")
+        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv6'\n")
     else:
-        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv4'")
+        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv4'\n")
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):
