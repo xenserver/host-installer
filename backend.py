@@ -1149,7 +1149,6 @@ def writeModprobeConf(mounts):
 
 def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
-    default_sr_physdevs = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
     if PRODUCT_NAME:
@@ -1178,7 +1177,6 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
         inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(partitionDevice(primary_disk, backup_partnum)) or partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
-    inv.write("DEFAULT_SR_PHYSDEVS='%s'\n" % " ".join(default_sr_physdevs))
     inv.write("DOM0_MEM='%d'\n" % constants.DOM0_MEM)
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     # Default to IPv4 unless we have only got an IPv6 admin interface
