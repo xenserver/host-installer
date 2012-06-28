@@ -128,6 +128,7 @@ INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
 DBCACHE = "var/xapi/network.dbcache"
+NETWORK_DB = "var/xapi/networkd.db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
 
 POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
