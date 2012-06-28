@@ -27,6 +27,7 @@ import hardware
 import xcp.bootloader as bootloader
 from xcp.version import *
 import xml.dom.minidom
+import simplejson as json
 
 class SettingsNotAvailable(Exception):
     pass
@@ -205,7 +206,18 @@ class ExistingInstallation:
             # database which is available in time for everything except the
             # management interface.
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
-            if os.path.exists(self.join_state_path(constants.DBCACHE)):
+            if os.path.exists(self.join_state_path(constants.NETWORK_DB)):
+                fh = open(self.join_state_path(constants.NETWORK_DB))
+                jdata = json.load(fh)
+                fh.close()
+
+                results['net-admin-interface'] = \
+                    sorted(jdata['bridge_config'][mgmt_iface]['ports'].values()[0]['interfaces'])[0].encode()
+                results['net-admin-configuration'] = \
+                    NetInterface.loadFromNetDb(jdata['interface_config'][mgmt_iface],
+                                               netutil.getHWAddr(results['net-admin-interface']))
+                results['net-admin-bridge'] = mgmt_iface
+            elif os.path.exists(self.join_state_path(constants.DBCACHE)):
                 def getText(nodelist):
                     rc = ""
                     for node in nodelist:
