@@ -206,7 +206,7 @@ class ThirdGenUpgrader(Upgrader):
                               'etc/xensource/xapi-ssl.pem']
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
-        self.restore_list += [ 'etc/sysconfig/network', constants.DBCACHE ]
+        self.restore_list.append('etc/sysconfig/network')
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
         self.restore_list += ['var/xapi/state.db', 'etc/xensource/license']
@@ -236,7 +236,7 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [{'dir': '/root/.ssh'}]
 
         # CA-82709: preserve networkd.db for Tampa upgrades
-        self.restore_list.append('var/xapi/networkd.db')
+        self.restore_list.append(constants.NETWORK_DB)
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
