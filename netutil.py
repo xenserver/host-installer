@@ -18,6 +18,8 @@ import subprocess
 import time
 import xelogging
 from xcp.net.biosdevname import all_devices_all_names
+from socket import inet_ntoa
+from struct import pack
 
 class NIC:
     def __init__(self, nic_dict):
@@ -209,6 +211,12 @@ def network(ipaddr, netmask):
     nm = map(int,netmask.split('.',3))
     nw = map(lambda i: ip[i] & nm[i], range(4))
     return ".".join(map(str,nw))
+
+def prefix2netmask(mask):
+    bits = 0
+    for i in xrange(32-mask, 32):
+        bits |= (1 << i)
+    return inet_ntoa(pack('>I', bits))
 
 class NetDevices:
     def __init__(self):
