@@ -257,3 +257,52 @@ class NetInterface:
         nic = NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
         nic.addIPv6(modev6, ipv6addr, gatewayv6)
         return nic
+
+    @staticmethod
+    def loadFromNetDb(jdata, hwaddr):
+        mode = None
+        ipaddr = None
+        netmask = None
+        gateway = None
+        dns = None
+        domain = None
+
+        try:
+            if isinstance(jdata['ipv4_conf'], list):
+                if jdata['ipv4_conf'][0] == 'DHCP4':
+                    mode = NetInterface.DHCP
+                elif jdata['ipv4_conf'][0] == 'Static4':
+                    ipaddr = jdata['ipv4_conf'][1][0][0].encode()
+                    netmask = netutil.prefix2netmask(jdata['ipv4_conf'][1][0][1])
+                    if 'ipv4_gateway' in jdata:
+                        gateway = jdata['ipv4_gateway'].encode()
+                    if 'dns' in jdata:
+                        if len(jdata['dns'][0]) > 0:
+                            dns = map(lambda x: x.encode(), jdata['dns'][0])
+                        if len(jdata['dns'][1]) > 0:
+                            domain = jdata['dns'][1][0].encode()
+                    mode = NetInterface.Static
+        except:
+            pass
+
+        nic = NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
+
+        modev6 = None
+        ipv6addr = None
+        gatewayv6 = None
+
+        try:
+            if isinstance(jdata['ipv6_conf'], list):
+                if jdata['ipv6_conf'][0] == 'DHCP6':
+                    modev6 = NetInterface.DHCP
+                elif jdata['ipv6_conf'][0] == 'Autoconf6':
+                    modev6 = NetInterface.Autoconf
+                elif jdata['ipv6_conf'][0] == 'Static6':
+                    ipv6addr = jdata['ipv6_conf'][1][0].encode()
+                    gatewayv6 = jdata['ipv6_gateway'].encode()
+                    modev6 = NetInterface.Static
+        except:
+            pass
+
+        nic.addIPv6(modev6, ipv6addr, gatewayv6)
+        return nic
