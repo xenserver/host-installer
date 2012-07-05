@@ -296,36 +296,41 @@ class ThirdGenUpgrader(Upgrader):
             dr = DynamicRules()
 
             # this is a dirty hack but I cant think of much better
-            dbcache = open(os.path.join(mounts['root'], constants.DBCACHE), "r")
-            mac_next = False
-            eth_next = False
+            backup_volume = partitionDevice(target_disk, backup_partnum)
+            tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
+            try:
+                dbcache = open(os.path.join(tds.mount_point, constants.DBCACHE), "r")
+                mac_next = False
+                eth_next = False
 
-            for line in ( x.strip() for x in dbcache ):
+                for line in ( x.strip() for x in dbcache ):
 
-                if mac_next:
-                    dr.lastboot.append([line.upper()])
-                    mac_next = False
-                    continue
+                    if mac_next:
+                        dr.lastboot.append([line.upper()])
+                        mac_next = False
+                        continue
 
-                if eth_next:
-                    # CA-77436 - Only pull real eth devices from network.dbcache, not bonds or other constructs
-                    for bdev in devices.values():
-                        if line.startswith("eth") and bdev.get('Assigned MAC', None) == dr.lastboot[-1][0] and 'Bus Info' in bdev:
-                            dr.lastboot[-1].extend([bdev['Bus Info'], line])
-                            break
-                    else:
-                        del dr.lastboot[-1]
-                    eth_next = False
-                    continue
+                    if eth_next:
+                        # CA-77436 - Only pull real eth devices from network.dbcache, not bonds or other constructs
+                        for bdev in devices.values():
+                            if line.startswith("eth") and bdev.get('Assigned MAC', None) == dr.lastboot[-1][0] and 'Bus Info' in bdev:
+                                dr.lastboot[-1].extend([bdev['Bus Info'], line])
+                                break
+                        else:
+                            del dr.lastboot[-1]
+                        eth_next = False
+                        continue
 
-                if line == "<MAC>":
-                    mac_next = True
-                    continue
+                    if line == "<MAC>":
+                        mac_next = True
+                        continue
 
-                if line == "<device>":
-                    eth_next = True
+                    if line == "<device>":
+                        eth_next = True
 
-            dbcache.close()
+                dbcache.close()
+            finally:
+                tds.unmount()
 
             dr.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json')
             dr.save()
