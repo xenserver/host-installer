@@ -200,7 +200,7 @@ def getFinalisationSequence(ans):
     seq.append(Task(writei18n, A(ans, 'mounts'), []))
     
     # run the users's scripts
-    seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
+    seq.append(Task(runFSPopScripts, A(ans, 'mounts'), []))
 
     seq += [
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
@@ -1219,6 +1219,17 @@ def writei18n(mounts):
     fd.write('LANG="en_US.UTF-8"\n')
     fd.write('SYSFONT="drdos8x8"\n')
     fd.close()
+
+def runFSPopScripts(mounts):
+    util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
+    util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
+    util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
+
+    scripts.run_scripts('filesystem-populated', mounts['root'])
+
+    util.umount(os.path.join(mounts['root'], 'sys'))
+    util.umount(os.path.join(mounts['root'], 'dev'))
+    util.umount(os.path.join(mounts['root'], 'proc'))
 
 def verifyRepo(media, address, ui):
     """ Check repo is accessible """
