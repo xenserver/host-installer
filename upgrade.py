@@ -337,6 +337,15 @@ class ThirdGenUpgrader(Upgrader):
             dr.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/dynamic-rules.json')
             dr.save()
 
+        net_dict = util.readKeyValueFile(os.path.join(mounts['root'], 'etc/sysconfig/network'))
+        if 'NETWORKING_IPV6' not in net_dict:
+            nfd = open(os.path.join(mounts['root'], 'etc/sysconfig/network'), 'a')
+            nfd.write("NETWORKING_IPV6=no\n")
+            nfd.close()
+            dv6fd = open(os.path.join(mounts['root'], 'etc/modprobe.d/disable-ipv6'), 'w')
+            dv6fd.write("alias ipv6 no\nalias net-pf-10 off\n")
+            dv6fd.close()
+
         if Version(prev_install.version.ver) == product.XENSERVER_5_6_100:
             # set journalling option on EXT local SRs
             l = LVMTool()
