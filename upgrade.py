@@ -206,7 +206,7 @@ class ThirdGenUpgrader(Upgrader):
                               'etc/xensource/xapi-ssl.pem']
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
-        self.restore_list.append('etc/sysconfig/network')
+        self.restore_list += [ 'etc/sysconfig/network', constants.DBCACHE ]
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
         self.restore_list += ['var/xapi/state.db', 'etc/xensource/license']
@@ -245,6 +245,25 @@ class ThirdGenUpgrader(Upgrader):
         util.assertDir(os.path.join(mounts['root'], "etc/xensource"))
 
         Upgrader.completeUpgrade(self, mounts, target_disk, backup_partnum)
+
+        if os.path.exists(os.path.join(mounts['root'], constants.DBCACHE)) and \
+                Version(prev_install.version.ver) == product.XENSERVER_5_6_100:
+            # upgrade from 5.6
+            changed = False
+            dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
+            rdbcache_fd = open(dbcache_file)
+            wdbcache_fd = open(dbcache_file + '.new', 'w')
+            for line in rdbcache_fd:
+                wdbcache_fd.write(line)
+                if '<pif ref=' in line:
+                    wdbcache_fd.write("\t\t<tunnel_access_PIF_of/>\n")
+                    changed = True
+            rdbcache_fd.close()
+            wdbcache_fd.close()
+            if changed:
+                os.rename(dbcache_file + '.new', dbcache_file)
+            else:
+                os.remove(dbcache_file + '.new')
 
         v = Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
