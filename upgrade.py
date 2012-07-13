@@ -247,7 +247,7 @@ class ThirdGenUpgrader(Upgrader):
         Upgrader.completeUpgrade(self, mounts, target_disk, backup_partnum)
 
         if os.path.exists(os.path.join(mounts['root'], constants.DBCACHE)) and \
-                Version(prev_install.version.ver) == product.XENSERVER_5_6_100:
+                Version(prev_install.version.ver) == product.XENSERVER_5_6_0:
             # upgrade from 5.6
             changed = False
             dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
