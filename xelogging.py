@@ -41,6 +41,7 @@ def collectLogs(dst, tarball_dir = None):
     os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log" % dst)
     os.system("lspci -n >%s/lspcin-log" % dst)
     os.system("cat /proc/modules >%s/modules-log" % dst)
+    os.system("cat /proc/interrupts >%s/interrupts-log" % dst)
     os.system("uname -a >%s/uname-log" % dst)
     os.system("ls /sys/block >%s/blockdevs-log" % dst)
     os.system("ls -lR /dev >%s/devcontents-log" % dst)
