@@ -182,7 +182,8 @@ Common Elements
 
       <gateway>gw</gateway>
 
-    If proto is specified as "none" then protov6 must be specified and must not be none
+    If proto is specified as "none" then protov6 must be specified and
+    must not be none
 
     Optional attributes:
 
@@ -190,12 +191,11 @@ Common Elements
 
       Default: none
 
-    If protov6 is static then the following attributes must be
-    present:
+    If protov6 is static then the following elements must be present:
 
-      ipv6="ipv6/prefix_length"
+      <ipv6>ipv6/prefix_length</ipv6>
 
-      gatewayv6="gw"
+      <gatewayv6>gw</gatewayv6>
 
 
   <root-password type="plaintext|hash"*>passwd</root-password>*
