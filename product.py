@@ -207,16 +207,44 @@ class ExistingInstallation:
             # management interface.
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
             if os.path.exists(self.join_state_path(constants.NETWORK_DB)):
-                fh = open(self.join_state_path(constants.NETWORK_DB))
-                jdata = json.load(fh)
-                fh.close()
+                networkd_db = '/opt/xensource/libexec/networkd_db'
+                args = ['chroot', self.state_fs.mount_point, networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
+                rv, out = util.runCmd2(args, with_stdout = True)
 
-                results['net-admin-interface'] = \
-                    sorted(jdata['bridge_config'][mgmt_iface]['ports'].values()[0]['interfaces'])[0].encode()
-                results['net-admin-configuration'] = \
-                    NetInterface.loadFromNetDb(jdata['interface_config'][mgmt_iface],
-                                               netutil.getHWAddr(results['net-admin-interface']))
+                d = {}
+                for line in ( x for x in out.split('\n') if len(x.strip()) ):
+                    var = line.split('=', 1)
+                    d[var[0]] = var[1]
+
                 results['net-admin-bridge'] = mgmt_iface
+                results['net-admin-interface'] = d.get('interfaces').split(',')[0]
+
+                if_hwaddr = netutil.getHWAddr(results['net-admin-interface'])
+
+                proto = d.get('mode')
+                if proto == 'static':
+                    ip = d.get('ipaddr')
+                    netmask = d.get('netmask')
+                    gateway = d.get('gateway')
+                    dns = d.get('dns', '').split(',')
+                    if ip and netmask:
+                        results['net-admin-configuration'] = NetInterface(NetInterface.Static, if_hwaddr, ip, netmask, gateway, dns)
+                elif proto == 'dhcp':
+                    results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, if_hwaddr)
+                else:
+                    results['net-admin-configuration'] = NetInterface(None, if_hwaddr)
+
+                protov6 = d.get('modev6')
+                if protov6 == 'static':
+                    ipv6 = d.get('ipaddrv6')
+                    gatewayv6 = d.get('gatewayv6')
+                    if ipv6:
+                        results['net-admin-configuration'].addIPv6(NetInterface.Static, ipv6, gatewayv6)
+                elif protov6 == 'dhcp':
+                    results['net-admin-configuration'].addIPv6(NetInterface.DHCP)
+                elif protov6 == 'autoconf':
+                    results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
+
             elif os.path.exists(self.join_state_path(constants.DBCACHE)):
                 def getText(nodelist):
                     rc = ""
