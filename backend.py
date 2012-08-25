@@ -799,20 +799,7 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, seria
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
-
-    # This is a nasty hack but unavoidable (I think):
-    #
-    # The bootloader tries to work out what the root device is but
-    # this is confused within the chroot.  Therefore, we fake out
-    # /proc/mounts with the correct data. If /etc/mtab is not a
-    # symlink (to /proc/mounts) then we fake that out too.
-    f = open("%s/proc/mounts" % mounts['root'], 'w')
-    f.write("%s / %s rw 0 0\n" % (partitionDevice(disk, primary_partnum), constants.rootfs_type))
-    f.close()
-    if not os.path.islink("%s/etc/mtab" % mounts['root']):
-        f = open("%s/etc/mtab" % mounts['root'], 'w')
-        f.write("%s / %s rw 0 0\n" % (partitionDevice(disk, primary_partnum), constants.rootfs_type))
-        f.close()
+    util.bindMount("/proc", "%s/proc" % mounts['root'])
 
     try:
         fn = os.path.join(mounts['boot'], "extlinux.conf")
@@ -840,10 +827,8 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, seria
             new.close()
             shutil.move('/tmp/inittab', "%s/etc/inittab" % mounts['root'])
     finally:
-        # unlink /proc/mounts
-        if os.path.exists("%s/proc/mounts" % mounts['root']):
-            os.unlink("%s/proc/mounts" % mounts['root'])
         # done installing - undo our extra mounts:
+        util.umount("%s/proc" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
