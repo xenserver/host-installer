@@ -20,8 +20,8 @@ import constants
 import sys
 
 screen = None
-help_pad = [33, 16, 17]
-help_line = ["<Tab>/<Alt-Tab> between elements", "", "<F12> next screen"]
+help_pad = [33, 17, 16]
+help_line = ["<Tab>/<Alt-Tab> between elements", "", "<F1> Help screen"]
 
 
 def global_help(screen, context):
