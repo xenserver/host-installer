@@ -99,7 +99,7 @@ class Answerfile:
     def parseScripts(self):
 
         def buildURL(stype, path):
-            if stype == 'nfs' and path[:6] != 'nfs://':
+            if stype == 'nfs' and not path.startswith('nfs://'):
                 return 'nfs://'+path
             return path
         
