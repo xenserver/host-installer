@@ -99,7 +99,7 @@ class Answerfile:
     def parseScripts(self):
 
         def buildURL(stype, path):
-            if stype == 'nfs':
+            if stype == 'nfs' and path[:6] != 'nfs://':
                 return 'nfs://'+path
             return path
         
@@ -114,10 +114,14 @@ class Answerfile:
         # depreciated formats
         nodes = getElementsByTagName(self.top_node, ['post-install-script'])
         if len(nodes) == 1:
-            scripts.add_script('filesystem-populated', getText(nodes[0]))
+            stype = getStrAttribute(nodes[0], ['type'], mandatory = False).lower()
+            script = buildURL(stype, getText(nodes[0]))
+            scripts.add_script('filesystem-populated', script)
         nodes = getElementsByTagName(self.top_node, ['install-failed-script'])
         if len(nodes) == 1:
-            scripts.add_script('installation-complete', getText(nodes[0]))
+            stype = getStrAttribute(nodes[0], ['type'], mandatory = False).lower()
+            script = buildURL(stype, getText(nodes[0]))
+            scripts.add_script('installation-complete', script)
         return {}
 
     def parseFreshInstall(self):
