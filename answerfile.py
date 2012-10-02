@@ -393,6 +393,9 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['timezone'])
         if len(nodes) > 0:
             results['timezone'] = getText(nodes[0])
+        else:
+            # Default to Etc/UTC if not present
+            results['timezone'] = 'Etc/UTC'
 
         nodes = getElementsByTagName(self.top_node, ['ntp-server', 'ntp-servers'])
         results['ntp-servers'] = map(lambda x: getText(x), nodes)
