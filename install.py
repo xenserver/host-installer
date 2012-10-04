@@ -176,6 +176,10 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         if not aborted:
             if results['install-type'] == constants.INSTALL_TYPE_RESTORE:
+                xelogging.log('INPUT ANSWER DICTIONARY')
+                backend.prettyLogAnswers(results)
+                xelogging.log("SCRIPTS DICTIONARY:")
+                backend.prettyLogAnswers(scripts.script_dict)
                 xelogging.log("Starting actual restore")
                 backup = results['backup-to-restore']
                 if ui:
