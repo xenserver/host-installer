@@ -913,11 +913,11 @@ class GPTPartitionTool(PartitionToolBase):
             
     def partitionTable(self):
         cmd = [self.SGDISK, '--print', self.device]
-        try:
-            out = self.cmdWrap(cmd)
-        except:
-            # invalid partition table - return empty partition table
+        rv, out, err = util.runCmd2(cmd, True, True)
+        if rv != 0:
+            xelogging.log('Invalid or corrupt partition table found on disk %s. Skipping...' % self.device)
             return {}
+
         matchWarning   = re.compile('Found invalid GPT and valid MBR; converting MBR to GPT format.')
         matchHeader    = re.compile('Number\s+Start \(sector\)\s+End \(sector\)\s+Size\s+Code\s+Name')
         matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})(\s+(.*))?$') # num start end sz typecode name
