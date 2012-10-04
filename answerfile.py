@@ -91,8 +91,7 @@ class Answerfile:
 
             results.update(self.parseCommon())
         elif self.operation == 'restore':
-            # FIXME add restore support
-            pass
+            results = self.parseRestore()
         
         return results
 
@@ -177,6 +176,23 @@ class Answerfile:
             if master:
                 disk = master
             results['primary-disk'] = disk
+
+        return results
+
+    def parseRestore(self):
+        results = {}
+
+        results['install-type'] = INSTALL_TYPE_RESTORE
+
+        backup = product.findXenSourceBackups()
+        if len(backup) == 0:
+            raise AnswerfileException, "Could not locate exsisting backup."
+        results['backups'] = backup
+
+        if len(backup) > 1:
+            xelogging.log("Multiple backups found.")
+        xelogging.log("Restoring backup %s." % str(backup[0]))
+        results['backup-to-restore'] = backup[0]
 
         return results
 
