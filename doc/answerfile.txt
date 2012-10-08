@@ -27,6 +27,12 @@ Upgrade (backup, preserve config):
 </installation>
 
 
+Restore:
+
+<restore>
+  ...
+</restore>
+
 Common Elements
 ---------------
 
@@ -264,3 +270,10 @@ Upgrade Elements
 
     Specifies the target disk to migrate a flash-based OEM
     installation to. (5.6 & 5.6 FP1)
+
+Restore Elements
+----------------
+
+  <backup-disk>dev</backup-disk>?
+
+    Specifies the device containing the XenServer backup to be restored.
