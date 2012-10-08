@@ -184,15 +184,28 @@ class Answerfile:
 
         results['install-type'] = INSTALL_TYPE_RESTORE
 
-        backup = product.findXenSourceBackups()
-        if len(backup) == 0:
+        backups = product.findXenSourceBackups()
+        if len(backups) == 0:
             raise AnswerfileException, "Could not locate exsisting backup."
-        results['backups'] = backup
 
-        if len(backup) > 1:
-            xelogging.log("Multiple backups found.")
-        xelogging.log("Restoring backup %s." % str(backup[0]))
-        results['backup-to-restore'] = backup[0]
+        results['backups'] = backups
+        xelogging.log("Backup list: %s" % ", ".join(str(b) for b in backups))
+        nodes = getElementsByTagName(self.top_node, ['backup-disk'])
+        if len(nodes) == 1:
+            disk = normalize_disk(getText(nodes[0]))
+            xelogging.log("Filtering backup list for disk %s" % disk)
+            backups = filter(lambda x: x.root_disk == disk, backups)
+            xelogging.log("Backup list filtered: %s" % ", ".join(str(b) for b in backups))
+
+        if len(backups) > 1:
+            xelogging.log("Multiple backups found. Aborting...")
+            raise AnswerfileException, "Multiple backups were found. Unable to deduce which backup to restore from."
+        elif len(backups) == 0:
+            xelogging.log("Unable to find a backup to restore. Aborting...")
+            raise AnswerfileException, "Unable to find a backup to restore."
+
+        xelogging.log("Restoring backup %s." % str(backups[0]))
+        results['backup-to-restore'] = backups[0]
 
         return results
 
