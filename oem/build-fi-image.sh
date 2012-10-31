@@ -68,7 +68,11 @@ do
   if [ -d $mnt/packages.main ]; then
     echo "Copying main ISO files..."
     cp -f $mnt/install.img $workdir
-    zcat $mnt/boot/vmlinuz >$workdir/vmlinux
+    if [ -e $mnt/boot/vmlinuz ]; then
+        zcat $mnt/boot/vmlinuz >$workdir/vmlinux
+    else
+        zcat $mnt/boot/vmlinuz.gz >$workdir/vmlinux
+    fi
     zcat $mnt/boot/xen.gz >$workdir/xen
 
     cp -rp $mnt/packages.main $workdir
