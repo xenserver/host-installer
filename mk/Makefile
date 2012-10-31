@@ -83,7 +83,7 @@ $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 	touch $@
 
 $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
-	set -e; for k in `find $(INSTALLER_FILESYSTEM)/lib/modules -type d -name '2.6.*'` ; do \
+	set -e; for k in `find $(INSTALLER_FILESYSTEM)/lib/modules -type d -name '*xs*'` ; do \
 		$(INSTALLER_CHROOT) depmod `basename $$k` ; \
 	done
 	touch $@
