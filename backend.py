@@ -698,7 +698,8 @@ def configureSRMultipathing(mounts, primary_disk):
 
 def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
-    kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
+    if xen_kernel_version.startswith("2.6"):
+        kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
     partition = partitionDevice(primary_disk, primary_partnum)
 
     if diskutil.is_iscsi(primary_disk):
@@ -726,12 +727,15 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                     raise RuntimeError, "Failed to copy initiatorname.iscsi"
 
     __mkinitrd(mounts, partition, xen_kernel_version)
-    __mkinitrd(mounts, partition, kdump_kernel_version)
+    if xen_kernel_version.startswith("2.6"):
+        __mkinitrd(mounts, partition, kdump_kernel_version)
  
     # make the initrd-2.6-xen.img symlink:
     os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
 
 def configureKdump(mounts):
+    if not getKernelVersion(mounts['root'], 'xen').startswith("2.6"): return
+
     # set kdump config to handle known errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
     if rc == 0 and ('10de:0360' in out or '10de:0364' in out):
