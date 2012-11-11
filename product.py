@@ -337,7 +337,7 @@ class ExistingInstallation:
             results['ha-armed'] = False
             try:
                 db_path = "var/lib/xcp/local.db"
-		if not os.path.exists(self.join_state_path(db_path):
+		if not os.path.exists(self.join_state_path(db_path)):
                     db_path = "var/xapi/local.db"
                 db = open(self.join_state_path(db_path), 'r')
                 if db.readline().find('<row key="ha.armed" value="true"') != -1:

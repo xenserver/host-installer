@@ -120,7 +120,7 @@ EXTRA_SCRIPTS_DIR = "/tmp/extra-scripts"
 ANSWERS_FILE = "upgrade_answers"
 INVENTORY_FILE = "etc/xensource-inventory"
 OLD_BLOB_DIRECTORY = "var/xapi/blobs"
-BLOB_DIRECTORY = "var/lib/xcp/blobs
+BLOB_DIRECTORY = "var/lib/xcp/blobs"
 
 MAIN_REPOSITORY_NAME = 'xcp:main'
 MAIN_XS_REPOSITORY_NAME = 'xs:main'
