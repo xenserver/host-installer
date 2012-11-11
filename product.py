@@ -206,7 +206,10 @@ class ExistingInstallation:
             # database which is available in time for everything except the
             # management interface.
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
-            if os.path.exists(self.join_state_path(constants.NETWORK_DB)):
+            networkdb_path = constants.NETWORK_DB
+            if not os.path.exists(self.join_state_path(networkdb_path)):
+                networkdb_path = constants.OLD_NETWORK_DB
+            if os.path.exists(self.join_state_path(networkdb_path)):
                 networkd_db = '/opt/xensource/libexec/networkd_db'
                 args = ['chroot', self.state_fs.mount_point, networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
                 rv, out = util.runCmd2(args, with_stdout = True)
@@ -333,7 +336,10 @@ class ExistingInstallation:
 
             results['ha-armed'] = False
             try:
-                db = open(self.join_state_path("var/xapi/local.db"), 'r')
+                db_path = "var/lib/xcp/local.db"
+		if not os.path.exists(self.join_state_path(db_path):
+                    db_path = "var/xapi/local.db"
+                db = open(self.join_state_path(db_path), 'r')
                 if db.readline().find('<row key="ha.armed" value="true"') != -1:
                     results['ha-armed'] = True
                 db.close()
