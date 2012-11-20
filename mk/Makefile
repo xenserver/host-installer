@@ -34,7 +34,11 @@ build: $(INSTALL_IMG) $(INSTALL_IMG_XCP) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUT
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 	zcat $(PROJECT_OUTPUTDIR)/xen/CD_FILES.main/boot/xen.gz >$(MY_OBJ_DIR)/xen
-	zcat $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinuz >$(MY_OBJ_DIR)/vmlinux
+	if [ -e $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinuz ]; then \
+		zcat $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinuz >$(MY_OBJ_DIR)/vmlinux; \
+	else \
+		zcat $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinuz.gz >$(MY_OBJ_DIR)/vmlinux; \
+	fi
 	mbootpack -o $(MBOOT_IMG) $(MY_OBJ_DIR)/xen -m $(MY_OBJ_DIR)/vmlinux -m $(INSTALL_IMG)
 	rm -f $(MY_OBJ_DIR)/xen $(MY_OBJ_DIR)/vmlinux
 
@@ -79,7 +83,7 @@ $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 	touch $@
 
 $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
-	set -e; for k in `find $(INSTALLER_FILESYSTEM)/lib/modules -type d -name '2.6.*'` ; do \
+	set -e; for k in `find $(INSTALLER_FILESYSTEM)/lib/modules -type d -name '*xs*'` ; do \
 		$(INSTALLER_CHROOT) depmod `basename $$k` ; \
 	done
 	touch $@
