@@ -119,8 +119,7 @@ EXTRA_SCRIPTS_DIR = "/tmp/extra-scripts"
 # os.path.join.
 ANSWERS_FILE = "upgrade_answers"
 INVENTORY_FILE = "etc/xensource-inventory"
-OLD_BLOB_DIRECTORY = "var/xapi/blobs"
-BLOB_DIRECTORY = "var/lib/xcp/blobs"
+BLOB_DIRECTORY = "var/xapi/blobs"
 
 MAIN_REPOSITORY_NAME = 'xcp:main'
 MAIN_XS_REPOSITORY_NAME = 'xs:main'
@@ -128,10 +127,8 @@ INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
-OLD_DBCACHE = "var/xapi/network.dbcache"
-DBCACHE = "var/lib/xcp/network.dbcache"
-OLD_NETWORK_DB = "var/xapi/networkd.db"
-NETWORK_DB = "var/lib/xcp/networkd.db"
+DBCACHE = "var/xapi/network.dbcache"
+NETWORK_DB = "var/xapi/networkd.db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
 
 POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
