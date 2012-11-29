@@ -206,7 +206,15 @@ class ExistingInstallation:
             # database which is available in time for everything except the
             # management interface.
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
-            if os.path.exists(self.join_state_path(constants.NETWORK_DB)):
+
+            networkdb_path = constants.NETWORK_DB
+            if not os.path.exists(self.join_state_path(networkdb_path)):
+                networkdb_path = constants.OLD_NETWORK_DB
+            dbcache_path = constants.DBCACHE
+            if not os.path.exists(self.join_state_path(dbcache_path)):
+                dbcache_path = constants.OLD_DBCACHE
+
+            if os.path.exists(self.join_state_path(networkdb_path)):
                 networkd_db = '/opt/xensource/libexec/networkd_db'
                 args = ['chroot', self.state_fs.mount_point, networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
                 rv, out = util.runCmd2(args, with_stdout = True)
@@ -244,8 +252,8 @@ class ExistingInstallation:
                     results['net-admin-configuration'].addIPv6(NetInterface.DHCP)
                 elif protov6 == 'autoconf':
                     results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
-
-            elif os.path.exists(self.join_state_path(constants.DBCACHE)):
+                    
+            elif os.path.exists(self.join_state_path(dbcache_path)):
                 def getText(nodelist):
                     rc = ""
                     for node in nodelist:
@@ -253,7 +261,7 @@ class ExistingInstallation:
                             rc = rc + node.data
                     return rc.strip().encode()
                 
-                xmldoc = xml.dom.minidom.parse(self.join_state_path(constants.DBCACHE))
+                xmldoc = xml.dom.minidom.parse(self.join_state_path(dbcache_path))
 
                 pif_uid = None
                 for node in xmldoc.documentElement.childNodes:
@@ -333,7 +341,10 @@ class ExistingInstallation:
 
             results['ha-armed'] = False
             try:
-                db = open(self.join_state_path("var/xapi/local.db"), 'r')
+                db_path = "var/lib/xcp/local.db"
+		if not os.path.exists(self.join_state_path(db_path)):
+                    db_path = "var/xapi/local.db"
+                db = open(self.join_state_path(db_path), 'r')
                 if db.readline().find('<row key="ha.armed" value="true"') != -1:
                     results['ha-armed'] = True
                 db.close()

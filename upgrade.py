@@ -207,9 +207,11 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
         self.restore_list += [ 'etc/sysconfig/network', constants.DBCACHE ]
+	self.restore_list.append({'src': constants.OLD_DBCACHE, 'dst': constants.DBCACHE})
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
-        self.restore_list += ['var/xapi/state.db', 'etc/xensource/license']
+        self.restore_list += ['var/lib/xcp/state.db', 'etc/xensource/license']
+	self.restore_list.append({'src': 'var/xapi/state.db', 'dst': 'var/lib/xcp/state.db'})
         self.restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
 
         self.restore_list += ['etc/xensource/syslog.conf']
@@ -221,10 +223,10 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'dir': 'var/lib/likewise'})
 
         # CA-47142: preserve v6 cache
-        self.restore_list += [{'dir': 'var/xapi/lpe-cache'}]
+        self.restore_list += [{'src': 'var/xapi/lpe-cache', 'dst': 'var/lib/xcp/lpe-cache'}]
 
         # CP-2056: preserve RRDs etc
-        self.restore_list += [{'dir': 'var/xapi/blobs'}]
+        self.restore_list += [{'src': 'var/xapi/blobs', 'dst': 'var/lib/xcp/blobs'}]
 
         self.restore_list.append('etc/sysconfig/mkinitrd.latches')
 
@@ -236,12 +238,13 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [{'dir': 'root/.ssh'}]
 
         # CA-82709: preserve networkd.db for Tampa upgrades
-        self.restore_list.append(constants.NETWORK_DB)
+        self.restore_list.append({'src': constants.OLD_NETWORK_DB, 'dst': constants.NETWORK_DB})
+	self.restore_list.append(constants.NETWORK_DB)
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
-        util.assertDir(os.path.join(mounts['root'], "var/xapi"))
+        util.assertDir(os.path.join(mounts['root'], "var/lib/xcp"))
         util.assertDir(os.path.join(mounts['root'], "etc/xensource"))
 
         Upgrader.completeUpgrade(self, mounts, target_disk, backup_partnum)
@@ -318,7 +321,10 @@ class ThirdGenUpgrader(Upgrader):
             backup_volume = partitionDevice(target_disk, backup_partnum)
             tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
             try:
-                dbcache = open(os.path.join(tds.mount_point, constants.DBCACHE), "r")
+                dbcache_path = constants.DBCACHE
+                if not os.path.exists(os.path.join(tds.mount_point, dbcache_path)):
+                    dbcache_path = constants.OLD_DBCACHE
+                dbcache = open(os.path.join(tds.mount_point, dbcache_path), "r")
                 mac_next = False
                 eth_next = False
 
