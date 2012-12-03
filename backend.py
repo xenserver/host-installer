@@ -33,6 +33,7 @@ import scripts
 import xcp.bootloader as bootloader
 import netinterface
 import tui.repo
+import xcp.dom0_memory
 
 # Product version and constants:
 import version
@@ -44,6 +45,9 @@ MY_PRODUCT_VERSION = PRODUCT_VERSION or PLATFORM_VERSION
 
 class InvalidInstallerConfiguration(Exception):
     pass
+
+# FIXME: should use the old value on upgrades, not the default
+dom0_mem = xcp.dom0_memory.default_dom0_memory(hardware.getHostTotalMemoryKB()) / 1024
 
 ################################################################################
 # FIRST STAGE INSTALLATION:
@@ -749,7 +753,7 @@ def configureKdump(mounts):
 
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks):
     common_xen_params = "mem=%dG dom0_max_vcpus=1-%d dom0_mem=%dM,max:%dM" % (
-        constants.XEN_MEM, constants.DOM0_VCPUS, constants.DOM0_MEM, constants.DOM0_MEM)
+        constants.XEN_MEM, constants.DOM0_VCPUS, dom0_mem, dom0_mem)
     common_xen_unsafe_params = "watchdog_timeout=%d cpuid_mask_xsave_eax=0" % (constants.XEN_WATCHDOG_TIMEOUT)
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
@@ -1167,7 +1171,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
         inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(partitionDevice(primary_disk, backup_partnum)) or partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
-    inv.write("DOM0_MEM='%d'\n" % constants.DOM0_MEM)
+    inv.write("DOM0_MEM='%d'\n" % dom0_mem)
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     # Default to IPv4 unless we have only got an IPv6 admin interface
     if ((not admin_config.mode) and admin_config.modev6):

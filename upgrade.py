@@ -235,7 +235,7 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data/.from_install'}]
 
         # CA-67890: preserve root's ssh state
-        self.restore_list += [{'dir': '/root/.ssh'}]
+        self.restore_list += [{'dir': 'root/.ssh'}]
 
         # CA-82709: preserve networkd.db for Tampa upgrades
         self.restore_list.append({'src': constants.OLD_NETWORK_DB, 'dst': constants.NETWORK_DB})
