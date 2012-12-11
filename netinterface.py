@@ -154,6 +154,15 @@ class NetInterface:
             if self.gateway:
                 f.write("   gateway %s\n" % self.gateway)
 
+    def waitUntilUp(self, iface):
+        if not self.isStatic():
+            return True
+        if not self.gateway:
+            return True
+
+        rc = util.runCmd2(['/usr/bin/arping', '-f', '-w', '60', '-I', iface, self.gateway])
+        return rc == 0
+
     @staticmethod
     def getModeStr(mode):
         if mode == NetInterface.Static:
