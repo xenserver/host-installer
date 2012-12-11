@@ -71,9 +71,11 @@ def configureNetworking(ui, device, config):
     if device == 'all':
         for i in nethw.keys():
             netutil.ifup(i)
+            netcfg[i].waitUntilUp(i)
     elif device.startswith('eth'):
         if nethw.has_key(device):
             netutil.ifup(device)
+            netcfg[device].waitUntilUp(device)
     else:
         # MAC address
         matching_list = filter(lambda x: x.hwaddr == device, nethw.values())
