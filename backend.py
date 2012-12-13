@@ -747,10 +747,6 @@ def configureKdump(mounts):
         kdcfile.write('KDUMP_KERNEL_CMDLINE_EXTRA="irqpoll maxcpus=1 reset_devices no-hlt"\n')
         kdcfile.close()
 
-    # Write sacrificial file for log space
-    f = os.path.join(mounts['root'], 'var/crash/.sacrificial-space-for-logs')
-    util.runCmd2(['dd', 'if=/dev/zero', 'of='+f, 'bs=1M', 'count=64' ])
-
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks):
     common_xen_params = "mem=%dG dom0_max_vcpus=1-%d dom0_mem=%dM,max:%dM" % (
         constants.XEN_MEM, constants.DOM0_VCPUS, dom0_mem, dom0_mem)
