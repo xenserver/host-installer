@@ -179,6 +179,7 @@ class Repository:
                 _md5sum = pkg_node.getAttribute("md5")
                 _root = pkg_node.getAttribute("root")
                 _kernel = pkg_node.getAttribute("kernel")
+                _options = pkg_node.getAttribute("options")
                 _fname = getText(pkg_node.childNodes)
             except:
                 raise RepoFormatError, "%s format error" % self.PKGDATA_FILENAME
@@ -190,9 +191,9 @@ class Repository:
             elif (_type == 'firmware'):
                 pkg = FirmwarePackage(self, _label, _size, _md5sum, _fname)
             elif (_type == 'rpm'):
-                pkg = RPMPackage(self, _label, _size, _md5sum, _fname)
+                pkg = RPMPackage(self, _label, _size, _md5sum, _fname, _options)
             elif (_type == 'driver-rpm'):
-                pkg = DriverRPMPackage(self, _label, _size, _md5sum, _kernel, _fname)
+                pkg = DriverRPMPackage(self, _label, _size, _md5sum, _kernel, _fname, _options)
             else:
                 raise UnknownPackageType, _type
             pkg.type = _type
@@ -473,7 +474,7 @@ class BzippedPackage(Package):
         return "<BzippedPackage: %s>" % self.name
 
 class RPMPackage(Package):
-    def __init__(self, repository, name, size, md5sum, src):
+    def __init__(self, repository, name, size, md5sum, src, options):
         (
             self.repository,
             self.name,
@@ -482,6 +483,10 @@ class RPMPackage(Package):
             self.repository_filename,
         ) = ( repository, name, long(size), md5sum, src )
         self.destination = 'tmp/%s' % os.path.basename(src)
+        if options == '':
+            self.rpm_options = ['-U']
+        else:
+            self.rpm_options = options.split(' ')
 
     def __repr__(self):
         return "<RPMPackage: %s>" % self.name
@@ -502,7 +507,7 @@ class RPMPackage(Package):
             xelogging.log("%s-%s already installed, skipping" % (name, new_ver))
             return
 
-        rc, msg = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-U', self.destination], with_stderr = True)
+        rc, msg = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm'] + self.rpm_options + [self.destination], with_stderr = True)
         os.unlink(os.path.join(base, self.destination))
         if rc != 0:
             raise ErrorInstallingPackage, "Installation of %s failed.\n%s" % (self.destination, msg.rstrip())
@@ -571,7 +576,7 @@ class RPMPackage(Package):
         return data
 
 class DriverRPMPackage(RPMPackage):
-    def __init__(self, repository, name, size, md5sum, kernel, src):
+    def __init__(self, repository, name, size, md5sum, kernel, src, options):
         (
             self.repository,
             self.name,
@@ -581,6 +586,10 @@ class DriverRPMPackage(RPMPackage):
             self.repository_filename,
         ) = ( repository, name, long(size), md5sum, kernel, src )
         self.destination = 'tmp/%s' % os.path.basename(src)
+        if options == '':
+            self.rpm_options = ['-U']
+        else:
+            self.rpm_options = options.split(' ')
 
     def __repr__(self):
         return "<DriverRPMPackage: %s>" % self.name

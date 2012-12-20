@@ -1,0 +1,33 @@
+#!/bin/sh
+
+start()
+{
+  autodev=$(blkid -t LABEL=autoinstall -o device)
+  [ -z "$autodev" ] && return
+
+  mkdir -p /mnt/autoinstall
+  mount $autodev /mnt/autoinstall
+  [ $? -eq 0 ] || return
+  [ -r /mnt/autoinstall/cmdline ] && cp -fp /mnt/autoinstall/cmdline /var/run
+  umount /mnt/autoinstall
+}
+
+stop()
+{
+}
+
+
+RET=0
+case "$1" in
+  start)
+    start
+    RET=$?;;
+  stop)
+    stop
+    RET=$?;;
+  *)
+    echo "Usage: $0 start|stop"
+    RET=1
+esac
+
+exit $RET
