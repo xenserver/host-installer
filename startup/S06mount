@@ -31,7 +31,9 @@ start()
 	  set -- `echo $device | tr / ' '`
 	  vg=`echo $1 | sed -e 's/-/--/g'`
 	  lv=`echo $2 | sed -e 's/-/--/g'`
-	  device="/dev/mapper/$vg-$lv"
+	  device="/dev/mapper/$vg-$lv";;
+	  LABEL=*)
+            device=`blkid -t $device -o device`;;
 	esac
 
 	[ -r $mnt ] || mkdir -p $mnt
