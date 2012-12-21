@@ -1,11 +1,13 @@
 #!/bin/sh
 
+. /etc/init.d/functions
+
 start()
 {
   local oldifs="$IFS"
 
   ret=0
-  for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+  for arg in `cmdline | sed -e 's/ $//; y/ /\n/'`; do
     case "$arg" in
       mount=*)
         IFS=':'

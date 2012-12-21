@@ -1,5 +1,7 @@
 #!/bin/sh
 
+. /etc/init.d/functions
+
 start()
 {
   local ret
@@ -22,7 +24,7 @@ stop()
 
 
 debug=0
-tr ' ' '\n' </proc/cmdline | grep '^debug$' && debug=1
+cmdline | tr ' ' '\n' | grep '^debug$' && debug=1
 
 RET=0
 case "$1" in

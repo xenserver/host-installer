@@ -5,6 +5,8 @@
 # Xen, XenSource and XenEnterprise are either registered trademarks or 
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
+. /etc/init.d/functions
+
 ###
 # XEN CLEAN INSTALLER
 # Startup script
@@ -30,7 +32,7 @@ OLDIFS="$IFS"
 IFS="
 "
 # spaces separate arguments except for spaces enclosed by a pair of double quotes
-args=$(sed -e s'/ *$//' -e 's/\(\("[^"]*"\)*\) \+/\1\n/g' /proc/cmdline)
+args=$(cmdline | sed -e s'/ *$//' -e 's/\(\("[^"]*"\)*\) \+/\1\n/g')
 set --
 for arg in $args; do
   copy=1

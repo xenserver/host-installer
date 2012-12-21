@@ -1,8 +1,10 @@
 #!/bin/sh
 
+. /etc/init.d/functions
+
 start()
 {
-  for arg in `sed -e 's/ $//; y/ /\n/' /proc/cmdline`; do
+  for arg in `cmdline | sed -e 's/ $//; y/ /\n/'`; do
     case "$arg" in
       start=*)
         exec ${arg#start=};;
