@@ -42,7 +42,7 @@ Startup
   mount=dev[:fstype[:opt]]:mnt
 
     Mount a given device on a mountpoint. dev can also be a logical
-    volume in the local SR.
+    volume in the local SR or filesystem label (prefixed with LABEL=).
 
 
   start=exe
