@@ -24,6 +24,7 @@ import xelogging
 import repository
 from disktools import *
 import hardware
+import xcp
 import xcp.bootloader as bootloader
 from xcp.version import *
 import xml.dom.minidom
@@ -367,18 +368,32 @@ class ExistingInstallation:
         finally:
             self.unmount_state()
 
-        # read bootloader config to extract serial console settings & bootloader location
+        # read bootloader config to extract various settings
         boot_fs = None
         try:
+            # Boot device
             boot_fs = util.TempMount(self.boot_device, 'boot-', ['ro'], 'ext3')
             boot_config = bootloader.Bootloader.loadExisting(boot_fs.mount_point)
+
+            # Serial console
             if boot_config.serial:
                 results['serial-console'] = hardware.SerialPort(boot_config.serial['port'],
                                                                 baud = str(boot_config.serial['baud']))
             results['bootloader-location'] = boot_config.location
             if boot_config.default != 'upgrade':
                 results['boot-serial'] = (boot_config.default == 'xe-serial')
-            results['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), boot_config.menu[boot_config.default].getHypervisorArgs())
+
+            # Subset of hypervisor arguments
+            xen_args = boot_config.menu[boot_config.default].getHypervisorArgs()
+
+            #   - cpuid_mask
+            results['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), xen_args)
+
+            #   - dom0_mem
+            dom0_mem_arg = filter(lambda x: x.startswith('dom0_mem'), xen_args)
+            (dom0_mem, dom0_mem_min, dom0_mem_max) = xcp.dom0_memory.parse_dom0_mem(dom0_mem_arg[0])
+            if dom0_mem:
+                results['dom0-mem'] = dom0_mem / 1024 / 1024
         except:
             pass
         if boot_fs:
