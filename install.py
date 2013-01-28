@@ -170,6 +170,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                             if p.type.startswith('driver'):
                                 if p.load() != 0:
                                     raise RuntimeError, "Failed to load driver %s." % p.name
+            util.runCmd2([ '/sbin/udevsettle' ])
             results = fixMpathResults(results)
 
         results['extra-repos'] += extra_repo_defs
