@@ -25,6 +25,7 @@ import constants
 import init_constants
 
 # hardware
+import disktools
 import diskutil
 import netutil
 import hardware
@@ -60,6 +61,35 @@ def xen_control_domain():
     if f is not None:
         f.close()
     return is_xen_control_domain
+
+# get real path for multipath
+def fixMpathResults(results):
+    # update primary disk
+    primary_disk = None
+    if 'primary-disk' in results:
+        primary_disk = results['primary-disk']
+        master = disktools.getMpathMaster(primary_disk)
+        if master:
+            primary_disk = master
+        results['primary-disk'] = primary_disk
+
+    # update all other disks
+    if 'guest-disk' in results:
+        disks = []
+        for disk in results['guest-disk']:
+            master = disktools.getMpathMaster(disk)
+            if master:
+                # CA-38329: disallow device mapper nodes (except primary disk) as these won't exist
+                # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
+                # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
+                # in the "Local" SR.
+                if master != primary_disk:
+                    raise Exception, "Non-local disk %s specified to be added to Local SR" % disk
+                disk = master
+            disks.append(disk)
+        results['guest-disk'] = disks
+
+    return results
 
 def go(ui, args, answerfile_address, answerfile_script):
     extra_repo_defs = []
@@ -140,6 +170,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                             if p.type.startswith('driver'):
                                 if p.load() != 0:
                                     raise RuntimeError, "Failed to load driver %s." % p.name
+            results = fixMpathResults(results)
 
         results['extra-repos'] += extra_repo_defs
         xelogging.log("Driver repos: %s" % str(results['extra-repos']))

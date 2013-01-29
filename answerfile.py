@@ -14,7 +14,6 @@
 """answerfile - parse installation answerfiles"""
 
 from constants import *
-import disktools
 import diskutil
 from netinterface import *
 import netutil
@@ -170,11 +169,6 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['primary-disk'])
         if len(nodes) == 1:
             disk = normalize_disk(getText(nodes[0]))
-
-            # If answerfile names a multipath replace with the master!
-            master = disktools.getMpathMaster(disk)
-            if master:
-                disk = master
             results['primary-disk'] = disk
 
         return results
@@ -240,12 +234,6 @@ class Answerfile:
         inst = getElementsByTagName(self.top_node, ['existing-installation'],
                                     mandatory = True)
         disk = normalize_disk(getText(inst[0]))
-
-        # If answerfile names a multipath replace with the master!
-        master = disktools.getMpathMaster(disk)
-        if master:
-            disk = master
-
         results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
@@ -315,12 +303,6 @@ class Answerfile:
         if len(getElementsByTagName(self.top_node, ['zap-utility-partitions'])) > 0:
             results['preserve-first-partition'] = 'false'
         primary_disk = normalize_disk(getText(node))
-
-        # If we're using multipath and the answerfile names a multipath
-        # slave, then we want to install to the master!
-        master = disktools.getMpathMaster(primary_disk)
-        if master:
-            primary_disk = master
         results['primary-disk'] = primary_disk
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
@@ -333,16 +315,6 @@ class Answerfile:
             results['guest-disks'].append(primary_disk)
         for node in getElementsByTagName(self.top_node, ['guest-disk']):
             disk = normalize_disk(getText(node))
-            # Replace references to multipath slaves with references to their multipath masters
-            master = disktools.getMpathMaster(disk)
-            if master:
-                # CA-38329: disallow device mapper nodes (except primary disk) as these won't exist
-                # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
-                # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
-                # in the "Local" SR.
-                if master != primary_disk:
-                    raise AnswerfileException, "Answerfile specifies non-local disk %s to add to Local SR" % disk
-                disk = master
             results['guest-disks'].append(disk)
 
         results['sr-type'] = getMapAttribute(self.top_node, ['sr-type', 'srtype'],
