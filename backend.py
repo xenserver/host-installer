@@ -167,10 +167,6 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
-                                  'primary-partnum', 'serial-console', 'boot-serial',
-                                  'xen-cpuid-masks', 'dom0-mem', 'bootloader-location'), []),
-        Task(doDepmod, A(ans, 'mounts'), []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(writeModprobeConf, A(ans, 'mounts'), []),
@@ -180,6 +176,9 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(configureKdump, A(ans, 'mounts'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
+                                  'primary-partnum', 'serial-console', 'boot-serial',
+                                  'xen-cpuid-masks', 'dom0-mem', 'bootloader-location'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk', 'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge', 'branding', 'net-admin-configuration', 'dom0-mem'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
@@ -638,7 +637,7 @@ def createDom0DiskFilesystems(disk, primary_partnum):
     if rc != 0:
         raise RuntimeError, "Failed to create filesystem: %s" % err
 
-def __mkinitrd(mounts, partition, kernel_version):
+def __mkinitrd(mounts, partition, package, kernel_version):
 
     cmd = ['mkinitrd', '-v']
     args = ['--theme=/usr/share/splash']
@@ -663,15 +662,19 @@ def __mkinitrd(mounts, partition, kernel_version):
         if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
             raise RuntimeError, "Failed to latch arguments for initrd."
         
-        cmd = ['mkinitrd', '-v']
-        cmd.extend( args )
-        # Split suffix from cmd so "$@" can be inserted into the .cmd file
-        cmd_suffix = [output_file, kernel_version]
-        if util.runCmd2(['chroot', mounts['root']] + cmd + cmd_suffix) != 0:
-            raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
+        cmd = ['new-kernel-pkg.py', '--install', '--package='+package, '--mkinitrd']
+
         # Save command used to create initrd in <initrd_filename>.cmd
         cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
-        open(cmd_logfile, "w").write(' '.join(cmd + ['"$@"'] + cmd_suffix) + '\n')
+        cmd_fh = open(cmd_logfile, "w")
+        print >>cmd_fh, ' '.join(cmd + ['"$@"', kernel_version])
+        cmd_fh.close()
+
+        args = ['--verbose']
+        if package == 'kernel-xen':
+            args.append('--make-default')
+        if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd'] + args) != 0:
+            raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
@@ -703,6 +706,7 @@ def configureSRMultipathing(mounts, primary_disk):
 
 def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+    kdump_kernel_version = None
     if xen_kernel_version.startswith("2.6"):
         kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
     partition = partitionDevice(primary_disk, primary_partnum)
@@ -731,12 +735,9 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                 if util.runCmd2(cmd):
                     raise RuntimeError, "Failed to copy initiatorname.iscsi"
 
-    __mkinitrd(mounts, partition, xen_kernel_version)
-    if xen_kernel_version.startswith("2.6"):
-        __mkinitrd(mounts, partition, kdump_kernel_version)
- 
-    # make the initrd-2.6-xen.img symlink:
-    os.symlink("initrd-%s.img" % xen_kernel_version, "%s/boot/initrd-2.6-xen.img" % mounts['root'])
+    __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
+    if kdump_kernel_version:
+        __mkinitrd(mounts, partition, 'kernel-kdump', kdump_kernel_version)
 
 def configureKdump(mounts):
     if not getKernelVersion(mounts['root'], 'xen').startswith("2.6"): return
@@ -899,9 +900,6 @@ def umountVolumes(mounts, cleanup, force = False):
 ##########
 # second stage install helpers:
     
-def doDepmod(mounts):
-    util.runCmd2(['chroot', mounts['root'], 'depmod', getKernelVersion(mounts['root'], 'xen')]) == 0
-
 def writeKeyboardConfiguration(mounts, keymap):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
     if not keymap:
