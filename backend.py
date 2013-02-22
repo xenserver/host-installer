@@ -681,18 +681,26 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         util.umount(os.path.join(mounts['root'], 'proc'))
         util.umount(os.path.join(mounts['root'], 'tmp'))
 
-class KernelNotFound(Exception):
-    pass
 def getKernelVersion(rootfs_mount, kextra):
     """ Returns a list of installed kernel version of type kextra, e.g. 'xen'. """
-    chroot = ['chroot', rootfs_mount, 'rpm', '-q', 'kernel-%s' % kextra, '--qf', '%%{VERSION}-%%{RELEASE}%s\n' % kextra]
+    pkg_name = kextra and 'kernel-'+kextra or 'kernel'
+    chroot = ['chroot', rootfs_mount, 'rpm', '-q', pkg_name, '--qf', '%{VERSION}-%{RELEASE}\n']
     rc, out = util.runCmd2(chroot, with_stdout = True)
     if rc != 0:
-        raise KernelNotFound, "Required package kernel-%s not found." % kextra
+        return None
 
     out = out.strip().split("\n")
-    assert len(out) >= 1, "Required package kernel-%s not found." % kextra
-    return out[-1]
+    if len(out) < 1:
+        return None
+    ver = out[-1]
+    if kextra:
+        ver += kextra
+    return ver
+
+def kernelShortVersion(version):
+    """ Return the short kernel version string (i.e., just major.minor). """
+    parts = version.split(".")
+    return parts[0] + "." + parts[1]
 
 def configureSRMultipathing(mounts, primary_disk):
     # Only called on fresh installs:
@@ -705,10 +713,12 @@ def configureSRMultipathing(mounts, primary_disk):
     fd.close()
 
 def mkinitrd(mounts, primary_disk, primary_partnum):
-    xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
-    kdump_kernel_version = None
-    if xen_kernel_version.startswith("2.6"):
-        kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
+    xen_kernel_version = getKernelVersion(mounts['root'], None)
+    if not xen_kernel_version:
+        xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+    if not xen_kernel_version:
+        raise RuntimeError, "Unable to determine kernel version."
+    kdump_kernel_version = kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
     partition = partitionDevice(primary_disk, primary_partnum)
 
     if diskutil.is_iscsi(primary_disk):
@@ -740,8 +750,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
         __mkinitrd(mounts, partition, 'kernel-kdump', kdump_kernel_version)
 
 def configureKdump(mounts):
-    if not getKernelVersion(mounts['root'], 'xen').startswith("2.6"): return
-
     # set kdump config to handle known errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
     if rc == 0 and ('10de:0360' in out or '10de:0364' in out):
@@ -750,6 +758,7 @@ def configureKdump(mounts):
         kdcfile.close()
 
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks, dom0_mem):
+    short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "mem=%dG dom0_max_vcpus=1-%d dom0_mem=%dM,max:%dM" % (
         constants.XEN_MEM, constants.DOM0_VCPUS, dom0_mem, dom0_mem)
     common_xen_unsafe_params = "watchdog_timeout=%d cpuid_mask_xsave_eax=0" % (constants.XEN_WATCHDOG_TIMEOUT)
@@ -763,24 +772,24 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
 
     e = bootloader.MenuEntry("/boot/xen.gz",
                              common_xen_params+" "+common_xen_unsafe_params+" "+xen_mem_params+mask_params+" console=vga vga=mode-0x0311",
-                             "/boot/vmlinuz-2.6-xen",
+                             "/boot/vmlinuz-%s-xen" % short_version,
                              common_kernel_params+" "+kernel_console_params+" console=tty0 quiet vga=785 splash",
-                             "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND)
+                             "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND)
     boot_config.append("xe", e)
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
         
         e = bootloader.MenuEntry("/boot/xen.gz",
                                  ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params+mask_params]),
-                                 "/boot/vmlinuz-2.6-xen",
+                                 "/boot/vmlinuz-%s-xen" % short_version,
                                  common_kernel_params+" console=tty0 "+kernel_console_params,
-                                 "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND+" (Serial)")
+                                 "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" (Serial)")
         boot_config.append("xe-serial", e)
         e = bootloader.MenuEntry("/boot/xen.gz",
                                  ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
-                                 "/boot/vmlinuz-2.6-xen",
+                                 "/boot/vmlinuz-%s-xen" % short_version,
                                  ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
-                                 "/boot/initrd-2.6-xen.img", MY_PRODUCT_BRAND+" in Safe Mode")
+                                 "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
     e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
                              common_xen_params+" "+common_xen_unsafe_params+" "+xen_mem_params+mask_params,
@@ -812,7 +821,12 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, seria
         boot_config = bootloader.Bootloader('extlinux', fn, default = boot_serial and 'xe-serial' or 'xe', timeout = 50,
                                             serial = serial and {'port': serial.id, 'baud': int(serial.baud)} or None,
                                             location = location)
-        buildBootLoaderMenu(getKernelVersion(mounts['root'], 'xen'), boot_config, serial, cpuid_masks, dom0_mem)
+        xen_kernel_version = getKernelVersion(mounts['root'], None)
+        if not xen_kernel_version:
+            xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+        if not xen_kernel_version:
+            raise RuntimeError, "Unable to determine kernel version."
+        buildBootLoaderMenu(xen_kernel_version, boot_config, serial, cpuid_masks, dom0_mem)
         util.assertDir(os.path.dirname(fn))
         boot_config.commit()
 
