@@ -761,28 +761,35 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "mem=%dG dom0_max_vcpus=1-%d dom0_mem=%dM,max:%dM" % (
         constants.XEN_MEM, constants.DOM0_VCPUS, dom0_mem, dom0_mem)
-    common_xen_unsafe_params = "watchdog_timeout=%d cpuid_mask_xsave_eax=0" % (constants.XEN_WATCHDOG_TIMEOUT)
+    common_xen_unsafe_params = "watchdog_timeout=%d" % (constants.XEN_WATCHDOG_TIMEOUT,)
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
-    mask_params = ' '.join(xen_cpuid_masks)
-    if len(mask_params):
-        mask_params = ' '+mask_params
+
+    # CA-101581 - Mask parameters are unique to Xen, and previously accumulated
+    # on upgrade.  Use a dictionary to eat duplicates.
+    cpuid_masks = {"cpuid_mask_xsave_eax": "0"}
+    for mask in xen_cpuid_masks:
+        parts = mask.split("=", 1)
+        if len(parts) == 2:
+            cpuid_masks[parts[0]] = parts[1]
+    mask_params = ' '.join ( ("%s=%s" % (x, y) for x, y in cpuid_masks.iteritems() ) )
+
     common_kernel_params = "root=LABEL=%s ro" % constants.rootfs_label
     kernel_console_params = "xencons=hvc console=hvc0"
 
     e = bootloader.MenuEntry("/boot/xen.gz",
-                             common_xen_params+" "+common_xen_unsafe_params+" "+xen_mem_params+mask_params+" console=vga vga=mode-0x0311",
+                             ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
                              "/boot/vmlinuz-%s-xen" % short_version,
-                             common_kernel_params+" "+kernel_console_params+" console=tty0 quiet vga=785 splash",
+                             ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
                              "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND)
     boot_config.append("xe", e)
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
         
         e = bootloader.MenuEntry("/boot/xen.gz",
-                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params+mask_params]),
+                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                                  "/boot/vmlinuz-%s-xen" % short_version,
-                                 common_kernel_params+" console=tty0 "+kernel_console_params,
+                                 ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" (Serial)")
         boot_config.append("xe-serial", e)
         e = bootloader.MenuEntry("/boot/xen.gz",
@@ -792,7 +799,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
     e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
-                             common_xen_params+" "+common_xen_unsafe_params+" "+xen_mem_params+mask_params,
+                             ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                              "/boot/vmlinuz-%s" % xen_kernel_version,
                              ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              "/boot/initrd-%s.img" % xen_kernel_version, 
@@ -800,9 +807,9 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
-                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params+mask_params]),
+                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                                  "/boot/vmlinuz-%s" % xen_kernel_version,
-                                 common_kernel_params+" console=tty0 "+kernel_console_params,
+                                 ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  "/boot/initrd-%s.img" % xen_kernel_version, 
                                  "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
