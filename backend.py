@@ -169,7 +169,6 @@ def getFinalisationSequence(ans):
     seq = [
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
-        Task(writeModprobeConf, A(ans, 'mounts'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
@@ -1138,24 +1137,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     netutil.dynamic_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/dynamic-rules.json')
     netutil.dynamic_rules.save()
 
-
-# use kudzu to write initial modprobe-conf:
-def writeModprobeConf(mounts):
-    # CA-21996: kudzu can get confused and write ifcfg files for the
-    # the wrong interface. If we move the network-scripts sideways
-    # then it still performs its other tasks.
-    os.rename("%s/etc/sysconfig/network-scripts" % mounts['root'], 
-              "%s/etc/sysconfig/network-scripts.hold" % mounts['root'])
-
-    util.bindMount("/proc", "%s/proc" % mounts['root'])
-    util.bindMount("/sys", "%s/sys" % mounts['root'])
-    util.runCmd2(['chroot', mounts['root'], 'kudzu', '-q', '-k', getKernelVersion(mounts['root'], 'xen')]) == 0
-    util.umount("%s/proc" % mounts['root'])
-    util.umount("%s/sys" % mounts['root'])
-
-    # restore directory
-    os.rename("%s/etc/sysconfig/network-scripts.hold" % mounts['root'], 
-              "%s/etc/sysconfig/network-scripts" % mounts['root'])
 
 def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, dom0_mem):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
