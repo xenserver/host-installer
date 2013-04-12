@@ -90,7 +90,6 @@ GPT_SUPPORT = True
 
 XEN_MEM=1024 #GB
 XEN_WATCHDOG_TIMEOUT=300 #seconds
-DOM0_VCPUS=4
 
 # filesystems and partitions (sizes in MB):
 root_size = 4096
