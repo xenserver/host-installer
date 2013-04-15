@@ -20,3 +20,4 @@ install:
 	install -m755 S99alt-start $(DESTDIR)/etc/init.d
 	install -m755 functions $(DESTDIR)/etc/init.d
 	install -D -m644 depmod.conf $(DESTDIR)/etc/depmod.d/depmod.conf
+	install -D -m644 modprobe.mlx4 $(DESTDIR)/etc/modprobe.d/mlx4
