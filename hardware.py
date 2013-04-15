@@ -129,8 +129,16 @@ def PhysHost_getSerialConfig():
     m = re.match(r'.*(com\d=\S+)', cmdline)
     return m and m.group(1) or None
 
+def PhysHost_getHostTotalCPUs():
+    rc, pcpus = util.runCmd2([constants.XENINFO, 'host-total-cpus'], with_stdout = True)
+    if rc != 0:
+        raise RuntimeError("Unable to determine number of CPUs.")
+    return int(pcpus.strip())
+
 getHostTotalMemoryKB = PhysHost_getHostTotalMemoryKB
 getSerialConfig = PhysHost_getSerialConfig
+getHostTotalCPUs = PhysHost_getHostTotalCPUs
+
 def useVMHardwareFunctions():
     global getHostTotalMemoryKB, getSerialConfig
     getHostTotalMemoryKB = VM_getHostTotalMemoryKB
