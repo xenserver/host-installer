@@ -675,6 +675,7 @@ def select_guest_disks(answers):
 
     answers['guest-disks'] = cbt.getSelection()
     answers['sr-type'] = tb.selected() and constants.SR_TYPE_EXT or constants.SR_TYPE_LVM
+    answers['sr-on-primary'] = answers['primary-disk'] in answers['guest-disks']
 
     # if the user select no disks for guest storage, check this is what
     # they wanted:

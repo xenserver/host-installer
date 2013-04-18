@@ -110,7 +110,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if not interactive:
@@ -303,7 +303,8 @@ def performInstallation(answers, ui_package, interactive):
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
                           'initial-partitions': [], 
                           'preserve-first-partition': 'if-utility', 
-                          'sr-at-end': True })
+                          'sr-at-end': True,
+                          'sr-on-primary': True })
 
         xelogging.log("Updating answers dictionary based on defaults")
 
@@ -463,7 +464,7 @@ def configureTimeManually(mounts, ui_package):
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
 
-def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition):
+def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part):
     
     if existing:
         # upgrade, use existing partitioning scheme
@@ -491,8 +492,12 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         if primary_part > 2:
             raise RuntimeError, "Installer only supports a single Utility Partition at partition 1, but found Utility Partitions at %s" % str(utilparts)
 
+    sr_part = -1
+    if create_sr_part:
+        sr_part = primary_part+2
+
     # Return numbers of primary, backup, and SR partitions
-    return (primary_part, primary_part+1, primary_part+2)
+    return (primary_part, primary_part+1, sr_part)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):

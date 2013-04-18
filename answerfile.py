@@ -307,6 +307,7 @@ class Answerfile:
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
                                        default = True)
+        results['sr-on-primary'] = inc_primary
         results['sr-at-end'] = getBoolAttribute(node, ['sr-at-end'], default = True)
 
         # Guest disk(s) (Local SR)
@@ -315,6 +316,8 @@ class Answerfile:
             results['guest-disks'].append(primary_disk)
         for node in getElementsByTagName(self.top_node, ['guest-disk']):
             disk = normalize_disk(getText(node))
+            if not results['sr-on-primary'] and disk == results['primary-disk']:
+                results['sr-on-primary'] = True
             results['guest-disks'].append(disk)
 
         results['sr-type'] = getMapAttribute(self.top_node, ['sr-type', 'srtype'],
