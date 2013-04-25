@@ -80,7 +80,9 @@ def configureNetworking(ui, device, config):
         # MAC address
         matching_list = filter(lambda x: x.hwaddr == device, nethw.values())
         if len(matching_list) == 1:
-            netutil.ifup(matching_list[0].name)
+            devname = matching_list[0].name
+            netutil.ifup(devname)
+            netcfg[devname].waitUntilUp(devname)
 
     if ui:
         ui.progress.clearModelessDialog()
