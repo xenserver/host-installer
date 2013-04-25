@@ -160,7 +160,7 @@ class NetInterface:
         if not self.gateway:
             return True
 
-        rc = util.runCmd2(['/usr/bin/arping', '-f', '-w', '60', '-I', iface, self.gateway])
+        rc = util.runCmd2(['/usr/bin/arping', '-f', '-w', '120', '-I', iface, self.gateway])
         return rc == 0
 
     @staticmethod
