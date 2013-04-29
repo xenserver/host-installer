@@ -174,7 +174,6 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(configureKdump, A(ans, 'mounts'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
                                   'primary-partnum', 'serial-console', 'boot-serial',
                                   'xen-cpuid-masks', 'dom0-mem', 'dom0-vcpus', 'bootloader-location'), []),
@@ -741,14 +740,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
     if kdump_kernel_version:
         __mkinitrd(mounts, partition, 'kernel-kdump', kdump_kernel_version)
-
-def configureKdump(mounts):
-    # set kdump config to handle known errata
-    rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
-    if rc == 0 and ('10de:0360' in out or '10de:0364' in out):
-        kdcfile = open("%s/etc/sysconfig/kdump" % mounts['root'], 'a')
-        kdcfile.write('KDUMP_KERNEL_CMDLINE_EXTRA="irqpoll maxcpus=1 reset_devices no-hlt"\n')
-        kdcfile.close()
 
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks, dom0_mem, dom0_vcpus):
     short_version = kernelShortVersion(xen_kernel_version)
