@@ -102,7 +102,7 @@ class ExistingInstallation:
     def _readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
         
-        results = {}
+        results = { 'host-config': {} }
         if self.version < XENSERVER_5_6_0:
             raise SettingsNotAvailable, "version too old"
 
@@ -387,13 +387,13 @@ class ExistingInstallation:
             xen_args = boot_config.menu[boot_config.default].getHypervisorArgs()
 
             #   - cpuid_mask
-            results['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), xen_args)
+            results['host-config']['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), xen_args)
 
             #   - dom0_mem
             dom0_mem_arg = filter(lambda x: x.startswith('dom0_mem'), xen_args)
             (dom0_mem, dom0_mem_min, dom0_mem_max) = xcp.dom0.parse_mem(dom0_mem_arg[0])
             if dom0_mem:
-                results['dom0-mem'] = dom0_mem / 1024 / 1024
+                results['host-config']['dom0-mem'] = dom0_mem / 1024 / 1024
         except:
             pass
         if boot_fs:

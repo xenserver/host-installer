@@ -91,7 +91,7 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
             backend.installBootLoader(mounts, disk, probePartitioningScheme(disk), primary_partnum,
-                                      None, False, [], location)
+                                      location)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)

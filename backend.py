@@ -175,11 +175,10 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
-                                  'primary-partnum', 'serial-console', 'boot-serial',
-                                  'xen-cpuid-masks', 'dom0-mem', 'dom0-vcpus', 'bootloader-location'), []),
+                                  'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
-                               'branding', 'net-admin-configuration', 'dom0-mem', 'dom0-vcpus'), []),
+                               'branding', 'net-admin-configuration', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -287,9 +286,10 @@ def performInstallation(answers, ui_package, interactive):
 
     dom0_mem = xcp.dom0.default_memory(hardware.getHostTotalMemoryKB()) / 1024
     dom0_vcpus = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs())
-    defaults = { 'branding': {},
-                 'dom0-mem': dom0_mem,
-                 'dom0-vcpus': dom0_vcpus }
+    default_host_config = { 'dom0-mem': dom0_mem,
+                            'dom0-vcpus': dom0_vcpus,
+                            'xen-cpuid-masks': [] }
+    defaults = { 'branding': {}, 'host-config': {} }
     
     # update the settings:
     if answers['preserve-settings'] == True:
@@ -297,8 +297,9 @@ def performInstallation(answers, ui_package, interactive):
 
         xelogging.log("Updating answers dictionary based on existing installation")
         answers.update(answers['installation-to-overwrite'].readSettings())
+        prettyLogAnswers(answers)
     else:
-        defaults.update({ 'master': None, 'xen-cpuid-masks': [], 
+        defaults.update({ 'master': None,
                           'sr-type': constants.SR_TYPE_LVM, 
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
                           'initial-partitions': [], 
@@ -311,6 +312,9 @@ def performInstallation(answers, ui_package, interactive):
     for k, v in defaults.items():
         if k not in answers:
             answers[k] = v
+    for k, v in default_host_config.items():
+        if k not in answers['host-config']:
+            answers['host-config'][k] = v
     xelogging.log("UPDATED ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
@@ -746,10 +750,11 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
     if kdump_kernel_version:
         __mkinitrd(mounts, partition, 'kernel-kdump', kdump_kernel_version)
 
-def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks, dom0_mem, dom0_vcpus):
+def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, host_config):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "mem=%dG dom0_max_vcpus=%d dom0_mem=%dM,max:%dM" % (
-        constants.XEN_MEM, dom0_vcpus, dom0_mem, dom0_mem)
+        constants.XEN_MEM, host_config['dom0-vcpus'], host_config['dom0-mem'],
+        host_config['dom0-mem'])
     common_xen_unsafe_params = "watchdog_timeout=%d" % (constants.XEN_WATCHDOG_TIMEOUT,)
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
@@ -757,7 +762,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
     # CA-101581 - Mask parameters are unique to Xen, and previously accumulated
     # on upgrade.  Use a dictionary to eat duplicates.
     cpuid_masks = {"cpuid_mask_xsave_eax": "0"}
-    for mask in xen_cpuid_masks:
+    for mask in host_config['xen-cpuid-masks']:
         parts = mask.split("=", 1)
         if len(parts) == 2:
             cpuid_masks[parts[0]] = parts[1]
@@ -772,6 +777,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                              ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
                              "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND)
     boot_config.append("xe", e)
+    boot_config.default = "xe"
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
         
@@ -781,6 +787,8 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" (Serial)")
         boot_config.append("xe-serial", e)
+        if boot_serial:
+            boot_config.default = "xe-serial"
         e = bootloader.MenuEntry("/boot/xen.gz",
                                  ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
                                  "/boot/vmlinuz-%s-xen" % short_version,
@@ -803,28 +811,30 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, xen_cpuid_masks
                                  "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, partition_table_type, primary_partnum, serial, boot_serial, cpuid_masks, dom0_mem, dom0_vcpus, location = constants.BOOT_LOCATION_MBR):
-    
+def installBootLoader(mounts, disk, partition_table_type, primary_partnum, location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
-    
+
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
     util.bindMount("/proc", "%s/proc" % mounts['root'])
 
     try:
-        fn = os.path.join(mounts['boot'], "extlinux.conf")
-        boot_config = bootloader.Bootloader('extlinux', fn, default = boot_serial and 'xe-serial' or 'xe', timeout = 50,
-                                            serial = serial and {'port': serial.id, 'baud': int(serial.baud)} or None,
-                                            location = location)
-        xen_kernel_version = getKernelVersion(mounts['root'], None)
-        if not xen_kernel_version:
-            xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
-        if not xen_kernel_version:
-            raise RuntimeError, "Unable to determine kernel version."
-        buildBootLoaderMenu(xen_kernel_version, boot_config, serial, cpuid_masks, dom0_mem, dom0_vcpus)
-        util.assertDir(os.path.dirname(fn))
-        boot_config.commit()
+        if host_config:
+            s = serial and {'port': serial.id, 'baud': int(serial.baud)} or None
+
+            fn = os.path.join(mounts['boot'], "extlinux.conf")
+            boot_config = bootloader.Bootloader('extlinux', fn,
+                                                timeout = constants.BOOT_MENU_TIMEOUT,
+                                                serial = s, location = location)
+            xen_kernel_version = getKernelVersion(mounts['root'], None)
+            if not xen_kernel_version:
+                xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+            if not xen_kernel_version:
+                raise RuntimeError, "Unable to determine kernel version."
+            buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, host_config)
+            util.assertDir(os.path.dirname(fn))
+            boot_config.commit()
 
         installExtLinux(mounts, disk, partition_table_type, location)
 
@@ -1128,7 +1138,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     netutil.dynamic_rules.save()
 
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, dom0_mem, dom0_vcpus):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
@@ -1158,8 +1168,8 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
         inv.write("BACKUP_PARTITION='%s'\n" % (diskutil.idFromPartition(partitionDevice(primary_disk, backup_partnum)) or partitionDevice(primary_disk, backup_partnum)))
     inv.write("INSTALLATION_UUID='%s'\n" % installID)
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
-    inv.write("DOM0_MEM='%d'\n" % dom0_mem)
-    inv.write("DOM0_VCPUS='%d'\n" % (dom0_vcpus, ))
+    inv.write("DOM0_MEM='%d'\n" % host_config['dom0-mem'])
+    inv.write("DOM0_VCPUS='%d'\n" % host_config['dom0-vcpus'])
     inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
     # Default to IPv4 unless we have only got an IPv6 admin interface
     if ((not admin_config.mode) and admin_config.modev6):

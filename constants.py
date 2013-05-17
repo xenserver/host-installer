@@ -141,3 +141,6 @@ HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"
 
 # timer to exit installer after fatal error
 AUTO_EXIT_TIMER = 10 * 1000
+
+# bootloader timeout
+BOOT_MENU_TIMEOUT = 50
