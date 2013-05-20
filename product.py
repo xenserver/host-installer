@@ -37,7 +37,7 @@ THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 THIS_PLATFORM_VERSION = Version.from_string(version.PLATFORM_VERSION)
 XENSERVER_5_6_0 = Version([5, 6, 0])
 XENSERVER_5_6_100 = Version([5, 6, 100])
-XCP_1_0_0 = Version([1, 0, 0])
+XCP_1_6_0 = Version([1, 6, 0])
 
 class ExistingInstallation:
     def __init__(self, primary_disk, boot_device, state_device):
@@ -103,8 +103,6 @@ class ExistingInstallation:
         """ Read settings from the installation, returns a results dictionary. """
         
         results = { 'host-config': {} }
-        if self.version < XENSERVER_5_6_0:
-            raise SettingsNotAvailable, "version too old"
 
         self.mount_state()
         try:
@@ -432,9 +430,14 @@ class ExistingRetailInstallation(ExistingInstallation):
         self.mount_root()
         try:
             self.inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
-            self.name = self.inventory['PRODUCT_NAME']
-            self.brand = self.inventory['PRODUCT_BRAND']
-            self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
+            if 'PRODUCT_NAME' in self.inventory:
+                self.name = self.inventory['PRODUCT_NAME']
+                self.brand = self.inventory['PRODUCT_BRAND']
+                self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
+            else:
+                self.name = self.inventory['PLATFORM_NAME']
+                self.brand = self.inventory['PLATFORM_NAME']
+                self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'], self.inventory['BUILD_NUMBER']))
             self.build = self.inventory['BUILD_NUMBER']
         finally:
             self.unmount_root()

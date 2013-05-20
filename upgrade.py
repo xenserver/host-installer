@@ -125,16 +125,10 @@ class Upgrader(object):
             tds.unmount()
 
 
-def get_upgrades_versions():
-    if version.PRODUCT_VERSION: 
-        return [ (product.XENSERVER_5_6_0, product.THIS_PRODUCT_VERSION) ]
-    else:
-        return [ (product.XCP_1_0_0, product.THIS_PLATFORM_VERSION) ]
-
 class ThirdGenUpgrader(Upgrader):
     """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = get_upgrades_versions()
+    upgrades_versions = [ (product.XENSERVER_5_6_0, product.THIS_PRODUCT_VERSION) ]
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
@@ -383,6 +377,11 @@ class ThirdGenUpgrader(Upgrader):
                     util.runCmd2(['tune2fs', '-o', 'journal_data_ordered', path])
                     l.deactivateVG(lv['vg_name'])
 
+class XCPUpgrader(ThirdGenUpgrader):
+    """ Upgrader class for XCP products. """
+    upgrades_product = "XCP"
+    upgrades_versions = [ (product.XCP_1_6_0, product.THIS_PLATFORM_VERSION) ]
+
 
 ################################################################################
 
@@ -400,7 +399,7 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ ThirdGenUpgrader ])
+__upgraders__ = UpgraderList([ ThirdGenUpgrader, XCPUpgrader ])
 
 def filter_for_upgradeable_products(installed_products):
     upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),

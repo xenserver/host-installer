@@ -122,7 +122,7 @@ BLOB_DIRECTORY = "var/lib/xcp/blobs"
 
 MAIN_REPOSITORY_NAME = 'xcp:main'
 MAIN_XS_REPOSITORY_NAME = 'xs:main'
-INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux"]
+INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux", "xcp:extras"]
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
