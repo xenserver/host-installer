@@ -446,9 +446,14 @@ class XenServerBackup:
     def __init__(self, part, mnt):
         self.partition = part
         self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes = True)
-        self.name = self.inventory['PRODUCT_NAME']
-        self.brand = self.inventory['PRODUCT_BRAND']
-        self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
+        if 'PRODUCT_NAME' in self.inventory:
+            self.name = self.inventory['PRODUCT_NAME']
+            self.brand = self.inventory['PRODUCT_BRAND']
+            self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
+        else:
+            self.name = self.inventory['PLATFORM_NAME']
+            self.brand = self.inventory['PLATFORM_NAME']
+            self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'], self.inventory['BUILD_NUMBER']))
         self.build = self.inventory['BUILD_NUMBER']
         self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
 
