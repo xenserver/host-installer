@@ -89,7 +89,7 @@ def fixMpathResults(results):
                     raise Exception, "Non-local disk %s specified to be added to Local SR" % disk
                 disk = master
             disks.append(disk)
-        results['guest-disk'] = disks
+        results['guest-disks'] = disks
 
     return results
 
