@@ -75,9 +75,9 @@ def fixMpathResults(results):
         results['primary-disk'] = primary_disk
 
     # update all other disks
-    if 'guest-disk' in results:
+    if 'guest-disks' in results:
         disks = []
-        for disk in results['guest-disk']:
+        for disk in results['guest-disks']:
             master = disktools.getMpathMaster(disk)
             xelogging.log("DEBUG: fixup guest, %s -> %s" % (disk, master))
             if master:
