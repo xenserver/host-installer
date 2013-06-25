@@ -303,7 +303,6 @@ class Answerfile:
         if len(getElementsByTagName(self.top_node, ['zap-utility-partitions'])) > 0:
             results['preserve-first-partition'] = 'false'
         primary_disk = normalize_disk(getText(node))
-        xelogging.log("DEBUG: primary-disk: %s -> %s" % (getText(node), primary_disk))
         results['primary-disk'] = primary_disk
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
@@ -317,7 +316,6 @@ class Answerfile:
             results['guest-disks'].append(primary_disk)
         for node in getElementsByTagName(self.top_node, ['guest-disk']):
             disk = normalize_disk(getText(node))
-            xelogging.log("DEBUG: guest-disk: %s -> %s" % (getText(node), disk))
             if not results['sr-on-primary'] and disk == results['primary-disk']:
                 results['sr-on-primary'] = True
             results['guest-disks'].append(disk)

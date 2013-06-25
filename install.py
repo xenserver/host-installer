@@ -69,7 +69,6 @@ def fixMpathResults(results):
     if 'primary-disk' in results:
         primary_disk = results['primary-disk']
         master = disktools.getMpathMaster(primary_disk)
-        xelogging.log("DEBUG: fixup primary, %s -> %s" % (primary_disk, master))
         if master:
             primary_disk = master
         results['primary-disk'] = primary_disk
@@ -79,7 +78,6 @@ def fixMpathResults(results):
         disks = []
         for disk in results['guest-disks']:
             master = disktools.getMpathMaster(disk)
-            xelogging.log("DEBUG: fixup guest, %s -> %s" % (disk, master))
             if master:
                 # CA-38329: disallow device mapper nodes (except primary disk) as these won't exist
                 # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
