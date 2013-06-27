@@ -755,7 +755,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
     common_xen_params = "mem=%dG dom0_max_vcpus=%d dom0_mem=%dM,max:%dM" % (
         constants.XEN_MEM, host_config['dom0-vcpus'], host_config['dom0-mem'],
         host_config['dom0-mem'])
-    common_xen_unsafe_params = "watchdog_timeout=%d" % (constants.XEN_WATCHDOG_TIMEOUT,)
+    common_xen_unsafe_params = "watchdog"
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
 

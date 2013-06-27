@@ -89,7 +89,6 @@ MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 GPT_SUPPORT = True
 
 XEN_MEM=1024 #GB
-XEN_WATCHDOG_TIMEOUT=300 #seconds
 
 # filesystems and partitions (sizes in MB):
 root_size = 4096
