@@ -89,7 +89,7 @@ def gen_answerfile(installer_dir, url):
         return False
 
     if not os.path.exists(root_device):
-        logger.error("Root disk %s not found" % root_disk)
+        logger.error("Root disk %s not found" % root_device)
         return False
 
     try:
