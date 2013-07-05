@@ -59,6 +59,16 @@ def add_mpath_udev_rule():
 def del_mpath_udev_rule():
     os.unlink(rules)
 
+def mpath_part_scan(force = False):
+    global use_mpath
+
+    if not force and not use_mpath:
+        return 0
+    ret = createMpathPartnodes()
+    if ret == 0:
+         util.runCmd2([ '/sbin/udevsettle' ])
+    return ret
+
 def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
@@ -71,7 +81,7 @@ def mpath_enable():
     util.runCmd2(["multipathd","-k"], inputtext="reconfigure")
 
     # Tell DM to create partition nodes for newly created mpath devices
-    assert 0 == createMpathPartnodes()
+    assert 0 == mpath_part_scan(True)
     xelogging.log("created multipath device(s)");
     use_mpath = True
 

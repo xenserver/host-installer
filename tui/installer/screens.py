@@ -13,6 +13,7 @@
 import string
 import datetime
 import os.path
+import time
 
 import generalui
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
@@ -25,6 +26,7 @@ import snackutil
 import util
 import socket
 import product
+import upgrade
 import netutil
 
 from snack import *
@@ -61,6 +63,14 @@ def welcome_screen(answers):
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
+        xelogging.log("Waiting for partitions to appear...")
+        util.runCmd2([ '/sbin/udevsettle' ])
+        time.sleep(1)
+        diskutil.mpath_part_scan()
+        tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
+        answers['installed-products'] = product.find_installed_products()
+        answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
+        answers['backups'] = product.findXenSourceBackups()
         return True
 
     global loop
