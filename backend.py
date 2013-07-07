@@ -1111,7 +1111,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--level', '2345', 'ip6tables', 'on'])
     else:
         nfd.write("NETWORKING_IPV6=no\n")
-        dv6fd = open("%s/etc/modprobe.d/disable-ipv6" % mounts["root"], "w")
+        dv6fd = open("%s/etc/modprobe.d/disable-ipv6.conf" % mounts["root"], "w")
         dv6fd.write("alias ipv6 no\nalias net-pf-10 off\n")
         dv6fd.close()
         del dv6fd
