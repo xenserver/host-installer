@@ -759,6 +759,11 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
 
+    # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
+    rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
+    if rc == 0 and ('1022:7451' in out or '1022:7459' in out):
+        common_xen_params += " ioapic_ack=old"
+
     # CA-101581 - Mask parameters are unique to Xen, and previously accumulated
     # on upgrade.  Use a dictionary to eat duplicates.
     cpuid_masks = {"cpuid_mask_xsave_eax": "0"}
