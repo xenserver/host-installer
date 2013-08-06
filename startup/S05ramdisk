@@ -54,13 +54,12 @@ start()
 	    # ISO mode, assume the ISOs unpack to less than 110% of the
 	    # ISO size. We'll also add 1000k headroom later.
 	    fssize=`du -ks /tmp/src/xsinst | awk '{print $1}'`
-	    fssize=$(($fssize * 11/10))
           else
 	    # Original mode
   	    fssize=`df -k /tmp/src | sed -ne 's#^/[^ ]\+ \+[0-9]\+ \+\([0-9]\+\).*#\1#p'`
 	  fi
 	  mkdir /tmp/ramdisk
-	  mount -t tmpfs -o size=$((fssize+2000))k tmpfs /tmp/ramdisk
+	  mount -t tmpfs -o size=$((fssize * 11/10 + 2000))k tmpfs /tmp/ramdisk
           if [ -d /tmp/src/xsinst ]; then
 	    # ISO mode. Iterate through ISOs in the xsinst directory
 	    # unpacking each one to the ramdisk
