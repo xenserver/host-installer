@@ -162,6 +162,31 @@ def gen_answerfile(installer_dir, url):
 
     return True
 
+def resolve_bonded_iface_and_check_carrier(pif, session):
+    bonds = pif.get('bond_master_of', '')
+    if not len(bonds):
+        # Return the PIF that was passed in if it is not a bond
+        return pif
+
+    # Otherwise, determine the real interfaces behind the bond
+    bond = session.xenapi.Bond.get_record(bonds[0])
+    for slave in bond.get('slaves', []):
+        bond_pif = session.xenapi.PIF.get_record(slave)
+        device = bond_pif.get('device', '').strip()
+        carrier = 0
+        # Check if there is a carrier on this device
+        try:
+            f = open('/sys/class/net/%s/carrier' % device, 'r')
+            carrier = int(f.read().strip())
+            f.close()
+        except:
+            pass
+        if carrier == 1:
+            return bond_pif
+    
+    # At this point, no interface had a carrier
+    return None
+
 def get_iface_config(iface):
     ret = None
 
@@ -175,7 +200,7 @@ def get_iface_config(iface):
             for p in net.get('PIFs', []):
                 pif = session.xenapi.PIF.get_record(p)
                 if pif.get('host', '') == this_host:
-                    ret = pif
+                    ret = resolve_bonded_iface_and_check_carrier(pif, session)
                     break
         
     session.xenapi.session.logout()
