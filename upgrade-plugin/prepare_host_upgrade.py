@@ -27,7 +27,7 @@ import xcp.logger as logger
 import XenAPI
 import XenAPIPlugin
 
-boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz']
+boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
 
 def shell_value(line):
     return line.split('=', 1)[1].strip("'")
@@ -218,14 +218,16 @@ def urlsplit(url):
 def set_boot_config(installer_dir, url):
     try:
         config = bootloader.Bootloader.loadExisting()
+        new_config = bootloader.Bootloader.readExtLinux(os.path.join(installer_dir, 'isolinux.cfg'))
 
         default = config.menu[config.default]
+        new_default = new_config.menu[new_config.default]
         if 'upgrade' in config.menu_order:
             config.remove('upgrade')
         else:
             config.commit(os.path.join(installer_dir, os.path.basename(config.src_file)))
 
-        xen_args = ['dom0_max_vcpus=1-2', 'dom0_mem=752M,max:752M']
+        xen_args = filter(lambda x: not x.startswith('com') and not x.startswith('console='), new_default.hypervisor_args.split())
         xen_args.extend(filter(lambda x: x.startswith('com') or x.startswith('console='), default.hypervisor_args.split()))
         kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
