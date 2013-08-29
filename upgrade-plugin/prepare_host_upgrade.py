@@ -299,9 +299,9 @@ def set_boot_config(installer_dir, url):
 
             kernel_args.append("mount=%s:%s:%s" % (dev, fs, mnt))
 
-        e = bootloader.MenuEntry(installer_dir+'/xen.gz', ' '.join(xen_args),
-                                 installer_dir+'/vmlinuz', ' '.join(kernel_args),
-                                 installer_dir+'/upgrade.img', 'Rolling pool upgrade')
+        e = bootloader.MenuEntry(hypervisor = installer_dir+'/xen.gz', hypervisor_args = ' '.join(xen_args),
+                                 kernel = installer_dir+'/vmlinuz', kernel_args = ' '.join(kernel_args),
+                                 initrd = installer_dir+'/upgrade.img', label = 'Rolling pool upgrade')
         config.append('upgrade', e)
         config.default = 'upgrade'
         logger.info("Writing updated bootloader config")
