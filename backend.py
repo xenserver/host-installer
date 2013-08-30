@@ -782,44 +782,44 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
     common_kernel_params = "root=LABEL=%s ro" % constants.rootfs_label
     kernel_console_params = "xencons=hvc console=hvc0"
 
-    e = bootloader.MenuEntry("/boot/xen.gz",
-                             ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
-                             "/boot/vmlinuz-%s-xen" % short_version,
-                             ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
-                             "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND)
+    e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
+                             hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
+                             kernel = "/boot/vmlinuz-%s-xen" % short_version,
+                             kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
+                             initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND)
     boot_config.append("xe", e)
     boot_config.default = "xe"
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
         
-        e = bootloader.MenuEntry("/boot/xen.gz",
-                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
-                                 "/boot/vmlinuz-%s-xen" % short_version,
-                                 ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
-                                 "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" (Serial)")
+        e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
+                                 hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
+                                 kernel = "/boot/vmlinuz-%s-xen" % short_version,
+                                 kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                                 initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" (Serial)")
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
-        e = bootloader.MenuEntry("/boot/xen.gz",
-                                 ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
-                                 "/boot/vmlinuz-%s-xen" % short_version,
-                                 ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
-                                 "/boot/initrd-%s-xen.img" % short_version, MY_PRODUCT_BRAND+" in Safe Mode")
+        e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
+                                 hypervisor_args = ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
+                                 kernel = "/boot/vmlinuz-%s-xen" % short_version,
+                                 kernel_args = ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
+                                 initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
-    e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
-                             ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
-                             "/boot/vmlinuz-%s" % xen_kernel_version,
-                             ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
-                             "/boot/initrd-%s.img" % xen_kernel_version, 
-                             "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+    e = bootloader.MenuEntry(hypervisor = "/boot/xen-%s.gz" % version.XEN_VERSION,
+                             hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
+                             kernel = "/boot/vmlinuz-%s" % xen_kernel_version,
+                             kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
+                             initrd = "/boot/initrd-%s.img" % xen_kernel_version, 
+                             title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
     boot_config.append("fallback", e)
     if serial:
-        e = bootloader.MenuEntry("/boot/xen-%s.gz" % version.XEN_VERSION,
-                                 ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
-                                 "/boot/vmlinuz-%s" % xen_kernel_version,
-                                 ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
-                                 "/boot/initrd-%s.img" % xen_kernel_version, 
-                                 "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+        e = bootloader.MenuEntry(hypervisor = "/boot/xen-%s.gz" % version.XEN_VERSION,
+                                 hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
+                                 kernel = "/boot/vmlinuz-%s" % xen_kernel_version,
+                                 kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                                 initrd = "/boot/initrd-%s.img" % xen_kernel_version, 
+                                 title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, partition_table_type, primary_partnum, location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None):
