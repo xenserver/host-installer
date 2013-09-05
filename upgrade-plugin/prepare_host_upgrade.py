@@ -301,6 +301,21 @@ def set_boot_config(installer_dir, url):
 
             kernel_args.append("mount=%s:%s:%s" % (dev, fs, mnt))
 
+        try:
+            # determine if boot from SAN
+            f = open('/etc/firstboot.d/data/sr-multipathing.conf')
+            for l in f:
+                line = l.strip()
+                if line.startswith('MULTIPATHING_ENABLED='):
+                    bfs = shell_value(line)
+                    if bfs == 'True':
+                        kernel_args.append("device_mapper_multipath=true")
+                        logger.debug("Multipathing enabled")
+                    break
+            f.close()
+        except:
+            logger.error("Failed to read SR multipathing config")
+
         e = bootloader.MenuEntry(hypervisor = installer_dir+'/xen.gz', hypervisor_args = ' '.join(xen_args),
                                  kernel = installer_dir+'/vmlinuz', kernel_args = ' '.join(kernel_args),
                                  initrd = installer_dir+'/upgrade.img', label = 'Rolling pool upgrade')
