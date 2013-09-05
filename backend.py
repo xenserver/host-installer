@@ -759,6 +759,12 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
     xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
 
+    # CA-112720 - Disable use of APIC-V with Xen 4.3 because it cause's
+    # heterogenous pool migration problems
+    rc, out = util.runCmd2(['cat', '/proc/cpuinfo'], with_stdout = True)
+    if rc == 0 and ('model		: 62' in out):
+        common_xen_params += " apicv=0"
+
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
     if rc == 0 and ('1022:7451' in out or '1022:7459' in out):
