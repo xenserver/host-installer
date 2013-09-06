@@ -1,0 +1,120 @@
+Summary: XenServer Installer
+Name: host-installer
+Version: @HOST_INSTALLER_VERSION@
+Release: @HOST_INSTALLER_RELEASE@
+License: GPL
+Group: Applications/System
+Source0: %{name}-%{version}.tar.bz2
+BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
+BuildArch: noarch
+
+# Strictly no byte compiling python.  Python in the install environment is
+# different to the dom0 chroot
+%global __os_install_post %(echo '%{__os_install_post}' | sed -e 's!/usr/lib[^[:space:]]*/brp-python-bytecompile[[:space:]].*$!!g')
+
+
+%define installer_dir @HOST_INSTALLER_DIR@
+%define installer_data_dir @HOST_INSTALLER_DIR@
+
+%description
+XenServer Installer
+
+%package startup
+Summary: XenServer Installer
+Group: Applications/System
+%description startup
+XenServer installer startup files
+
+%prep
+%setup -q
+
+%build
+
+%install
+rm -rf $RPM_BUILD_ROOT
+
+# Installer files
+find . -type d | xargs -I{} mkdir -p %{buildroot}/%{installer_dir}/{}
+find . -type f -name "*.py" | xargs -I{} cp {} %{buildroot}/%{installer_dir}/{}
+cp init keymaps timezones sdk.answerfile %{buildroot}/%{installer_dir}/
+mkdir -p %{buildroot}/usr/bin
+cp support.sh %{buildroot}/usr/bin
+
+# Startup files
+mkdir -p %{buildroot}/etc/init.d
+mkdir -p %{buildroot}/etc/modprobe.d
+mkdir -p %{buildroot}/etc/depmod.d
+cp startup/preinit %{buildroot}/%{installer_dir}/
+cp startup/inittab %{buildroot}/etc
+cp startup/depmod.conf %{buildroot}/etc/depmod.d
+cp startup/blacklist %{buildroot}/etc/modprobe.d
+cp startup/modprobe.mlx4 %{buildroot}/etc/modprobe.d
+
+cp startup/S[0-9][0-9]* %{buildroot}/etc/init.d
+cp startup/functions %{buildroot}/etc/init.d
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+%defattr(775,root,root,-)
+
+# Executables
+%{installer_dir}/init
+%{installer_dir}/report.py
+%{installer_dir}/bugtool.py
+/usr/bin/support.sh
+
+%defattr(664,root,root,775)
+# Installer gubbins
+%{installer_dir}/answerfile.py
+%{installer_dir}/backend.py
+%{installer_dir}/constants.py
+%{installer_dir}/cpiofile.py
+%{installer_dir}/disktools.py
+%{installer_dir}/diskutil.py
+%{installer_dir}/driver.py
+%{installer_dir}/generalui.py
+%{installer_dir}/hardware.py
+%{installer_dir}/init_constants.py
+%{installer_dir}/install.py
+%{installer_dir}/netinterface.py
+%{installer_dir}/netutil.py
+%{installer_dir}/product.py
+%{installer_dir}/repository.py
+%{installer_dir}/restore.py
+%{installer_dir}/scripts.py
+%{installer_dir}/snackutil.py
+%{installer_dir}/uicontroller.py
+%{installer_dir}/upgrade.py
+%{installer_dir}/util.py
+%{installer_dir}/xelogging.py
+
+# Installer UI
+%{installer_dir}/tui/__init__.py
+%{installer_dir}/tui/init.py
+%{installer_dir}/tui/installer/__init__.py
+%{installer_dir}/tui/installer/screens.py
+%{installer_dir}/tui/network.py
+%{installer_dir}/tui/progress.py
+%{installer_dir}/tui/repo.py
+
+# Data
+%{installer_dir}/keymaps
+%{installer_dir}/timezones
+%{installer_dir}/sdk.answerfile
+
+%files startup
+%defattr(775,root,root,-)
+
+/etc/init.d/
+%{installer_dir}/preinit
+
+%defattr(664,root,root,775)
+/etc/inittab
+/etc/modprobe.d/
+/etc/depmod.d/
+
+%doc
+
+%changelog

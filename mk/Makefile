@@ -1,10 +1,13 @@
 USE_BRANDING := yes
 include $(B_BASE)/common.mk
 include $(PROJECT_OUTPUTDIR)/python-libs/python-libs.inc
+include $(PROJECT_OUTPUTDIR)/host-installer/host-installer.inc
 
 # inputs
 BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.$(DOMAIN0_ARCH_OPTIMIZED).ext2
 PYTHON_LIBS_RPM := $(PROJECT_OUTPUTDIR)/python-libs/$(PYTHON_LIBS_PKG_FILE)
+HOST_INSTALLER_RPMS := $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_PKG_FILE)
+HOST_INSTALLER_RPMS += $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_STARTUP_PKG_FILE)
 FIRMWARE_RPMS_LIST := $(PROJECT_OUTPUTDIR)/guest-packages-dom0/guest-packages-dom0-firmware-rpms.inc
 
 # outputs
@@ -18,6 +21,7 @@ KERNEL_CONFIGURED_STAMP = $(MY_OBJ_DIR)/.kernel-configured.stamp
 FIRMWARE_INSTALLED_STAMP = $(MY_OBJ_DIR)/.firmware-installed.stamp
 BASE_IMAGE_EXTRACTED_STAMP = $(MY_OBJ_DIR)/.base-image-extracted.stamp
 PYTHON_LIBS_INSTALLED_STAMP = $(MY_OBJ_DIR)/.python-libs-installed.stamp
+HOST_INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.host-installer-installed.stamp
 INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.installer-installed.stamp
 FILES_COLLECTED_STAMP = $(MY_OBJ_DIR)/.files-collected.stamp
 INIT_CREATED_STAMP = $(MY_OBJ_DIR)/.init-created.stamp
@@ -47,7 +51,11 @@ $(BASE_IMAGE_EXTRACTED_STAMP): $(BASE_INSTALLER_IMAGE)
 	touch $@
 
 $(PYTHON_LIBS_INSTALLED_STAMP): $(PYTHON_LIBS_RPM)
-	rpm2cpio $^ | ( cd $(INSTALLER_FILESYSTEM) && cpio -idv )
+	rpm2cpio $< | ( cd $(INSTALLER_FILESYSTEM) && cpio -idv )
+	touch $@
+
+$(HOST_INSTALLER_INSTALLED_STAMP): $(HOST_INSTALLER_RPMS)
+	for R in $^; do	rpm2cpio $$R | ( cd $(INSTALLER_FILESYSTEM) && cpio -idv ) ; done
 	touch $@
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
@@ -70,10 +78,8 @@ $(PROC_ADDED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 ###
 # build installer stuff:
 
-$(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
+$(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP) $(HOST_INSTALLER_INSTALLED_STAMP)
 # install scripts:
-	$(MAKE) -C $(call hg_loc,host-installer) install DESTDIR=$(INSTALLER_FILESYSTEM)
-	$(MAKE) -C $(call hg_loc,host-installer)/startup install DESTDIR=$(INSTALLER_FILESYSTEM)
 	rm -f $(INSTALLER_FILESYSTEM)/etc/init.d/{discover.init,S10udev,S50sshd,S40network}
 	touch $@
 

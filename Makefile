@@ -1,63 +1,76 @@
-INSTALLER_DIR ?= $(DESTDIR)/opt/xensource/installer
-INSTALLER_DATA_DIR ?= $(DESTDIR)/opt/xensource/installer
-SUPPORT_DIR ?= $(DESTDIR)/usr/bin
+USE_BRANDING := yes
+IMPORT_BRANDING := yes
+# makefile for the host installer components in build system
+include $(B_BASE)/common.mk
+include $(B_BASE)/rpmbuild.mk
 
-all:
-	@:
+# For debugging
+.PHONY: %var
+%var:
+        @echo "$* = $($*)"
 
+REPO_NAME := host-installer
+SPEC_FILE := $(REPO_NAME).spec
+RPM_BUILD_COOKIE := $(MY_OBJ_DIR)/.rpm_build_cookie
+REPO_STAMP := $(call hg_req,$(REPO_NAME))
+
+$(eval $(shell $(call hg_cset_number,$(REPO_NAME)))) # Defines CSET_NUMBER for us
+HOST_INSTALLER_VERSION := xs$(PLATFORM_VERSION).$(CSET_NUMBER)
+HOST_INSTALLER_RELEASE := 1
+HOST_INSTALLER_DIR := /opt/xensource/installer
+
+
+.PHONY: build
+build: $(RPM_BUILD_COOKIE) $(MY_OUTPUT_DIR)/host-installer.inc $(MY_SOURCES)/MANIFEST
+	@ :
+
+
+SOURCES := $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2
+SOURCES += $(RPM_SPECSDIR)/$(SPEC_FILE)
+
+HOST_INSTALLER_HG_EXCLUDE := -X mk -X tests -X oem -X upgrade-plugin -X sample-version.py
+$(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2: $(RPM_SOURCESDIRSTAMP)
+	{ set -e; set -o pipefail; \
+	hg -R "$(call hg_loc,$(REPO_NAME))" archive $(HOST_INSTALLER_HG_EXCLUDE) \
+	-p host-installer-$(HOST_INSTALLER_VERSION) -t tbz2 $@.tmp; \
+	mv -f $@.tmp $@; \
+	}
+
+$(RPM_SPECSDIR)/$(SPEC_FILE): $(SPEC_FILE).in $(RPM_SPECSDIRSTAMP)
+	{ set -e; set -o pipefail; \
+	sed -e s/@HOST_INSTALLER_VERSION@/$(HOST_INSTALLER_VERSION)/g \
+	    -e s/@HOST_INSTALLER_RELEASE@/$(HOST_INSTALLER_RELEASE)/g \
+	    -e s!@HOST_INSTALLER_DIR@!$(HOST_INSTALLER_DIR)!g \
+	< $< > $@.tmp; \
+	mv -f $@.tmp $@; \
+	}
+
+$(RPM_BUILD_COOKIE): $(RPM_DIRECTORIES) $(SOURCES)
+	$(RPMBUILD) -ba $(RPM_SPECSDIR)/$(SPEC_FILE)
+	touch $@
+
+.PHONY: $(MY_OUTPUT_DIR)/host-installer.inc
+$(MY_OUTPUT_DIR)/host-installer.inc: $(MY_OUTPUT_DIRSTAMP)
+	{ set -e; set -o pipefail; \
+	{ echo HOST_INSTALLER_PKG_NAME := host-installer; \
+	  echo HOST_INSTALLER_PKG_VERSION := $(HOST_INSTALLER_VERSION)-$(HOST_INSTALLER_RELEASE); \
+	  echo HOST_INSTALLER_PKG_FILE := RPMS/noarch/host-installer-\$$\(HOST_INSTALLER_PKG_VERSION\).noarch.rpm; \
+	  echo HOST_INSTALLER_STARTUP_PKG_FILE := RPMS/noarch/host-installer-startup-\$$\(HOST_INSTALLER_PKG_VERSION\).noarch.rpm; \
+	} > $@.tmp; \
+	mv -f $@.tmp $@; \
+	}
+
+.PHONY: $(MY_SOURCES)/MANIFEST
+$(MY_SOURCES)/MANIFEST: $(MY_SOURCES_DIRSTAMP)
+	{ set -e; set -o pipefail; \
+	echo "host-installer gpl file $(RPM_SRPMSDIR)/host-installer-$(HOST_INSTALLER_VERSION)-$(HOST_INSTALLER_RELEASE).src.rpm" > $@.tmp; \
+	echo "host-installer-startup gpl file $(RPM_SRPMSDIR)/host-installer-startup-$(HOST_INSTALLER_VERSION)-$(HOST_INSTALLER_RELEASE).src.rpm" >> $@.tmp; \
+	mv -f $@.tmp $@; \
+	}
+
+.PHONY: clean
 clean:
-	rm -rf *.pyc
-
-precommit:
-	PYTHONPATH=. python tests/version_test.py
-	PYTHONPATH=. python tests/diskFromPartition_test.py
-
-install:
-	mkdir -p $(INSTALLER_DIR) $(SUPPORT_DIR)
-# Executables
-	install -m755 init $(INSTALLER_DIR)
-	install -m755 report.py $(INSTALLER_DIR)
-	install -m755 bugtool.py $(INSTALLER_DIR)
-	install -m755 support.sh $(SUPPORT_DIR)
-
-# Others
-	install -m644 answerfile.py $(INSTALLER_DIR)
-	install -m644 backend.py $(INSTALLER_DIR)
-	install -m644 constants.py $(INSTALLER_DIR)
-	install -m644 diskutil.py $(INSTALLER_DIR)
-	install -m644 disktools.py $(INSTALLER_DIR)
-	install -m644 driver.py $(INSTALLER_DIR)
-	install -m644 generalui.py $(INSTALLER_DIR)
-	install -m644 hardware.py $(INSTALLER_DIR)
-	install -m644 install.py $(INSTALLER_DIR)
-	install -m644 init_constants.py $(INSTALLER_DIR)
-	install -m644 netutil.py $(INSTALLER_DIR)
-	install -m644 netinterface.py $(INSTALLER_DIR)
-	install -m644 repository.py $(INSTALLER_DIR)
-	install -m644 restore.py $(INSTALLER_DIR)
-	install -m644 snackutil.py $(INSTALLER_DIR)
-	install -m644 cpiofile.py $(INSTALLER_DIR)
-	install -m644 scripts.py $(INSTALLER_DIR)
-# TUI
-	mkdir -p $(INSTALLER_DIR)/tui
-	install -m644 tui/__init__.py $(INSTALLER_DIR)/tui
-	install -m644 tui/network.py $(INSTALLER_DIR)/tui
-	install -m644 tui/init.py $(INSTALLER_DIR)/tui
-	install -m644 tui/progress.py $(INSTALLER_DIR)/tui
-	install -m644 tui/repo.py $(INSTALLER_DIR)/tui
-	mkdir -p $(INSTALLER_DIR)/tui/installer
-	install -m644 tui/installer/__init__.py $(INSTALLER_DIR)/tui/installer/
-	install -m644 tui/installer/screens.py $(INSTALLER_DIR)/tui/installer/
-	install -m644 uicontroller.py $(INSTALLER_DIR)
-	install -m644 util.py $(INSTALLER_DIR)
-	install -m644 xelogging.py $(INSTALLER_DIR)
-	install -m644 product.py $(INSTALLER_DIR)
-	install -m644 upgrade.py $(INSTALLER_DIR)
-# data files
-	install -m644 keymaps $(INSTALLER_DATA_DIR)
-	install -m644 timezones $(INSTALLER_DATA_DIR)
-
-# answerfiles
-	install -m644 sdk.answerfile $(DESTDIR)
-
-
+	rm -f $(RPM_BUILD_COOKIE)
+	rm -f $(SOURCES)
+	rm -f $(SOURCES:%=%.tmp)
+	rm -f $(MY_OBJ_DIR)/version.inc $(MY_OUTPUT_DIR)/host-installer.inc
