@@ -214,8 +214,11 @@ class ExistingInstallation:
                 dbcache_path = constants.OLD_DBCACHE
 
             if os.path.exists(self.join_state_path(networkdb_path)):
-                networkd_db = '/usr/bin/networkd_db'
-                args = ['chroot', self.state_fs.mount_point, networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
+                networkd_db = constants.NETWORKD_DB
+                if not os.path.exists(self.join_state_path(networkd_db)):
+                    networkd_db = constants.OLD_NETWORKD_DB
+
+                args = ['chroot', self.state_fs.mount_point, '/'+networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
                 rv, out = util.runCmd2(args, with_stdout = True)
 
                 d = {}
