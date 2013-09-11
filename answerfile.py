@@ -237,9 +237,8 @@ class Answerfile:
         disk = normalize_disk(getText(inst[0]))
         master = disktools.getMpathMaster(disk)
         if master:
-            results['primary-disk'] = master
-        else:
-            results['primary-disk'] = disk
+            disk = master
+        results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
