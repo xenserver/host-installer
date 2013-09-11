@@ -24,8 +24,13 @@ start()
     esac
   done
 
-  # create temp blacklist to prevent fibre channel disks etc appearing first
-  for mod in lpfc qla2xxx qla4xxx ehci_hcd ohci_hcd uhci_hcd; do
+  # create temp blacklist to prevent fibre channel disks
+  for mod in bfa lpfc qla2xxx qla4xxx fnic csiostor; do
+    echo "blacklist $mod" >>/etc/modprobe.d/temp-blacklist.conf
+  done
+
+  # update temp blacklist to prevent USB disks
+  for mod in ohci_hcd uhci_hcd ehci_pci xhci_hcd; do
     echo "blacklist $mod" >>/etc/modprobe.d/temp-blacklist.conf
   done
 
