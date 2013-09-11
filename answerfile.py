@@ -15,6 +15,7 @@
 
 from constants import *
 import diskutil
+import disktools
 from netinterface import *
 import netutil
 import product
@@ -234,7 +235,11 @@ class Answerfile:
         inst = getElementsByTagName(self.top_node, ['existing-installation'],
                                     mandatory = True)
         disk = normalize_disk(getText(inst[0]))
-        results['primary-disk'] = disk
+        master = disktools.getMpathMaster(disk)
+        if master:
+            results['primary-disk'] = master
+        else:
+            results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
