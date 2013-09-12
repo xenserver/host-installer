@@ -71,6 +71,7 @@ def get_boot_files(accessor, dest_dir):
 def gen_answerfile(installer_dir, url):
     root_device = None
     root_label = None
+    root_partition = None
 
     try:
         # determine root disk
@@ -107,8 +108,29 @@ def gen_answerfile(installer_dir, url):
         logger.error("Failed to determine root label")
         return False
 
+    try:
+        # determine root partition
+        (rc, out) = cmd.runCmd(['blkid', '-l', '-t', 'LABEL="%s"' % root_label, '-o', 'device'],
+                               with_stdout = True)
+        if rc == 0 and out.startswith('/dev/'):
+            root_partition = out.strip()
+            (rc, out) = cmd.runCmd(['udevinfo', '-q', 'symlink', '-n', root_partition[5:]],
+                                   with_stdout = True)
+            if rc == 0:
+                for link in out.split():
+                    if link.startswith('disk/by-id') and not link.startswith('disk/by-id/edd'):
+                        root_partition = '/dev/'+link
+                        break
+    except:
+        logger.error("Failed to map label to partition")
+        return False
+    if not root_partition:
+        logger.error("Failed to determine root partition")
+        return False
+
     logger.debug("Root device: "+root_device)
     logger.debug("Root label: "+root_label)
+    logger.debug("Root partition: "+root_partition)
     
     in_arc = cpiofile.CpioFile.open(installer_dir+'/install.img', 'r|*')
     out_arc = cpiofile.CpioFile.open(installer_dir+'/upgrade.img', 'w|gz')
@@ -130,7 +152,7 @@ def gen_answerfile(installer_dir, url):
     text = '#!/usr/bin/env python\n'
     text += '\nimport xcp.bootloader as bootloader\n'
     text += 'import xcp.mount as mount\n'
-    text += '\nrootfs = mount.TempMount(None, "root", fstype = "ext3", label = "%s")\n' % root_label
+    text += '\nrootfs = mount.TempMount("%s", "root", fstype = "ext3")\n' % root_partition
     text += 'cfg = bootloader.Bootloader.loadExisting(rootfs.mount_point)\n'
     text += 'cfg.default = "%s"\n' % config.default
     text += 'cfg.remove("upgrade")\n'
