@@ -152,6 +152,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             raise RuntimeError, "Both answerfile and answerfile generator passed on command line."
 
         a = None
+        parsing_failed = False
         if answerfile_address:
             a = answerfile.Answerfile.fetch(answerfile_address)
         elif answerfile_script:
@@ -159,24 +160,30 @@ def go(ui, args, answerfile_address, answerfile_script):
         if a:
             interactive = False
             results['network-hardware'] = netutil.scanConfiguration()
-            results.update(a.parseScripts())
-            results.update(a.processAnswerfile())
-            if results.has_key('extra-repos'):
-                # load drivers now
-                for d in results['extra-repos']:
-                    media, address, _ = d
-                    for r in repository.repositoriesFromDefinition(media, address):
-                        for p in r:
-                            if p.type.startswith('driver'):
-                                if p.load() != 0:
-                                    raise RuntimeError, "Failed to load driver %s." % p.name
-            util.runCmd2([ '/sbin/udevsettle' ])
-            results = fixMpathResults(results)
+            try:
+                results.update(a.parseScripts())
+                results.update(a.processAnswerfile())
+                if results.has_key('extra-repos'):
+                    # load drivers now
+                    for d in results['extra-repos']:
+                        media, address, _ = d
+                        for r in repository.repositoriesFromDefinition(media, address):
+                            for p in r:
+                                if p.type.startswith('driver'):
+                                    if p.load() != 0:
+                                        raise RuntimeError, "Failed to load driver %s." % p.name
+                util.runCmd2([ '/sbin/udevsettle' ])
+                results = fixMpathResults(results)
+            except:
+                parsing_failed = True
 
         results['extra-repos'] += extra_repo_defs
         xelogging.log("Driver repos: %s" % str(results['extra-repos']))
 
         scripts.run_scripts('installation-start')
+
+        if parsing_failed:
+            raise RuntimeError, "Failed to parse answerfile"
 
         # log the modules that we loaded:
         xelogging.log("All needed modules should now be loaded. We have loaded:")
