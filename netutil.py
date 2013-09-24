@@ -360,17 +360,16 @@ def remap_netdevs(remap_list):
     static_eths = [ x.tname for x in static_rules.rules ]
     last_boot = [ x for x in dynamic_rules.rules if x.tname not in static_eths ]
 
-    LOG.debug("StaticRules Formulae = %s" %(niceformat(static_rules.formulae),))
-    LOG.debug("StaticRules Rules = %s" %(niceformat(static_rules.rules),))
-    LOG.debug("DynamicRules Lastboot = %s" % (niceformat(dynamic_rules.lastboot),))
-    LOG.debug("DynamicRules Old = %s" % (niceformat(dynamic_rules.old),))
+    LOG.debug("StaticRules Formulae = %s" % (niceformat(static_rules.formulae),))
+    LOG.debug("StaticRules Rules = %s" % (niceformat(static_rules.rules),))
+    LOG.debug("DynamicRules Lastboot = %s" % (niceformat(last_boot),))
 
     # Invoke the renaming logic
     try:
         transactions = rename(static_rules = static_rules.rules,
                               cur_state = current_state,
-                              last_state = dynamic_rules.lastboot,
-                              old_state = dynamic_rules.old)
+                              last_state = last_boot,
+                              old_state = [])
     except Exception, e:
         LOG.critical("Problem from rename logic: %s.  Giving up" % (e,))
         return
