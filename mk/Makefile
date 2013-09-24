@@ -55,13 +55,13 @@ $(PYTHON_LIBS_INSTALLED_STAMP): $(PYTHON_LIBS_RPM)
 	touch $@
 
 $(HOST_INSTALLER_INSTALLED_STAMP): $(HOST_INSTALLER_RPMS)
-	for R in $^; do	rpm2cpio $$R | ( cd $(INSTALLER_FILESYSTEM) && cpio -idv ) ; done
+	for R in $^; do	rpm2cpio $$R | ( cd $(INSTALLER_FILESYSTEM) && cpio -iudv ) ; done
 	touch $@
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
 	cat $(FIRMWARE_RPMS_LIST) | while read rpm; \
 		do rpm2cpio $(PROJECT_OUTPUTDIR)/guest-packages-dom0/RPMS/noarch/$$rpm | \
-		(cd $(INSTALLER_FILESYSTEM) && cpio -idv ); done
+		(cd $(INSTALLER_FILESYSTEM) && cpio -iudv ); done
 	touch $@
 
 $(INIT_CREATED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
