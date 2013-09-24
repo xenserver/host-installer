@@ -152,7 +152,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             raise RuntimeError, "Both answerfile and answerfile generator passed on command line."
 
         a = None
-        parsing_failed = False
+        parsing_except = None
         if answerfile_address:
             a = answerfile.Answerfile.fetch(answerfile_address)
         elif answerfile_script:
@@ -174,16 +174,16 @@ def go(ui, args, answerfile_address, answerfile_script):
                                         raise RuntimeError, "Failed to load driver %s." % p.name
                 util.runCmd2([ '/sbin/udevsettle' ])
                 results = fixMpathResults(results)
-            except:
-                parsing_failed = True
+            except Exception, e:
+                parsing_except = e
 
         results['extra-repos'] += extra_repo_defs
         xelogging.log("Driver repos: %s" % str(results['extra-repos']))
 
         scripts.run_scripts('installation-start')
 
-        if parsing_failed:
-            raise RuntimeError, "Failed to parse answerfile"
+        if parsing_except:
+            raise parsing_except
 
         # log the modules that we loaded:
         xelogging.log("All needed modules should now be loaded. We have loaded:")
