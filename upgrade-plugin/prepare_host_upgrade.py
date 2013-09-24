@@ -340,7 +340,7 @@ def set_boot_config(installer_dir, url):
 
         e = bootloader.MenuEntry(hypervisor = installer_dir+'/xen.gz', hypervisor_args = ' '.join(xen_args),
                                  kernel = installer_dir+'/vmlinuz', kernel_args = ' '.join(kernel_args),
-                                 initrd = installer_dir+'/upgrade.img', label = 'Rolling pool upgrade')
+                                 initrd = installer_dir+'/upgrade.img', title = 'Rolling pool upgrade')
         config.append('upgrade', e)
         config.default = 'upgrade'
         logger.info("Writing updated bootloader config")
