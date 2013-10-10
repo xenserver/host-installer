@@ -191,6 +191,18 @@ class ExistingInstallation:
                     root_pwd = pwent[1]
                     break
             fd.close()
+            if len(root_pwd) == 1:
+                root_pwd = None
+                try:
+                    fd = open(self.join_state_path('etc/shadow'), 'r')
+                    for line in fd:
+                        pwent = line.split(':')
+                        if pwent[0] == 'root':
+                            root_pwd = pwent[1]
+                            break
+                    fd.close()
+                except:
+                    pass
 
             if not root_pwd:
                 raise SettingsNotAvailable, "no root password found"
