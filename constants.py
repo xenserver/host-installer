@@ -129,6 +129,8 @@ OLD_DBCACHE = "var/xapi/network.dbcache"
 DBCACHE = "var/lib/xcp/network.dbcache"
 OLD_NETWORK_DB = "var/xapi/networkd.db"
 NETWORK_DB = "var/lib/xcp/networkd.db"
+NETWORKD_DB = "usr/bin/networkd_db"
+OLD_NETWORKD_DB = "opt/xensource/libexec/networkd_db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
 
 POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
