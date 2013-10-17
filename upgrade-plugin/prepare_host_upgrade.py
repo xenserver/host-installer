@@ -403,6 +403,7 @@ def test_repo(url):
         logger.error(str(e))
         return TEST_URL_INVALID
     if not repo_ver:
+        logger.error("Unable to determine repository version")
         return TEST_URL_INVALID
 
     # read current host version
