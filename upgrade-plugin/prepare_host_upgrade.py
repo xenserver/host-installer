@@ -313,7 +313,7 @@ def set_boot_config(installer_dir, url):
                 if not re.match(r'(\d+\.){3}\d+', host) and pif.get('DNS', '') == '':
                     logger.error("DNS parameter missing for static network configuration")
                     return False
-                if 'DNS' in pif and pif['DNS'] != '':
+                if  pif.get('DNS', '') != '':
                     config_str += ";dns=" + pif['DNS']
                 kernel_args.extend(['network_device='+pif['MAC'],
                                 'network_config='+config_str])
