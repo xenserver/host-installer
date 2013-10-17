@@ -305,10 +305,14 @@ def set_boot_config(installer_dir, url):
             logger.info("%s accessible via %s (%s)" % (host, iface, pif['device']))
 
             if pif['ip_configuration_mode'] == 'Static':
-                config_str = "static:ip=%s;netmask=%s" % (pif['IP'], pif['netmask'])
-                if 'gateway' in pif:
-                    config_str += ";gateway=" + pif['gateway']
-                if 'DNS' in pif:
+                if  'gateway' not in pif or pif['gateway'] == '':
+                    logger.error("Gateway parameter missing for static network configuration")
+                    return False
+                config_str = "static:ip=%s;netmask=%s;gateway=%s" % (pif['IP'], pif['netmask'], pif['gateway'])
+                if re.match(r'(\d+\.){3}\d+', host) and ('DNS' not in pif or pif['DNS'] == ''):
+                    logger.error("DNS parameter missing for static network configuration")
+                    return False
+                if 'DNS' in pif and pif['DNS'] != '':
                     config_str += ";dns=" + pif['DNS']
                 kernel_args.extend(['network_device='+pif['MAC'],
                                 'network_config='+config_str])
