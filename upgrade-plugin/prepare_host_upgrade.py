@@ -305,11 +305,12 @@ def set_boot_config(installer_dir, url):
             logger.info("%s accessible via %s (%s)" % (host, iface, pif['device']))
 
             if pif['ip_configuration_mode'] == 'Static':
-                if  'gateway' not in pif or pif['gateway'] == '':
-                    logger.error("Gateway parameter missing for static network configuration")
-                    return False
+                for p in ('IP', 'gateway', 'netmask'):
+                    if pif.get(p, '') == '':
+                        logger.error(p.capitalize()+" parameter missing for static network configuration")
+                        return False
                 config_str = "static:ip=%s;netmask=%s;gateway=%s" % (pif['IP'], pif['netmask'], pif['gateway'])
-                if re.match(r'(\d+\.){3}\d+', host) and ('DNS' not in pif or pif['DNS'] == ''):
+                if not re.match(r'(\d+\.){3}\d+', host) and pif.get('DNS', '') == '':
                     logger.error("DNS parameter missing for static network configuration")
                     return False
                 if 'DNS' in pif and pif['DNS'] != '':
