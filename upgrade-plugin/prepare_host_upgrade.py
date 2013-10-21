@@ -21,6 +21,7 @@ import xcp.accessor as accessor
 import xcp.bootloader as bootloader
 import xcp.cmd as cmd
 import xcp.cpiofile as cpiofile
+import xcp.pci as pci
 import xcp.repository as repository
 import xcp.version as version
 import xcp.logger as logger
@@ -28,6 +29,7 @@ import XenAPI
 import XenAPIPlugin
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
+xs_6_2 = version.Version([6, 2, 0])
 
 def shell_value(line):
     return line.split('=', 1)[1].strip("'")
@@ -68,7 +70,22 @@ def get_boot_files(accessor, dest_dir):
     accessor.finish()
     return done
 
-def gen_answerfile(installer_dir, url):
+def get_repo_ver(accessor):
+    repo_ver = None
+
+    try:
+        repos = repository.Repository.findRepositories(accessor)
+        for r in repos:
+            if r.identifier == repository.Repository.XS_MAIN_IDENT:
+                logger.debug("Repository found: " + str(r))
+                repo_ver = r.product_version
+                break
+    except:
+        pass
+
+    return repo_ver
+
+def gen_answerfile(accessor, installer_dir, url):
     root_device = None
     root_label = None
     root_partition = None
@@ -92,6 +109,19 @@ def gen_answerfile(installer_dir, url):
     if not os.path.exists(root_device):
         logger.error("Root disk %s not found" % root_device)
         return False
+
+    # Some G6/G7 controllers moved from the cciss subsystem to scsi
+    repo_ver = get_repo_ver(accessor)
+    if (repo_ver > xs_6_2):
+        devices = pci.PCIDevices()
+        raid_devs = devices.findByClass('01', '04')
+        g6 = map(lambda x: x['vendor'] == '103c' and x['device'] == '323a' and
+                 x['subvendor'] == '103c' and x['subdevice'].startswith('324'),
+                 raid_devs)
+        if True in g6:
+            new_device = root_device.replace('cciss', 'scsi')
+            logger.info("Replacing root disk "+root_device+ " with "+new_device)
+            root_device = new_device
 
     try:
         # determine root label
@@ -275,10 +305,15 @@ def set_boot_config(installer_dir, url):
             logger.info("%s accessible via %s (%s)" % (host, iface, pif['device']))
 
             if pif['ip_configuration_mode'] == 'Static':
-                config_str = "static:ip=%s;netmask=%s" % (pif['IP'], pif['netmask'])
-                if 'gateway' in pif:
-                    config_str += ";gateway=" + pif['gateway']
-                if 'DNS' in pif:
+                for p in ('IP', 'gateway', 'netmask'):
+                    if pif.get(p, '') == '':
+                        logger.error(p.capitalize()+" parameter missing for static network configuration")
+                        return False
+                config_str = "static:ip=%s;netmask=%s;gateway=%s" % (pif['IP'], pif['netmask'], pif['gateway'])
+                if not re.match(r'(\d+\.){3}\d+', host) and pif.get('DNS', '') == '':
+                    logger.error("DNS parameter missing for static network configuration")
+                    return False
+                if  pif.get('DNS', '') != '':
                     config_str += ";dns=" + pif['DNS']
                 kernel_args.extend(['network_device='+pif['MAC'],
                                 'network_config='+config_str])
@@ -357,24 +392,19 @@ TEST_VER_INVALID = 2
 
 def test_repo(url):
     logger.debug("Testing "+url)
+    repo_ver = None
     try:
         a = accessor.createAccessor(url, True)
         if not test_boot_files(a):
             return TEST_URL_INVALID
         logger.debug("Boot files ok, testing repository...")
-        repos = repository.Repository.findRepositories(a)
+        repo_ver = get_repo_ver(a)
     except Exception, e:
         logger.error(str(e))
         return TEST_URL_INVALID
-    if len(repos) == 0:
+    if not repo_ver:
+        logger.error("Unable to determine repository version")
         return TEST_URL_INVALID
-
-    repo_ver = None
-    for r in repos:
-        if r.identifier == repository.Repository.XS_MAIN_IDENT:
-            logger.debug("Repository found: " + str(r))
-            repo_ver = r.product_version
-            break
 
     # read current host version
     curr_ver = None
@@ -412,7 +442,7 @@ def prepare_host_upgrade(url):
     done = get_boot_files(a, installer_dir)
 
     if done:
-        done = gen_answerfile(installer_dir, url)
+        done = gen_answerfile(a, installer_dir, url)
         
     if done:
         # create bootloader entry

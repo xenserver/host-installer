@@ -1118,7 +1118,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     else:
         nfd.write("NETWORKING_IPV6=no\n")
         dv6fd = open("%s/etc/modprobe.d/disable-ipv6.conf" % mounts["root"], "w")
-        dv6fd.write("alias ipv6 no\nalias net-pf-10 off\n")
+        dv6fd.write("install ipv6 /bin/true\n")
         dv6fd.close()
         del dv6fd
     nfd.write("IPV6_AUTOCONF=no\n")

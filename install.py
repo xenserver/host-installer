@@ -222,7 +222,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                 xelogging.log("Starting actual restore")
                 backup = results['backup-to-restore']
                 if ui:
-                    pd = tui.progress.initProgressDialog("Restoring",
+                    pd = tui.progress.initProgressDialog("Restoring %s" % backup,
                                                          "Restoring data - this may take a while...",
                                                          100)
                 def progress(x):

@@ -362,7 +362,7 @@ class ThirdGenUpgrader(Upgrader):
             nfd.write("NETWORKING_IPV6=no\n")
             nfd.close()
             dv6fd = open(os.path.join(mounts['root'], 'etc/modprobe.d/disable-ipv6.conf'), 'w')
-            dv6fd.write("alias ipv6 no\nalias net-pf-10 off\n")
+            dv6fd.write("install ipv6 /bin/true\n")
             dv6fd.close()
 
         if Version(prev_install.version.ver) == product.XENSERVER_5_6_100:

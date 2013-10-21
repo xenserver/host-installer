@@ -110,3 +110,4 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
 
     xelogging.log("Bootloader restoration complete.")
     xelogging.log("Restore successful.")
+    backend.writeLog(disk, primary_partnum)
