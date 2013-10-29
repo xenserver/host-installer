@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# interface rename initialization
+#
+# chkconfig: 2345 8 92
+#
+### BEGIN INIT INFO
+# Provides: interface-rename-sideway
+# Default-Start: 2 3 4 5
+# Default-Stop: 0 1 6
+# X-Start-Before: $network
+# Short-Description: Prepare for interface rename
+### END INIT INFO
+
+start()
+{
+  local i
+
+  cd /sys/class/net
+  for i in eth*; do
+    if ! ip link show $i | grep -q '[,<]UP[,>]'; then
+       ip link set $i name side-$RANDOM-$i
+    fi
+  done
+
+  return 0
+}
+
+RET=0
+case "$1" in
+  start)
+    start
+    RET=$?;;
+  stop)
+    ;;
+  *)
+    echo "Usage: $0 start|stop"
+    RET=1
+esac
+
+exit $RET

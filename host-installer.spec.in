@@ -49,7 +49,7 @@ cp startup/depmod.conf %{buildroot}/etc/depmod.d
 cp startup/blacklist %{buildroot}/etc/modprobe.d/installer-blacklist.conf
 cp startup/modprobe.mlx4 %{buildroot}/etc/modprobe.d/mlx4.conf
 
-cp startup/S[0-9][0-9]* %{buildroot}/etc/init.d
+cp startup/S[0-9][0-9]* startup/interface-rename-sideway %{buildroot}/etc/init.d
 cp startup/functions %{buildroot}/etc/init.d/installer-functions
 
 %clean
@@ -114,5 +114,8 @@ rm -rf $RPM_BUILD_ROOT
 /etc/depmod.d/
 
 %doc
+
+%post
+/sbin/chkconfig --add interface-rename-sideway
 
 %changelog
