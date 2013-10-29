@@ -63,7 +63,8 @@ def getNetifList():
     return relevant
 
 # writes an 'interfaces' style file given a network configuration object list
-def writeDebStyleInterfaceFile(configuration, filename):
+def writeDebStyleInterfaceFile(configuration):
+    filename = '/etc/network/interfaces'
     outfile = open(filename, 'w')
 
     outfile.write("auto lo\n")
@@ -73,6 +74,16 @@ def writeDebStyleInterfaceFile(configuration, filename):
         configuration[iface].writeDebStyleInterface(iface, outfile)
 
     outfile.close()
+
+def writeRHStyleInterfaceFiles(configuration):
+    for iface in configuration:
+        configuration[iface].writeRHStyleInterface(iface)
+
+def writeNetInterfaceFiles(configuration):
+    if os.path.isfile('/etc/sysconfig/network-scripts/ifcfg-lo'):
+        writeRHStyleInterfaceFiles(configuration)
+    else:
+        writeDebStyleInterfaceFile(configuration)
 
 # writes DNS server entries to a resolver file given a network configuration object
 # list

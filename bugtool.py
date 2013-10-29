@@ -46,7 +46,7 @@ def configureNetworking(device, config):
         else:
             netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr)
 
-    netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
+    netutil.writeNetInterfaceFiles(netcfg)
     netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
     if device == 'all':

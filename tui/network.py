@@ -259,9 +259,8 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
     direction = uicontroller.runSequence(seq, conf_dict)
 
     if direction == RIGHT_FORWARDS and 'config' in conf_dict:
-        netutil.writeDebStyleInterfaceFile(
-            {conf_dict['interface']: conf_dict['config']},
-            '/etc/network/interfaces'
+        netutil.writeNetInterfaceFiles(
+            {conf_dict['interface']: conf_dict['config']}
             )
         netutil.writeResolverFile(
             {conf_dict['interface']: conf_dict['config']},
