@@ -566,9 +566,6 @@ def attach_rfc4173(iname, rfc4173_spec):
 
     # Attach to disk
     if not os.path.exists("/etc/iscsi/initiatorname.iscsi"):
-        rv, iname = util.runCmd2([ '/sbin/iscsi-iname' ], with_stdout=True)
-        if rv:
-            raise RuntimeError, "/sbin/iscsi-iname failed"
         open("/etc/iscsi/initiatorname.iscsi","w").write("InitiatorName=%s"  % iname)
 
     rv = util.runCmd2([ '/sbin/modprobe', 'iscsi_tcp' ])
