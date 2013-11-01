@@ -7,6 +7,8 @@ Group: Applications/System
 Source0: %{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 BuildArch: noarch
+Requires(post): initscripts
+Requires: openssh-server device-mapper-multipath lvm2
 
 # Strictly no byte compiling python.  Python in the install environment is
 # different to the dom0 chroot
@@ -119,5 +121,14 @@ rm -rf $RPM_BUILD_ROOT
 %post
 /sbin/chkconfig --add early-blacklist
 /sbin/chkconfig --add interface-rename-sideway
+
+# these are started by the installer
+/sbin/chkconfig --levels 2345 multipathd off
+/sbin/chkconfig --levels 2345 sshd off
+
+# avoid to lock disks
+/sbin/chkconfig --del netfs
+/sbin/chkconfig --del lvm2-lvmetad
+/sbin/chkconfig --del lvm2-monitor
 
 %changelog

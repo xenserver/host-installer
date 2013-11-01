@@ -71,8 +71,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	rm -f $(INSTALLER_FILESYSTEM)/etc/init/serial.conf
 # init configuration to start our installer
 	cp installer.conf log_tty.conf $(INSTALLER_FILESYSTEM)/etc/init/
-# disable ssh by default, will be enabled if sshpassword option is used
-	$(INSTALLER_CHROOT) chkconfig --levels 2345 sshd off
+# remove some not used script
+	for f in lvm2-lvmetad lvm2-monitor netfs; do rm $(INSTALLER_FILESYSTEM)/etc/init.d/$$f; done
 # enable network by default to make nfs start correctly
 	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
 # some cleanup
