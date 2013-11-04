@@ -75,9 +75,14 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	for f in lvm2-lvmetad lvm2-monitor netfs; do rm $(INSTALLER_FILESYSTEM)/etc/init.d/$$f; done
 # enable network by default to make nfs start correctly
 	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
+# TODO remove
+# hack to not lock decives
+	cp 40-multipath.rules $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/40-multipath.rules
 # some cleanup
 	cd $(INSTALLER_FILESYSTEM) && rm -rf usr/share/doc usr/share/man var/lib/yum usr/share/locale \
-		var/cache usr/lib/locale
+		var/cache usr/lib/locale var/lib/rpm
+# cleanup all compiled Python to gain some space, python will compile if needed
+	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 	@touch $@
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
