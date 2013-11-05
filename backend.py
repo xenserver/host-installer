@@ -1117,10 +1117,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--level', '2345', 'ip6tables', 'on'])
     else:
         nfd.write("NETWORKING_IPV6=no\n")
-        dv6fd = open("%s/etc/modprobe.d/disable-ipv6.conf" % mounts["root"], "w")
-        dv6fd.write("install ipv6 /bin/true\n")
-        dv6fd.close()
-        del dv6fd
+        netutil.disable_ipv6_module(mounts["root"])
     nfd.write("IPV6_AUTOCONF=no\n")
     if manual_hostname:
         nfd.write("HOSTNAME=%s\n" % hostname)

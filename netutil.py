@@ -390,3 +390,12 @@ def remap_netdevs(remap_list):
     dynamic_rules.lastboot = new_lastboot
 
     LOG.info("All done ordering the network devices")
+
+def disable_ipv6_module(root):
+    # Disable IPv6 loading by default.
+    # This however does not disable from loading for requiring modules
+    # (like bridge)
+    dv6fd = open("%s/etc/modprobe.d/disable-ipv6.conf" % mounts["root"], "w")
+    dv6fd.write("alias net-pf-10 off\n")
+    dv6fd.close()
+

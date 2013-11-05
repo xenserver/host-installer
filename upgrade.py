@@ -24,6 +24,7 @@ import util
 import constants
 import xelogging
 import version
+import netutil
 
 def upgradeAvailable(src):
     return __upgraders__.hasUpgrader(src.name, src.version, src.variant)
@@ -361,9 +362,7 @@ class ThirdGenUpgrader(Upgrader):
             nfd = open(os.path.join(mounts['root'], 'etc/sysconfig/network'), 'a')
             nfd.write("NETWORKING_IPV6=no\n")
             nfd.close()
-            dv6fd = open(os.path.join(mounts['root'], 'etc/modprobe.d/disable-ipv6.conf'), 'w')
-            dv6fd.write("install ipv6 /bin/true\n")
-            dv6fd.close()
+            netutil.disable_ipv6_module(mounts["root"])
 
         if Version(prev_install.version.ver) == product.XENSERVER_5_6_100:
             # set journalling option on EXT local SRs
