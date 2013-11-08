@@ -1429,7 +1429,7 @@ class CpioFile(object):
         if upperdirs and not os.path.exists(upperdirs):
             ti = CpioInfo()
             ti.name  = upperdirs
-            ti.mode  = os.S_IFDIR | 0777
+            ti.mode  = stat.S_IFDIR | 0777
             ti.mtime = cpioinfo.mtime
             ti.uid   = cpioinfo.uid
             ti.gid   = cpioinfo.gid
