@@ -80,7 +80,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	cp 40-multipath.rules $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/40-multipath.rules
 # some cleanup
 	cd $(INSTALLER_FILESYSTEM) && rm -rf usr/share/doc usr/share/man var/lib/yum usr/share/locale \
-		var/cache usr/lib/locale var/lib/rpm
+		var/cache usr/lib/locale var/lib/rpm var/cache/yum \
+		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 	@touch $@
