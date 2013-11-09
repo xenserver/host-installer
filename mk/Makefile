@@ -84,6 +84,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
+# remove duplicate in zoneinfo
+	python remove_dups.py $(INSTALLER_FILESYSTEM)/usr/share/zoneinfo
 	@touch $@
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
@@ -120,6 +122,8 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_STAMP)
 $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_STAMP)
 	./collect-files $(INSTALLER_FILESYSTEM) $(PROJECT_OUTPUTDIR) INSTALLER_FILES
 	ln -sf /lib/udev/scsi_id $(INSTALLER_FILESYSTEM)/sbin/scsi_id # symlink needed by multipath-tools
+# remove duplicate modules
+	python remove_dups.py $(INSTALLER_FILESYSTEM)/lib/firmware
 	touch $@
 
 $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
