@@ -1016,7 +1016,7 @@ def probePartitioningScheme(device):
         partitionType = constants.PARTITION_GPT   # default 
     elif matchline("^.*doesn't contain a valid partition table$"):
         partitionType = constants.PARTITION_GPT   # default 
-    elif matchline("^.*EFI GPT$"):
+    elif matchline("^.*ee.*GPT$"):
         partitionType = constants.PARTITION_GPT   # default 
     else:
         partitionType = constants.PARTITION_DOS
