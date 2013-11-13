@@ -86,6 +86,7 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
 	python remove_dups.py $(INSTALLER_FILESYSTEM)/usr/share/zoneinfo
+	perl delete_bad_exes.pl $(INSTALLER_FILESYSTEM)
 	@touch $@
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
