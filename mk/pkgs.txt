@@ -13,6 +13,7 @@ kbd
 libsysfs
 rootfiles
 rsyslog
+xen-dom0-tools
 
 # require by some scripts
 nfs-utils
