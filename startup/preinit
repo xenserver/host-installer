@@ -105,6 +105,7 @@ if [ $started_by_init -eq 1 ]; then
 
   if [ -n "$sshpassword" ]; then
       echo root:$sshpassword | chpasswd
+      grep -q devpts /proc/mounts || mount -t devpts devpts /dev/pts
       service sshd start
   fi
 fi
