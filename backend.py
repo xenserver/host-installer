@@ -735,6 +735,23 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
         src = '/etc/iscsi/nodes'
         dst = os.path.join(mounts['root'], 'etc/iscsi/')
         util.runCmd2(['cp','-a', src, dst])
+        src='/etc/iscsi/initiatorname.iscsi'
+        dst=os.path.join(mounts['root'],'etc/iscsi/initiatorname.iscsi')
+
+        cmd = ['cp','-a', src, dst]
+        if util.runCmd2(cmd):
+            raise RuntimeError, "Failed to copy initiatorname.iscsi"
+
+        # Extract iname 
+        fd = open(src, "r")
+        iname = fd.read()
+        iname = iname[14:].rstrip()
+        fd.close()
+
+        # Create IQN file for XAPI
+        fd = open(os.path.join(mounts['root'],'etc/firstboot.d/data/iqn.conf'), "w")
+        fd.write("IQN='%s'" % iname)
+        fd.close()
 
         if isDeviceMapperNode(primary_disk):
 
@@ -744,13 +761,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                    'chkconfig', '--level', '2345', 'open-iscsi', 'on']
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to chkconfig open-iscsi on"
-            # Open-iscsi needs an initiator name to start
-            src='/etc/iscsi/initiatorname.iscsi'
-            dst=os.path.join(mounts['root'],'etc/iscsi/initiatorname.iscsi')
-            if not os.path.exists(dst):
-                cmd = ['cp','-a', src, dst]
-                if util.runCmd2(cmd):
-                    raise RuntimeError, "Failed to copy initiatorname.iscsi"
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
     if kdump_kernel_version:
