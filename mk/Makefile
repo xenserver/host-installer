@@ -128,7 +128,7 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
-	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG)
+	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$(INSTALL_IMG)
 	chmod 644 $@
 
 $(INSTALL_IMG_XCP): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
@@ -137,7 +137,7 @@ $(INSTALL_IMG_XCP): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(IN
 	$(call brand-python-xcp) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand-xcp,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 /output/eulas/EULA_XCP $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
-	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG_XCP)
+	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$(INSTALL_IMG_XCP)
 	chmod 644 $@
 
 # Dell factory installation
