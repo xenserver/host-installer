@@ -135,7 +135,15 @@ $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
 
 $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
 		$(MY_OUTPUT_DIR)/.dirstamp
-	rm -f $(INSTALL_IMG)
+	rm -f $@
+# Remove wifi and other firmware
+	set -e; for d in $(INSTALLER_FILESYSTEM)/lib/modules/*; do \
+		if [ -d "$$d" ]; then \
+			cd "$$d" ;\
+			rm -f iwlwifi* *.sbcf v4l* ;\
+			rm -rf rtlwifi carl9170fw ti-connectivity ueagle-atm libertas ath6k brcm mrvl ;\
+		fi ;\
+	done
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
