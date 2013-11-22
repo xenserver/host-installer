@@ -78,9 +78,12 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 # hack to not lock decives
 	cp 40-multipath.rules $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/40-multipath.rules
 # some cleanup
+	$(INSTALLER_CHROOT) rpm -e --nodeps groff
 	cd $(INSTALLER_FILESYSTEM) && rm -rf usr/share/doc usr/share/man var/lib/yum usr/share/locale \
 		var/cache usr/lib/locale var/lib/rpm var/cache/yum \
-		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info
+		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info \
+		usr/share/doc usr/share/groff usr/include/python* usr/local/share/man usr/local/share/info \
+		etc/profile.d/less.csh etc/profile.d/less.sh usr/bin/lesspipe.sh
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
