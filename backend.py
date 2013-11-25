@@ -173,12 +173,12 @@ def getFinalisationSequence(ans):
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
-        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
-                                  'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
+                                  'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -662,7 +662,13 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         cmd.extend( args )
         if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
             raise RuntimeError, "Failed to latch arguments for initrd."
-        
+
+        # default to only including host specific kernel modules in initrd
+        if os.path.isdir(os.path.join(mounts['root'], 'etc/dracut.conf.d')):
+            f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_hostonly.conf'), 'w')
+            f.write('hostonly="yes"\n')
+            f.close()
+
         cmd = ['new-kernel-pkg.py', '--install', '--package='+package, '--mkinitrd']
 
         # Save command used to create initrd in <initrd_filename>.cmd
