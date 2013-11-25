@@ -3,6 +3,7 @@
 start()
 {
   autodev=$(blkid -t LABEL=autoinstall -o device)
+  [ -z "$autodev" ] && autodev=$(blkid -t LABEL=AUTOINSTALL -o device)
   [ -z "$autodev" ] && return
 
   mkdir -p /mnt/autoinstall
