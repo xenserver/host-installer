@@ -170,6 +170,7 @@ class NetInterface:
         f.write("ONBOOT=yes\n")
         if self.mode == self.DHCP:
             f.write("BOOTPROTO=dhcp\n")
+            f.write("PERSISTENT_DHCLIENT=1\n")
         else:
             # CA-11825: broadcast needs to be determined for non-standard networks
             bcast = self.getBroadcast()
