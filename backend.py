@@ -640,15 +640,6 @@ def createDom0DiskFilesystems(disk, primary_partnum):
 
 def __mkinitrd(mounts, partition, package, kernel_version):
 
-    cmd = ['mkinitrd', '-v']
-    args = ['--theme=/usr/share/splash']
-    if isDeviceMapperNode(partition):
-        # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
-        # picks up the master device and not the slave 
-        args.append('--rootdev='+ partition)
-    else:
-        args.append('--without-multipath')
-
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
@@ -658,16 +649,34 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
 
-        cmd = ['mkinitrd', '--latch']
-        cmd.extend( args )
-        if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
-            raise RuntimeError, "Failed to latch arguments for initrd."
-
         # default to only including host specific kernel modules in initrd
         if os.path.isdir(os.path.join(mounts['root'], 'etc/dracut.conf.d')):
             f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_hostonly.conf'), 'w')
             f.write('hostonly="yes"\n')
             f.close()
+
+            # disable multipath on root partition
+            try:
+                if not isDeviceMapperNode(partition):
+                    f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
+                    f.write('omit_dracutmodules+="multipath"\n')
+                    f.close()
+            except:
+                pass
+        else:
+            args = ['--theme=/usr/share/splash']
+
+            if isDeviceMapperNode(partition):
+                # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
+                # picks up the master device and not the slave
+                args.append('--rootdev='+ partition)
+            else:
+                args.append('--without-multipath')
+
+            cmd = ['mkinitrd', '--latch']
+            cmd.extend( args )
+            if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
+                raise RuntimeError, "Failed to latch arguments for initrd."
 
         cmd = ['new-kernel-pkg.py', '--install', '--package='+package, '--mkinitrd']
 
