@@ -5,7 +5,7 @@
 # Xen, XenSource and XenEnterprise are either registered trademarks or 
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
-. /etc/init.d/functions
+. /etc/init.d/installer-functions
 
 ###
 # XEN CLEAN INSTALLER
@@ -63,6 +63,14 @@ done
 if [ $started_by_init -eq 1 ]; then
   # started by init on the console
 
+  # mount xenfs if not mounted
+  if [ ! -e /proc/xen/xenbus ]; then
+    mount -t xenfs xenfs /proc/xen
+  fi
+
+  # disable printk on the screen
+  echo 1 > /proc/sys/kernel/printk
+
   # force TERM if on a serial console (Xen defeats init's attempt to do this)
   case "$console" in hvc*|ttyS*) export TERM=$term;; esac
 
@@ -89,7 +97,7 @@ if [ $started_by_init -eq 1 ]; then
 		[ -n "$br" ] && b=$br
 		t=$term;;
 	    esac
-	    /sbin/getty -n -l $0 $c $b $t &
+	    /sbin/agetty -n -l $0 /dev/$c $b $t &
 	  fi
       esac
     done
@@ -97,7 +105,7 @@ if [ $started_by_init -eq 1 ]; then
 
   if [ -n "$sshpassword" ]; then
       echo root:$sshpassword | chpasswd
-      /etc/init.d/dropbear start
+      service sshd start
   fi
 fi
 

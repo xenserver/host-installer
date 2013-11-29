@@ -4,11 +4,13 @@ include $(PROJECT_OUTPUTDIR)/python-libs/python-libs.inc
 include $(PROJECT_OUTPUTDIR)/host-installer/host-installer.inc
 
 # inputs
-BASE_INSTALLER_IMAGE = $(PROJECT_OUTPUTDIR)/install-image-base/rootfs.$(DOMAIN0_ARCH_OPTIMIZED).ext2
+YUM_CONF := $(PROJECT_OUTPUTDIR)/chroot-dom0/yum.conf
+PKG_LIST := pkgs.txt
 PYTHON_LIBS_RPM := $(PROJECT_OUTPUTDIR)/python-libs/$(PYTHON_LIBS_PKG_FILE)
 HOST_INSTALLER_RPMS := $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_PKG_FILE)
 HOST_INSTALLER_RPMS += $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_STARTUP_PKG_FILE)
 FIRMWARE_RPMS_LIST := $(PROJECT_OUTPUTDIR)/guest-packages-dom0/guest-packages-dom0-firmware-rpms.inc
+BIOSDEVNAME_RPM := $(shell find $(PROJECT_OUTPUTDIR)/guest-packages-biosdevname/RPMS -name biosdevname-[0-9]\* -type f | sort | tail -1)
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
@@ -19,9 +21,8 @@ BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 # intermediate:
 KERNEL_CONFIGURED_STAMP = $(MY_OBJ_DIR)/.kernel-configured.stamp
 FIRMWARE_INSTALLED_STAMP = $(MY_OBJ_DIR)/.firmware-installed.stamp
-BASE_IMAGE_EXTRACTED_STAMP = $(MY_OBJ_DIR)/.base-image-extracted.stamp
-PYTHON_LIBS_INSTALLED_STAMP = $(MY_OBJ_DIR)/.python-libs-installed.stamp
-HOST_INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.host-installer-installed.stamp
+BASE_IMAGE_STAMP := $(MY_OBJ_DIR)/.base-image.stamp
+BASE_IMAGE := $(MY_OBJ_DIR)/base-image.tar.gz
 INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.installer-installed.stamp
 FILES_COLLECTED_STAMP = $(MY_OBJ_DIR)/.files-collected.stamp
 INIT_CREATED_STAMP = $(MY_OBJ_DIR)/.init-created.stamp
@@ -46,17 +47,38 @@ build: $(INSTALL_IMG) $(INSTALL_IMG_XCP) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUT
 	mbootpack -o $(MBOOT_IMG) $(MY_OBJ_DIR)/xen -m $(MY_OBJ_DIR)/vmlinux -m $(INSTALL_IMG)
 	rm -f $(MY_OBJ_DIR)/xen $(MY_OBJ_DIR)/vmlinux
 
-$(BASE_IMAGE_EXTRACTED_STAMP): $(BASE_INSTALLER_IMAGE)
-	./extract-fs $(BASE_INSTALLER_IMAGE) $(INSTALLER_FILESYSTEM)
-	touch $@
+$(BASE_IMAGE): $(YUM_CONF) $(PKG_LIST)
+	rm -rf $(INSTALLER_FILESYSTEM)
+	yum --nogpgcheck --config=$(YUM_CONF) --installroot=$(INSTALLER_FILESYSTEM) install -v $$(sed -r 's/^ +//; /^#|^$$/d' < $(PKG_LIST))
+	tar -C $(INSTALLER_FILESYSTEM) -zcf $@.tmp .
+	mv -f $@.tmp $@
 
-$(PYTHON_LIBS_INSTALLED_STAMP): $(PYTHON_LIBS_RPM)
-	rpm2cpio $< | ( cd $(INSTALLER_FILESYSTEM) && cpio -iudv )
-	touch $@
-
-$(HOST_INSTALLER_INSTALLED_STAMP): $(HOST_INSTALLER_RPMS)
-	for R in $^; do	rpm2cpio $$R | ( cd $(INSTALLER_FILESYSTEM) && cpio -iudv ) ; done
-	touch $@
+$(BASE_IMAGE_STAMP): $(BASE_IMAGE)
+	rm -rf $(INSTALLER_FILESYSTEM)
+	mkdir $(INSTALLER_FILESYSTEM)
+	tar -C $(INSTALLER_FILESYSTEM) -zxf $<
+# install $(PYTHON_LIBS_RPM) and $(HOST_INSTALLER_RPMS)
+	set -e; all= ;\
+	for f in $(PYTHON_LIBS_RPM) $(HOST_INSTALLER_RPMS) $(BIOSDEVNAME_RPM); do \
+		cp $$f $(INSTALLER_FILESYSTEM)/tmp ;\
+		all="$$all /tmp/$$(basename $$f)" ;\
+	done ;\
+	$(INSTALLER_CHROOT) rpm -ivh $$all ;\
+	$(INSTALLER_CHROOT) rm -f $$all
+# prepare terminals to login
+	sed -i -re 's!^ACTIVE_CONSOLES=.*!ACTIVE_CONSOLES=/dev/tty2!' $(INSTALLER_FILESYSTEM)/etc/sysconfig/init
+	sed -i -re 's,^exec /sbin/mingetty .*,exec /sbin/agetty -n -l /bin/sh 38400 $$TTY,' $(INSTALLER_FILESYSTEM)/etc/init/tty.conf
+	rm -f $(INSTALLER_FILESYSTEM)/etc/init/serial.conf
+# init configuration to start our installer
+	cp installer.conf log_tty.conf $(INSTALLER_FILESYSTEM)/etc/init/
+# disable ssh by default, will be enabled if sshpassword option is used
+	$(INSTALLER_CHROOT) chkconfig --levels 2345 sshd off
+# enable network by default to make nfs start correctly
+	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
+# some cleanup
+	cd $(INSTALLER_FILESYSTEM) && rm -rf usr/share/doc usr/share/man var/lib/yum usr/share/locale \
+		var/cache usr/lib/locale
+	@touch $@
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
 	cat $(FIRMWARE_RPMS_LIST) | while read rpm; \
@@ -64,11 +86,11 @@ $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
 		(cd $(INSTALLER_FILESYSTEM) && cpio -iudv ); done
 	touch $@
 
-$(INIT_CREATED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
-	ln -f $(INSTALLER_FILESYSTEM)/bin/busybox $(INSTALLER_FILESYSTEM)/init
+$(INIT_CREATED_STAMP): $(BASE_IMAGE_STAMP)
+	ln -f $(INSTALLER_FILESYSTEM)/sbin/init $(INSTALLER_FILESYSTEM)/init
 	touch $@
 
-$(PROC_ADDED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
+$(PROC_ADDED_STAMP): $(BASE_IMAGE_STAMP)
 	mkdir -p $(INSTALLER_FILESYSTEM)/proc
 	mkdir -p $(INSTALLER_FILESYSTEM)/lib/firmware
 	mkdir -p $(INSTALLER_FILESYSTEM)/{var/lib,var/lock,var/log,var/run}
@@ -78,12 +100,18 @@ $(PROC_ADDED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
 ###
 # build installer stuff:
 
-$(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP) $(HOST_INSTALLER_INSTALLED_STAMP)
+$(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_STAMP)
 # install scripts:
 	rm -f $(INSTALLER_FILESYSTEM)/etc/init.d/{discover.init,S10udev,S50sshd,S40network}
 	touch $@
 
-$(FILES_COLLECTED_STAMP): $(BASE_IMAGE_EXTRACTED_STAMP)
+# TODO still useful ??
+# Actually collects
+# /output/xen/INSTALLER_FILES (some strange python libraries)
+# /output/guest-packages-linux-firmware/INSTALLER_FILES (firmware for cards, installed even above ??)
+# /output/kernel-dom0/INSTALLER_FILES (modules)
+# /output/uclibc-xen/INSTALLER_FILES (xeninfo utility)
+$(FILES_COLLECTED_STAMP): $(BASE_IMAGE_STAMP)
 	./collect-files $(INSTALLER_FILESYSTEM) $(PROJECT_OUTPUTDIR) INSTALLER_FILES
 	ln -sf /lib/udev/scsi_id $(INSTALLER_FILESYSTEM)/sbin/scsi_id # symlink needed by multipath-tools
 	touch $@
@@ -94,8 +122,8 @@ $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
 	done
 	touch $@
 
-$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
-		 $(MY_OUTPUT_DIR)/.dirstamp
+$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
+		$(MY_OUTPUT_DIR)/.dirstamp
 	rm -f $(INSTALL_IMG)
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
@@ -103,8 +131,8 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) $(KE
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | cpio -o -H newc | gzip -9c >$(INSTALL_IMG)
 	chmod 644 $@
 
-$(INSTALL_IMG_XCP): $(INSTALLER_INSTALLED_STAMP) $(PYTHON_LIBS_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
-	$(PROC_ADDED_STAMP) $(MY_OUTPUT_DIR)/.dirstamp
+$(INSTALL_IMG_XCP): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
+		$(MY_OUTPUT_DIR)/.dirstamp
 	rm -f $(INSTALL_IMG_XCP)
 	$(call brand-python-xcp) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand-xcp,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue

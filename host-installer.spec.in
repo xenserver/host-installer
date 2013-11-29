@@ -45,13 +45,12 @@ mkdir -p %{buildroot}/etc/init.d
 mkdir -p %{buildroot}/etc/modprobe.d
 mkdir -p %{buildroot}/etc/depmod.d
 cp startup/preinit %{buildroot}/%{installer_dir}/
-cp startup/inittab %{buildroot}/etc
 cp startup/depmod.conf %{buildroot}/etc/depmod.d
-cp startup/blacklist %{buildroot}/etc/modprobe.d/blacklist.conf
+cp startup/blacklist %{buildroot}/etc/modprobe.d/installer-blacklist.conf
 cp startup/modprobe.mlx4 %{buildroot}/etc/modprobe.d/mlx4.conf
 
 cp startup/S[0-9][0-9]* %{buildroot}/etc/init.d
-cp startup/functions %{buildroot}/etc/init.d
+cp startup/functions %{buildroot}/etc/init.d/installer-functions
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -107,12 +106,11 @@ rm -rf $RPM_BUILD_ROOT
 %files startup
 %defattr(775,root,root,-)
 
-/etc/init.d/
+/etc/init.d/*
 %{installer_dir}/preinit
 
 %defattr(664,root,root,775)
-/etc/inittab
-/etc/modprobe.d/
+/etc/modprobe.d/*
 /etc/depmod.d/
 
 %doc

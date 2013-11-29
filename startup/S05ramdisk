@@ -18,7 +18,7 @@
 #    the ISOs themselves are unpacked to the tmpfs ramdisk so can have
 #    long filenames).
 
-. /etc/init.d/functions
+. /etc/init.d/installer-functions
 
 start()
 {
