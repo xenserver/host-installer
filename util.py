@@ -317,3 +317,17 @@ def dev_null():
     if not _dev_null_fh:
         _dev_null_fh = open("/dev/null", 'r+')
     return _dev_null_fh
+
+def udevadmCmd(cmd):
+    if os.path.isfile('/sbin/udevadm'):
+        return ['/sbin/udevadm', cmd]
+    return ['udev' + cmd]
+
+def udevsettleCmd():
+    return udevadmCmd('settle')
+
+def udevtriggerCmd():
+    return udevadmCmd('trigger')
+
+def udevinfoCmd():
+    return udevadmCmd('info')

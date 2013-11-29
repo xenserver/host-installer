@@ -144,7 +144,11 @@ def gen_answerfile(accessor, installer_dir, url):
                                with_stdout = True)
         if rc == 0 and out.startswith('/dev/'):
             root_partition = out.strip()
-            (rc, out) = cmd.runCmd(['udevinfo', '-q', 'symlink', '-n', root_partition[5:]],
+            if os.path.isfile('/sbin/udevadm'):
+                args = ['/sbin/udevadm', 'info']
+            else:
+                args = ['udevinfo']
+            (rc, out) = cmd.runCmd(args + ['-q', 'symlink', '-n', root_partition[5:]],
                                    with_stdout = True)
             if rc == 0:
                 for link in out.split():

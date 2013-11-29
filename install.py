@@ -172,7 +172,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                                 if p.type.startswith('driver'):
                                     if p.load() != 0:
                                         raise RuntimeError, "Failed to load driver %s." % p.name
-                util.runCmd2([ '/sbin/udevsettle' ])
+                util.runCmd2(util.udevsettleCmd())
                 results = fixMpathResults(results)
             except Exception, e:
                 parsing_except = e
@@ -187,7 +187,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
         # log the modules that we loaded:
         xelogging.log("All needed modules should now be loaded. We have loaded:")
-        util.runCmd2(["/bin/lsmod"])
+        util.runCmd2(["lsmod"])
 
         status = constants.EXIT_OK
 

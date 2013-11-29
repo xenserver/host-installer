@@ -66,7 +66,7 @@ def mpath_part_scan(force = False):
         return 0
     ret = createMpathPartnodes()
     if ret == 0:
-         util.runCmd2([ '/sbin/udevsettle' ])
+         util.runCmd2(util.udevsettleCmd())
     return ret
 
 def mpath_enable():
@@ -202,7 +202,7 @@ def getQualifiedDeviceName(disk):
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
     symlink = None
-    v, out = util.runCmd2(['/usr/bin/udevinfo', '-q', 'symlink', '-n', partition], with_stdout = True)
+    v, out = util.runCmd2(util.udevinfoCmd() + ['-q', 'symlink', '-n', partition], with_stdout = True)
     if v == 0:
         for link in out.split():
             if link.startswith('disk/by-id') and not link.startswith('disk/by-id/edd'):
@@ -586,7 +586,7 @@ def attach_rfc4173(iname, rfc4173_spec):
         if rv:
             raise RuntimeError, "/sbin/iscsiadm -m node -l failed"
     finally:
-        util.runCmd2([ '/sbin/udevsettle' ])           # update /dev
+        util.runCmd2(util.udevsettleCmd())           # update /dev
 
     disk = rfc4173_to_disk(rfc4173_spec)
     iscsi_disks.append(disk)

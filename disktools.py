@@ -554,10 +554,10 @@ class PartitionToolBase:
             raise Exception('The new partition table could not be written but was reverted successfully: '+str(e))
         else:
             # Ensure new device nodes are available before we continue
-            self.cmdWrap(['udevtrigger'])
+            self.cmdWrap(util.udevtriggerCmd())
             timeout = 10
             try:
-                self.cmdWrap(['udevsettle', '--timeout=%d' % timeout ])
+                self.cmdWrap(util.udevsettleCmd() + ['--timeout=%d' % timeout ])
             except:
                 xelogging.log('udevsettle with %d second timeout failed' % timeout)
 
@@ -902,7 +902,7 @@ class GPTPartitionTool(PartitionToolBase):
         ID_EFI_BOOT:     'ef00',
         }
 
-    SGDISK = '/sbin/sgdisk'
+    SGDISK = 'sgdisk'
     partTableType = constants.PARTITION_GPT
 
     def readDiskDetails(self):
