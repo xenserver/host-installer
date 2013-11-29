@@ -173,12 +173,12 @@ def getFinalisationSequence(ans):
         Task(prepareSwapfile, A(ans, 'mounts'), []),
         Task(writeFstab, A(ans, 'mounts'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
-        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
-                                  'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
+                                  'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -640,15 +640,6 @@ def createDom0DiskFilesystems(disk, primary_partnum):
 
 def __mkinitrd(mounts, partition, package, kernel_version):
 
-    cmd = ['mkinitrd', '-v']
-    args = ['--theme=/usr/share/splash']
-    if isDeviceMapperNode(partition):
-        # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
-        # picks up the master device and not the slave 
-        args.append('--rootdev='+ partition)
-    else:
-        args.append('--without-multipath')
-
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
         util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
@@ -658,11 +649,35 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
 
-        cmd = ['mkinitrd', '--latch']
-        cmd.extend( args )
-        if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
-            raise RuntimeError, "Failed to latch arguments for initrd."
-        
+        # default to only including host specific kernel modules in initrd
+        if os.path.isdir(os.path.join(mounts['root'], 'etc/dracut.conf.d')):
+            f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_hostonly.conf'), 'w')
+            f.write('hostonly="yes"\n')
+            f.close()
+
+            # disable multipath on root partition
+            try:
+                if not isDeviceMapperNode(partition):
+                    f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
+                    f.write('omit_dracutmodules+="multipath"\n')
+                    f.close()
+            except:
+                pass
+        else:
+            args = ['--theme=/usr/share/splash']
+
+            if isDeviceMapperNode(partition):
+                # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
+                # picks up the master device and not the slave
+                args.append('--rootdev='+ partition)
+            else:
+                args.append('--without-multipath')
+
+            cmd = ['mkinitrd', '--latch']
+            cmd.extend( args )
+            if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
+                raise RuntimeError, "Failed to latch arguments for initrd."
+
         cmd = ['new-kernel-pkg.py', '--install', '--package='+package, '--mkinitrd']
 
         # Save command used to create initrd in <initrd_filename>.cmd
@@ -729,6 +744,23 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
         src = '/etc/iscsi/nodes'
         dst = os.path.join(mounts['root'], 'etc/iscsi/')
         util.runCmd2(['cp','-a', src, dst])
+        src='/etc/iscsi/initiatorname.iscsi'
+        dst=os.path.join(mounts['root'],'etc/iscsi/initiatorname.iscsi')
+
+        cmd = ['cp','-a', src, dst]
+        if util.runCmd2(cmd):
+            raise RuntimeError, "Failed to copy initiatorname.iscsi"
+
+        # Extract iname 
+        fd = open(src, "r")
+        iname = fd.read()
+        iname = iname[14:].rstrip()
+        fd.close()
+
+        # Create IQN file for XAPI
+        fd = open(os.path.join(mounts['root'],'etc/firstboot.d/data/iqn.conf'), "w")
+        fd.write("IQN='%s'" % iname)
+        fd.close()
 
         if isDeviceMapperNode(primary_disk):
 
@@ -738,13 +770,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                    'chkconfig', '--level', '2345', 'open-iscsi', 'on']
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to chkconfig open-iscsi on"
-            # Open-iscsi needs an initiator name to start
-            src='/etc/iscsi/initiatorname.iscsi'
-            dst=os.path.join(mounts['root'],'etc/iscsi/initiatorname.iscsi')
-            if not os.path.exists(dst):
-                cmd = ['cp','-a', src, dst]
-                if util.runCmd2(cmd):
-                    raise RuntimeError, "Failed to copy initiatorname.iscsi"
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
     if kdump_kernel_version:

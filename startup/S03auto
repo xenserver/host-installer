@@ -2,11 +2,10 @@
 
 start()
 {
-  autodev=$(blkid -t LABEL=autoinstall -o device)
-  [ -z "$autodev" ] && return
+  [ -e /dev/disk/by-label/AUTOINSTALL ] || return
 
   mkdir -p /mnt/autoinstall
-  mount -o ro $autodev /mnt/autoinstall
+  mount -o ro /dev/disk/by-label/AUTOINSTALL /mnt/autoinstall
   [ $? -eq 0 ] || return
   [ -r /mnt/autoinstall/cmdline ] && cp -fp /mnt/autoinstall/cmdline /var/run
 

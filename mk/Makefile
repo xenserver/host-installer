@@ -14,7 +14,6 @@ BIOSDEVNAME_RPM := $(shell find $(PROJECT_OUTPUTDIR)/guest-packages-biosdevname/
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
-INSTALL_IMG_XCP = $(MY_OUTPUT_DIR)/install.xcp.img
 MBOOT_IMG = $(MY_OUTPUT_DIR)/mboot.img
 BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 
@@ -34,7 +33,7 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(INSTALL_IMG_XCP) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(MAKE) -C $(call hg_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
@@ -147,16 +146,7 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
-	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$(INSTALL_IMG)
-	chmod 644 $@
-
-$(INSTALL_IMG_XCP): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
-		$(MY_OUTPUT_DIR)/.dirstamp
-	rm -f $(INSTALL_IMG_XCP)
-	$(call brand-python-xcp) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
-	$(call brand-xcp,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
-	install -m644 /output/eulas/EULA_XCP $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
-	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$(INSTALL_IMG_XCP)
+	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$@
 	chmod 644 $@
 
 # Dell factory installation

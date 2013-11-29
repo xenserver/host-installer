@@ -26,6 +26,7 @@ import init_constants
 import xelogging
 import netutil
 import diskutil
+import disktools
 import util
 from netinterface import *
 
@@ -65,7 +66,7 @@ def configureNetworking(ui, device, config):
         else:
             netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr)
 
-    netutil.writeDebStyleInterfaceFile(netcfg, '/etc/network/interfaces')
+    netutil.writeNetInterfaceFiles(netcfg)
     netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
     if device == 'all':
@@ -213,6 +214,12 @@ def main(args):
                 ui.exn_error_dialog("install-log", False, interactive)
                 return reboot
             raise
+
+    # ensure partitions/disks are not locked by LVM
+    # this should be done before attempting to enable multipath
+    lvm = disktools.LVMTool()
+    lvm.deactivateAll()
+    del lvm
 
     # Ensure multipath devices are created unless installer is being
     # run with the "--device_mapper_multipath=disabled" option

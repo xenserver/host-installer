@@ -128,6 +128,14 @@ class NetInterface:
         """ Returns true if a static interface configuration is represented. """
         return self.mode == self.Static
 
+    def getBroadcast(self):
+        bcast = None
+        rc, output = util.runCmd2(['/bin/ipcalc', '-b', self.ipaddr, self.netmask],
+                                  with_stdout=True)
+        if rc == 0:
+            bcast = output[10:].strip()
+        return bcast
+
     def writeDebStyleInterface(self, iface, f):
         """ Write a Debian-style configuration entry for this interface to 
         file object f using interface name iface. """
@@ -141,11 +149,7 @@ class NetInterface:
             f.write("iface %s inet dhcp\n" % iface)
         else:
             # CA-11825: broadcast needs to be determined for non-standard networks
-            bcast = None
-            rc, output = util.runCmd2(['/bin/ipcalc', '-b', self.ipaddr, self.netmask],
-                                      with_stdout=True)
-            if rc == 0:
-                bcast = output[10:].strip()
+            bcast = self.getBroadcast()
             f.write("iface %s inet static\n" % iface)
             f.write("   address %s\n" % self.ipaddr)
             if bcast != None:
@@ -153,6 +157,31 @@ class NetInterface:
             f.write("   netmask %s\n" % self.netmask)
             if self.gateway:
                 f.write("   gateway %s\n" % self.gateway)
+
+    def writeRHStyleInterface(self, iface):
+        """ Write a RedHat-style configuration entry for this interface to
+        file object f using interface name iface. """
+
+        assert self.modev6 == None
+        assert self.mode
+
+        f = open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface, 'w')
+        f.write("DEVICE=%s\n" % iface)
+        f.write("ONBOOT=yes\n")
+        if self.mode == self.DHCP:
+            f.write("BOOTPROTO=dhcp\n")
+        else:
+            # CA-11825: broadcast needs to be determined for non-standard networks
+            bcast = self.getBroadcast()
+            f.write("BOOTPROTO=none\n")
+            f.write("IPADDR=%s\n" % self.ipaddr)
+            if bcast != None:
+                f.write("BROADCAST=%s\n" % bcast)
+            f.write("NETMASK=%s\n" % self.netmask)
+            if self.gateway:
+                f.write("GATEWAY=%s\n" % self.gateway)
+        f.close()
+
 
     def waitUntilUp(self, iface):
         if not self.isStatic():

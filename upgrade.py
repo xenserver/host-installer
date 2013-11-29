@@ -16,6 +16,7 @@
 import os
 import re
 
+import diskutil
 import product
 from xcp.version import *
 from disktools import *
@@ -375,6 +376,15 @@ class ThirdGenUpgrader(Upgrader):
                     xelogging.log("Setting ordered on " + path)
                     util.runCmd2(['tune2fs', '-o', 'journal_data_ordered', path])
                     l.deactivateVG(lv['vg_name'])
+
+        # handle the conversion of HP Gen6 controllers from cciss to scsi
+        primary_disk = self.source.getInventoryValue("PRIMARY_DISK")
+        target_link = diskutil.idFromPartition(target_disk)
+        if 'cciss' in primary_disk and 'scsi' in target_link:
+            util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
+                          os.path.join(mounts['root'], 'etc/firstboot.d/data/default-storage.conf')])
+            util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
+                          os.path.join(mounts['root'], 'var/lib/xcp/state.db')])
 
 class XCPUpgrader(ThirdGenUpgrader):
     """ Upgrader class for XCP products. """
