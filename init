@@ -183,7 +183,7 @@ def main(args):
             try:
                 # terminate any additional instances of the installer
                 for p in os.listdir('/var/run'):
-                    if p != 'installer-%s.pid' % tty:
+                    if p != 'installer-%s.pid' % tty and p.startswith('installer-'):
                         f = open('/var/run/'+p)
                         pid = int(f.readline())
                         f.close()
