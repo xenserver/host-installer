@@ -64,7 +64,7 @@ def welcome_screen(answers):
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
         xelogging.log("Waiting for partitions to appear...")
-        util.runCmd2([ '/sbin/udevsettle' ])
+        util.runCmd2(util.udevsettleCmd())
         time.sleep(1)
         diskutil.mpath_part_scan()
         tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
