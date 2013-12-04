@@ -262,3 +262,5 @@ zmore
 znew
 # not detected
 mount.nfs
+# not used but wanted installed
+vi

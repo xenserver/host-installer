@@ -66,3 +66,6 @@ nfs-utils
 
 # required by some Q/A initialization scripts
 wget
+
+# useful for users
+vim-minimal
