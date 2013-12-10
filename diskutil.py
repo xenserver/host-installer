@@ -52,7 +52,7 @@ def wait_for_multipathd():
 rules = '/etc/udev/rules.d/45-multipath.rules'
 def add_mpath_udev_rule():
     fd = open(rules,'w')
-    rule = "ACTION==\"add\", RUN+=\"/bin/bash -c 'echo add path %k | /sbin/multipathd -k > /dev/null'\""
+    rule = "ACTION==\"add\", RUN+=\"/bin/sh -c 'echo add path %k | /sbin/multipathd -k > /dev/null'\""
     fd.write(rule)
     fd.close()
     
@@ -77,7 +77,7 @@ def mpath_enable():
         open('/etc/multipath.conf', "w").close()
 
     # This creates maps for all disks at start of day (because -e is ommitted)
-    assert 0 == util.runCmd2('multipathd -d &> /var/log/multipathd &')
+    assert 0 == util.runCmd2('multipathd -d > /var/log/multipathd 2>&1 &')
     wait_for_multipathd()
     # CA-48440: Cope with lost udev events
     add_mpath_udev_rule()
