@@ -73,8 +73,13 @@ def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
-    if not os.path.exists('/etc/multipath.conf'):
-        open('/etc/multipath.conf', "w").close()
+    if not os.path.exists('/etc/multipath.conf') and os.path.exists('/etc/multipath.conf.disabled'):
+        os.rename('/etc/multipath.conf.disabled', '/etc/multipath.conf')
+
+    # launch manually to make possible to wait initialization
+    util.runCmd2(["/sbin/multipath", "-v0", "-B"])
+    time.sleep(1)
+    util.runCmd2(util.udevsettleCmd())
 
     # This creates maps for all disks at start of day (because -e is ommitted)
     assert 0 == util.runCmd2('multipathd -d > /var/log/multipathd 2>&1 &')
