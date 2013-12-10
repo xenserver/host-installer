@@ -64,6 +64,7 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	done ;\
 	$(INSTALLER_CHROOT) rpm -ivh $$all ;\
 	$(INSTALLER_CHROOT) rm -f $$all
+	touch $(INSTALLER_FILESYSTEM)/etc/fstab
 # prepare terminals to login
 	sed -i -re 's!^ACTIVE_CONSOLES=.*!ACTIVE_CONSOLES=/dev/tty2!' $(INSTALLER_FILESYSTEM)/etc/sysconfig/init
 	sed -i -re 's,^exec /sbin/mingetty .*,exec /sbin/agetty -n -l /bin/sh 38400 $$TTY,' $(INSTALLER_FILESYSTEM)/etc/init/tty.conf
