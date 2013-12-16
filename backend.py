@@ -782,7 +782,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
         host_config['dom0-mem'])
     common_xen_unsafe_params = "watchdog"
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
-    xen_mem_params = "lowmem_emergency_pool=1M crashkernel=64M@32M"
+    xen_mem_params = "crashkernel=64M@32M"
 
     # CA-112720 - Disable use of APIC-V with Xen 4.3 because it cause's
     # heterogenous pool migration problems
