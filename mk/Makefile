@@ -11,6 +11,7 @@ HOST_INSTALLER_RPMS := $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_PKG_
 HOST_INSTALLER_RPMS += $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_STARTUP_PKG_FILE)
 FIRMWARE_RPMS_LIST := $(PROJECT_OUTPUTDIR)/guest-packages-dom0/guest-packages-dom0-firmware-rpms.inc
 BIOSDEVNAME_RPM := $(shell find $(PROJECT_OUTPUTDIR)/guest-packages-biosdevname/RPMS -name biosdevname-[0-9]\* -type f | sort | tail -1)
+GDISK_RPM := $(shell find $(PROJECT_OUTPUTDIR)/gdisk/RPMS -name gdisk-[0-9]\* -type f | sort | tail -1)
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
@@ -58,11 +59,11 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	tar -C $(INSTALLER_FILESYSTEM) -zxf $<
 # install $(PYTHON_LIBS_RPM) and $(HOST_INSTALLER_RPMS)
 	set -e; all= ;\
-	for f in $(PYTHON_LIBS_RPM) $(HOST_INSTALLER_RPMS) $(BIOSDEVNAME_RPM); do \
+	for f in $(PYTHON_LIBS_RPM) $(HOST_INSTALLER_RPMS) $(BIOSDEVNAME_RPM) $(GDISK_RPM); do \
 		cp $$f $(INSTALLER_FILESYSTEM)/tmp ;\
 		all="$$all /tmp/$$(basename $$f)" ;\
 	done ;\
-	$(INSTALLER_CHROOT) rpm -ivh $$all ;\
+	$(INSTALLER_CHROOT) rpm -Uvh $$all ;\
 	$(INSTALLER_CHROOT) rm -f $$all
 	touch $(INSTALLER_FILESYSTEM)/etc/fstab
 # prepare terminals to login
