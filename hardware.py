@@ -142,7 +142,7 @@ def PhysHost_getSerialConfig():
         rc, out = util.runCmd2([constants.XL, 'info', 'xen_commandline'], with_stdout = True)
     else:
         rc, out = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
-    if rc:
+    if rc == 0:
         cmdline = out.strip()
 
     m = re.match(r'.*(com\d=\S+)', cmdline)
