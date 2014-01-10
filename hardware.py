@@ -15,6 +15,7 @@ import constants
 import xelogging
 import util
 import re
+import os.path
 
 ###
 # Module loading
@@ -116,24 +117,50 @@ def VM_getHostTotalMemoryKB():
     return meminfo['MemTotal']
 
 def PhysHost_getHostTotalMemoryKB():
-    rc, mem = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
-    assert rc == 0
-    return int(mem.strip())
+    mem = 0
+
+    if os.path.exists(constants.XL):
+        rc, out = util.runCmd2([constants.XL, 'info', 'total_memory'], with_stdout = True)
+        if rc == 0:
+            mem = int(out.strip()) * 1024
+    else:
+        rc, out = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
+        if rc == 0:
+            mem = int(out.strip())
+
+    if mem == 0:
+        raise RuntimeError("Unable to determine host memory")
+    return mem
 
 def VM_getSerialConfig():
-    return ''
+    return None
 
 def PhysHost_getSerialConfig():
-    rc, cmdline = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
-    assert rc == 0
+    cmdline = ''
+
+    if os.path.exists(constants.XL):
+        rc, out = util.runCmd2([constants.XL, 'info', 'xen_commandline'], with_stdout = True)
+    else:
+        rc, out = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
+    if rc:
+        cmdline = out.strip()
+
     m = re.match(r'.*(com\d=\S+)', cmdline)
     return m and m.group(1) or None
 
 def PhysHost_getHostTotalCPUs():
-    rc, pcpus = util.runCmd2([constants.XENINFO, 'host-total-cpus'], with_stdout = True)
-    if rc != 0:
-        raise RuntimeError("Unable to determine number of CPUs.")
-    return int(pcpus.strip())
+    pcpus = 0
+
+    if os.path.exists(constants.XL):
+        rc, out = util.runCmd2([constants.XL, 'info', 'nr_cpus'], with_stdout = True)
+    else:
+        rc, out = util.runCmd2([constants.XENINFO, 'host-total-cpus'], with_stdout = True)
+    if rc == 0:
+        pcpus = out.strip()
+
+    if pcpus == 0:
+        raise RuntimeError("Unable to determine number of CPUs")
+    return pcpus
 
 getHostTotalMemoryKB = PhysHost_getHostTotalMemoryKB
 getSerialConfig = PhysHost_getSerialConfig
