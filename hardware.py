@@ -17,6 +17,11 @@ import util
 import re
 import os.path
 
+import xen.lowlevel.xc as xc
+XC = xc.xc()
+PHYSINFO = XC.physinfo()
+XENINFO = XC.xeninfo()
+
 ###
 # Module loading
 
@@ -117,50 +122,29 @@ def VM_getHostTotalMemoryKB():
     return meminfo['MemTotal']
 
 def PhysHost_getHostTotalMemoryKB():
-    mem = 0
 
-    if os.path.exists(constants.XL):
-        rc, out = util.runCmd2([constants.XL, 'info', 'total_memory'], with_stdout = True)
-        if rc == 0:
-            mem = int(out.strip()) * 1024
-    else:
-        rc, out = util.runCmd2([constants.XENINFO, 'host-total-mem'], with_stdout = True)
-        if rc == 0:
-            mem = int(out.strip())
-
-    if mem == 0:
+    if PHYSINFO is None or 'total_memory' not in PHYSINFO:
         raise RuntimeError("Unable to determine host memory")
-    return mem
+
+    return PHYSINFO['total_memory']
 
 def VM_getSerialConfig():
     return None
 
 def PhysHost_getSerialConfig():
-    cmdline = ''
 
-    if os.path.exists(constants.XL):
-        rc, out = util.runCmd2([constants.XL, 'info', 'xen_commandline'], with_stdout = True)
-    else:
-        rc, out = util.runCmd2([constants.XENINFO, 'xen-commandline'], with_stdout = True)
-    if rc == 0:
-        cmdline = out.strip()
+    if XENINFO is None or 'xen_commandline' not in XENINFO:
+        return None
 
-    m = re.match(r'.*(com\d=\S+)', cmdline)
+    m = re.match(r'.*(com\d=\S+)', XENINFO['xen_commandline'])
     return m and m.group(1) or None
 
 def PhysHost_getHostTotalCPUs():
-    pcpus = 0
 
-    if os.path.exists(constants.XL):
-        rc, out = util.runCmd2([constants.XL, 'info', 'nr_cpus'], with_stdout = True)
-    else:
-        rc, out = util.runCmd2([constants.XENINFO, 'host-total-cpus'], with_stdout = True)
-    if rc == 0:
-        pcpus = out.strip()
-
-    if pcpus == 0:
+    if PHYSINFO is None or 'nr_cpus' not in PHYSINFO:
         raise RuntimeError("Unable to determine number of CPUs")
-    return pcpus
+
+    return PHYSINFO['nr_cpus']
 
 getHostTotalMemoryKB = PhysHost_getHostTotalMemoryKB
 getSerialConfig = PhysHost_getSerialConfig

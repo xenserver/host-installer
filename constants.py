@@ -103,8 +103,6 @@ MIN_PASSWD_LEN=6
 # file locations - installer filesystem
 EULA_PATH = "/opt/xensource/installer/EULA"
 INSTALLER_DIR="/opt/xensource/installer"
-XENINFO = "/usr/bin/xeninfo"
-XL = "/usr/sbin/xl"
 timezone_data_file = '/opt/xensource/installer/timezones'
 kbd_data_file = '/opt/xensource/installer/keymaps'
 ANSWERFILE_PATH = '/tmp/answerfile'
