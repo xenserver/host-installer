@@ -51,7 +51,7 @@ sysvinit-tools
 tar
 udev
 util-linux-ng
-xen-tools
+xen-dom0-tools
 zlib
 newt
 python-libs
