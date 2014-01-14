@@ -296,7 +296,12 @@ def performInstallation(answers, ui_package, interactive):
         defaults.update({ 'guest-disks': [] })
 
         xelogging.log("Updating answers dictionary based on existing installation")
-        answers.update(answers['installation-to-overwrite'].readSettings())
+        try:
+            answers.update(answers['installation-to-overwrite'].readSettings())
+        except Exception, e:
+            xelogging.logException(e)
+            raise RuntimeError("Failed to get existing installation settings")
+
         prettyLogAnswers(answers)
     else:
         defaults.update({ 'master': None,
