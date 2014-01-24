@@ -1,5 +1,6 @@
 host-installer
 host-installer-startup
+xen-installer-files
 
 bridge-utils
 centos-release

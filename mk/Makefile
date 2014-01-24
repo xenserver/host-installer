@@ -121,7 +121,6 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_STAMP)
 	touch $@
 
 # Actually collects
-# /output/xen/INSTALLER_FILES (some strange python libraries)
 # /output/guest-packages-linux-firmware/INSTALLER_FILES (firmware for cards, installed even above ??)
 # /output/kernel-dom0/INSTALLER_FILES (modules)
 $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_STAMP)
