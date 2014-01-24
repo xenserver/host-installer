@@ -1,17 +1,10 @@
 USE_BRANDING := yes
 include $(B_BASE)/common.mk
-include $(PROJECT_OUTPUTDIR)/python-libs/python-libs.inc
-include $(PROJECT_OUTPUTDIR)/host-installer/host-installer.inc
 
 # inputs
 YUM_CONF := $(PROJECT_OUTPUTDIR)/chroot-dom0/yum.conf
 PKG_LIST := pkgs.txt
-PYTHON_LIBS_RPM := $(PROJECT_OUTPUTDIR)/python-libs/$(PYTHON_LIBS_PKG_FILE)
-HOST_INSTALLER_RPMS := $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_PKG_FILE)
-HOST_INSTALLER_RPMS += $(PROJECT_OUTPUTDIR)/host-installer/$(HOST_INSTALLER_STARTUP_PKG_FILE)
 FIRMWARE_RPMS_LIST := $(PROJECT_OUTPUTDIR)/guest-packages-dom0/guest-packages-dom0-firmware-rpms.inc
-BIOSDEVNAME_RPM := $(shell find $(PROJECT_OUTPUTDIR)/guest-packages-biosdevname/RPMS -name biosdevname-[0-9]\* -type f | sort | tail -1)
-GDISK_RPM := $(shell find $(PROJECT_OUTPUTDIR)/gdisk/RPMS -name gdisk-[0-9]\* -type f | sort | tail -1)
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
@@ -27,6 +20,7 @@ INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.installer-installed.stamp
 FILES_COLLECTED_STAMP = $(MY_OBJ_DIR)/.files-collected.stamp
 INIT_CREATED_STAMP = $(MY_OBJ_DIR)/.init-created.stamp
 PROC_ADDED_STAMP = $(MY_OBJ_DIR)/.proc-added.stamp
+REPO_STAMP = $(MY_OBJ_DIR)/.repo.stamp
 
 INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 
@@ -47,9 +41,24 @@ build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	mbootpack -o $(MBOOT_IMG) $(MY_OBJ_DIR)/xen -m $(MY_OBJ_DIR)/vmlinux -m $(INSTALL_IMG)
 	rm -f $(MY_OBJ_DIR)/xen $(MY_OBJ_DIR)/vmlinux
 
-$(BASE_IMAGE): $(YUM_CONF) $(PKG_LIST)
+$(REPO_STAMP):
+	rm -rf $(MY_OBJ_DIR)/repos/xenserver
+	mkdir -p $(MY_OBJ_DIR)/repos/xenserver
+	set -e; for comp in $(DDEPS); do \
+		d="$(PROJECT_OUTPUTDIR)/$$comp/RPMS" ;\
+		if [ -d "$$d" ]; then \
+			ln -sf $$(find "$$d" -name \*.rpm -type f) $(MY_OBJ_DIR)/repos/xenserver ;\
+		fi ;\
+	done
+	createrepo $(MY_OBJ_DIR)/repos/xenserver
+	@touch $@
+
+$(BASE_IMAGE): $(YUM_CONF) $(PKG_LIST) $(REPO_STAMP)
+	{ cat $(YUM_CONF) ;\
+	echo -e "\n[xenserver]\nname=xenserver\nenabled=1\ngpgcheck=0\nbaseurl=file://$(MY_OBJ_DIR)/repos/xenserver\n" ;\
+	} | sed -r '/\[base\]|\[updates\]/a\exclude=kernel-xen*, *xen*, biosdevname' > $(MY_OBJ_DIR)/yum.conf
 	rm -rf $(INSTALLER_FILESYSTEM)
-	yum --nogpgcheck --config=$(YUM_CONF) --installroot=$(INSTALLER_FILESYSTEM) install -v $$(sed -r 's/^ +//; /^#|^$$/d' < $(PKG_LIST))
+	yum --nogpgcheck --config=$(MY_OBJ_DIR)/yum.conf --installroot=$(INSTALLER_FILESYSTEM) install -v $$(sed -r 's/^ +//; /^#|^$$/d' < $(PKG_LIST))
 	tar -C $(INSTALLER_FILESYSTEM) -zcf $@.tmp .
 	mv -f $@.tmp $@
 
@@ -57,14 +66,6 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	rm -rf $(INSTALLER_FILESYSTEM)
 	mkdir $(INSTALLER_FILESYSTEM)
 	tar -C $(INSTALLER_FILESYSTEM) -zxf $<
-# install $(PYTHON_LIBS_RPM) and $(HOST_INSTALLER_RPMS)
-	set -e; all= ;\
-	for f in $(PYTHON_LIBS_RPM) $(HOST_INSTALLER_RPMS) $(BIOSDEVNAME_RPM) $(GDISK_RPM); do \
-		cp $$f $(INSTALLER_FILESYSTEM)/tmp ;\
-		all="$$all /tmp/$$(basename $$f)" ;\
-	done ;\
-	$(INSTALLER_CHROOT) rpm -Uvh $$all ;\
-	$(INSTALLER_CHROOT) rm -f $$all
 	touch $(INSTALLER_FILESYSTEM)/etc/fstab
 # prepare terminals to login
 	sed -i -re 's!^ACTIVE_CONSOLES=.*!ACTIVE_CONSOLES=/dev/tty2!' $(INSTALLER_FILESYSTEM)/etc/sysconfig/init
@@ -85,7 +86,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		var/cache usr/lib/locale var/lib/rpm var/cache/yum \
 		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info \
 		usr/share/doc usr/share/groff usr/include/python* usr/local/share/man usr/local/share/info \
-		etc/profile.d/less.csh etc/profile.d/less.sh usr/bin/lesspipe.sh
+		etc/profile.d/less.csh etc/profile.d/less.sh usr/bin/lesspipe.sh \
+		usr/share/i18n/locales
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
@@ -118,12 +120,10 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_STAMP)
 	rm -f $(INSTALLER_FILESYSTEM)/etc/init.d/{discover.init,S10udev,S50sshd,S40network}
 	touch $@
 
-# TODO still useful ??
 # Actually collects
 # /output/xen/INSTALLER_FILES (some strange python libraries)
 # /output/guest-packages-linux-firmware/INSTALLER_FILES (firmware for cards, installed even above ??)
 # /output/kernel-dom0/INSTALLER_FILES (modules)
-# /output/uclibc-xen/INSTALLER_FILES (xeninfo utility)
 $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_STAMP)
 	./collect-files $(INSTALLER_FILESYSTEM) $(PROJECT_OUTPUTDIR) INSTALLER_FILES
 	ln -sf /lib/udev/scsi_id $(INSTALLER_FILESYSTEM)/sbin/scsi_id # symlink needed by multipath-tools
@@ -149,6 +149,8 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 		fi ;\
 	done
 	perl clean_fw.pl $(INSTALLER_FILESYSTEM)
+# strip all kernel modules
+	find $(INSTALLER_FILESYSTEM)/lib/modules -name \*.ko -type f -exec strip -g {} \;
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
