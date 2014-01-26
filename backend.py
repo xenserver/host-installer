@@ -739,7 +739,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
         xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
     if not xen_kernel_version:
         raise RuntimeError, "Unable to determine kernel version."
-    kdump_kernel_version = kdump_kernel_version = getKernelVersion(mounts['root'], 'kdump')
     partition = partitionDevice(primary_disk, primary_partnum)
 
     if diskutil.is_iscsi(primary_disk):
@@ -777,8 +776,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                 raise RuntimeError, "Failed to chkconfig open-iscsi on"
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
-    if kdump_kernel_version:
-        __mkinitrd(mounts, partition, 'kernel-kdump', kdump_kernel_version)
 
 def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, host_config):
     short_version = kernelShortVersion(xen_kernel_version)
