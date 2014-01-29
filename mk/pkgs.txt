@@ -24,3 +24,6 @@ wget
 vim-minimal
 rsync
 openssh-clients
+
+# driver disks
+tg3-modules
