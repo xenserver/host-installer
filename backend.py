@@ -656,10 +656,6 @@ def __mkinitrd(mounts, partition, package, kernel_version):
 
         # default to only including host specific kernel modules in initrd
         if os.path.isdir(os.path.join(mounts['root'], 'etc/dracut.conf.d')):
-            f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_hostonly.conf'), 'w')
-            f.write('hostonly="yes"\n')
-            f.close()
-
             # disable multipath on root partition
             try:
                 if not isDeviceMapperNode(partition):
