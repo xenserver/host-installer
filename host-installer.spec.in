@@ -64,7 +64,7 @@ cp startup/early-blacklist.conf %{buildroot}/etc/modprobe.d/
 cp startup/modprobe.mlx4 %{buildroot}/etc/modprobe.d/mlx4.conf
 cp startup/multipath.conf.disabled %{buildroot}/etc/
 
-cp startup/S[0-9][0-9]* startup/interface-rename-sideway startup/early-blacklist %{buildroot}/etc/init.d
+cp startup/interface-rename-sideway startup/early-blacklist %{buildroot}/etc/init.d
 cp startup/functions %{buildroot}/etc/init.d/installer-functions
 
 %clean
