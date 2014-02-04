@@ -51,7 +51,7 @@ find . -type d | xargs -I{} mkdir -p %{buildroot}/%{installer_dir}/{}
 find . -type f -name "*.py" | xargs -I{} cp {} %{buildroot}/%{installer_dir}/{}
 cp init keymaps timezones sdk.answerfile %{buildroot}/%{installer_dir}/
 mkdir -p %{buildroot}/usr/bin
-cp support.sh %{buildroot}/usr/bin
+cp timeutil support.sh %{buildroot}/usr/bin
 
 # Startup files
 mkdir -p %{buildroot}/etc/init.d
@@ -78,6 +78,7 @@ rm -rf $RPM_BUILD_ROOT
 %{installer_dir}/report.py
 %{installer_dir}/bugtool.py
 /usr/bin/support.sh
+/usr/bin/timeutil
 
 %defattr(664,root,root,775)
 # Installer gubbins
