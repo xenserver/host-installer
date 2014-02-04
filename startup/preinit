@@ -31,6 +31,11 @@ sshpassword=""
 OLDIFS="$IFS"
 IFS="
 "
+
+xen_commandline() {
+  python -c "import xen.lowlevel.xc as xc; print xc.xc().xeninfo()['xen_commandline']"
+}
+
 # spaces separate arguments except for spaces enclosed by a pair of double quotes
 args=$(cmdline | sed -e s'/ *$//' -e 's/\(\("[^"]*"\)*\) \+/\1\n/g')
 set --
@@ -90,7 +95,7 @@ if [ $started_by_init -eq 1 ]; then
 	    t=linux
 	    case "$c" in
 	      hvc*|ttyS*)
-		xencon=`expr "$(xeninfo xen-commandline)" : '.*\(com.=[^ ]*\)'`
+		xencon=`expr "$(xen_commandline)" : '.*\(com.=[^ ]*\)'`
 		co=`expr "$c" : '\(ttyS.*\),'`
 		br=`expr "$xencon" : 'com.*=\([0-9]*\)'`
 		[ -n "$co" ] && c=$co
