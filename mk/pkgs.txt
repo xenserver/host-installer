@@ -28,3 +28,4 @@ openssh-clients
 # driver disks
 tg3-modules
 netxtreme2-modules
+be2net-modules
