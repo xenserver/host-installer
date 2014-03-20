@@ -21,7 +21,7 @@ HOST_INSTALLER_DIR := /opt/xensource/installer
 
 
 .PHONY: build
-build: $(RPM_BUILD_COOKIE) $(MY_OUTPUT_DIR)/host-installer.inc $(MY_SOURCES)/MANIFEST
+build: $(RPM_BUILD_COOKIE) $(MY_OUTPUT_DIR)/host-installer.inc
 	@ :
 
 
@@ -57,14 +57,6 @@ $(MY_OUTPUT_DIR)/host-installer.inc: $(MY_OUTPUT_DIRSTAMP)
 	  echo HOST_INSTALLER_PKG_FILE := RPMS/noarch/host-installer-\$$\(HOST_INSTALLER_PKG_VERSION\).noarch.rpm; \
 	  echo HOST_INSTALLER_STARTUP_PKG_FILE := RPMS/noarch/host-installer-startup-\$$\(HOST_INSTALLER_PKG_VERSION\).noarch.rpm; \
 	} > $@.tmp; \
-	mv -f $@.tmp $@; \
-	}
-
-.PHONY: $(MY_SOURCES)/MANIFEST
-$(MY_SOURCES)/MANIFEST: $(MY_SOURCES_DIRSTAMP)
-	{ set -e; set -o pipefail; \
-	echo "host-installer gpl file $(RPM_SRPMSDIR)/host-installer-$(HOST_INSTALLER_VERSION)-$(HOST_INSTALLER_RELEASE).src.rpm" > $@.tmp; \
-	echo "host-installer-startup gpl file $(RPM_SRPMSDIR)/host-installer-startup-$(HOST_INSTALLER_VERSION)-$(HOST_INSTALLER_RELEASE).src.rpm" >> $@.tmp; \
 	mv -f $@.tmp $@; \
 	}
 
