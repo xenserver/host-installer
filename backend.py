@@ -700,21 +700,19 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         util.umount(os.path.join(mounts['root'], 'proc'))
         util.umount(os.path.join(mounts['root'], 'tmp'))
 
-def getKernelVersion(rootfs_mount, kextra):
-    """ Returns a list of installed kernel version of type kextra, e.g. 'xen'. """
-    pkg_name = kextra and 'kernel-'+kextra or 'kernel'
-    chroot = ['chroot', rootfs_mount, 'rpm', '-q', pkg_name, '--qf', '%{VERSION}-%{RELEASE}\n']
+def getKernelVersion(rootfs_mount):
+    """ Returns the kernel release (uname -r) of the installed kernel """
+    chroot = ['chroot', rootfs_mount, 'rpm', '-q', '--provides', 'kernel']
     rc, out = util.runCmd2(chroot, with_stdout = True)
     if rc != 0:
         return None
 
-    out = out.strip().split("\n")
-    if len(out) < 1:
-        return None
-    ver = out[-1]
-    if kextra:
-        ver += kextra
-    return ver
+    try:
+        uname_provides = filter(lambda x: x.startswith('kernel-uname-r'), out.split('\n'))
+        return uname_provides[0].split('=')[1].strip()
+    except:
+        pass
+    return None
 
 def kernelShortVersion(version):
     """ Return the short kernel version string (i.e., just major.minor). """
@@ -732,9 +730,7 @@ def configureSRMultipathing(mounts, primary_disk):
     fd.close()
 
 def mkinitrd(mounts, primary_disk, primary_partnum):
-    xen_kernel_version = getKernelVersion(mounts['root'], None)
-    if not xen_kernel_version:
-        xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+    xen_kernel_version = getKernelVersion(mounts['root'])
     if not xen_kernel_version:
         raise RuntimeError, "Unable to determine kernel version."
     partition = partitionDevice(primary_disk, primary_partnum)
@@ -857,9 +853,7 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
             boot_config = bootloader.Bootloader('extlinux', fn,
                                                 timeout = constants.BOOT_MENU_TIMEOUT,
                                                 serial = s, location = location)
-            xen_kernel_version = getKernelVersion(mounts['root'], None)
-            if not xen_kernel_version:
-                xen_kernel_version = getKernelVersion(mounts['root'], 'xen')
+            xen_kernel_version = getKernelVersion(mounts['root'])
             if not xen_kernel_version:
                 raise RuntimeError, "Unable to determine kernel version."
             buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, host_config)
