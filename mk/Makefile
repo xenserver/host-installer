@@ -93,7 +93,7 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 
 $(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
 	cat $(FIRMWARE_RPMS_LIST) | while read rpm; \
-		do rpm2cpio $(PROJECT_OUTPUTDIR)/guest-packages-dom0/RPMS/noarch/$$rpm | \
+		do rpm2cpio $(PROJECT_OUTPUTDIR)/guest-packages-firmware/RPMS/noarch/$$rpm | \
 		(cd $(INSTALLER_FILESYSTEM) && cpio -iudv ); done
 	touch $@
 
