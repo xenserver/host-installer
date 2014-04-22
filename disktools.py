@@ -809,6 +809,9 @@ class DOSPartitionTool(PartitionToolBase):
                         }
         return partitions
 
+    def commitActivePartitiontoDisk(self, part_num):
+        self.cmdWrap([self.SFDISK, '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
+    	
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         input = 'unit: sectors\n\n'
     
@@ -959,6 +962,13 @@ class GPTPartitionTool(PartitionToolBase):
             assert partitions[number].has_key('id')
             
         return partitions
+    
+    def commitActivePartitiontoDisk(self, primary_partnum):
+        for num, part in self.iteritems():
+            if num == primary_partnum:
+                self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag set
+            else:
+                self.cmdWrap([self.SGDISK, '--attributes=%d:clear:2' % num, self.device]) # BIOS bootable flag clear
 
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         for part in table.values():
@@ -973,7 +983,7 @@ class GPTPartitionTool(PartitionToolBase):
 
         try:
             # Bring us to a known state.
-            self.cmdWrap([self.SGDISK, '--zap-all', self.device])
+            self.cmdWrap([self.SGDISK, '--zap', self.device])
         except:
             # Ignore error code which results from inconsistent initial state 
             pass

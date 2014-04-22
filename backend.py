@@ -205,6 +205,7 @@ def getFinalisationSequence(ans):
 
     seq += [
         Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
+        Task(setActiveDiskPartition, A(ans, 'primary-disk', 'primary-partnum', 'partition-table-type'), []),
         Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), [])
         ]
 
@@ -555,9 +556,7 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
     for num, part in tool.iteritems():
         if num >= primary_partnum:
             tool.deletePartition(num)
-        else:
-            tool.setActiveFlag(False, num)
-    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, active = True)
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum)
     if backup_partnum > 0:
         tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
     if storage_partnum > 0:
@@ -602,6 +601,11 @@ def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
             tool = PartitionTool(gd, partition_table_type)
             tool.deletePartitions(tool.partitions.keys())
             tool.commit(log = True)
+
+
+def setActiveDiskPartition(disk, primary_partnum, partition_table_type):
+    tool = PartitionTool(disk, partition_table_type)
+    tool.commitActivePartitiontoDisk(primary_partnum)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
