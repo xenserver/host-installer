@@ -775,7 +775,11 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
 
-def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, host_config):
+def fallbackXen(mounts):
+    xen_gz = os.path.realpath(mounts['root'] + "/boot/xen.gz")
+    return os.path.join("/boot", os.path.basename(xen_gz))
+
+def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "mem=%dG dom0_max_vcpus=%d dom0_mem=%dM,max:%dM" % (
         constants.XEN_MEM, host_config['dom0-vcpus'], host_config['dom0-mem'],
@@ -825,7 +829,8 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
                                  kernel_args = ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
-    e = bootloader.MenuEntry(hypervisor = "/boot/xen-%s.gz" % version.XEN_VERSION,
+
+    e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                              kernel = "/boot/vmlinuz-%s" % xen_kernel_version,
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
@@ -833,7 +838,7 @@ def buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, ho
                              title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
     boot_config.append("fallback", e)
     if serial:
-        e = bootloader.MenuEntry(hypervisor = "/boot/xen-%s.gz" % version.XEN_VERSION,
+        e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
                                  hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                                  kernel = "/boot/vmlinuz-%s" % xen_kernel_version,
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
@@ -860,7 +865,8 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
             xen_kernel_version = getKernelVersion(mounts['root'])
             if not xen_kernel_version:
                 raise RuntimeError, "Unable to determine kernel version."
-            buildBootLoaderMenu(xen_kernel_version, boot_config, serial, boot_serial, host_config)
+            buildBootLoaderMenu(mounts, xen_kernel_version, boot_config,
+                                serial, boot_serial, host_config)
             util.assertDir(os.path.dirname(fn))
             boot_config.commit()
 
