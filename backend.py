@@ -1244,6 +1244,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
 
     inv.write("BUILD_NUMBER='%s'\n" % branding.get('product-build', BUILD_NUMBER))
     inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
+    inv.write("LINUX_KABI_VERSION='%s'\n" % version.LINUX_KABI_VERSION)
     inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
