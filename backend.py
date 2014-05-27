@@ -177,6 +177,7 @@ def getFinalisationSequence(ans):
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
+        Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
                                   'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
@@ -775,6 +776,30 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
 
+def prepFallback(mounts, primary_disk, primary_partnum):
+    kernel_version =  getKernelVersion(mounts['root'])
+
+    # Copy /boot/vmlinuz-yyyy to /boot/vmlinuz-fallback
+    src = os.path.join(mounts['root'], 'boot/vmlinuz-%s' % kernel_version)
+    dst = os.path.join(mounts['root'], 'boot/vmlinuz-fallback')
+    shutil.copyfile(src, dst)
+
+    # Extra modules to include in the fallback initrd.  Include all
+    # currently loaded modules so the network module is picked up.
+    modules = []
+    proc_modules = open('/proc/modules', 'r')
+    for line in proc_modules:
+        modules.append(line.split(' ')[0])
+    proc_modules.close()
+
+    # Generate /boot/initrd-fallback.img.
+    cmd = ['mkinitrd', '--verbose']
+    for mod in modules:
+        cmd.append('--with=%s' % mod)
+    cmd += ['/boot/initrd-fallback.img', kernel_version]
+    if util.runCmd2(['chroot', mounts['root']] + cmd):
+        raise RuntimeError, "Failed to generate fallback initrd"
+
 def fallbackXen(mounts):
     xen_gz = os.path.realpath(mounts['root'] + "/boot/xen.gz")
     return os.path.join("/boot", os.path.basename(xen_gz))
@@ -832,17 +857,17 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
 
     e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
-                             kernel = "/boot/vmlinuz-%s" % xen_kernel_version,
+                             kernel = "/boot/vmlinuz-fallback",
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
-                             initrd = "/boot/initrd-%s.img" % xen_kernel_version, 
+                             initrd = "/boot/initrd-fallback.img",
                              title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
                                  hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
-                                 kernel = "/boot/vmlinuz-%s" % xen_kernel_version,
+                                 kernel = "/boot/vmlinuz-fallback",
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
-                                 initrd = "/boot/initrd-%s.img" % xen_kernel_version, 
+                                 initrd = "/boot/initrd-fallback.img",
                                  title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
         boot_config.append("fallback-serial", e)
 
