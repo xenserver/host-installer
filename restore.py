@@ -90,14 +90,21 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                 location = constants.BOOT_LOCATION_MBR
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            backend.installBootLoader(mounts, disk, probePartitioningScheme(disk), primary_partnum,
-                                      location)
+
+            # prepare extra mounts for installing bootloader:
+            util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
+            util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
+            util.bindMount("/proc", "%s/proc" % dest_fs.mount_point)
+            backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
             util.assertDir(os.path.dirname(dst_file))
             boot_config.commit(dst_file)
         finally:
+            util.umount("%s/proc" % dest_fs.mount_point)
+            util.umount("%s/sys" % dest_fs.mount_point)
+            util.umount("%s/dev" % dest_fs.mount_point)
             dest_fs.unmount()
     finally:
         backup_fs.unmount()
