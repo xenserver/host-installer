@@ -806,8 +806,8 @@ def fallbackXen(mounts):
 
 def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config):
     short_version = kernelShortVersion(xen_kernel_version)
-    common_xen_params = "mem=%dG dom0_max_vcpus=%d dom0_mem=%dM,max:%dM" % (
-        constants.XEN_MEM, host_config['dom0-vcpus'], host_config['dom0-mem'],
+    common_xen_params = "dom0_max_vcpus=%d dom0_mem=%dM,max:%dM" % (
+        host_config['dom0-vcpus'], host_config['dom0-mem'],
         host_config['dom0-mem'])
     common_xen_unsafe_params = "watchdog"
     safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
