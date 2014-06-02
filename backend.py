@@ -827,7 +827,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
             cpuid_masks[parts[0]] = parts[1]
     mask_params = ' '.join ( ("%s=%s" % (x, y) for x, y in cpuid_masks.iteritems() ) )
 
-    common_kernel_params = "root=LABEL=%s ro nolvm" % constants.rootfs_label
+    common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label
     kernel_console_params = "xencons=hvc console=hvc0"
 
     e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
