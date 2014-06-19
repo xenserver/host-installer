@@ -219,6 +219,7 @@ def fetchFile(source, dest):
             source = 'file://%s/%s' % (mntpoint, filepart)
 
         if source[:5] == 'http:' or \
+               source[:6] == 'https:' or \
                source[:5] == 'file:' or \
                source[:4] == 'ftp:':
             # This something that can be fetched using urllib2:
