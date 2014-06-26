@@ -25,6 +25,7 @@ import xcp.pci as pci
 import xcp.repository as repository
 import xcp.version as version
 import xcp.logger as logger
+import xcp.net.biosdevname as biosdevname
 import XenAPI
 import XenAPIPlugin
 
@@ -271,6 +272,13 @@ def urlsplit(url):
         host = parts.hostname
     return (parts.scheme, host)
 
+def netdev_map_args():
+    args = []
+    devices = biosdevname.all_devices_all_names()
+    for eth in filter(lambda x: x.startswith('eth'), devices):
+        args.append('map_netdev=%s:d:%s' % (eth, devices[eth]['Permanent MAC']))
+    return args
+
 def set_boot_config(installer_dir, url):
     try:
         config = bootloader.Bootloader.loadExisting()
@@ -287,6 +295,8 @@ def set_boot_config(installer_dir, url):
         xen_args.extend(filter(lambda x: x.startswith('com') or x.startswith('console='), default.hypervisor_args.split()))
         kernel_args = filter(lambda x: x.startswith('console=') or x.startswith('xencons=') or x.startswith('device_mapper_multipath='), default.kernel_args.split())
         kernel_args.extend(['install', 'answerfile=file:///answerfile'])
+
+        kernel_args.extend(netdev_map_args())
 
         (scheme, host) = urlsplit(url)
         if scheme in ['http', 'nfs', 'ftp']:
