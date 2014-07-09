@@ -791,11 +791,11 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
             # Multipath failover between iSCSI disks requires iscsid
             # to be running as it handles the error path
             cmd = ['chroot', mounts['root'], 
-                   'chkconfig', '--level', 'iscsid', 'on']
+                   'chkconfig', '--level', '2345', 'iscsid', 'on']
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to chkconfig iscsid on"
             cmd = ['chroot', mounts['root'],
-                   'chkconfig', '--level', 'iscsi', 'on']
+                   'chkconfig', '--level', '2345', 'iscsi', 'on']
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to chkconfig iscsid on"
 
