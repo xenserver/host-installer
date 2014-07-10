@@ -335,7 +335,7 @@ class DriverPackage(Package):
         ) = ( repository, name, long(size), md5sum, src, dest )
 
         self.destination = self.destination.lstrip('/')
-        self.destination = self.destination.replace("${KERNEL_VERSION}", version.KERNEL_VERSION)
+        self.destination = self.destination.replace("${LINUX_KABI_VERSION}", version.LINUX_KABI_VERSION)
 
     def __repr__(self):
         return "<DriverPackage: %s>" % self.name
@@ -596,7 +596,7 @@ class DriverRPMPackage(RPMPackage):
         # Skip drivers for kernels other than ours:
         if not self.is_loadable():
             xelogging.log("Skipping driver %s, version mismatch (%s != %s)" % 
-                          (self.name, self.kernel_version, version.KERNEL_VERSION))
+                          (self.name, self.kernel_version, version.LINUX_KABI_VERSION))
             return 0
 
         self.repository.accessor().start()
@@ -632,18 +632,10 @@ class DriverRPMPackage(RPMPackage):
         return rc
 
     def is_compatible(self):
-
-        def ver(str):
-            if str.endswith('xen'):
-                return str[:-3]
-            if str.endswith('kdump'):
-                return str[:-5]
-            return str
-    
-        return self.kernel_version == 'any' or ver(self.kernel_version) == ver(version.KERNEL_VERSION)
+        return self.kernel_version == 'any' or self.kernel_version == version.LINUX_KABI_VERSION
     
     def is_loadable(self):
-        return self.kernel_version == 'any' or self.kernel_version == version.KERNEL_VERSION
+        return self.kernel_version == 'any' or self.kernel_version == version.LINUX_KABI_VERSION
 
 class Accessor:
     def pathjoin(base, name):
