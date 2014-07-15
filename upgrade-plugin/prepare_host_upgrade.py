@@ -276,7 +276,7 @@ def netdev_map_args():
     args = []
     devices = biosdevname.all_devices_all_names()
     for eth in filter(lambda x: x.startswith('eth'), devices):
-        args.append('map_netdev=%s:d:%s' % (eth, devices[eth]['Permanent MAC']))
+        args.append('map_netdev=%s:d:%s' % (eth, devices[eth]['Assigned MAC']))
     return args
 
 def set_boot_config(installer_dir, url):
