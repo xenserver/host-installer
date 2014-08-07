@@ -734,6 +734,28 @@ def configureSRMultipathing(mounts, primary_disk):
         fd.write("MULTIPATHING_ENABLED='False'\n")
     fd.close()
 
+    # Reduce the timeout for ISCSI when using multipath
+    if isDeviceMapperNode(primary_disk):
+        iscsiconf_path = "%s/etc/iscsi/iscsid.conf" % mounts['root']
+        iscsiconf = open(iscsiconf_path, 'r')
+        lines = iscsiconf.readlines()
+        iscsiconf.close()
+
+        timeout_key = "node.session.timeo.replacement_timeout"
+        timeout = 15
+        wrote_key = False
+        iscsiconf = open(iscsiconf_path, 'w')
+        for line in lines:
+            if line.startswith(timeout_key):
+                iscsiconf.write("%s = %d\n" % (timeout_key, timeout))
+                wrote_key = True
+            else:
+                iscsiconf.write(line)
+        if not wrote_key:
+            iscsiconf.write("%s = %d\n" % (timeout_key, timeout))
+
+        iscsiconf.close()
+
 def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'])
     if not xen_kernel_version:
