@@ -176,6 +176,7 @@ def getFinalisationSequence(ans):
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config'), []),
+        Task(configureISCSITimeout, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
@@ -734,6 +735,7 @@ def configureSRMultipathing(mounts, primary_disk):
         fd.write("MULTIPATHING_ENABLED='False'\n")
     fd.close()
 
+def configureISCSITimeout(mounts, primary_disk):
     # Reduce the timeout for ISCSI when using multipath
     if isDeviceMapperNode(primary_disk):
         iscsiconf_path = "%s/etc/iscsi/iscsid.conf" % mounts['root']
