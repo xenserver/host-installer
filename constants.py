@@ -142,3 +142,6 @@ AUTO_EXIT_TIMER = 10 * 1000
 
 # bootloader timeout
 BOOT_MENU_TIMEOUT = 50
+
+# timeout used for multipath iscsi
+MPATH_ISCSI_TIMEOUT = 15

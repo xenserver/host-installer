@@ -742,17 +742,16 @@ def configureSRMultipathing(mounts, primary_disk):
         iscsiconf.close()
 
         timeout_key = "node.session.timeo.replacement_timeout"
-        timeout = 15
         wrote_key = False
         iscsiconf = open(iscsiconf_path, 'w')
         for line in lines:
             if line.startswith(timeout_key):
-                iscsiconf.write("%s = %d\n" % (timeout_key, timeout))
+                iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
                 wrote_key = True
             else:
                 iscsiconf.write(line)
         if not wrote_key:
-            iscsiconf.write("%s = %d\n" % (timeout_key, timeout))
+            iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
 
         iscsiconf.close()
 
