@@ -735,27 +735,29 @@ def configureSRMultipathing(mounts, primary_disk):
         fd.write("MULTIPATHING_ENABLED='False'\n")
     fd.close()
 
+def adjustISCSITimeoutForFile(path, force=False):
+    iscsiconf = open(path, 'r')
+    lines = iscsiconf.readlines()
+    iscsiconf.close()
+
+    timeout_key = "node.session.timeo.replacement_timeout"
+    wrote_key = False
+    iscsiconf = open(path, 'w')
+    for line in lines:
+        if line.startswith(timeout_key):
+            iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
+            wrote_key = True
+        else:
+            iscsiconf.write(line)
+    if not wrote_key and force:
+        iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
+
+    iscsiconf.close()
+
 def configureISCSITimeout(mounts, primary_disk):
     # Reduce the timeout for ISCSI when using multipath
     if isDeviceMapperNode(primary_disk):
-        iscsiconf_path = "%s/etc/iscsi/iscsid.conf" % mounts['root']
-        iscsiconf = open(iscsiconf_path, 'r')
-        lines = iscsiconf.readlines()
-        iscsiconf.close()
-
-        timeout_key = "node.session.timeo.replacement_timeout"
-        wrote_key = False
-        iscsiconf = open(iscsiconf_path, 'w')
-        for line in lines:
-            if line.startswith(timeout_key):
-                iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
-                wrote_key = True
-            else:
-                iscsiconf.write(line)
-        if not wrote_key:
-            iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
-
-        iscsiconf.close()
+        adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'], force=True)
 
 def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_kernel_version = getKernelVersion(mounts['root'])
@@ -770,6 +772,13 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
         src = '/etc/iscsi/nodes'
         dst = os.path.join(mounts['root'], 'var/lib/iscsi/')
         util.runCmd2(['cp','-a', src, dst])
+
+        # Reduce the timeout for logged-in ISCSI targets when using multipath
+        if isDeviceMapperNode(primary_disk):
+            for root, dirs, files in os.walk(os.path.join(dst, 'nodes')):
+                for f in files:
+                    adjustISCSITimeoutForFile(os.path.join(root, f))
+
         src='/etc/iscsi/initiatorname.iscsi'
         dst=os.path.join(mounts['root'],'var/lib/iscsi/initiatorname.iscsi')
 
