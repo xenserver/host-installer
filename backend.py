@@ -1048,22 +1048,28 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
     (manual_nameservers, nameservers) = ns_conf
 
-    if manual_nameservers:
-        resolvconf = open("%s/etc/resolv.conf" % mounts['root'], 'w')
-        if manual_hostname:
-            # /etc/hostname:
-            eh = open('%s/etc/hostname' % mounts['root'], 'w')
-            eh.write(hostname + "\n")
-            eh.close()
+    if manual_hostname:
+        # 'search' option in resolv.conf
+        try:
+            dot = hostname.index('.')
+            if dot + 1 != len(hostname):
+                resolvconf = open("%s/etc/resolv.conf" % mounts['root'], 'w')
+                dname = hostname[dot + 1:]
+                resolvconf.write("search %s\n" % dname)
+                resolvconf.close()
+            hostname = hostname[:dot]
+         except:
+            pass
 
-            # 'search' option in resolv.conf
-            try:
-                dot = hostname.index('.')
-                if dot + 1 != len(hostname):
-                    dname = hostname[dot + 1:]
-                    resolvconf.write("search %s\n" % dname)
-            except:
-                pass
+        # /etc/hostname:
+        eh = open('%s/etc/hostname' % mounts['root'], 'w')
+        eh.write(hostname + "\n")
+        eh.close()
+
+
+    if manual_nameservers:
+
+        resolvconf = open("%s/etc/resolv.conf" % mounts['root'], 'a')
         for ns in nameservers:
             if ns != "":
                 resolvconf.write("nameserver %s\n" % ns)
