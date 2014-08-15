@@ -1058,7 +1058,7 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
                 resolvconf.write("search %s\n" % dname)
                 resolvconf.close()
             hostname = hostname[:dot]
-         except:
+        except:
             pass
 
         # /etc/hostname:
