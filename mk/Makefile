@@ -83,7 +83,7 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info \
 		usr/share/doc usr/share/groff usr/include/python* usr/local/share/man usr/local/share/info \
 		etc/profile.d/less.csh etc/profile.d/less.sh usr/bin/lesspipe.sh \
-		usr/share/i18n/locales
+		usr/share/i18n/locales usr/share/perl5 usr/lib64/perl5 usr/bin/perl*
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
