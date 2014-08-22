@@ -106,8 +106,10 @@ ide_majors = [ 3, 22, 33, 34, 56, 57, 88, 89, 90, 91 ]
 disk_nodes  = [ (x, 0) for x in ide_majors ]
 disk_nodes += [ (x, 64) for x in ide_majors ]
 
-# sd* -> (sd-mod has majors 8, 65 ... 71: each device has eight minors, each 
+# sd* -> (sd-mod has majors 8, 65 ... 71, 128 ... 135: each device has eight minors, each 
 # major has sixteen disks).
+# Extended minors are used for disk 257 and above and the major number wraps back to 8
+# thus disk 257 is major 8 minor 256, disk 258 is
 disk_nodes += [ (8, x * 16) for x in range(16) ]
 disk_nodes += [ (65, x * 16) for x in range(16) ]
 disk_nodes += [ (66, x * 16) for x in range(16) ]
@@ -116,6 +118,14 @@ disk_nodes += [ (68, x * 16) for x in range(16) ]
 disk_nodes += [ (69, x * 16) for x in range(16) ]
 disk_nodes += [ (70, x * 16) for x in range(16) ]
 disk_nodes += [ (71, x * 16) for x in range(16) ]
+disk_nodes += [ (128, x * 16) for x in range(16) ]
+disk_nodes += [ (129, x * 16) for x in range(16) ]
+disk_nodes += [ (130, x * 16) for x in range(16) ]
+disk_nodes += [ (131, x * 16) for x in range(16) ]
+disk_nodes += [ (132, x * 16) for x in range(16) ]
+disk_nodes += [ (133, x * 16) for x in range(16) ]
+disk_nodes += [ (134, x * 16) for x in range(16) ]
+disk_nodes += [ (135, x * 16) for x in range(16) ]
 
 # xvd* -> (blkfront has major 202: each device has 15 minors)
 disk_nodes += [ (202, x * 16) for x in range(16) ]
@@ -136,12 +146,14 @@ def getDiskList():
                     parts.readlines())
     parts.close()
 
+    # Build regex for Block Extended Major device partitions
+    regex = re.compile('.*p[0-9]{1,2}$')
     # parse it:
     disks = []
     for l in partlines:
         try:
             (major, minor, size, name) = l.split(" ")
-            (major, minor, size) = (int(major), int(minor), int(size))
+            (major, minor, size) = (int(major), int(minor) % 256, int(size))
             if (major, minor) in disk_nodes:
                 if major == 202 and isRemovable("/dev/" + name): # Ignore PV CDROM devices
                     continue
@@ -149,6 +161,10 @@ def getDiskList():
                     # skip device that cannot be used
                     continue
                 disks.append(name.replace("!", "/"))
+            # Handle Block Extended Major devices
+            if major == 259 and not regex.match(name):
+                disks.append(name.replace("!", "/"))
+
         except:
             # it wasn't an actual entry, maybe the headers or something:
             continue
