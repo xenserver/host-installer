@@ -1,5 +1,6 @@
 USE_BRANDING := yes
 include $(B_BASE)/common.mk
+include $(PROJECT_OUTPUTDIR)/kernel-dom0/kernel.inc
 
 # inputs
 YUM_CONF := $(PROJECT_OUTPUTDIR)/chroot-dom0/yum.conf
@@ -127,9 +128,7 @@ $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_STAMP)
 	touch $@
 
 $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
-	set -e; for k in `find $(INSTALLER_FILESYSTEM)/lib/modules -type d -name '*xs*'` ; do \
-		$(INSTALLER_CHROOT) depmod `basename $$k` ; \
-	done
+	$(INSTALLER_CHROOT) depmod $(LINUX_KABI_VERSION)
 	touch $@
 
 $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
