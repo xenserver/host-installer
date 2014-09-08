@@ -671,7 +671,7 @@ def read_ibft():
         try:
             iface = filter(lambda pair: pair[1] == mac, netdevs)[0][0]
         except:
-            raise RuntimeError, "Found mac %s in iBFT but cannot find matching NIC"
+            raise RuntimeError, "Found mac %s in iBFT but cannot find matching NIC" % mac
 
         target_configs.append(Struct(iface=iface, ip=ip, nm=nm, gw=gw, 
                                      tgtip=tgtip, port=port, lun=lun, iqn=iqn))
