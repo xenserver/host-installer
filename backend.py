@@ -827,11 +827,11 @@ def fallbackXen(mounts):
 
 def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config):
     short_version = kernelShortVersion(xen_kernel_version)
-    common_xen_params = "dom0_max_vcpus=%d dom0_mem=%dM,max:%dM" % (
-        host_config['dom0-vcpus'], host_config['dom0-mem'],
-        host_config['dom0-mem'])
-    common_xen_unsafe_params = "watchdog"
-    safe_xen_params = "nosmp noreboot noirqbalance acpi=off noapic"
+    common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
+    common_xen_unsafe_params = "watchdog dom0_max_vcpus=%d" % host_config['dom0-vcpus']
+    safe_xen_params = ("nosmp noreboot noirqbalance no-mce no-bootscrub "
+                       "no-numa no-hap no-mmcfg iommu=off max_cstate=0 "
+                       "nmi=ignore allow_unsafe")
     xen_mem_params = "crashkernel=128M@32M"
 
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
@@ -872,7 +872,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
         e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
                                  hypervisor_args = ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
-                                 kernel_args = ' '.join(["nousb", common_kernel_params, "console=tty0", kernel_console_params]),
+                                 kernel_args = ' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" in Safe Mode")
         boot_config.append("safe", e)
 
