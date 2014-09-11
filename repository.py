@@ -752,13 +752,12 @@ class DeviceAccessor(MountingAccessor):
         return "<DeviceAccessor: %s>" % self.device
 
     def canEject(self):
-        if diskutil.removable(self.device):
-            return True
+        return diskutil.removable(self.device)
 
     def eject(self):
-        assert self.canEject()
-        self.finish()
-        util.runCmd2(['eject', self.device])
+        if self.canEject():
+            self.finish()
+            util.runCmd2(['eject', self.device])
 
 class NFSAccessor(MountingAccessor):
     def __init__(self, nfspath):
