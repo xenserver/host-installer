@@ -237,6 +237,9 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'src': constants.OLD_NETWORK_DB, 'dst': constants.NETWORK_DB})
 	self.restore_list.append(constants.NETWORK_DB)
 
+        # CP-9653: preserve Oracle 5 blacklist
+        self.restore_list += ['etc/pygrub/rules.d/oracle-5.6']
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
