@@ -292,6 +292,9 @@ class ThirdGenUpgrader(Upgrader):
             for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
                 util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
 
+        # CA-147442: HACK - create compat symlink
+        os.symlink('lib64', os.path.join(mounts['root'], 'opt/likewise/lib'))
+
         # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
         if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
             # CA-82901 - convert any old style ppn referenced to new style ppn references
