@@ -143,5 +143,7 @@ AUTO_EXIT_TIMER = 10 * 1000
 # bootloader timeout
 BOOT_MENU_TIMEOUT = 50
 
+FIX_AD_REG_PATHS_SCRIPT = "fix_ad_reg_paths.py"
+FIX_AD_WORK_DIR = "tmp/fix_ad"
 # timeout used for multipath iscsi
 MPATH_ISCSI_TIMEOUT = 15

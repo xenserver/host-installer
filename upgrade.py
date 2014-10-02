@@ -15,6 +15,7 @@
 
 import os
 import re
+import shutil
 
 import diskutil
 import product
@@ -292,8 +293,15 @@ class ThirdGenUpgrader(Upgrader):
             for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
                 util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
 
-        # CA-147442: HACK - create compat symlink
-        os.symlink('lib64', os.path.join(mounts['root'], 'opt/likewise/lib'))
+        # CA-147442: fix up library paths in AD registry
+        try:
+            os.mkdir(os.path.join(mounts['root'], constants.FIX_AD_WORK_DIR))
+            shutil.copy(os.path.join(constants.INSTALLER_DIR, constants.FIX_AD_REG_PATHS_SCRIPT),
+                        os.path.join(mounts['root'], constants.FIX_AD_WORK_DIR))
+            util.runCmd2(['chroot', mounts['root'], os.path.join(constants.FIX_AD_WORK_DIR, constants.FIX_AD_REG_PATHS_SCRIPT)])
+        except:
+            pass
+        shutil.rmtree(os.path.join(mounts['root'], constants.FIX_AD_WORK_DIR), ignore_errors = True)
 
         # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
         if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
