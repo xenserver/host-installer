@@ -63,14 +63,15 @@ def welcome_screen(answers):
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
-        xelogging.log("Waiting for partitions to appear...")
-        util.runCmd2(util.udevsettleCmd())
-        time.sleep(1)
-        diskutil.mpath_part_scan()
-        tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-        answers['installed-products'] = product.find_installed_products()
-        answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
-        answers['backups'] = product.findXenSourceBackups()
+            xelogging.log("Waiting for partitions to appear...")
+            util.runCmd2(util.udevsettleCmd())
+            time.sleep(1)
+            diskutil.mpath_part_scan()
+            tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
+            answers['installed-products'] = product.find_installed_products()
+            answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
+            answers['backups'] = product.findXenSourceBackups()
+            tui.progress.clearModelessDialog()
         return True
 
     global loop
