@@ -168,6 +168,7 @@ def getRepoSequence(ans, repos):
 def getFinalisationSequence(ans):
     seq = [
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
+        Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
@@ -1026,6 +1027,10 @@ def writeKeyboardConfiguration(mounts, keymap):
     kbdfile.write("KEYTABLE=%s\n" % keymap)
     kbdfile.close()
 
+    vconsole = open("%s/etc/vconsole.conf" % mounts['root'], 'w')
+    vconsole.write("KEYMAP=%s\n" % keymap)
+    vconsole.close()
+
 def prepareSwapfile(mounts):
     util.assertDir("%s/var/swap" % mounts['root'])
     util.runCmd2(['dd', 'if=/dev/zero',
@@ -1091,6 +1096,18 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
                 resolvconf.write("nameserver %s\n" % ns)
         resolvconf.close()
 
+def writeMachineID(mounts):
+    util.bindMount("/dev", "%s/dev" % mounts['root'])
+
+    try:
+        # Remove any existing machine-id file
+        try:
+            os.unlink(os.path.join(mounts['root'], 'etc/machine-id'))
+        except:
+            pass
+        util.runCmd2(['chroot', mounts['root'], 'systemd-machine-id-setup'])
+    finally:
+        util.umount("%s/dev" % mounts['root'])
 
 def setTimeZone(mounts, tz):
     # write the time configuration to the /etc/sysconfig/clock
@@ -1310,6 +1327,11 @@ def writei18n(mounts):
     fd = open(path, 'w')
     fd.write('LANG="en_US.UTF-8"\n')
     fd.write('SYSFONT="drdos8x8"\n')
+    fd.close()
+
+    path = os.path.join(mounts['root'], 'etc/locale.conf')
+    fd = open(path, 'w')
+    fd.write('LANG="en_US.UTF-8"\n')
     fd.close()
 
 def verifyRepo(media, address, ui):
