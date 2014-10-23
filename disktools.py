@@ -741,7 +741,7 @@ class DOSPartitionTool(PartitionToolBase):
         
         out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
         for line in out.split("\n"):
-            matches = re.match(r'^\s*Units\s*=\s*sectors\s*of\s*(\d+)\s*bytes', line)
+            matches = re.match(r'^\s*Units:\s*sectors\s*of\s*(\d+)\s*bytes', line)
             if matches:
                 self.sectorSize = int(matches.group(1))
                 break
