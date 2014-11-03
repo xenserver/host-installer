@@ -116,6 +116,12 @@ Installer
     Default: all
 
 
+  --map_netdev=eth:d|s:mac|pci|ppn
+
+    Map interface with the given MAC address, PCI address or PPN to the given
+    interface name.
+
+
   --network_config=dhcp|static:ip=ip;netmask=netmask[;gateway=gw][;dns=dns1[,dns2]][;domain=domain]
 
     Defines the IP configuration to bring up to allow access to
