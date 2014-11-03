@@ -248,7 +248,7 @@ def get_iface_config(iface):
     ret = None
 
     session = XenAPI.xapi_local()
-    session.xenapi.login_with_password('', '')
+    session.xenapi.login_with_password('', '','', 'prepare_host_upgrade.py')
 
     this_host = session.xenapi.session.get_this_host(session._session)
 
