@@ -981,8 +981,16 @@ class GPTPartitionTool(PartitionToolBase):
             if rv:
                 raise Exception('Failed to destroy GPT partitions on ' + self.device)
 
+        # Bring us to a known state.
         try:
-            # Bring us to a known state.
+            # --clear is called to clear the backup GPT first, since --zap does not clear this and
+            # will restore the backup GPT if the main GPT is damaged (which is not what we want).
+            self.cmdWrap([self.SGDISK, '--clear', self.device])
+        except:
+            # Ignore error code which results from inconsistent initial state 
+            pass
+
+        try:
             self.cmdWrap([self.SGDISK, '--zap', self.device])
         except:
             # Ignore error code which results from inconsistent initial state 
