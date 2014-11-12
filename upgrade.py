@@ -241,6 +241,9 @@ class ThirdGenUpgrader(Upgrader):
         # CP-9653: preserve Oracle 5 blacklist
         self.restore_list += ['etc/pygrub/rules.d/oracle-5.6']
 
+        # CA-150889: backup multipath config
+        self.restore_list.append({'src': 'etc/multipath.conf', 'dst': 'etc/multipath.conf.bak'})
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
