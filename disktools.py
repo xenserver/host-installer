@@ -488,7 +488,7 @@ def diskDevice(partitionDevice):
 
 def determineMidfix(device):
     DISK_PREFIX = '/dev/'
-    P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel', 'mapper/', 'nvme' ]
+    P_STYLE_DISKS = [ 'cciss', 'ida', 'rd', 'sg', 'i2o', 'amiraid', 'iseries', 'emd', 'carmel', 'mapper/', 'nvme', 'md' ]
     PART_STYLE_DISKS = [ 'disk/by-id' ]
 
     for key in P_STYLE_DISKS:
