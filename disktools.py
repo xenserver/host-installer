@@ -1201,3 +1201,19 @@ def getMpathMaster(dev):
         return None
     except OSError:
         return None
+
+def getMdNodes():
+    nodes = []
+    try:
+        fh = open('/proc/mdstat')
+        for line in fh:
+            line = line.rstrip()
+            if not ' : ' in line:
+                continue
+            l = line.split(None, 3)
+            if l[2] == 'active':
+                nodes.append('/dev/'+l[0])
+        fh.close()
+    except IOError:
+        pass
+    return nodes
