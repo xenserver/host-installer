@@ -173,6 +173,8 @@ def getDiskList():
             continue
     # Add multipath nodes to list
     disks.extend(map(lambda node: node.replace('/dev/',''), getMpathNodes()))
+    # Add md RAID nodes to list
+    disks.extend(map(lambda node: node.replace('/dev/',''), getMdNodes()))
 
     return disks
 
