@@ -20,11 +20,13 @@
 
 start()
 {
+  udevadm trigger
   udevadm settle --timeout=180
 
   # enable all devices and discover again
   echo -n '.'
   rm -f /etc/modprobe.d/early-blacklist.conf
+  udevadm control --reload
   udevadm trigger
   udevadm settle --timeout=180
 
