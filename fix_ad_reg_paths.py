@@ -57,7 +57,7 @@ if __name__ == '__main__':
             continue
         f = line.split(None, 3)
         v = f[3][7:-2]
-        values = v.split(', ')
+        values = map(str.strip, v.split(','))
 
         # discard records other than paths
         if values[2].lower() != "'path'":
