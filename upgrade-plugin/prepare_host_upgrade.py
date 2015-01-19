@@ -222,7 +222,11 @@ def resolve_bonded_iface_and_check_carrier(pif, session):
     bonds = pif.get('bond_master_of', '')
     if not len(bonds):
         # Return the PIF that was passed in if it is not a bond
-        return pif
+        d = pif.get('device', '').strip()
+        m = pif.get('MAC', '').strip()
+        if d == '' or m == '':
+            return None, None
+        return d, m
 
     # Otherwise, determine the real interfaces behind the bond
     bond = session.xenapi.Bond.get_record(bonds[0])
@@ -238,13 +242,17 @@ def resolve_bonded_iface_and_check_carrier(pif, session):
         except:
             pass
         if carrier == 1:
-            return bond_pif
+            m = pif.get('MAC', '').strip()
+            if m == '':
+                return None, None
+            return device, m
     
     # At this point, no interface had a carrier
-    return None
+    return None, None
 
 def get_iface_config(iface):
-    ret = None
+    pif = None
+    mac = None
 
     session = XenAPI.xapi_local()
     session.xenapi.login_with_password('', '','', 'prepare_host_upgrade.py')
@@ -256,11 +264,11 @@ def get_iface_config(iface):
             for p in net.get('PIFs', []):
                 pif = session.xenapi.PIF.get_record(p)
                 if pif.get('host', '') == this_host:
-                    ret = resolve_bonded_iface_and_check_carrier(pif, session)
+                    iface, mac = resolve_bonded_iface_and_check_carrier(pif, session)
                     break
         
     session.xenapi.session.logout()
-    return ret
+    return pif, iface, mac
 
 def urlsplit(url):
     host = ''
@@ -302,11 +310,11 @@ def set_boot_config(installer_dir, url):
                 logger.error("Unable to determine route to " + host)
                 return False
             iface = m.group(1)
-            pif = get_iface_config(iface)
-            if not pif:
+            pif, real_iface, mac = get_iface_config(iface)
+            if not pif or not real_iface or not mac:
                 logger.error("Unable to determine configuration of " + iface)
                 return False
-            logger.info("%s accessible via %s (%s)" % (host, iface, pif['device']))
+            logger.info("%s accessible via %s (%s)" % (host, iface, real_iface))
 
             if pif['ip_configuration_mode'] == 'Static':
                 for p in ('IP', 'gateway', 'netmask'):
@@ -319,11 +327,11 @@ def set_boot_config(installer_dir, url):
                     return False
                 if  pif.get('DNS', '') != '':
                     config_str += ";dns=" + pif['DNS']
-                kernel_args.extend(['network_device='+pif['MAC'],
+                kernel_args.extend(['network_device='+mac,
                                 'network_config='+config_str])
             else:
-                kernel_args.append('network_device=' + pif['MAC'])
-            kernel_args.append("map_netdev=%s:d:%s" % (pif['device'], pif['MAC']))
+                kernel_args.append('network_device=' + mac)
+            kernel_args.append("map_netdev=%s:d:%s" % (real_iface, mac))
 
         elif scheme == 'file':
             # locate major/minor of device url is on
