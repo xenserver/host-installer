@@ -65,13 +65,17 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	tar -C $(INSTALLER_FILESYSTEM) -zxf $<
 	touch $(INSTALLER_FILESYSTEM)/etc/fstab
 # prepare terminals to login
-	sed -i -re 's!^ACTIVE_CONSOLES=.*!ACTIVE_CONSOLES=/dev/tty2!' $(INSTALLER_FILESYSTEM)/etc/sysconfig/init
-	sed -i -re 's,^exec /sbin/mingetty .*,exec /sbin/agetty -n -l /bin/sh 38400 $$TTY,' $(INSTALLER_FILESYSTEM)/etc/init/tty.conf
-	rm -f $(INSTALLER_FILESYSTEM)/etc/init/serial.conf
+	rm -f $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/getty@tty1.service'
+	ln -s /dev/null $(INSTALLER_FILESYSTEM)'/etc/systemd/system/serial-getty@hvc0.service'
 # init configuration to start our installer
-	cp installer.conf log_tty.conf $(INSTALLER_FILESYSTEM)/etc/init/
-# remove some not used script
-	for f in lvm2-lvmetad lvm2-monitor netfs; do rm $(INSTALLER_FILESYSTEM)/etc/init.d/$$f; done
+	cp installer.service $(INSTALLER_FILESYSTEM)/etc/systemd/system
+	ln -s /etc/systemd/system/installer.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/multi-user.target.wants/installer.service'
+# Disable some services and udev rules
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/sockets.target.wants/lvm2-lvmetad.socket
+	sed -i 's/use_lvmetad = 1/use_lvmetad = 0/' $(INSTALLER_FILESYSTEM)/etc/lvm/lvm.conf
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/11-dm-mpath.rules
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/62-multipath.rules
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/69-dm-lvm-metad.rules
 # enable network by default to make nfs start correctly
 	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
 # TODO remove
