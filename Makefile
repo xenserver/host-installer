@@ -7,7 +7,7 @@ include $(B_BASE)/rpmbuild.mk
 # For debugging
 .PHONY: %var
 %var:
-        @echo "$* = $($*)"
+	@echo "$* = $($*)"
 
 REPO_NAME := host-installer
 SPEC_FILE := $(REPO_NAME).spec
