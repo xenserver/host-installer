@@ -16,6 +16,10 @@ start()
 {
   local i
 
+  udevadm settle timeout=180
+  udevadm trigger
+  udevadm settle timeout=180
+
   cd /sys/class/net
   for i in eth*; do
     if ! ip link show $i | grep -q '[,<]UP[,>]'; then
