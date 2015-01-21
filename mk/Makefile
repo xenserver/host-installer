@@ -53,7 +53,7 @@ $(REPO_STAMP):
 $(BASE_IMAGE): $(YUM_CONF) $(PKG_LIST) $(REPO_STAMP)
 	{ cat $(YUM_CONF) ;\
 	echo -e "\n[xenserver]\nname=xenserver\nenabled=1\ngpgcheck=0\nbaseurl=file://$(MY_OBJ_DIR)/repos/xenserver\n" ;\
-	} | sed -r '/\[base\]|\[updates\]/a\exclude=kernel-xen*, *xen*, biosdevname' > $(MY_OBJ_DIR)/yum.conf
+	} | sed -r '/\[base\]|\[updates\]/a\exclude=kernel-xen* *xen* biosdevname' > $(MY_OBJ_DIR)/yum.conf
 	rm -rf $(INSTALLER_FILESYSTEM)
 	yum --nogpgcheck --config=$(MY_OBJ_DIR)/yum.conf --installroot=$(INSTALLER_FILESYSTEM) install -v $$(sed -r 's/^ +//; /^#|^$$/d' < $(PKG_LIST))
 	tar -C $(INSTALLER_FILESYSTEM) -zcf $@.tmp .
