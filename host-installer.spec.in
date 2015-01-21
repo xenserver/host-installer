@@ -6,7 +6,6 @@ License: GPL
 Group: Applications/System
 Source0: %{name}-%{version}.tar.bz2
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
-BuildArch: noarch
 Requires(post): initscripts
 Requires: device-mapper-multipath lvm2 iscsi-initiator-utils
 # partitioning tools
@@ -17,6 +16,8 @@ Requires: ethtool sdparm pciutils eject net-tools biosdevname
 Requires: xcp-python-libs python-simplejson
 # archives used
 Requires: bzip2 tar gzip rpm
+# For killall
+Requires: psmisc
 
 # Strictly no byte compiling python.  Python in the install environment is
 # different to the dom0 chroot
@@ -57,6 +58,8 @@ cp timeutil support.sh %{buildroot}/usr/bin
 mkdir -p %{buildroot}/etc/init.d
 mkdir -p %{buildroot}/etc/modprobe.d
 mkdir -p %{buildroot}/etc/depmod.d
+mkdir -p %{buildroot}/etc/udev/rules.d
+mkdir -p %{buildroot}/usr/lib/udev
 cp startup/preinit %{buildroot}/%{installer_dir}/
 cp startup/depmod.conf %{buildroot}/etc/depmod.d
 cp startup/blacklist %{buildroot}/etc/modprobe.d/installer-blacklist.conf
@@ -66,6 +69,10 @@ cp startup/multipath.conf.disabled %{buildroot}/etc/
 
 cp startup/interface-rename-sideway startup/early-blacklist %{buildroot}/etc/init.d
 cp startup/functions %{buildroot}/etc/init.d/installer-functions
+
+cp startup/61-xenrt.rules %{buildroot}/etc/udev/rules.d/61-xenrt.rules
+cp startup/id_serial.sh %{buildroot}/usr/lib/udev/id_serial.sh
+cp startup/scsi_id.old %{buildroot}/usr/lib/udev/scsi_id.old
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -129,7 +136,11 @@ rm -rf $RPM_BUILD_ROOT
 
 %defattr(664,root,root,775)
 /etc/modprobe.d/*
-/etc/depmod.d/
+/etc/depmod.d/depmod.conf
+
+/etc/udev/rules.d/61-xenrt.rules
+%attr(775,root,root) /usr/lib/udev/id_serial.sh
+%attr(775,root,root) /usr/lib/udev/scsi_id.old
 
 %doc
 

@@ -54,8 +54,8 @@ $(MY_OUTPUT_DIR)/host-installer.inc: $(MY_OUTPUT_DIRSTAMP)
 	{ set -e; set -o pipefail; \
 	{ echo HOST_INSTALLER_PKG_NAME := host-installer; \
 	  echo HOST_INSTALLER_PKG_VERSION := $(HOST_INSTALLER_VERSION)-$(HOST_INSTALLER_RELEASE); \
-	  echo HOST_INSTALLER_PKG_FILE := RPMS/noarch/host-installer-\$$\(HOST_INSTALLER_PKG_VERSION\).noarch.rpm; \
-	  echo HOST_INSTALLER_STARTUP_PKG_FILE := RPMS/noarch/host-installer-startup-\$$\(HOST_INSTALLER_PKG_VERSION\).noarch.rpm; \
+	  echo HOST_INSTALLER_PKG_FILE := RPMS/$(DOMAIN0_ARCH)/host-installer-\$$\(HOST_INSTALLER_PKG_VERSION\).$(DOMAIN0_ARCH).rpm; \
+	  echo HOST_INSTALLER_STARTUP_PKG_FILE := RPMS/$(DOMAIN0_ARCH)/host-installer-startup-\$$\(HOST_INSTALLER_PKG_VERSION\).$(DOMAIN0_ARCH).rpm; \
 	} > $@.tmp; \
 	mv -f $@.tmp $@; \
 	}
