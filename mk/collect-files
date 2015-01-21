@@ -17,7 +17,13 @@ fi
 for d in ${DDEPS}; do
   odir=${input}/${d}/${collect}
   if [ -d ${odir} ]; then
-    cp -a ${odir}/* ${output}
+    for i in ${odir}/*; do
+      if [ "$i" == "${odir}/lib" -a -d "${output}/usr" ]; then
+        cp -a "$i" ${output}/usr
+      else
+        cp -a ${odir}/* ${output}
+      fi
+    done
   fi
 done
 
