@@ -458,7 +458,7 @@ def configureNTP(mounts, ntp_servers):
         ntpsconf.close()
 
     # now turn on the ntp service:
-    util.runCmd2(['chroot', mounts['root'], 'chkconfig', 'ntpd', 'on'])
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'ntpd'])
 
 def configureTimeManually(mounts, ui_package):
     # display the Set Time dialog in the chosen UI:
@@ -803,13 +803,13 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
             # Multipath failover between iSCSI disks requires iscsid
             # to be running as it handles the error path
             cmd = ['chroot', mounts['root'], 
-                   'chkconfig', '--level', '2345', 'iscsid', 'on']
+                   'systemctl', 'enable', 'iscsid']
             if util.runCmd2(cmd):
-                raise RuntimeError, "Failed to chkconfig iscsid on"
+                raise RuntimeError, "Failed to enable iscsid"
             cmd = ['chroot', mounts['root'],
-                   'chkconfig', '--level', '2345', 'iscsi', 'on']
+                   'systemctl', 'enable', 'iscsi']
             if util.runCmd2(cmd):
-                raise RuntimeError, "Failed to chkconfig iscsid on"
+                raise RuntimeError, "Failed to enable iscsi"
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
 
@@ -1220,8 +1220,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     nfd.write("NETWORKING=yes\n")
     if admin_config.modev6:
         nfd.write("NETWORKING_IPV6=yes\n")
-        util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', 'ip6tables'])
-        util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--level', '2345', 'ip6tables', 'on'])
+        util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'ip6tables'])
     else:
         nfd.write("NETWORKING_IPV6=no\n")
         netutil.disable_ipv6_module(mounts["root"])

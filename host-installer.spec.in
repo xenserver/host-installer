@@ -135,13 +135,12 @@ rm -rf $RPM_BUILD_ROOT
 
 %post
 # these are started by the installer
-/sbin/chkconfig --levels 2345 multipathd off
-/sbin/chkconfig --levels 2345 sshd off
+/usr/bin/systemctl disable multipathd
+/usr/bin/systemctl disable sshd
 
 # avoid to lock disks
-/sbin/chkconfig --del netfs
-/sbin/chkconfig --del lvm2-lvmetad
-/sbin/chkconfig --del lvm2-monitor
+/usr/bin/systemctl disable lvm2-lvmetad
+/usr/bin/systemctl disable lvm2-monitor
 
 %post startup
 /sbin/chkconfig --add early-blacklist
