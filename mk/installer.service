@@ -1,0 +1,11 @@
+[Unit]
+Description=XenServer Installer
+Requires=systemd-udev-settle.service interface-rename-sideway.service early-blacklist.service
+After=systemd-udev-settle.service interface-rename-sideway.service early-blacklist.service
+
+[Service]
+Type=idle
+ExecStart=/sbin/agetty --noissue --autologin root --login-program /opt/xensource/installer/preinit console
+
+[Install]
+WantedBy=multi-user.target
