@@ -21,7 +21,7 @@ for d in ${DDEPS}; do
       if [ "$i" == "${odir}/lib" -a -d "${output}/usr" ]; then
         cp -a "$i" ${output}/usr
       else
-        cp -a ${odir}/* ${output}
+        cp -a "${i}" ${output}
       fi
     done
   fi
