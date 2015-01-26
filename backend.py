@@ -1047,10 +1047,6 @@ def writeFstab(mounts):
     fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
     if os.path.exists(os.path.join(mounts['root'], constants.swap_location.lstrip('/'))):
         fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
-    fstab.write("none        /dev/pts  devpts defaults   0  0\n")
-    fstab.write("none        /dev/shm  tmpfs  defaults   0  0\n")
-    fstab.write("none        /proc     proc   defaults   0  0\n")
-    fstab.write("none        /sys      sysfs  defaults   0  0\n")
     fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
