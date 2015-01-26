@@ -82,7 +82,7 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 # hack to not lock decives
 	cp 40-multipath.rules $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/40-multipath.rules
 # some cleanup
-	$(INSTALLER_CHROOT) rpm -e --nodeps pkgconfig perl perl-Carp perl-Encode perl-Exporter perl-File-Path perl-File-Temp perl-Filter perl-Getopt-Long perl-HTTP-Tiny perl-PathTools perl-Pod-Escapes perl-Pod-Perldoc perl-Pod-Simple perl-Pod-Usage perl-Scalar-List-Utils perl-Socket perl-Storable perl-Text-ParseWords perl-Time-Local perl-constant perl-libs perl-macros perl-parent perl-podlators perl-threads perl-threads-shared xen-hypervisor groff-base
+	$(INSTALLER_CHROOT) rpm -e --nodeps pkgconfig perl perl-Carp perl-Encode perl-Exporter perl-File-Path perl-File-Temp perl-Filter perl-Getopt-Long perl-HTTP-Tiny perl-PathTools perl-Pod-Escapes perl-Pod-Perldoc perl-Pod-Simple perl-Pod-Usage perl-Scalar-List-Utils perl-Socket perl-Storable perl-Text-ParseWords perl-Time-Local perl-constant perl-libs perl-macros perl-parent perl-podlators perl-threads perl-threads-shared xen-hypervisor groff-base iptables
 	cd $(INSTALLER_FILESYSTEM) && rm -rf usr/share/doc usr/share/man var/lib/yum usr/share/locale \
 		var/cache usr/lib/locale var/lib/rpm var/cache/yum \
 		usr/bin/info usr/bin/infokey usr/share/info sbin/install-info \
@@ -92,7 +92,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		boot/* usr/share/bash-completion usr/lib/modules/3.10.0+0/kernel/fs/{btrfs,cifs,cramfs,exofs,jfs,nfsd,ntfs,ocfs2,reiserfs,xfs} \
 		usr/lib/modules/3.10.0+0/kernel/drivers/infiniband usr/share/cracklib \
 		usr/sbin/{cache_restore,thin_dump,thin_repair,cache_repair,cache_dump,thin_restore,cache_check,era_dump,era_invalidate,thin_rmap,era_check,thin_check} \
-		usr/sbin/{glibc_post_upgrade.x86_64,ldconfig}
+		usr/sbin/{glibc_post_upgrade.x86_64,ldconfig} \
+		usr/share/doc usr/sbin/oxenstored opt/xensource/bin/xenstored
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
