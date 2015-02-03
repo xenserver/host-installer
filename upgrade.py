@@ -244,6 +244,8 @@ class ThirdGenUpgrader(Upgrader):
         # CA-150889: backup multipath config
         self.restore_list.append({'src': 'etc/multipath.conf', 'dst': 'etc/multipath.conf.bak'})
 
+        self.restore_list += ['etc/locale.conf', 'etc/machine-id', 'etc/vconsole.conf']
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
