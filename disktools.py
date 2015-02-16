@@ -565,7 +565,7 @@ class PartitionToolBase:
     def getPartition(self, number, default = None):
         return deepcopy(self.partitions.get(number, default))
     
-    def createPartition(self, id, sizeBytes = None, number = None, startBytes = None, active = False):
+    def createPartition(self, id, sizeBytes = None, number = None, order = None, startBytes = None, active = False):
         if number is None:
             if len(self.partitions) == 0:
                 newNumber = 1
@@ -576,26 +576,37 @@ class PartitionToolBase:
         if newNumber in self.partitions:
             raise Exception('Partition '+str(newNumber)+' already exists')
 
+        partitions = [None] + [part for num, part in sorted(self.partitions.iteritems(), key=lambda item: item[1]['start'])]
+
         if startBytes is None:
-            # Get an array of previous partitions
-            previousPartitions = [part for num, part in reversed(sorted(self.partitions.iteritems())) if num < newNumber]
-            
-            if len(previousPartitions) == 0:
+            if len(partitions) == 0:
                 startSector = self.sectorFirstUsable
+            elif order:
+                if order < 1:
+                    raise Exception("Order cannot be less than 1")
+                elif order == 1:
+                    startSector = self.sectorFirstUsable
+                else:
+                    startSector =  partitions[order - 1]['start'] + partitions[order - 1]['size']
             else:
-                startSector =  previousPartitions[0]['start'] + previousPartitions[0]['size']
+                startSector =  partitions[-1]['start'] + partitions[-1]['size']
         else:
             if startBytes % self.sectorSize != 0:
                 raise Exception("Partition start ("+str(startBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
             startSector = startBytes / self.sectorSize
 
         if sizeBytes is None:
-            # Get an array of subsequent partitions
-            nextPartitions = [part for num, part in sorted(self.partitions.iteritems()) if num > newNumber]
-            if len(nextPartitions) == 0:
-                sizeSectors = self.sectorLastUsable + 1 - startSector
+            if order:
+                if order < 1:
+                    raise Exception("Order cannot be less than 1")
+                elif order > len(partitions):
+                    raise Exception("Order too large")
+                elif order == len(partitions):
+                    sizeSectors = self.sectorLastUsable + 1 - startSector
+                else:
+                    sizeSectors =  partitions[order]['start'] - startSector
             else:
-                sizeSectors =  nextPartitions[0]['start'] - startSector
+                sizeSectors = self.sectorLastUsable + 1 - startSector
         else:
             if sizeBytes % self.sectorSize != 0:
                 raise Exception("Partition size ("+str(sizeBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
@@ -894,6 +905,7 @@ class GPTPartitionTool(PartitionToolBase):
     ID_LINUX_LVM    = "E6D6D379-F507-44C2-A23C-238F2A3DF928"
     ID_DELL_UTILITY = "TODOFIND-OUTF-ROMD-ELLW-HATTOPUTHERE"
     ID_EFI_BOOT     = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
+    ID_BIOS_BOOT    = "21686148-6449-6E6F-744E-656564454649"
     
     # Lookup used for creating partitions
     GUID_to_type_code = {
@@ -903,6 +915,7 @@ class GPTPartitionTool(PartitionToolBase):
 #       We don't have a DELL TC but we should never need to create a DELL partition
 #       ID_DELL_UTILITY: = ????
         ID_EFI_BOOT:     'ef00',
+        ID_BIOS_BOOT:    'ef02',
         }
 
     SGDISK = 'sgdisk'
@@ -1004,7 +1017,10 @@ class GPTPartitionTool(PartitionToolBase):
         # However, let's keep them happy by making the single partition in the protective MBR "active".
         self.cmdWrap(['sfdisk', '-A1', self.device])
 
-        for num,part in table.items():
+        # Ensure that we write out in on-disk order to prevent conflicts when
+        # partition sizes get rounded.
+        items = sorted(table.items(), key=lambda item: item[1]['start'])
+        for num,part in items:
             start  = part['start']
             end    = part['size'] + start - 1
             idt    = part['id']

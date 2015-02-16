@@ -110,7 +110,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['boot-partnum', 'primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if not interactive:
@@ -118,7 +118,7 @@ def getPrepSequence(ans, interactive):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
@@ -511,8 +511,10 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
     if create_sr_part:
         sr_part = primary_part+2
 
-    # Return numbers of primary, backup, and SR partitions
-    return (primary_part, primary_part+1, sr_part)
+    boot_part = max(primary_part, sr_part) + 1
+
+    # Return numbers of boot, primary, backup, and SR partitions
+    return (boot_part, primary_part, primary_part + 1, sr_part)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
@@ -543,7 +545,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum, sr_at_end, partition_table_type):
+def writeDom0DiskPartitions(disk, boot_partnum, primary_partnum, backup_partnum, storage_partnum, sr_at_end, partition_table_type):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -559,11 +561,15 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
     for num, part in tool.iteritems():
         if num >= primary_partnum:
             tool.deletePartition(num)
-    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum)
+
+    order = primary_partnum
+    tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order + 1)
     if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
+        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order + 2)
+        order += 3
     if storage_partnum > 0:
-        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
 
     if not sr_at_end:
         # For upgrade testing, out-of-order partition layout
@@ -920,8 +926,8 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
         if host_config:
             s = serial and {'port': serial.id, 'baud': int(serial.baud)} or None
 
-            fn = os.path.join(mounts['boot'], "extlinux.conf")
-            boot_config = bootloader.Bootloader('extlinux', fn,
+            fn = os.path.join(mounts['boot'], "grub/grub.cfg")
+            boot_config = bootloader.Bootloader('grub2', fn,
                                                 timeout = constants.BOOT_MENU_TIMEOUT,
                                                 serial = s, location = location)
             xen_kernel_version = getKernelVersion(mounts['root'])
@@ -932,7 +938,7 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
             util.assertDir(os.path.dirname(fn))
             boot_config.commit()
 
-        installExtLinux(mounts, disk, partition_table_type, location)
+        installGrub2(mounts, disk)
 
         if serial:
             # ensure a getty will run on the serial console
@@ -954,38 +960,10 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
-def installExtLinux(mounts, disk, partition_table_type, location = constants.BOOT_LOCATION_MBR):
-
-    # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
-    # However we continue to copy the ones we need to /boot so we can write the config file there.
-    # We need to do this because old installers are needed to restore old XS images from the backup
-    # partition, and these need to read the config on the current partition.  Oops.
-    # This also means we avoid find and fix all the other scripts which assume extlinux.conf is under /boot.
-
-    rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr = True)
+def installGrub2(mounts, disk):
+    rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", disk], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to install bootloader: %s" % err
-
-    for m in ["mboot", "menu", "chain"]:
-        if not os.path.exists("%s/%s.c32" % (mounts['boot'], m)):
-            os.link("%s/extlinux/%s.c32" % (mounts['boot'], m), "%s/%s.c32" % (mounts['boot'], m))
-
-    # must be able to restore pre-6.0 systems
-    base_dir = mounts['root'] + "/usr/share/syslinux"
-    if not os.path.exists(base_dir):
-        base_dir = mounts['root']+"/usr/lib/syslinux"
-    if location == constants.BOOT_LOCATION_MBR:
-        if partition_table_type == constants.PARTITION_DOS:
-            mbr = base_dir + "/mbr.bin"
-        elif partition_table_type == constants.PARTITION_GPT:
-            mbr = base_dir + "/gptmbr.bin"
-        else:
-            raise Exception("Only DOS and GPT partition tables supported")
-
-        # Write image to MBR
-        xelogging.log("Installing %s to %s" % (mbr, disk))
-        assert os.path.exists(mbr)
-        assert util.runCmd2(["dd", "if=%s" % mbr, "of=%s" % disk]) == 0
 
 ##########
 # mounting and unmounting of various volumes

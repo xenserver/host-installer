@@ -89,7 +89,9 @@ MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 GPT_SUPPORT = True
 
 # filesystems and partitions (sizes in MB):
-root_size = 4096
+boot_size = 2
+root_size = 3584
+backup_size = 4096
 rootfs_type = 'ext3'
 rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
                                     for x in range(8)])
