@@ -97,7 +97,9 @@ FORCE_LEGACY_BOOT = False
 
 # filesystems and partitions (sizes in MB):
 boot_size = 512
-root_size = 3584
+root_mbr_size = 4096
+root_gpt_size = 3584
+root_size = max(root_mbr_size, root_gpt_size)  # used for free space calculations
 backup_size = 4096
 bootfs_type = 'vfat'
 bootfs_label = "BOOT-%s" % "".join([random.choice(string.ascii_uppercase)

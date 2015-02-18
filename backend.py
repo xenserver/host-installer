@@ -209,7 +209,7 @@ def getFinalisationSequence(ans):
 
     seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
     if ans['target-boot-mode'] == TARGET_BOOT_MODE_LEGACY:
-        seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'partition-table-type'), []))
+        seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'partition-table-type'), []))
     seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), []))
 
     return seq
@@ -529,7 +529,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     boot_part = max(primary_part + 1, sr_part) + 1
 
-    target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer and not constants.FORCE_LEGACY_BOOT else TARGET_BOOT_MODE_LEGACY
+    target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer and constants.GPT_SUPPORT and not constants.FORCE_LEGACY_BOOT else TARGET_BOOT_MODE_LEGACY
 
     xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
@@ -583,16 +583,21 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
             tool.deletePartition(num)
 
     order = primary_partnum
-    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
-    else:
-        tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
-    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order + 1)
+    if partition_table_type == constants.PARTITION_GPT:
+        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+            tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+        else:
+            tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+        order += 1
+    root_size = root_gpt_size if partition_table_type == constants.PARTITION_GPT else root_mbr_size
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
+    order += 1
     if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order + 2)
-        order += 3
+        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
+        order += 1
     if storage_partnum > 0:
         tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
+        order += 1
 
     if not sr_at_end:
         # For upgrade testing, out-of-order partition layout
@@ -635,9 +640,12 @@ def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
             tool.commit(log = True)
 
 
-def setActiveDiskPartition(disk, boot_partnum, partition_table_type):
+def setActiveDiskPartition(disk, boot_partnum, primary_partnum, partition_table_type):
     tool = PartitionTool(disk, partition_table_type)
-    tool.commitActivePartitiontoDisk(boot_partnum)
+    if partition_table_type == PARTITION_GPT:
+        tool.commitActivePartitiontoDisk(boot_partnum)
+    else:
+        tool.commitActivePartitiontoDisk(primary_partnum)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
