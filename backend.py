@@ -527,7 +527,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
     if create_sr_part:
         sr_part = primary_part+2
 
-    boot_part = max(primary_part, sr_part) + 1
+    boot_part = max(primary_part + 1, sr_part) + 1
 
     target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer and not constants.FORCE_LEGACY_BOOT else TARGET_BOOT_MODE_LEGACY
 
