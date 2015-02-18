@@ -976,9 +976,9 @@ class GPTPartitionTool(PartitionToolBase):
             
         return partitions
     
-    def commitActivePartitiontoDisk(self, primary_partnum):
+    def commitActivePartitiontoDisk(self, partnum):
         for num, part in self.iteritems():
-            if num == primary_partnum:
+            if num == partnum:
                 self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag set
             else:
                 self.cmdWrap([self.SGDISK, '--attributes=%d:clear:2' % num, self.device]) # BIOS bootable flag clear
@@ -1010,12 +1010,19 @@ class GPTPartitionTool(PartitionToolBase):
             pass
         self.cmdWrap([self.SGDISK, '--mbrtogpt', '--clear', self.device])
 
-        # CA-54144: Some _stupid_ BIOSes refuse to boot disks that don't have a DOS partition table 
-        # with an active partition.  This is incorrect because it makes the assumption that the 
-        # bootloader uses a DOS partition table.  Instead the BIOSes _should_ just check for 0x55,0xaa
-        # at location 0x1fe.
-        # However, let's keep them happy by making the single partition in the protective MBR "active".
-        self.cmdWrap(['sfdisk', '-A1', self.device])
+        has_esp = False
+        for part in table.values():
+            if part['id'] == self.ID_EFI_BOOT:
+                has_esp = True
+                break
+
+        if not has_esp:
+            # CA-54144: Some _stupid_ BIOSes refuse to boot disks that don't have a DOS partition table 
+            # with an active partition.  This is incorrect because it makes the assumption that the 
+            # bootloader uses a DOS partition table.  Instead the BIOSes _should_ just check for 0x55,0xaa
+            # at location 0x1fe.
+            # However, let's keep them happy by making the single partition in the protective MBR "active".
+            self.cmdWrap(['sfdisk', '-A1', self.device])
 
         # Ensure that we write out in on-disk order to prevent conflicts when
         # partition sizes get rounded.

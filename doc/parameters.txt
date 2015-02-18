@@ -177,3 +177,8 @@ Installer
   --virtual
 
     Installer is running in a VM.
+
+
+  --disable-uefi
+
+    Install in legacy boot mode.
