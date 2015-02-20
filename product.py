@@ -47,6 +47,8 @@ class ExistingInstallation:
         self.state_prefix = ''
         self.settings = None
         self.root_fs = None
+        self._boot_fs = None
+        self.boot_fs_mount = None
 
     def __str__(self):
         return "%s %s" % (
@@ -396,11 +398,10 @@ class ExistingInstallation:
             self.unmount_state()
 
         # read bootloader config to extract various settings
-        boot_fs = None
         try:
             # Boot device
-            boot_fs = util.TempMount(self.boot_device, 'boot-', ['ro'], 'ext3')
-            boot_config = bootloader.Bootloader.loadExisting(boot_fs.mount_point)
+            self.mount_boot()
+            boot_config = bootloader.Bootloader.loadExisting(self.boot_fs_mount)
 
             # Serial console
             if boot_config.serial:
@@ -423,10 +424,22 @@ class ExistingInstallation:
                 results['host-config']['dom0-mem'] = dom0_mem / 1024 / 1024
         except:
             pass
-        if boot_fs:
-            boot_fs.unmount()
+        self.unmount_boot()
 
         return results
+
+    def mount_boot(self, ro = True):
+        opts = None
+        if ro:
+            opts = ['ro']
+        self._boot_fs = util.TempMount(self.boot_device, 'boot', opts, 'ext3')
+        self.boot_fs_mount = self._boot_fs.mount_point
+
+    def unmount_boot(self):
+        if self.boot_fs:
+            self._boot_fs.unmount()
+            self._boot_fs = None
+            self.boot_fs_mount = None
 
     def readSettings(self):
         if not self.settings:
@@ -435,10 +448,11 @@ class ExistingInstallation:
 
 
 class ExistingRetailInstallation(ExistingInstallation):
-    def __init__(self, primary_disk, boot_device, state_device, storage):
+    def __init__(self, primary_disk, boot_device, root_device, state_device, storage):
         self.variant = 'Retail'
         ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
-        self.root_device = boot_device
+        self.root_device = root_device
+        self._boot_fs_mounted = False
         self.readInventory()
 
     def __repr__(self):
@@ -454,6 +468,36 @@ class ExistingRetailInstallation(ExistingInstallation):
         if self.root_fs:
             self.root_fs.unmount()
             self.root_fs = None
+
+    # Because EFI boot stores the bootloader configuration on the ESP, mount
+    # it at its usual location if necessary so that the configuration is found.
+    def mount_boot(self, ro = True):
+        opts = None
+        if ro:
+            opts = ['ro']
+
+        self.mount_root()
+
+        # Determine if /boot/efi needs to be mounted by looking through fstab
+        match = False
+        with open(os.path.join(self.root_fs.mount_point, 'etc', 'fstab'), 'r') as fstab:
+            for line in fstab:
+                if re.search("\\s/boot/efi\\s", line):
+                    match = True
+
+        if match and self.boot_device:
+            util.mount(self.boot_device, os.path.join(self.root_fs.mount_point, 'boot', 'efi'), opts, 'vfat')
+            self._boot_fs_mounted = True
+
+        self.boot_fs_mount = self.root_fs.mount_point
+
+    def unmount_boot(self):
+        if self._boot_fs_mounted:
+            util.umount(os.path.join(self.root_fs.mount_point, 'boot', 'efi'))
+            self._boot_fs_mounted = False
+
+        self.unmount_root()
+        self.boot_fs_mount = None
 
     def readInventory(self):
         self.mount_root()
@@ -523,12 +567,12 @@ def findXenSourceProducts():
     installs = []
 
     for disk in diskutil.getQualifiedDiskList():
-        (boot, state, storage) = diskutil.probeDisk(disk)
+        (boot, root, state, storage) = diskutil.probeDisk(disk)
 
         inst = None
         try:
-            if boot[0] == diskutil.INSTALL_RETAIL:
-                inst = ExistingRetailInstallation(disk, boot[1], state[1], storage)
+            if root[0] == diskutil.INSTALL_RETAIL:
+                inst = ExistingRetailInstallation(disk, boot[1], root[1], state[1], storage)
         except Exception, e:
             xelogging.log("A problem occurred whilst scanning for existing installations:")
             xelogging.log_exception(e)

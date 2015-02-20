@@ -139,6 +139,36 @@ class ThirdGenUpgrader(Upgrader):
     def __init__(self, source):
         Upgrader.__init__(self, source)
 
+    prepTargetStateChanges = []
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'partition-table-type']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, partition_table_type):
+        """ Modify partition layout prior to installation. """
+
+        if partition_table_type == constants.PARTITION_GPT:
+            tool = PartitionTool(primary_disk, partition_table_type)
+
+            # If the boot partition already, exists, no partition updates are
+            # necessary.
+            part = tool.getPartition(boot_partnum)
+            if part:
+                return
+
+            # Otherwise, replace the root partition with a boot partition and
+            # a smaller root partition.
+            part = tool.getPartition(primary_partnum)
+            tool.deletePartition(primary_partnum)
+
+            boot_size = constants.boot_size * 2**20
+            root_size = part['size'] * tool.sectorSize - boot_size
+            if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
+            else:
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
+
+            tool.createPartition(part['id'], sizeBytes = root_size, number = primary_partnum, order = primary_partnum + 1)
+
+            tool.commit(log = True)
+
     doBackupArgs = ['primary-disk', 'backup-partnum']
     doBackupStateChanges = []
     def doBackup(self, progress_callback, target_disk, backup_partnum):

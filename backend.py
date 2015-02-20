@@ -123,12 +123,6 @@ def getPrepSequence(ans, interactive):
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
-        seq.append(Task(prepareTarget,
-                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
-                        lambda progress_callback, upgrader, *a: upgrader.prepTargetStateChanges,
-                        progress_text = "Preparing target disk...",
-                        progress_scale = 100,
-                        pass_progress_callback = True))
         if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
             seq.append(Task(doBackup,
                             lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].doBackupArgs ],
@@ -136,6 +130,12 @@ def getPrepSequence(ans, interactive):
                             progress_text = "Backing up existing installation...",
                             progress_scale = 100,
                             pass_progress_callback = True))
+        seq.append(Task(prepareTarget,
+                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
+                        lambda progress_callback, upgrader, *a: upgrader.prepTargetStateChanges,
+                        progress_text = "Preparing target disk...",
+                        progress_scale = 100,
+                        pass_progress_callback = True))
         seq.append(Task(prepareUpgrade,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ],
                         lambda progress_callback, upgrader, *a: upgrader.prepStateChanges,
@@ -488,10 +488,17 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         # upgrade, use existing partitioning scheme
         tool = PartitionTool(existing.primary_disk)
 
+        primary_part = tool.partitionNumber(existing.root_device)
+
+        # Determine target install's boot mode and boot partition number
         target_boot_mode = TARGET_BOOT_MODE_LEGACY
-        for num, part in tool.iteritems():
-            if part.has_key('id') and part['id'] == GPTPartitionTool.ID_EFI_BOOT:
+        if existing.boot_device:
+            boot_partnum = tool.partitionNumber(existing.boot_device)
+            boot_part = tool.getPartition(boot_partnum)
+            if boot_part.has_key('id') and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT:
                 target_boot_mode = TARGET_BOOT_MODE_UEFI
+        else:
+            boot_partnum = primary_part + 3
 
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
             if not uefi_installer:
@@ -501,8 +508,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
         xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
         
-        primary_part = tool.partitionNumber(existing.root_device)
-        return (boot_mode, primary_part, primary_part+1, primary_part+2)
+        return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+2)
     
     tool = PartitionTool(disk)
 
