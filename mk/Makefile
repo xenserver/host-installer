@@ -67,6 +67,9 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 # prepare terminals to login
 	rm -f $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/getty@tty1.service'
 	ln -s /dev/null $(INSTALLER_FILESYSTEM)'/etc/systemd/system/serial-getty@hvc0.service'
+	mkdir -p $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants'
+	cp getty@tty2.service $(INSTALLER_FILESYSTEM)/etc/systemd/system
+	ln -s /etc/systemd/system/getty@tty2.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/getty@tty2.service'
 # init configuration to start our installer
 	cp installer.service $(INSTALLER_FILESYSTEM)/etc/systemd/system
 	ln -s /etc/systemd/system/installer.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/multi-user.target.wants/installer.service'
