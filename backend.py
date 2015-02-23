@@ -1040,6 +1040,39 @@ def installGrub2(mounts, disk):
     if rc != 0:
         raise RuntimeError, "Failed to install bootloader: %s" % err
 
+def installExtLinux(mounts, disk, partition_table_type, location = constants.BOOT_LOCATION_MBR):
+
+    # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
+    # However we continue to copy the ones we need to /boot so we can write the config file there.
+    # We need to do this because old installers are needed to restore old XS images from the backup
+    # partition, and these need to read the config on the current partition.  Oops.
+    # This also means we avoid find and fix all the other scripts which assume extlinux.conf is under /boot.
+
+    rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to install bootloader: %s" % err
+
+    for m in ["mboot", "menu", "chain"]:
+        if not os.path.exists("%s/%s.c32" % (mounts['boot'], m)):
+            os.link("%s/extlinux/%s.c32" % (mounts['boot'], m), "%s/%s.c32" % (mounts['boot'], m))
+
+    # must be able to restore pre-6.0 systems
+    base_dir = mounts['root'] + "/usr/share/syslinux"
+    if not os.path.exists(base_dir):
+        base_dir = mounts['root']+"/usr/lib/syslinux"
+    if location == constants.BOOT_LOCATION_MBR:
+        if partition_table_type == constants.PARTITION_DOS:
+            mbr = base_dir + "/mbr.bin"
+        elif partition_table_type == constants.PARTITION_GPT:
+            mbr = base_dir + "/gptmbr.bin"
+        else:
+            raise Exception("Only DOS and GPT partition tables supported")
+
+        # Write image to MBR
+        xelogging.log("Installing %s to %s" % (mbr, disk))
+        assert os.path.exists(mbr)
+        assert util.runCmd2(["dd", "if=%s" % mbr, "of=%s" % disk]) == 0
+
 ##########
 # mounting and unmounting of various volumes
 

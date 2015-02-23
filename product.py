@@ -458,11 +458,11 @@ class ExistingRetailInstallation(ExistingInstallation):
     def __repr__(self):
         return "<ExistingRetailInstallation: %s on %s>" % (str(self), self.root_device)
 
-    def mount_root(self, ro = True):
+    def mount_root(self, ro = True, boot_device = None):
         opts = None
         if ro:
             opts = ['ro']
-        self.root_fs = util.TempMount(self.root_device, 'root', opts, 'ext3')
+        self.root_fs = util.TempMount(self.root_device, 'root', opts, 'ext3', boot_device = boot_device)
 
     def unmount_root(self):
         if self.root_fs:
@@ -472,30 +472,10 @@ class ExistingRetailInstallation(ExistingInstallation):
     # Because EFI boot stores the bootloader configuration on the ESP, mount
     # it at its usual location if necessary so that the configuration is found.
     def mount_boot(self, ro = True):
-        opts = None
-        if ro:
-            opts = ['ro']
-
-        self.mount_root()
-
-        # Determine if /boot/efi needs to be mounted by looking through fstab
-        match = False
-        with open(os.path.join(self.root_fs.mount_point, 'etc', 'fstab'), 'r') as fstab:
-            for line in fstab:
-                if re.search("\\s/boot/efi\\s", line):
-                    match = True
-
-        if match and self.boot_device:
-            util.mount(self.boot_device, os.path.join(self.root_fs.mount_point, 'boot', 'efi'), opts, 'vfat')
-            self._boot_fs_mounted = True
-
+        self.mount_root(ro = ro, boot_device = self.boot_device)
         self.boot_fs_mount = self.root_fs.mount_point
 
     def unmount_boot(self):
-        if self._boot_fs_mounted:
-            util.umount(os.path.join(self.root_fs.mount_point, 'boot', 'efi'))
-            self._boot_fs_mounted = False
-
         self.unmount_root()
         self.boot_fs_mount = None
 

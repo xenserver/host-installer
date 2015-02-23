@@ -169,9 +169,9 @@ class ThirdGenUpgrader(Upgrader):
 
             tool.commit(log = True)
 
-    doBackupArgs = ['primary-disk', 'backup-partnum']
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'partition-table-type']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, partition_table_type):
 
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)
@@ -179,8 +179,12 @@ class ThirdGenUpgrader(Upgrader):
             raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
         progress_callback(10)
 
+        tool = PartitionTool(target_disk)
+        boot_part = tool.getPartition(boot_partnum)
+        boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
+
         # copy the files across:
-        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'], boot_device = boot_device)
         try:
             backup_fs = util.TempMount(backup_partition, 'backup-')
             try:
@@ -200,6 +204,12 @@ class ThirdGenUpgrader(Upgrader):
                             raise RuntimeError, "Backup of %s directory failed" % x
                     val += 90 / len(top_dirs)
                     progress_callback(val)
+
+                if partition_table_type == constants.PARTITION_GPT:
+                    # save the GPT table
+                    rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr = True)
+                    if rc != 0:
+                        raise RuntimeError, "Failed to save partition layout: %s" % err
             finally:
                 # replace rolling pool upgrade bootloader config
                 src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'menu.lst')
