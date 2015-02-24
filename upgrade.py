@@ -212,13 +212,15 @@ class ThirdGenUpgrader(Upgrader):
                         raise RuntimeError, "Failed to save partition layout: %s" % err
             finally:
                 # replace rolling pool upgrade bootloader config
-                src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'menu.lst')
-                if os.path.exists(src):
-                    util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, 'boot/grub')])
-                src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'extlinux.conf')
-                if os.path.exists(src):
-                    util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, 'boot')])
-                
+                def replace_config(config_file, destination):
+                    src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, config_file)
+                    if os.path.exists(src):
+                        util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, destination)])
+
+                map(replace_config, ('efi-grub.cfg', 'grub.cfg', 'menu.lst', 'extlinux.conf'),
+                                    ('boot/efi/EFI/xenserver/grub.cfg', 'boot/grub',
+                                     'boot/grub', 'boot'))
+
                 fh = open(os.path.join(backup_fs.mount_point, '.xen-backup-partition'), 'w')
                 fh.close()
                 backup_fs.unmount()

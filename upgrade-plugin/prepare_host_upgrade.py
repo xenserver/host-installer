@@ -85,10 +85,49 @@ def get_repo_ver(accessor):
 
     return repo_ver
 
+def map_label_to_partition(label):
+    partition = None
+    (rc, out) = cmd.runCmd(['blkid', '-l', '-t', 'LABEL="%s"' % label, '-o', 'device'],
+                           with_stdout = True)
+    if rc == 0 and out.startswith('/dev/'):
+        partition = out.strip()
+        if os.path.isfile('/sbin/udevadm'):
+            args = ['/sbin/udevadm', 'info']
+        else:
+            args = ['udevinfo']
+        (rc, out) = cmd.runCmd(args + ['-q', 'symlink', '-n', partition[5:]],
+                               with_stdout = True)
+        if rc == 0:
+            for link in out.split():
+                if link.startswith('disk/by-id') and not link.startswith('disk/by-id/edd'):
+                    partition = '/dev/'+link
+                    break
+
+    return partition
+
+def get_fs_labels():
+    root_label = None
+    boot_label = None
+    try:
+        # determine root and boot labels
+        with open('/etc/fstab') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('LABEL=root-'):
+                    v, _ = line.split(None, 1)
+                    root_label = v[6:]
+                if line.startswith('LABEL=BOOT-'):
+                    v, _ = line.split(None, 1)
+                    boot_label = v[6:]
+    except:
+        logger.error("Failed to read fstab")
+
+    return root_label, boot_label
+
 def gen_answerfile(accessor, installer_dir, url):
     root_device = None
-    root_label = None
     root_partition = None
+    boot_partition = None
 
     try:
         # determine root disk
@@ -123,48 +162,30 @@ def gen_answerfile(accessor, installer_dir, url):
             logger.info("Replacing root disk "+root_device+ " with "+new_device)
             root_device = new_device
 
-    try:
-        # determine root label
-        f = open('/etc/fstab')
-        line = f.readline().strip()
-        f.close
-        if line.startswith('LABEL='):
-            v, _ = line.split(None, 1)
-            root_label = v[6:]
-    except:
-        logger.error("Failed to read fstab")
-        return False
+    root_label, boot_label = get_fs_labels()
     if not root_label:
         logger.error("Failed to determine root label")
         return False
 
     try:
-        # determine root partition
-        (rc, out) = cmd.runCmd(['blkid', '-l', '-t', 'LABEL="%s"' % root_label, '-o', 'device'],
-                               with_stdout = True)
-        if rc == 0 and out.startswith('/dev/'):
-            root_partition = out.strip()
-            if os.path.isfile('/sbin/udevadm'):
-                args = ['/sbin/udevadm', 'info']
-            else:
-                args = ['udevinfo']
-            (rc, out) = cmd.runCmd(args + ['-q', 'symlink', '-n', root_partition[5:]],
-                                   with_stdout = True)
-            if rc == 0:
-                for link in out.split():
-                    if link.startswith('disk/by-id') and not link.startswith('disk/by-id/edd'):
-                        root_partition = '/dev/'+link
-                        break
+        root_partition = map_label_to_partition(root_label)
+        if boot_label:
+            boot_partition = map_label_to_partition(boot_label)
     except:
         logger.error("Failed to map label to partition")
         return False
     if not root_partition:
         logger.error("Failed to determine root partition")
         return False
+    if boot_label and not boot_partition:
+        logger.error("Failed to determine boot partition")
+        return False
 
     logger.debug("Root device: "+root_device)
     logger.debug("Root label: "+root_label)
     logger.debug("Root partition: "+root_partition)
+    logger.debug("Boot label: %s" % boot_label)
+    logger.debug("Boot partition: %s" % boot_partition)
     
     in_arc = cpiofile.CpioFile.open(installer_dir+'/install.img', 'r|*')
     out_arc = cpiofile.CpioFile.open(installer_dir+'/upgrade.img', 'w|gz')
@@ -184,13 +205,18 @@ def gen_answerfile(accessor, installer_dir, url):
 
     logger.info("Creating revert script")
     text = '#!/usr/bin/env python\n'
-    text += '\nimport xcp.bootloader as bootloader\n'
+    text += '\nimport os.path\n'
+    text += 'import xcp.bootloader as bootloader\n'
     text += 'import xcp.mount as mount\n'
     text += '\nrootfs = mount.TempMount("%s", "root", fstype = "ext3")\n' % root_partition
+    if boot_partition:
+        text += 'mount.mount("%s", os.path.join(rootfs.mount_point, "boot/efi"), fstype = "vfat")\n' % boot_partition
     text += 'cfg = bootloader.Bootloader.loadExisting(rootfs.mount_point)\n'
     text += 'cfg.default = "%s"\n' % config.default
     text += 'cfg.remove("upgrade")\n'
     text += 'cfg.commit()\n'
+    if boot_partition:
+        text += 'mount.umount(os.path.join(rootfs.mount_point, "boot/efi"))\n'
     text += 'rootfs.unmount()\n'
 
     contents = StringIO.StringIO(text)
@@ -289,7 +315,10 @@ def set_boot_config(installer_dir, url):
         if 'upgrade' in config.menu_order:
             config.remove('upgrade')
         else:
-            config.commit(os.path.join(installer_dir, os.path.basename(config.src_file)))
+            if config.src_file.startswith('/boot/efi'):
+                config.commit(os.path.join(installer_dir, 'efi-%s' % os.path.basename(config.src_file)))
+            else:
+                config.commit(os.path.join(installer_dir, os.path.basename(config.src_file)))
 
         xen_args = filter(lambda x: not x.startswith('com') and not x.startswith('console='), new_default.hypervisor_args.split())
         xen_args.extend(filter(lambda x: x.startswith('com') or x.startswith('console='), default.hypervisor_args.split()))
@@ -387,9 +416,15 @@ def set_boot_config(installer_dir, url):
         except:
             logger.error("Failed to read SR multipathing config")
 
+        root_label, _ = get_fs_labels()
+        if not root_label:
+            logger.error("Failed to determine root label")
+            return False
+
         e = bootloader.MenuEntry(hypervisor = installer_dir+'/xen.gz', hypervisor_args = ' '.join(xen_args),
                                  kernel = installer_dir+'/vmlinuz', kernel_args = ' '.join(kernel_args),
                                  initrd = installer_dir+'/upgrade.img', title = 'Rolling pool upgrade')
+        e.root = root_label
         config.append('upgrade', e)
         config.default = 'upgrade'
         logger.info("Writing updated bootloader config")
