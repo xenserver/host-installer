@@ -139,9 +139,39 @@ class ThirdGenUpgrader(Upgrader):
     def __init__(self, source):
         Upgrader.__init__(self, source)
 
-    doBackupArgs = ['primary-disk', 'backup-partnum']
+    prepTargetStateChanges = []
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'partition-table-type']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, partition_table_type):
+        """ Modify partition layout prior to installation. """
+
+        if partition_table_type == constants.PARTITION_GPT:
+            tool = PartitionTool(primary_disk, partition_table_type)
+
+            # If the boot partition already, exists, no partition updates are
+            # necessary.
+            part = tool.getPartition(boot_partnum)
+            if part:
+                return
+
+            # Otherwise, replace the root partition with a boot partition and
+            # a smaller root partition.
+            part = tool.getPartition(primary_partnum)
+            tool.deletePartition(primary_partnum)
+
+            boot_size = constants.boot_size * 2**20
+            root_size = part['size'] * tool.sectorSize - boot_size
+            if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
+            else:
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
+
+            tool.createPartition(part['id'], sizeBytes = root_size, number = primary_partnum, order = primary_partnum + 1)
+
+            tool.commit(log = True)
+
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'partition-table-type']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, partition_table_type):
 
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)
@@ -149,8 +179,12 @@ class ThirdGenUpgrader(Upgrader):
             raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
         progress_callback(10)
 
+        tool = PartitionTool(target_disk)
+        boot_part = tool.getPartition(boot_partnum)
+        boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
+
         # copy the files across:
-        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'], boot_device = boot_device)
         try:
             backup_fs = util.TempMount(backup_partition, 'backup-')
             try:
@@ -170,15 +204,23 @@ class ThirdGenUpgrader(Upgrader):
                             raise RuntimeError, "Backup of %s directory failed" % x
                     val += 90 / len(top_dirs)
                     progress_callback(val)
+
+                if partition_table_type == constants.PARTITION_GPT:
+                    # save the GPT table
+                    rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr = True)
+                    if rc != 0:
+                        raise RuntimeError, "Failed to save partition layout: %s" % err
             finally:
                 # replace rolling pool upgrade bootloader config
-                src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'menu.lst')
-                if os.path.exists(src):
-                    util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, 'boot/grub')])
-                src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, 'extlinux.conf')
-                if os.path.exists(src):
-                    util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, 'boot')])
-                
+                def replace_config(config_file, destination):
+                    src = os.path.join(backup_fs.mount_point, constants.ROLLING_POOL_DIR, config_file)
+                    if os.path.exists(src):
+                        util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, destination)])
+
+                map(replace_config, ('efi-grub.cfg', 'grub.cfg', 'menu.lst', 'extlinux.conf'),
+                                    ('boot/efi/EFI/xenserver/grub.cfg', 'boot/grub',
+                                     'boot/grub', 'boot'))
+
                 fh = open(os.path.join(backup_fs.mount_point, '.xen-backup-partition'), 'w')
                 fh.close()
                 backup_fs.unmount()

@@ -130,6 +130,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             suppress_extra_cd_dialog = True
         elif opt == "--disable-gpt":
             constants.GPT_SUPPORT = False
+        elif opt == "--disable-uefi":
+            constants.FORCE_LEGACY_BOOT = True
 
     if boot_console and not serial_console:
         serial_console = boot_console

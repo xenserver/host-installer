@@ -36,6 +36,10 @@ PARTITION_GPT = "GPT"
 BOOT_LOCATION_MBR = "mbr"
 BOOT_LOCATION_PARTITION = "partition"
 
+# target boot mode:
+TARGET_BOOT_MODE_LEGACY = "legacy"
+TARGET_BOOT_MODE_UEFI = "uefi"
+
 # first partition preservation:
 PRESERVE_IF_UTILITY = "if-utility"
 
@@ -88,8 +92,18 @@ MIN_SYSTEM_RAM_MB = MIN_SYSTEM_RAM_MB_RAW - 100
 # Change this to True to enable GPT partitioning instead of DOS partitioning
 GPT_SUPPORT = True
 
+# Change this to True to force legacy boot instead of UEFI
+FORCE_LEGACY_BOOT = False
+
 # filesystems and partitions (sizes in MB):
-root_size = 4096
+boot_size = 512
+root_mbr_size = 4096
+root_gpt_size = 3584
+root_size = max(root_mbr_size, root_gpt_size)  # used for free space calculations
+backup_size = 4096
+bootfs_type = 'vfat'
+bootfs_label = "BOOT-%s" % "".join([random.choice(string.ascii_uppercase)
+                                    for x in range(6)])
 rootfs_type = 'ext3'
 rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
                                     for x in range(8)])

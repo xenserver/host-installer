@@ -21,6 +21,7 @@ import datetime
 import random
 import string
 import tempfile
+import errno
 
 random.seed()
 
@@ -159,17 +160,47 @@ def umount(mountpoint, force = False):
     return rc
 
 class TempMount:
-    def __init__(self, device, tmp_prefix, options = None, fstype = None):
+    def __init__(self, device, tmp_prefix, options = None, fstype = None, boot_device = None, boot_mount_point = None):
         self.mounted = False
         self.mount_point = tempfile.mkdtemp(dir = "/tmp", prefix = tmp_prefix)
+        self.boot_mount_point = None
+        self.boot_mounted = False
         try:
             mount(device, self.mount_point, options, fstype)
+
+            if boot_device:
+                # Determine where the boot device needs to be mounted by looking through fstab
+                match = None
+                bootfstype = None
+                try:
+                    with open(os.path.join(self.mount_point, 'etc', 'fstab'), 'r') as fstab:
+                        for line in fstab:
+                            m = re.search("\\s(/boot(/[^\\s]+)?)\\s+(\\w+)", line)
+                            if m:
+                                match = m.group(1)
+                                bootfstype = m.group(3)
+                except IOError as e:
+                    if e.errno != errno.ENOENT:
+                        raise
+
+                if match:
+                    self.boot_mount_point = self.mount_point + match
+                elif boot_mount_point:
+                    self.boot_mount_point = self.mount_point + boot_mount_point
+
+                if self.boot_mount_point:
+                    assertDir(self.boot_mount_point)
+                    mount(boot_device, self.boot_mount_point, options, bootfstype)
+                    self.boot_mounted = True
         except:
             os.rmdir(self.mount_point)
             raise
         self.mounted = True
 
     def unmount(self):
+        if self.boot_mounted:
+            umount(self.boot_mount_point)
+            self.boot_mounted = False
         if self.mounted:
             umount(self.mount_point)
             self.mounted = False

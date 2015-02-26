@@ -9,7 +9,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
 Requires(post): initscripts
 Requires: device-mapper-multipath lvm2 iscsi-initiator-utils
 # partitioning tools
-Requires: gdisk kpartx e2fsprogs
+Requires: gdisk kpartx e2fsprogs dosfstools
 # CUI interface
 Requires: newt-python newt
 Requires: ethtool sdparm pciutils eject net-tools biosdevname

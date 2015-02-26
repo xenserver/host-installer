@@ -25,3 +25,6 @@ wget
 vim-minimal
 rsync
 openssh-clients
+
+# for XenRT
+efibootmgr

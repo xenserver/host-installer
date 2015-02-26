@@ -110,7 +110,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if not interactive:
@@ -118,17 +118,11 @@ def getPrepSequence(ans, interactive):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
-        seq.append(Task(prepareTarget,
-                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
-                        lambda progress_callback, upgrader, *a: upgrader.prepTargetStateChanges,
-                        progress_text = "Preparing target disk...",
-                        progress_scale = 100,
-                        pass_progress_callback = True))
         if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
             seq.append(Task(doBackup,
                             lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].doBackupArgs ],
@@ -136,6 +130,12 @@ def getPrepSequence(ans, interactive):
                             progress_text = "Backing up existing installation...",
                             progress_scale = 100,
                             pass_progress_callback = True))
+        seq.append(Task(prepareTarget,
+                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepTargetArgs ],
+                        lambda progress_callback, upgrader, *a: upgrader.prepTargetStateChanges,
+                        progress_text = "Preparing target disk...",
+                        progress_scale = 100,
+                        pass_progress_callback = True))
         seq.append(Task(prepareUpgrade,
                         lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].prepUpgradeArgs ],
                         lambda progress_callback, upgrader, *a: upgrader.prepStateChanges,
@@ -143,8 +143,8 @@ def getPrepSequence(ans, interactive):
                         progress_scale = 100,
                         pass_progress_callback = True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'primary-partnum'), []),
-        Task(mountVolumes, A(ans, 'primary-disk', 'primary-partnum', 'cleanup'), ['mounts', 'cleanup']),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum'), []),
+        Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
 
@@ -172,7 +172,7 @@ def getFinalisationSequence(ans):
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts'), []),
-        Task(writeFstab, A(ans, 'mounts'), []),
+        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
@@ -181,7 +181,8 @@ def getFinalisationSequence(ans):
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
-                                  'primary-partnum', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
+                                  'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
+                                  'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -206,11 +207,10 @@ def getFinalisationSequence(ans):
     # run the users's scripts
     seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
 
-    seq += [
-        Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']),
-        Task(setActiveDiskPartition, A(ans, 'primary-disk', 'primary-partnum', 'partition-table-type'), []),
-        Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), [])
-        ]
+    seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
+    if ans['target-boot-mode'] == TARGET_BOOT_MODE_LEGACY:
+        seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'partition-table-type'), []))
+    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), []))
 
     return seq
 
@@ -480,13 +480,35 @@ def configureTimeManually(mounts, ui_package):
 
 
 def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part):
+
+    uefi_installer = os.path.exists("/sys/firmware/efi")
+    xelogging.log("Installed boot with %s" % ("UEFI" if uefi_installer else "legacy"))
     
     if existing:
         # upgrade, use existing partitioning scheme
         tool = PartitionTool(existing.primary_disk)
-        
+
         primary_part = tool.partitionNumber(existing.root_device)
-        return (primary_part, primary_part+1, primary_part+2)
+
+        # Determine target install's boot mode and boot partition number
+        target_boot_mode = TARGET_BOOT_MODE_LEGACY
+        if existing.boot_device:
+            boot_partnum = tool.partitionNumber(existing.boot_device)
+            boot_part = tool.getPartition(boot_partnum)
+            if boot_part.has_key('id') and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT:
+                target_boot_mode = TARGET_BOOT_MODE_UEFI
+        else:
+            boot_partnum = primary_part + 3
+
+        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+            if not uefi_installer:
+                raise RuntimeError("Installer does not support upgrading UEFI install while legacy booted")
+            if constants.FORCE_LEGACY_BOOT:
+                raise RuntimeError("Installer cannot force legacy boot while upgrading UEFI install")
+
+        xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
+        
+        return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+2)
     
     tool = PartitionTool(disk)
 
@@ -511,8 +533,14 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
     if create_sr_part:
         sr_part = primary_part+2
 
-    # Return numbers of primary, backup, and SR partitions
-    return (primary_part, primary_part+1, sr_part)
+    boot_part = max(primary_part + 1, sr_part) + 1
+
+    target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer and constants.GPT_SUPPORT and not constants.FORCE_LEGACY_BOOT else TARGET_BOOT_MODE_LEGACY
+
+    xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
+
+    # Return install mode and numbers of boot, primary, backup, and SR partitions
+    return (target_boot_mode, boot_part, primary_part, primary_part + 1, sr_part)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
@@ -543,7 +571,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partnum, sr_at_end, partition_table_type):
+def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, storage_partnum, sr_at_end, partition_table_type):
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -559,11 +587,23 @@ def writeDom0DiskPartitions(disk, primary_partnum, backup_partnum, storage_partn
     for num, part in tool.iteritems():
         if num >= primary_partnum:
             tool.deletePartition(num)
-    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum)
+
+    order = primary_partnum
+    if partition_table_type == constants.PARTITION_GPT:
+        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+            tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+        else:
+            tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+        order += 1
+    root_size = root_gpt_size if partition_table_type == constants.PARTITION_GPT else root_mbr_size
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
+    order += 1
     if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = backup_partnum)
+        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
+        order += 1
     if storage_partnum > 0:
-        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
+        order += 1
 
     if not sr_at_end:
         # For upgrade testing, out-of-order partition layout
@@ -606,9 +646,12 @@ def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
             tool.commit(log = True)
 
 
-def setActiveDiskPartition(disk, primary_partnum, partition_table_type):
+def setActiveDiskPartition(disk, boot_partnum, primary_partnum, partition_table_type):
     tool = PartitionTool(disk, partition_table_type)
-    tool.commitActivePartitiontoDisk(primary_partnum)
+    if partition_table_type == PARTITION_GPT:
+        tool.commitActivePartitiontoDisk(boot_partnum)
+    else:
+        tool.commitActivePartitiontoDisk(primary_partnum)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
@@ -647,10 +690,15 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(disk, primary_partnum):
+def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_partnum):
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+        rc, err = util.runCmd2(["mkfs.%s" % bootfs_type, "-n", bootfs_label, partitionDevice(disk, boot_partnum)], with_stderr = True)
+        if rc != 0:
+            raise RuntimeError, "Failed to create boot filesystem: %s" % err
+
     rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, partitionDevice(disk, primary_partnum)], with_stderr = True)
     if rc != 0:
-        raise RuntimeError, "Failed to create filesystem: %s" % err
+        raise RuntimeError, "Failed to create root filesystem: %s" % err
 
 def __mkinitrd(mounts, partition, package, kernel_version):
 
@@ -871,7 +919,8 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
                              kernel = "/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
-                             initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND)
+                             initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND,
+                             root = constants.rootfs_label)
     boot_config.append("xe", e)
     boot_config.default = "xe"
     if serial:
@@ -881,7 +930,8 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
-                                 initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" (Serial)")
+                                 initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" (Serial)",
+                                 root = constants.rootfs_label)
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
@@ -889,7 +939,8 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  hypervisor_args = ' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args = ' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
-                                 initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" in Safe Mode")
+                                 initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" in Safe Mode",
+                                 root = constants.rootfs_label)
         boot_config.append("safe", e)
 
     e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
@@ -897,7 +948,8 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                              kernel = "/boot/vmlinuz-fallback",
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              initrd = "/boot/initrd-fallback.img",
-                             title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+                             title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
+                             root = constants.rootfs_label)
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
@@ -905,10 +957,12 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  kernel = "/boot/vmlinuz-fallback",
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-fallback.img",
-                                 title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version))
+                                 title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
+                                 root = constants.rootfs_label)
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, partition_table_type, primary_partnum, location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None):
+def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_partnum, target_boot_mode, branding,
+                      location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
     # prepare extra mounts for installing bootloader:
@@ -920,8 +974,11 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
         if host_config:
             s = serial and {'port': serial.id, 'baud': int(serial.baud)} or None
 
-            fn = os.path.join(mounts['boot'], "extlinux.conf")
-            boot_config = bootloader.Bootloader('extlinux', fn,
+            if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+                fn = os.path.join(mounts['boot'], "efi/EFI/xenserver/grub.cfg")
+            else:
+                fn = os.path.join(mounts['boot'], "grub/grub.cfg")
+            boot_config = bootloader.Bootloader('grub2', fn,
                                                 timeout = constants.BOOT_MENU_TIMEOUT,
                                                 serial = s, location = location)
             xen_kernel_version = getKernelVersion(mounts['root'])
@@ -932,7 +989,10 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
             util.assertDir(os.path.dirname(fn))
             boot_config.commit()
 
-        installExtLinux(mounts, disk, partition_table_type, location)
+        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+            setEfiBootEntry(mounts, disk, boot_partnum, branding)
+        else:
+            installGrub2(mounts, disk)
 
         if serial:
             # ensure a getty will run on the serial console
@@ -953,6 +1013,32 @@ def installBootLoader(mounts, disk, partition_table_type, primary_partnum, locat
         util.umount("%s/proc" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
+
+def setEfiBootEntry(mounts, disk, boot_partnum, branding):
+    # First remove existing entries
+    rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
+    if rc != 0:
+        raise RuntimeError, "Failed to run efibootmgr: %s" % err
+    for line in out.splitlines():
+        match = re.match("Boot([0-9a-fA-F]{4})\\*? +%s$" % branding['product-brand'], line)
+        if match:
+            bootnum = match.group(1)
+            rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr",
+                                    "--delete-bootnum", "--bootnum", bootnum], with_stderr = True)
+            if rc != 0:
+                raise RuntimeError, "Failed to remove efi boot entry: %s" % err
+
+    # Then add a new one
+    rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
+                            "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/grubx64.efi".replace('/', '\\'),
+                            "-d", disk, "-p", str(boot_partnum)], with_stderr = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to run efibootmgr: %s" % err
+
+def installGrub2(mounts, disk):
+    rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", disk], with_stderr = True)
+    if rc != 0:
+        raise RuntimeError, "Failed to install bootloader: %s" % err
 
 def installExtLinux(mounts, disk, partition_table_type, location = constants.BOOT_LOCATION_MBR):
 
@@ -990,7 +1076,7 @@ def installExtLinux(mounts, disk, partition_table_type, location = constants.BOO
 ##########
 # mounting and unmounting of various volumes
 
-def mountVolumes(primary_disk, primary_partnum, cleanup):
+def mountVolumes(primary_disk, boot_partnum, primary_partnum, cleanup, target_boot_mode):
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
@@ -1003,14 +1089,28 @@ def mountVolumes(primary_disk, primary_partnum, cleanup):
     util.bindMount(constants.EXTRA_SCRIPTS_DIR, os.path.join(mounts['root'], 'mnt'))
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )),
                               ("umount-/tmp/root/mnt",  util.umount, (os.path.join(mounts['root'], 'mnt'), )) ]
+
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+        mounts['esp'] = '/tmp/root/boot/efi'
+        bootp = partitionDevice(primary_disk, boot_partnum)
+        util.assertDir(os.path.join(mounts['root'], 'boot', 'efi'))
+        util.mount(bootp, mounts['esp'])
+        new_cleanup.append(("umount-/tmp/root/boot/efi", util.umount, (mounts['esp'], )))
+
     return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
+    def filterCleanup(tag, _, __):
+        return (not tag.startswith("umount-%s" % mounts['root']) and
+                not tag.startswith("umount-%s" % os.path.join(mounts['root'], 'mnt')) and
+                not tag.startswith("umount-%s" % mounts['boot']))
+
     util.umount(os.path.join(mounts['root'], 'mnt'))
     util.umount(constants.EXTRA_SCRIPTS_DIR)
+    if 'esp' in mounts:
+        util.umount(mounts['esp'])
     util.umount(mounts['root'])
-    cleanup = filter(lambda (tag, _, __): not tag.startswith("umount-%s" % mounts['root']),
-                     cleanup)
+    cleanup = filter(filterCleanup, cleanup)
     return cleanup
 
 ##########
@@ -1042,9 +1142,11 @@ def prepareSwapfile(mounts):
     util.umount("%s/proc" % mounts['root'])
     util.umount("%s/sys" % mounts['root'])
 
-def writeFstab(mounts):
+def writeFstab(mounts, target_boot_mode):
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
     fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+        fstab.write("LABEL=%s    /boot/efi         %s     defaults   0  2\n" % (bootfs_label, bootfs_type))
     if os.path.exists(os.path.join(mounts['root'], constants.swap_location.lstrip('/'))):
         fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
     fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")

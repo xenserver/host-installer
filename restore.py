@@ -18,6 +18,8 @@ import os
 import os.path
 import constants
 import re
+import tempfile
+import shutil
 import xcp.bootloader as bootloader
 
 def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
@@ -28,15 +30,38 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
     assert backup_partition.startswith('/dev/')
     assert disk.startswith('/dev/')
 
+    # Restore the partition layout
+    backup_fs = util.TempMount(backup_partition, 'restore-backup-', options = ['ro'])
+    gpt_bin = None
+    try:
+        src_bin = os.path.join(backup_fs.mount_point, '.xen-gpt.bin')
+        if os.path.exists(src_bin):
+            gpt_bin = tempfile.mktemp()
+            shutil.copyfile(src_bin, gpt_bin)
+    finally:
+        backup_fs.unmount()
+
+    if gpt_bin:
+        xelogging.log("Restoring partition layout")
+        rc, err = util.runCmd2(["sgdisk", "-l", gpt_bin, disk], with_stderr = True)
+        if rc != 0:
+            raise RuntimeError, "Failed to restore partition layout: %s" % err
+
     label = None
-    primary_partnum, _, __ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True)
+    bootlabel = None
+    _, boot_partnum, primary_partnum, _, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True)
     restore_partition = partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
+
+    tool = PartitionTool(disk)
+    boot_part = tool.getPartition(boot_partnum)
+    boot_device = partitionDevice(disk, boot_partnum) if boot_part else None
+    efi_boot = boot_part and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT
 
     # determine current location of bootloader
     current_location = 'unknown'
     try:
-        root_fs = util.TempMount(restore_partition, 'root-', options = ['ro'])
+        root_fs = util.TempMount(restore_partition, 'root-', options = ['ro'], boot_device = boot_device)
         try:
             boot_config = bootloader.Bootloader.loadExisting(root_fs.mount_point)
             current_location = boot_config.location
@@ -55,16 +80,19 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
             raise RuntimeError, "Backup uses grub bootloader which is no longer supported - " + \
                 "to restore please use a version of the installer that matches the backup partition"
 
-        # format the restore partition:
+        # format the restore partition(s):
         if util.runCmd2(['mkfs.ext3', restore_partition]) != 0:
-            raise RuntimeError, "Failed to create filesystem"
+            raise RuntimeError, "Failed to create root filesystem"
+        if efi_boot:
+            if util.runCmd2(['mkfs.vfat', boot_device]) != 0:
+                raise RuntimeError, "Failed to create boot filesystem"
 
         # mount restore partition:
-        dest_fs = util.TempMount(restore_partition, 'restore-dest-')
+        dest_fs = util.TempMount(restore_partition, 'restore-dest-', boot_device = boot_device, boot_mount_point = '/boot/efi')
         try:
 
             # copy files from the backup partition to the restore partition:
-            objs = filter(lambda x: x not in ['lost+found', '.xen-backup-partition'], 
+            objs = filter(lambda x: x not in ['lost+found', '.xen-backup-partition', '.xen-gpt.bin'],
                           os.listdir(backup_fs.mount_point))
             for i in range(len(objs)):
                 obj = objs[i]
@@ -89,13 +117,27 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
                 xelogging.log("Bootloader is currently installed to MBR, restoring to MBR instead of partition")
                 location = constants.BOOT_LOCATION_MBR
 
+            with open(os.path.join(backup_fs.mount_point, 'etc', 'fstab'), 'r') as fstab:
+                for line in fstab:
+                    m = re.match(r'LABEL=(\S+)\s+/boot/efi\s', line)
+                    if m:
+                        bootlabel = m.group(1)
+
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
 
             # prepare extra mounts for installing bootloader:
             util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
             util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
             util.bindMount("/proc", "%s/proc" % dest_fs.mount_point)
-            backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
+            if boot_config.src_fmt == 'grub2':
+                if efi_boot:
+                    branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
+                    branding['product-brand'] = branding['PRODUCT_BRAND']
+                    backend.setEfiBootEntry(mounts, disk, boot_partnum, branding)
+                else:
+                    backend.installGrub2(mounts, disk)
+            else:
+                backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
@@ -111,9 +153,15 @@ def restoreFromBackup(backup_partition, disk, progress = lambda x: ()):
 
     if not label:
         raise RuntimeError, "Failed to find label required for root filesystem."
+    if efi_boot and not bootlabel:
+        raise RuntimeError("Failed to find label required for boot filesystem.")
 
     if util.runCmd2(['e2label', restore_partition, label]) != 0:
-        raise RuntimeError, "Failed to label partition"
+        raise RuntimeError, "Failed to label root partition"
+
+    if bootlabel:
+        if util.runCmd2(['fatlabel', boot_device, bootlabel]) != 0:
+            raise RuntimeError, "Failed to label boot partition"
 
     xelogging.log("Bootloader restoration complete.")
     xelogging.log("Restore successful.")
