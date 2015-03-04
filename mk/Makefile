@@ -79,6 +79,10 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/11-dm-mpath.rules
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/62-multipath.rules
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/69-dm-lvm-metad.rules
+# Prevent lvm from automatically activating volumes on boot
+	ln -s /etc/systemd/system/lvm2-activation.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation.service'
+	ln -s /etc/systemd/system/lvm2-activation-early.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation-early.service'
+	ln -s /etc/systemd/system/lvm2-activation-net.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation-net.service'
 # enable network by default to make nfs start correctly
 	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
 # TODO remove
