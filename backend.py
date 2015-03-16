@@ -864,6 +864,12 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 def prepFallback(mounts, primary_disk, primary_partnum):
     kernel_version =  getKernelVersion(mounts['root'])
 
+    # Copy /boot/xen-xxxx.gz to /boot/xen-fallback.gz
+    xen_gz = os.path.realpath(mounts['root'] + "/boot/xen.gz")
+    src = os.path.join(mounts['root'], "boot", os.path.basename(xen_gz))
+    dst = os.path.join(mounts['root'], 'boot/xen-fallback.gz')
+    shutil.copyfile(src, dst)
+
     # Copy /boot/vmlinuz-yyyy to /boot/vmlinuz-fallback
     src = os.path.join(mounts['root'], 'boot/vmlinuz-%s' % kernel_version)
     dst = os.path.join(mounts['root'], 'boot/vmlinuz-fallback')
@@ -884,10 +890,6 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     cmd += ['/boot/initrd-fallback.img', kernel_version]
     if util.runCmd2(['chroot', mounts['root']] + cmd):
         raise RuntimeError, "Failed to generate fallback initrd"
-
-def fallbackXen(mounts):
-    xen_gz = os.path.realpath(mounts['root'] + "/boot/xen.gz")
-    return os.path.join("/boot", os.path.basename(xen_gz))
 
 def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config):
     short_version = kernelShortVersion(xen_kernel_version)
@@ -943,7 +945,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  root = constants.rootfs_label)
         boot_config.append("safe", e)
 
-    e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
+    e = bootloader.MenuEntry(hypervisor = "/boot/xen-fallback.gz",
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                              kernel = "/boot/vmlinuz-fallback",
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
@@ -952,7 +954,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                              root = constants.rootfs_label)
     boot_config.append("fallback", e)
     if serial:
-        e = bootloader.MenuEntry(hypervisor = fallbackXen(mounts),
+        e = bootloader.MenuEntry(hypervisor = "/boot/xen-fallback.gz",
                                  hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
                                  kernel = "/boot/vmlinuz-fallback",
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
