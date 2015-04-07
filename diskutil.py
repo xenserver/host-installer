@@ -537,7 +537,7 @@ def iscsi_get_sid(targetip, iqn):
     rv, out = util.runCmd2([ 'iscsiadm', '-m', 'session' ], with_stdout=True)
     assert(rv == 0)
     lines = out.strip().split('\n')
-    regex = re.compile('^tcp: \\[(\\d+)\\] ([^:]+):([^,]+),[^ ]+ (.*)$')
+    regex = re.compile('^tcp: \\[(\\d+)\\] ([^:]+):([^,]+),[^ ]+ ([^ ]+).*$')
     tuples = map(lambda line: regex.match(line).groups(), lines)
     tuples = filter(lambda entry: entry[1] == targetip and entry[3] == iqn, tuples)
     assert(len(tuples) == 1)
@@ -603,9 +603,6 @@ def attach_rfc4173(iname, rfc4173_spec):
             fd = open("/etc/iscsi/initiatorname.iscsi", "w")
             fd.write("InitiatorName=%s" % iname)
             fd.close()
-            rv = util.runCmd2([ '/sbin/iscsid' ])          # start iscsiadm
-            if rv:
-                raise RuntimeError, "/sbin/iscsid failed"
         rv = util.runCmd2([ '/sbin/iscsiadm', '-m', 'discovery', '-t', 'sendtargets', '-p', targetip])
         if rv: 
             raise RuntimeError, "/sbin/iscsiadm -m discovery failed"
