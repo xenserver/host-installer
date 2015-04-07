@@ -891,7 +891,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     if util.runCmd2(['chroot', mounts['root']] + cmd):
         raise RuntimeError, "Failed to generate fallback initrd"
 
-def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config):
+def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog dom0_max_vcpus=%d" % host_config['dom0-vcpus']
@@ -916,6 +916,9 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
 
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label
     kernel_console_params = "xencons=hvc console=hvc0"
+
+    if diskutil.is_iscsi(primary_disk):
+        common_kernel_params += " ip=ibft iscsi_firmware"
 
     e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
@@ -987,7 +990,7 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
             if not xen_kernel_version:
                 raise RuntimeError, "Unable to determine kernel version."
             buildBootLoaderMenu(mounts, xen_kernel_version, boot_config,
-                                serial, boot_serial, host_config)
+                                serial, boot_serial, host_config, disk)
             util.assertDir(os.path.dirname(fn))
             boot_config.commit()
 
