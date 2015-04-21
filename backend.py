@@ -818,7 +818,7 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 
         # Mkinitrd needs node files so it can extract 
         # details about the iscsi root disk
-        src = '/etc/iscsi/nodes'
+        src = '/var/lib/iscsi/nodes'
         dst = os.path.join(mounts['root'], 'var/lib/iscsi/')
         util.runCmd2(['cp','-a', src, dst])
 
