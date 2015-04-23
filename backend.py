@@ -918,7 +918,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
     kernel_console_params = "xencons=hvc console=hvc0"
 
     if diskutil.is_iscsi(primary_disk):
-        common_kernel_params += " iscsi_firmware"
+        common_kernel_params += " rd.iscsi.ibft=1 rd.iscsi.firmware=1"
 
     e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
