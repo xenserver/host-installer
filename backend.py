@@ -746,6 +746,11 @@ def __mkinitrd(mounts, partition, package, kernel_version):
 
         if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd']) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
+
+        short_version = kernelShortVersion(kernel_version)
+        os.symlink("vmlinuz-%s" % kernel_version, "%s/boot/vmlinuz-%s-xen" % (mounts['root'], short_version))
+        os.symlink("initrd-%s.img" % kernel_version, "%s/boot/initrd-%s-xen.img" % (mounts['root'], short_version))
+
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
         util.umount(os.path.join(mounts['root'], 'dev'))
