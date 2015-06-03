@@ -736,7 +736,7 @@ def __mkinitrd(mounts, partition, package, kernel_version):
             if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
                 raise RuntimeError, "Failed to latch arguments for initrd."
 
-        cmd = ['new-kernel-pkg', '--mkinitrd']
+        cmd = ['new-kernel-pkg', '--install', '--mkinitrd']
 
         # Save command used to create initrd in <initrd_filename>.cmd
         cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
