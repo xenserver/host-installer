@@ -744,10 +744,7 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         print >>cmd_fh, ' '.join(cmd + ['"$@"', kernel_version])
         cmd_fh.close()
 
-        args = ['--verbose']
-        if package == 'kernel-xen':
-            args.append('--make-default')
-        if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd'] + args) != 0:
+        if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd']) != 0:
             raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
