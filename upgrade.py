@@ -131,7 +131,7 @@ class Upgrader(object):
 class ThirdGenUpgrader(Upgrader):
     """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.XENSERVER_5_6_0, product.THIS_PRODUCT_VERSION) ]
+    upgrades_versions = [ (product.XENSERVER_6_0_0, product.THIS_PRODUCT_VERSION) ]
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
@@ -296,25 +296,6 @@ class ThirdGenUpgrader(Upgrader):
 
         Upgrader.completeUpgrade(self, mounts, target_disk, backup_partnum)
 
-        if os.path.exists(os.path.join(mounts['root'], constants.DBCACHE)) and \
-                Version(prev_install.version.ver) == product.XENSERVER_5_6_0:
-            # upgrade from 5.6
-            changed = False
-            dbcache_file = os.path.join(mounts['root'], constants.DBCACHE)
-            rdbcache_fd = open(dbcache_file)
-            wdbcache_fd = open(dbcache_file + '.new', 'w')
-            for line in rdbcache_fd:
-                wdbcache_fd.write(line)
-                if '<pif ref=' in line:
-                    wdbcache_fd.write("\t\t<tunnel_access_PIF_of/>\n")
-                    changed = True
-            rdbcache_fd.close()
-            wdbcache_fd.close()
-            if changed:
-                os.rename(dbcache_file + '.new', dbcache_file)
-            else:
-                os.remove(dbcache_file + '.new')
-
         v = Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
         f.write("PRODUCT_VERSION='%s'\n" % v)
@@ -425,18 +406,6 @@ class ThirdGenUpgrader(Upgrader):
             nfd.write("NETWORKING_IPV6=no\n")
             nfd.close()
             netutil.disable_ipv6_module(mounts["root"])
-
-        if Version(prev_install.version.ver) == product.XENSERVER_5_6_100:
-            # set journalling option on EXT local SRs
-            l = LVMTool()
-            for lv in l.lvs:
-                if lv['vg_name'].startswith(l.VG_EXT_SR_PREFIX):
-                    l.activateVG(lv['vg_name'])
-                    path = '/dev/mapper/%s-%s' % (lv['vg_name'].replace('-', '--'),
-                                                  lv['lv_name'].replace('-', '--'))
-                    xelogging.log("Setting ordered on " + path)
-                    util.runCmd2(['tune2fs', '-o', 'journal_data_ordered', path])
-                    l.deactivateVG(lv['vg_name'])
 
         # handle the conversion of HP Gen6 controllers from cciss to scsi
         primary_disk = self.source.getInventoryValue("PRIMARY_DISK")

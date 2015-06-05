@@ -35,8 +35,7 @@ class SettingsNotAvailable(Exception):
 
 THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 THIS_PLATFORM_VERSION = Version.from_string(version.PLATFORM_VERSION)
-XENSERVER_5_6_0 = Version([5, 6, 0])
-XENSERVER_5_6_100 = Version([5, 6, 100])
+XENSERVER_6_0_0 = Version([6, 0, 0])
 XCP_1_6_0 = Version([1, 6, 0])
 
 class ExistingInstallation:
