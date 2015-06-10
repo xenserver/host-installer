@@ -430,11 +430,10 @@ class BzippedPackage(Package):
         pipe.stdin.close()
         rc = pipe.wait()
         if rc != 0:
-            desc = 'returned [%d]' % rc
-            if os.WIFEXITED(rc):
-                desc = 'exited with %d' % os.WEXITSTATUS(rc)
-            elif os.WIFSIGNALED(rc):
-                desc = 'died with signal %d' % os.WTERMSIG(rc)
+            if rc > 0:
+                desc = 'exited with %d' % rc
+            else:
+                desc = 'died with signal %d' % (-rc)
             raise ErrorInstallingPackage, "The decompressor %s whilst processing package %s" % (desc, self.name)
     
         package.close()
