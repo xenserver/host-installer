@@ -408,10 +408,14 @@ class BzippedPackage(Package):
         package = self.repository.accessor().openAddress(pkgpath)
 
         xelogging.log("Starting installation of package %s" % self.name)
+
+        tmpout = tempfile.TemporaryFile()
+        tmperr = tempfile.TemporaryFile()
         
-        pipe = subprocess.Popen(['tar', '-C', os.path.join(base, self.destination), '-xj'], 
+        cmd = ['tar', '-C', os.path.join(base, self.destination), '-xj']
+        pipe = subprocess.Popen(cmd,
                                 bufsize = 1024 * 1024, stdin = subprocess.PIPE, 
-                                stdout = dev_null(), stderr = dev_null())
+                                stdout = tmpout, stderr = tmperr)
     
         data = ''
         current_progress = 0
@@ -429,6 +433,22 @@ class BzippedPackage(Package):
 
         pipe.stdin.close()
         rc = pipe.wait()
+
+        tmpout.seek(0)
+        out = tmpout.read().strip()
+        tmpout.close()
+        if out:
+            xelogging.log("'%s' stdout:\n%s" % (" ".join(cmd), out))
+
+        tmperr.seek(0)
+        err = tmperr.read().strip()
+        tmperr.close()
+        if err:
+            xelogging.log("'%s' stderr:\n%s" % (" ".join(cmd), err))
+
+        if current_progress != self.size:
+            xelogging.log("Unexpected number of bytes read: Expected %d, but got %d" % (self.size, current_progress))
+
         if rc != 0:
             if rc > 0:
                 desc = 'exited with %d' % rc
