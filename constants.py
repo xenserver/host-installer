@@ -156,6 +156,7 @@ SYSLINUX_CFG = "syslinux.cfg"
 ROLLING_POOL_DIR = "boot/installer"
 
 HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"
+SAFE_2_UPGRADE = "/var/preserve/safe2upgrade"
 
 # timer to exit installer after fatal error
 AUTO_EXIT_TIMER = 10 * 1000

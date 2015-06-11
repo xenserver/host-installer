@@ -138,50 +138,101 @@ class ThirdGenUpgrader(Upgrader):
     
     def __init__(self, source):
         Upgrader.__init__(self, source)
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
+        safe2upgrade_path = os.path.join(primary_fs.mount_point, "var/preserve/safe2upgrade")
+        if os.path.isfile(safe2upgrade_path):
+            self.safe2upgrade = True
+        else:
+            self.safe2upgrade = False
+        primary_fs.unmount()
 
     prepTargetStateChanges = []
-    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'partition-table-type']
-    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, partition_table_type):
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'partition-table-type']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, partition_table_type):
         """ Modify partition layout prior to installation. """
 
         if partition_table_type == constants.PARTITION_GPT:
             tool = PartitionTool(primary_disk, partition_table_type)
 
-            # If the boot partition already, exists, no partition updates are
-            # necessary.
-            part = tool.getPartition(boot_partnum)
-            if part:
-                return
+            # Create the new partition layout (5,2,1,4,6,3) after the backup
+            # 1 - dom0 partition
+            # 2 - backup partition
+            # 3 - LVM partition
+            # 4 - UEFI partition
+            # 5 - logs partition
+            # 6 - swap partition
 
-            # Otherwise, replace the root partition with a boot partition and
-            # a smaller root partition.
-            part = tool.getPartition(primary_partnum)
-            tool.deletePartition(primary_partnum)
+            if self.safe2upgrade:
+                # Rename old dom0 and UEFI (if any) partitions (10 and 11 are temporary number which let us create
+                # dom0 and UEFI partitions using the same numbers)
+                tool.renamePartition(srcNumber = primary_partnum, destNumber = 10, overwrite = False)
+                boot_part = tool.getPartition(boot_partnum)
+                if boot_part:
+                    tool.renamePartition(srcNumber = boot_partnum, destNumber = 11, overwrite = False)
+                # Create new bigger dom0 partition
+                tool.createPartition(tool.ID_LINUX, sizeBytes = constants.root_size * 2**20, number = primary_partnum)
+                # Create UEFI partition
+                if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
+                    tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = constants.boot_size * 2**20, number = boot_partnum)
+                else:
+                    tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = constants.boot_size * 2**20, number = boot_partnum)
+                # Create swap partition
+                tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = constants.swap_size * 2**20, number = swap_partnum)
+                # Create storage LVM partition
+                if storage_partnum > 0:
+                    tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+                # Create logs partition using the old dom0 + UEFI (if any) partitions
+                tool.deletePartition(10)
+                if boot_part:
+                    tool.deletePartition(11)
+                tool.createPartition(tool.ID_LINUX, sizeBytes = constants.logs_size * 2**20, startBytes = 0, number = logs_partnum)
 
-            boot_size = constants.boot_size * 2**20
-            root_size = part['size'] * tool.sectorSize - boot_size
-            if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
-                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
             else:
-                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
 
-            tool.createPartition(part['id'], sizeBytes = root_size, number = primary_partnum, order = primary_partnum + 1)
+                # If the boot partition already, exists, no partition updates are
+                # necessary.
+                part = tool.getPartition(boot_partnum)
+                if part:
+                    return
+
+                # Otherwise, replace the root partition with a boot partition and
+                # a smaller root partition.
+                part = tool.getPartition(primary_partnum)
+                tool.deletePartition(primary_partnum)
+
+                boot_size = constants.boot_size * 2**20
+                root_size = part['size'] * tool.sectorSize - boot_size
+                if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
+                    tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
+                else:
+                    tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size, startBytes = part['start'] * tool.sectorSize, number = boot_partnum)
+
+                tool.createPartition(part['id'], sizeBytes = root_size, number = primary_partnum, order = primary_partnum + 1)
 
             tool.commit(log = True)
 
-    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'partition-table-type']
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'partition-table-type']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, partition_table_type):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, partition_table_type):
 
+        tool = PartitionTool(target_disk)
+        boot_part = tool.getPartition(boot_partnum)
+        boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
+
+        # Check if possible to create new partition layout, increasing the size, using plugin result
+        if self.safe2upgrade:
+            # Delete LVM partition
+            tool.deletePartition(storage_partnum)
+            # Resize backup partition
+            tool.resizePartition(number = backup_partnum, sizeBytes = constants.backup_size * 2**20)
+            # Write partition table
+            tool.commit(log = True)
+        
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)
         if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
             raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
         progress_callback(10)
-
-        tool = PartitionTool(target_disk)
-        boot_part = tool.getPartition(boot_partnum)
-        boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
 
         # copy the files across:
         primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'], boot_device = boot_device)
