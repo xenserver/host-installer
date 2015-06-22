@@ -601,7 +601,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     # 6 - swap partition
 
     # Create logs partition
-    tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2048*512, number = logs_partnum, order = order)
+    tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 1024*1024, number = logs_partnum, order = order)
     order += 1
 
     # Create backup partition

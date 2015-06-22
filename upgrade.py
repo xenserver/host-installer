@@ -185,7 +185,7 @@ class ThirdGenUpgrader(Upgrader):
                 tool.deletePartition(10)
                 if boot_part:
                     tool.deletePartition(11)
-                tool.createPartition(tool.ID_LINUX, sizeBytes = constants.logs_size * 2**20, startBytes = 2048*512, number = logs_partnum)
+                tool.createPartition(tool.ID_LINUX, sizeBytes = constants.logs_size * 2**20, startBytes = 1024*1024, number = logs_partnum)
 
             else:
 
