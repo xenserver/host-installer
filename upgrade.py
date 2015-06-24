@@ -216,7 +216,7 @@ class ThirdGenUpgrader(Upgrader):
             rc, self.vgs_output_wrong  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
             self.vgs_output_wrong = self.vgs_output_wrong.strip()
             util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
-            util.runCmd2(['vgcreate', self.vgs_output, str(storage_part)])
+            util.runCmd2(['vgcreate', self.vgs_output, storage_part])
 
     doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'partition-table-type']
     doBackupStateChanges = []
