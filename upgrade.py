@@ -144,6 +144,7 @@ class ThirdGenUpgrader(Upgrader):
             self.safe2upgrade = True
         else:
             self.safe2upgrade = False
+        self.vgs_output = None
         primary_fs.unmount()
 
     prepTargetStateChanges = []
