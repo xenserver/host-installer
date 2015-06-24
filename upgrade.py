@@ -188,6 +188,14 @@ class ThirdGenUpgrader(Upgrader):
                     tool.deletePartition(11)
                 tool.createPartition(tool.ID_LINUX, sizeBytes = constants.logs_size * 2**20, startBytes = 1024*1024, number = logs_partnum)
 
+                tool.commit(log = True)
+
+                storage_part = partitionDevice(primary_disk, storage_partnum)
+                rc, self.vgs_output_wrong  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
+                self.vgs_output_wrong = self.vgs_output_wrong.strip()
+                util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
+                util.runCmd2(['vgcreate', self.vgs_output, storage_part])
+
             else:
 
                 # If the boot partition already, exists, no partition updates are
@@ -210,13 +218,7 @@ class ThirdGenUpgrader(Upgrader):
 
                 tool.createPartition(part['id'], sizeBytes = root_size, number = primary_partnum, order = primary_partnum + 1)
 
-            tool.commit(log = True)
-
-            storage_part = partitionDevice(primary_disk, storage_partnum)
-            rc, self.vgs_output_wrong  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
-            self.vgs_output_wrong = self.vgs_output_wrong.strip()
-            util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
-            util.runCmd2(['vgcreate', self.vgs_output, storage_part])
+                tool.commit(log = True)
 
     doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'partition-table-type']
     doBackupStateChanges = []
