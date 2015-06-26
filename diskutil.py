@@ -750,7 +750,8 @@ def process_ibft(ui, interactive):
         spec = "iscsi:%s::%d:%d:%s" % (conf.tgtip, conf.port, conf.lun, conf.iqn)
         try:
             disk = attach_rfc4173(iname, spec)
-        except:
+        except Exception as e:
+            xelogging.log_exception(e)
             raise RuntimeError, "Could not attach to iSCSI LUN %s" % spec
         xelogging.log("process_ibft: attached iSCSI disk %s." % disk)
 
