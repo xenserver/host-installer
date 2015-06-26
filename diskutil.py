@@ -555,20 +555,28 @@ def rfc4173_to_disk(rfc4173_spec):
     except:
         raise IscsiDeviceException, "Cannot parse spec %s" % rfc4173_spec
     
-    sid = iscsi_get_sid(targetip, iqn)
-    rv, out = util.runCmd2([ 'iscsiadm', '-m', 'session', '-r', str(sid), '-P', '3' ], with_stdout=True)
-    assert(rv == 0)
-    lines = out.strip().split('\n')
-    regex = re.compile('^\\s*\\w+ Channel \\d+ Id \\d+ Lun: %d$' % lun)
-    while lines:
-        line = lines.pop(0)
-        if regex.match(line):
-            # next line says what the disk is called!
+    # Retry this a few times since it may take awhile for the device name to
+    # appear in the iscsiadm output.
+    retry = 10
+    while retry > 0:
+        sid = iscsi_get_sid(targetip, iqn)
+        rv, out = util.runCmd2([ 'iscsiadm', '-m', 'session', '-r', str(sid), '-P', '3' ], with_stdout=True)
+        assert(rv == 0)
+        lines = out.strip().split('\n')
+        regex = re.compile('^\\s*\\w+ Channel \\d+ Id \\d+ Lun: %d$' % lun)
+        while lines:
             line = lines.pop(0)
-            regex2 = re.compile('^\\s*Attached scsi disk (\\w+)\\s+.*$')
-            match = regex2.match(line)
-            assert match != None
-            return '/dev/' + match.groups()[0]
+            if regex.match(line):
+                if not lines:
+                    break
+                # next line says what the disk is called!
+                line = lines.pop(0)
+                regex2 = re.compile('^\\s*Attached scsi disk (\\w+)\\s+.*$')
+                match = regex2.match(line)
+                assert match != None
+                return '/dev/' + match.groups()[0]
+        time.sleep(1)
+        retry -= 1
     raise Exception, "Could not find iscsi disk with IQN %s and lun %d" % (iqn,lun)
             
 
