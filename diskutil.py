@@ -147,7 +147,7 @@ def getDiskList():
     parts.close()
 
     # Build regex for Block Extended Major device partitions
-    regex = re.compile('.*p[0-9]{1,2}$')
+    regex = re.compile('.*p?[0-9]{1,2}$')
     # parse it:
     disks = []
     for l in partlines:
@@ -179,7 +179,7 @@ def getPartitionList():
     for disk in disks:
         if isDeviceMapperNode('/dev/' + disk):
             name = disk.split('/',1)[1]
-            partitions = filter(lambda s: s.startswith("%sp" % name), os.listdir('/dev/mapper/'))
+            partitions = filter(lambda s: re.match(name + r'p?\d+$', s), os.listdir('/dev/mapper/'))
             partitions = map(lambda s: "mapper/%s" % s, partitions)
         else:
             name = disk.replace("/", "!")
