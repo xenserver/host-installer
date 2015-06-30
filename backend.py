@@ -110,7 +110,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if not interactive:
@@ -118,7 +118,7 @@ def getPrepSequence(ans, interactive):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
@@ -143,7 +143,7 @@ def getPrepSequence(ans, interactive):
                         progress_scale = 100,
                         pass_progress_callback = True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum'), []),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
@@ -171,8 +171,8 @@ def getFinalisationSequence(ans):
         Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
-        Task(prepareSwapfile, A(ans, 'mounts'), []),
-        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode'), []),
+        Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum'), []),
+        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
@@ -210,7 +210,7 @@ def getFinalisationSequence(ans):
     seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
     if ans['target-boot-mode'] == TARGET_BOOT_MODE_LEGACY:
         seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'partition-table-type'), []))
-    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum'), []))
+    seq.append(Task(writeLog, A(ans, 'primary-disk', 'logs-partnum'), []))
 
     return seq
 
@@ -508,7 +508,8 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
         xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
         
-        return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+2)
+        # Return install mode and numbers of boot, primary, backup, log, swap and SR partitions
+        return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
     
     tool = PartitionTool(disk)
 
@@ -539,8 +540,8 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
-    # Return install mode and numbers of boot, primary, backup, and SR partitions
-    return (target_boot_mode, boot_part, primary_part, primary_part + 1, sr_part)
+    # Return install mode and numbers of boot, primary, backup, logs, swap and SR partitions
+    return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
@@ -571,7 +572,8 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, storage_partnum, sr_at_end, partition_table_type):
+def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end, partition_table_type):
+
     # we really don't want to screw this up...
     assert type(disk) == str
     assert disk[:5] == '/dev/'
@@ -589,18 +591,41 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
             tool.deletePartition(num)
 
     order = primary_partnum
+
+    # Create the new partition layout (5,2,1,4,6,3)
+    # 1 - dom0 partition
+    # 2 - backup partition
+    # 3 - LVM partition
+    # 4 - UEFI partition
+    # 5 - logs partition
+    # 6 - swap partition
+
+    # Create logs partition
+    tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 1024*1024, number = logs_partnum, order = order)
+    order += 1
+
+    # Create backup partition
+    if backup_partnum > 0:
+        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
+        order += 1
+
+    # Create dom0 partition
+    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
+    order += 1
+
+    # Create UEFI partition
     if partition_table_type == constants.PARTITION_GPT:
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
             tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
         else:
             tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
         order += 1
-    root_size = root_gpt_size if partition_table_type == constants.PARTITION_GPT else root_mbr_size
-    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
+
+    # Create swap partition
+    tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = swap_size * 2**20, number = swap_partnum, order = order)
     order += 1
-    if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
-        order += 1
+
+    # Create LVM partition
     if storage_partnum > 0:
         tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
         order += 1
@@ -618,6 +643,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
                                          'size': tool.partitions[backup_partnum]['size'],
                                          'id': tool.partitions[backup_partnum]['id'],
                                          'active': tool.partitions[backup_partnum]['active']}
+
         new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'],
                                       'size': tool.partitions[storage_partnum]['size'],
                                       'id': tool.partitions[storage_partnum]['id'],
@@ -630,6 +656,8 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
                                      new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
 
     tool.commit(log = True)
+
+
 
 def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
     # At the moment this code uses the same partition table type for Guest Disks as it 
@@ -690,7 +718,7 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_partnum):
+def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum):
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         rc, err = util.runCmd2(["mkfs.%s" % bootfs_type, "-n", bootfs_label, partitionDevice(disk, boot_partnum)], with_stderr = True)
         if rc != 0:
@@ -699,6 +727,13 @@ def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_part
     rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, partitionDevice(disk, primary_partnum)], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to create root filesystem: %s" % err
+
+    tool = PartitionTool(disk)
+    logs_partition = tool.getPartition(logs_partnum)
+    if logs_partition:
+        rc, err = util.runCmd2(["mkfs.%s" % logsfs_type, "-L", logsfs_label, partitionDevice(disk, logs_partnum)], with_stderr = True)
+        if rc != 0:
+            raise RuntimeError, "Failed to create logs filesystem: %s" % err
 
 def __mkinitrd(mounts, partition, package, kernel_version):
 
@@ -1138,24 +1173,50 @@ def writeKeyboardConfiguration(mounts, keymap):
     vconsole.write("KEYMAP=%s\n" % keymap)
     vconsole.close()
 
-def prepareSwapfile(mounts):
-    util.assertDir("%s/var/swap" % mounts['root'])
-    util.runCmd2(['dd', 'if=/dev/zero',
-                  'of=%s' % os.path.join(mounts['root'], constants.swap_location.lstrip('/')),
-                  'bs=1024', 'count=%d' % (constants.swap_size * 1024)])
-    util.bindMount("/proc", "%s/proc" % mounts['root'])
-    util.bindMount("/sys", "%s/sys" % mounts['root'])
-    util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_location])
-    util.umount("%s/proc" % mounts['root'])
-    util.umount("%s/sys" % mounts['root'])
+def prepareSwapfile(mounts, primary_disk, swap_partnum):
 
-def writeFstab(mounts, target_boot_mode):
+    tool = PartitionTool(primary_disk)
+
+    swap_partition = tool.getPartition(swap_partnum)
+
+    if swap_partition:
+        util.bindMount("/proc", "%s/proc" % mounts['root'])
+        util.bindMount("/sys", "%s/sys" % mounts['root'])
+        util.bindMount("/dev", "%s/dev" % mounts['root'])
+        util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label, partitionDevice(primary_disk, swap_partnum)])
+        util.umount("%s/dev" % mounts['root'])
+        util.umount("%s/proc" % mounts['root'])
+        util.umount("%s/sys" % mounts['root'])
+    else:
+        util.assertDir("%s/var/swap" % mounts['root'])
+        util.runCmd2(['dd', 'if=/dev/zero',
+                      'of=%s' % os.path.join(mounts['root'], constants.swap_file.lstrip('/')),
+                      'bs=1024', 'count=%d' % (constants.swap_file_size * 1024)])
+        util.bindMount("/proc", "%s/proc" % mounts['root'])
+        util.bindMount("/sys", "%s/sys" % mounts['root'])
+        util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_file])
+        util.umount("%s/proc" % mounts['root'])
+        util.umount("%s/sys" % mounts['root'])
+
+def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum):
+
+    tool = PartitionTool(primary_disk)
+    swap_partition = tool.getPartition(swap_partnum)
+    logs_partition = tool.getPartition(logs_partnum)
+
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
     fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         fstab.write("LABEL=%s    /boot/efi         %s     defaults   0  2\n" % (bootfs_label, bootfs_type))
-    if os.path.exists(os.path.join(mounts['root'], constants.swap_location.lstrip('/'))):
-        fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_location))
+
+    if swap_partition:
+        fstab.write("LABEL=%s          swap      swap   defaults   0  0\n" % constants.swap_label)
+    else:
+        if os.path.exists(os.path.join(mounts['root'], constants.swap_file.lstrip('/'))):
+            fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_file))
+    if logs_partition:
+        fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label, logsfs_type))
+
     fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
@@ -1409,21 +1470,41 @@ def touchSshAuthorizedKeys(mounts):
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
-def writeLog(primary_disk, primary_partnum):
-    try: 
-        bootnode = partitionDevice(primary_disk, primary_partnum)
-        primary_fs = util.TempMount(bootnode, 'install-')
-        try:
-            log_location = os.path.join(primary_fs.mount_point, "var/log/installer")
-            if os.path.islink(log_location):
-                log_location = os.path.join(primary_fs.mount_point, os.readlink(log_location).lstrip("/"))
-            util.assertDir(log_location)
-            xelogging.collectLogs(log_location, os.path.join(primary_fs.mount_point,"root"))
+def writeLog(primary_disk, logs_partnum):
+    tool = PartitionTool(primary_disk)
+
+    logs_partition = tool.getPartition(logs_partnum)
+
+    if logs_partition:
+        try: 
+            bootnode = partitionDevice(primary_disk, logs_partnum)
+            primary_fs = util.TempMount(bootnode, 'install-')
+            try:
+                log_location = os.path.join(primary_fs.mount_point, "installer")
+                if os.path.islink(log_location):
+                    log_location = os.path.join(primary_fs.mount_point, os.readlink(log_location).lstrip("/"))
+                util.assertDir(log_location)
+                xelogging.collectLogs(log_location, os.path.join(primary_fs.mount_point,"root"))
+            except:
+                pass
+            primary_fs.unmount()
         except:
             pass
-        primary_fs.unmount()
-    except:
-        pass
+    else:
+        try:
+            bootnode = partitionDevice(primary_disk, primary_partnum)
+            primary_fs = util.TempMount(bootnode, 'install-')
+            try:
+                log_location = os.path.join(primary_fs.mount_point, "var/log/installer")
+                if os.path.islink(log_location):
+                    log_location = os.path.join(primary_fs.mount_point, os.readlink(log_location).lstrip("/"))
+                util.assertDir(log_location)
+                xelogging.collectLogs(log_location, os.path.join(primary_fs.mount_point,"root"))
+            except:
+                pass
+            primary_fs.unmount()
+        except:
+            pass
 
 def writei18n(mounts):
     path = os.path.join(mounts['root'], 'etc/sysconfig/i18n')

@@ -230,7 +230,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                 def progress(x):
                     if ui and pd:
                         tui.progress.displayProgressDialog(x, pd)
-                restore.restoreFromBackup(backup.partition, backup.root_disk, progress)
+                restore.restoreFromBackup(backup, progress)
                 if ui:
                     tui.progress.clearModelessDialog()
                     tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
