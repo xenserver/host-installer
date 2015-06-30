@@ -144,7 +144,7 @@ def getPrepSequence(ans, interactive):
                         pass_progress_callback = True))
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum'), []),
-        Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
+        Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
 
@@ -1118,13 +1118,16 @@ def installExtLinux(mounts, disk, partition_table_type, location = constants.BOO
 ##########
 # mounting and unmounting of various volumes
 
-def mountVolumes(primary_disk, boot_partnum, primary_partnum, cleanup, target_boot_mode):
+def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, cleanup, target_boot_mode):
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
     rootp = partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
+    mounts['logs'] = os.path.join(mounts['root'], 'var/log')
+    util.assertDir(mounts['logs'])
+    util.mount(partitionDevice(primary_disk, logs_partnum), mounts['logs'])
     util.assertDir(constants.EXTRA_SCRIPTS_DIR)
     util.mount('tmpfs', constants.EXTRA_SCRIPTS_DIR, ['size=2m'], 'tmpfs')
     util.assertDir(os.path.join(mounts['root'], 'mnt'))
