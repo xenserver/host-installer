@@ -530,6 +530,13 @@ def safe2upgrade():
 
     this_host = session.xenapi.session.get_this_host(session._session)
 
+    (rc, out) = cmd.runCmd(['blkid', '-L', 'xs-logs'], with_stdout = True)
+    out = out.strip()
+    (rc, dev) = cmd.runCmd(['readlink', '-f', primary_disk], with_stdout = True)
+    dev = dev.strip()
+    if out.startswith(dev):
+        return 'true'
+
     local_sr = None
     for pbd in session.xenapi.PBD.get_all_records().values():
         if pbd.get('host', '') != this_host:

@@ -154,6 +154,7 @@ class ThirdGenUpgrader(Upgrader):
 
         if partition_table_type == constants.PARTITION_GPT:
             tool = PartitionTool(primary_disk, partition_table_type)
+            logs_partition = tool.getPartition(logs_partnum)
 
             # Create the new partition layout (5,2,1,4,6,3) after the backup
             # 1 - dom0 partition
@@ -163,7 +164,7 @@ class ThirdGenUpgrader(Upgrader):
             # 5 - logs partition
             # 6 - swap partition
 
-            if self.safe2upgrade:
+            if self.safe2upgrade and logs_partition is None:
                 # Rename old dom0 and UEFI (if any) partitions (10 and 11 are temporary number which let us create
                 # dom0 and UEFI partitions using the same numbers)
                 tool.renamePartition(srcNumber = primary_partnum, destNumber = 10, overwrite = False)
@@ -220,16 +221,17 @@ class ThirdGenUpgrader(Upgrader):
 
                 tool.commit(log = True)
 
-    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'partition-table-type']
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum', 'partition-table-type']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, partition_table_type):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum, partition_table_type):
 
         tool = PartitionTool(target_disk)
         boot_part = tool.getPartition(boot_partnum)
         boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
+        logs_partition = tool.getPartition(logs_partnum)
 
         # Check if possible to create new partition layout, increasing the size, using plugin result
-        if self.safe2upgrade:
+        if self.safe2upgrade and logs_partition is None:
             # Get current Volume Group
             rc, self.vgs_output  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
             self.vgs_output = self.vgs_output.strip()
