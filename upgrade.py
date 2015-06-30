@@ -139,7 +139,7 @@ class ThirdGenUpgrader(Upgrader):
     def __init__(self, source):
         Upgrader.__init__(self, source)
         primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
-        safe2upgrade_path = os.path.join(primary_fs.mount_point, "var/preserve/safe2upgrade")
+        safe2upgrade_path = os.path.join(primary_fs.mount_point, constants.SAFE_2_UPGRADE)
         if os.path.isfile(safe2upgrade_path):
             self.safe2upgrade = True
         else:

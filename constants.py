@@ -107,7 +107,6 @@ bootfs_label = "BOOT-%s" % "".join([random.choice(string.ascii_uppercase)
 rootfs_type = 'ext3'
 rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
                                     for x in range(8)])
-swap_file = '/var/swap/swap.001'
 swap_file_size = 512
 swap_size = 1024
 swap_label = 'xs-swap'
@@ -115,6 +114,8 @@ swap_label = 'xs-swap'
 logs_size = 4096
 logsfs_type = 'ext3'
 logsfs_label = 'xs-logs'
+
+restorefs_type = 'ext3'
 
 MIN_PASSWD_LEN=6
 
@@ -156,7 +157,7 @@ SYSLINUX_CFG = "syslinux.cfg"
 ROLLING_POOL_DIR = "boot/installer"
 
 HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"
-SAFE_2_UPGRADE = "/var/preserve/safe2upgrade"
+SAFE_2_UPGRADE = "var/preserve/safe2upgrade"
 
 # timer to exit installer after fatal error
 AUTO_EXIT_TIMER = 10 * 1000

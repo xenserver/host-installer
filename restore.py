@@ -94,7 +94,7 @@ def restoreWithRepart(backup, progress):
                 "to restore please use a version of the installer that matches the backup partition"
 
         # format the restore partition(s):
-        if util.runCmd2(['mkfs.ext3', restore_partition]) != 0:
+        if util.runCmd2(["mkfs.%s" % restorefs_type, restore_partition]) != 0:
             raise RuntimeError, "Failed to create root filesystem"
         if efi_boot:
             if util.runCmd2(['mkfs.vfat', boot_device]) != 0:

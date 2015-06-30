@@ -549,7 +549,7 @@ def safe2upgrade():
         logger.debug("PBD: " + local_sr)
 
     local_sr_size = session.xenapi.SR.get_physical_size(local_sr)
-    logger.debug("PDB size: %s" % local_sr_size)
+    logger.debug("PBD size: %s" % local_sr_size)
     if int(local_sr_size) < min_upgrade_lvm_part_size:
         logger.debug("PBD size smaller than minimum required")
         return 'not_enough_space'
