@@ -68,6 +68,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	rm -f $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/getty@tty1.service'
 	ln -s /dev/null $(INSTALLER_FILESYSTEM)'/etc/systemd/system/serial-getty@hvc0.service'
 	mkdir -p $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants'
+# remove the dom0 configuration which disables the getty on tty2
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/getty@tty2.service
 	cp getty@tty2.service $(INSTALLER_FILESYSTEM)/etc/systemd/system
 	ln -s /etc/systemd/system/getty@tty2.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/getty@tty2.service'
 # init configuration to start our installer
@@ -160,7 +162,7 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 	done
 	perl clean_fw.pl $(INSTALLER_FILESYSTEM)
 # strip all kernel modules
-	find $(INSTALLER_FILESYSTEM)/lib/modules -name \*.ko -type f -exec strip -g {} \;
+	find $(INSTALLER_FILESYSTEM)/lib/modules -name \*.ko -type f -exec strip --strip-unneeded {} \;
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
