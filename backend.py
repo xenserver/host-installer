@@ -596,12 +596,12 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     # 1 - dom0 partition
     # 2 - backup partition
     # 3 - LVM partition
-    # 4 - UEFI partition
+    # 4 - Boot partition
     # 5 - logs partition
     # 6 - swap partition
 
     # Create logs partition
-    tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 1024*1024, number = logs_partnum, order = order)
+    tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2**20, number = logs_partnum, order = order)
     order += 1
 
     # Create backup partition
@@ -613,7 +613,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
     order += 1
 
-    # Create UEFI partition
+    # Create Boot partition
     if partition_table_type == constants.PARTITION_GPT:
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
             tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
@@ -656,7 +656,6 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
                                      new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
 
     tool.commit(log = True)
-
 
 
 def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):

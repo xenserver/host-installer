@@ -160,20 +160,20 @@ class ThirdGenUpgrader(Upgrader):
             # 1 - dom0 partition
             # 2 - backup partition
             # 3 - LVM partition
-            # 4 - UEFI partition
+            # 4 - Boot partition
             # 5 - logs partition
             # 6 - swap partition
 
             if self.safe2upgrade and logs_partition is None:
-                # Rename old dom0 and UEFI (if any) partitions (10 and 11 are temporary number which let us create
-                # dom0 and UEFI partitions using the same numbers)
+                # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
+                # dom0 and Boot partitions using the same numbers)
                 tool.renamePartition(srcNumber = primary_partnum, destNumber = 10, overwrite = False)
                 boot_part = tool.getPartition(boot_partnum)
                 if boot_part:
                     tool.renamePartition(srcNumber = boot_partnum, destNumber = 11, overwrite = False)
                 # Create new bigger dom0 partition
                 tool.createPartition(tool.ID_LINUX, sizeBytes = constants.root_size * 2**20, number = primary_partnum)
-                # Create UEFI partition
+                # Create Boot partition
                 if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
                     tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = constants.boot_size * 2**20, number = boot_partnum)
                 else:
@@ -183,7 +183,7 @@ class ThirdGenUpgrader(Upgrader):
                 # Create storage LVM partition
                 if storage_partnum > 0:
                     tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
-                # Create logs partition using the old dom0 + UEFI (if any) partitions
+                # Create logs partition using the old dom0 + Boot (if any) partitions
                 tool.deletePartition(10)
                 if boot_part:
                     tool.deletePartition(11)

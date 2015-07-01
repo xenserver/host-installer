@@ -44,12 +44,14 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     elif logs_partition and current_version >= '6.6' and backup_version >= '6.6': # From 7.x (new layout) to 7.x (new layout)
         restoreWithoutRepart(backup, progress)
         tool.commitActivePartitiontoDisk(boot_partnum)
-    elif not logs_partition and current_version >= '6.6' and backup_version >= '6.6': # From 7.x (no new layout - yes UEFI) to 7.x (no new layout - yes UEFI)
+    elif not logs_partition and current_version >= '6.6' and backup_version >= '6.6': # From 7.x (no new layout - yes Boot partition) to 7.x (no new layout - yes Boot partition)
         restoreWithoutRepart(backup, progress)
-    elif not logs_partition and current_version >= '6.6' and backup_version <= '6.6': # From 7.x (no new layout - yes UEFI) to 6.x
+    elif not logs_partition and current_version >= '6.6' and backup_version <= '6.6': # From 7.x (no new layout - yes Boot partition) to 6.x
         restoreWithoutRepartButUEFI(backup, progress)
     elif not logs_partition and current_version <= '6.6' and backup_version <= '6.6': # From 6.x to 6.x
         restoreWithoutRepart(backup, progress)
+    else:
+         raise RuntimeError, "Failed to find current and/or backup version."
 
 def restoreWithRepart(backup, progress):
 
@@ -178,7 +180,7 @@ def restoreWithRepart(backup, progress):
         if util.runCmd2(['fatlabel', boot_device, bootlabel]) != 0:
             raise RuntimeError, "Failed to label boot partition"
 
-    # Delete backup, dom0, UEFI and swap partitions
+    # Delete backup, dom0, Boot and swap partitions
     tool.deletePartition(backup_partnum)
     tool.deletePartition(primary_partnum)
     tool.deletePartition(boot_partnum)

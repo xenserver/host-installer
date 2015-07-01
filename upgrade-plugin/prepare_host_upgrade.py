@@ -28,7 +28,7 @@ import xcp.logger as logger
 import XenAPI
 import XenAPIPlugin
 
-min_upgrade_lvm_part_size = 40802189312 #38GB
+min_upgrade_lvm_part_size = 38 * 2**20 #38GB
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
 xs_6_2 = version.Version([6, 2, 0])
