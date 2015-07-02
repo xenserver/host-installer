@@ -115,8 +115,6 @@ logs_size = 4096
 logsfs_type = 'ext3'
 logsfs_label = 'xs-logs'
 
-restorefs_type = 'ext3'
-
 MIN_PASSWD_LEN=6
 
 # file locations - installer filesystem
