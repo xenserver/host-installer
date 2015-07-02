@@ -107,6 +107,7 @@ bootfs_label = "BOOT-%s" % "".join([random.choice(string.ascii_uppercase)
 rootfs_type = 'ext3'
 rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
                                     for x in range(8)])
+swap_file = '/var/swap/swap.001'
 swap_file_size = 512
 swap_size = 1024
 swap_label = 'xs-swap'
