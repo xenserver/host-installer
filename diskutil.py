@@ -147,7 +147,7 @@ def getDiskList():
     parts.close()
 
     # Build regex for Block Extended Major device partitions
-    regex = re.compile('.*p[0-9]{1,2}$')
+    regex = re.compile('.*p?[0-9]{1,2}$')
     # parse it:
     disks = []
     for l in partlines:
@@ -179,7 +179,7 @@ def getPartitionList():
     for disk in disks:
         if isDeviceMapperNode('/dev/' + disk):
             name = disk.split('/',1)[1]
-            partitions = filter(lambda s: s.startswith("%sp" % name), os.listdir('/dev/mapper/'))
+            partitions = filter(lambda s: re.match(name + r'p?\d+$', s), os.listdir('/dev/mapper/'))
             partitions = map(lambda s: "mapper/%s" % s, partitions)
         else:
             name = disk.replace("/", "!")
@@ -555,20 +555,28 @@ def rfc4173_to_disk(rfc4173_spec):
     except:
         raise IscsiDeviceException, "Cannot parse spec %s" % rfc4173_spec
     
-    sid = iscsi_get_sid(targetip, iqn)
-    rv, out = util.runCmd2([ 'iscsiadm', '-m', 'session', '-r', str(sid), '-P', '3' ], with_stdout=True)
-    assert(rv == 0)
-    lines = out.strip().split('\n')
-    regex = re.compile('^\\s*\\w+ Channel \\d+ Id \\d+ Lun: %d$' % lun)
-    while lines:
-        line = lines.pop(0)
-        if regex.match(line):
-            # next line says what the disk is called!
+    # Retry this a few times since it may take awhile for the device name to
+    # appear in the iscsiadm output.
+    retry = 10
+    while retry > 0:
+        sid = iscsi_get_sid(targetip, iqn)
+        rv, out = util.runCmd2([ 'iscsiadm', '-m', 'session', '-r', str(sid), '-P', '3' ], with_stdout=True)
+        assert(rv == 0)
+        lines = out.strip().split('\n')
+        regex = re.compile('^\\s*\\w+ Channel \\d+ Id \\d+ Lun: %d$' % lun)
+        while lines:
             line = lines.pop(0)
-            regex2 = re.compile('^\\s*Attached scsi disk (\\w+)\\s+.*$')
-            match = regex2.match(line)
-            assert match != None
-            return '/dev/' + match.groups()[0]
+            if regex.match(line):
+                if not lines:
+                    break
+                # next line says what the disk is called!
+                line = lines.pop(0)
+                regex2 = re.compile('^\\s*Attached scsi disk (\\w+)\\s+.*$')
+                match = regex2.match(line)
+                assert match != None
+                return '/dev/' + match.groups()[0]
+        time.sleep(1)
+        retry -= 1
     raise Exception, "Could not find iscsi disk with IQN %s and lun %d" % (iqn,lun)
             
 
@@ -750,7 +758,8 @@ def process_ibft(ui, interactive):
         spec = "iscsi:%s::%d:%d:%s" % (conf.tgtip, conf.port, conf.lun, conf.iqn)
         try:
             disk = attach_rfc4173(iname, spec)
-        except:
+        except Exception as e:
+            xelogging.log_exception(e)
             raise RuntimeError, "Could not attach to iSCSI LUN %s" % spec
         xelogging.log("process_ibft: attached iSCSI disk %s." % disk)
 
