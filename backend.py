@@ -509,7 +509,11 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
         
         # Return install mode and numbers of boot, primary, backup, log, swap and SR partitions
-        return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
+        storage_partition = tool.getPartition(primary_part+2)
+        if storage_partition:
+            return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
+        else:
+            return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, 0)
     
     tool = PartitionTool(disk)
 
@@ -541,7 +545,11 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
     xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
     # Return install mode and numbers of boot, primary, backup, logs, swap and SR partitions
-    return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    storage_partition = tool.getPartition(primary_part+2)
+    if storage_partition:
+        return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    else:
+        return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, 0)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
