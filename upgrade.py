@@ -233,13 +233,13 @@ class ThirdGenUpgrader(Upgrader):
 
         # Check if possible to create new partition layout, increasing the size, using plugin result
         if self.safe2upgrade and logs_partition is None:
-            # Get current Volume Group
-            rc, self.vgs_output  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
-            self.vgs_output = self.vgs_output.strip()
-            # Remove current Volume Group
-            util.runCmd2(['vgremove', '-f', self.vgs_output])
-            # Remove LVM Phisical Volume
             if storage_partnum > 0:
+                # Get current Volume Group
+                rc, self.vgs_output  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
+                self.vgs_output = self.vgs_output.strip()
+                # Remove current Volume Group
+                util.runCmd2(['vgremove', '-f', self.vgs_output])
+                # Remove LVM Phisical Volume
                 storage_part = partitionDevice(target_disk, storage_partnum)
                 util.runCmd2(['pvremove', storage_part])
                 # Delete LVM partition
