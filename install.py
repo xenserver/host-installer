@@ -268,8 +268,10 @@ def go(ui, args, answerfile_address, answerfile_script):
                 xelogging.log(txt)
     
             # and now on the disk if possible:
-            if 'primary-disk' in results and 'primary-partnum' in results:
-                backend.writeLog(results['primary-disk'], results['primary-partnum'])
+            if 'primary-disk' in results and 'primary-partnum' in results and 'logs-partnum' in results:
+                backend.writeLog(results['primary-disk'], results['primary-partnum'], results['logs-partnum'])
+            elif 'primary-disk' in results and 'primary-partnum' in results:
+                backend.writeLog(results['primary-disk'], results['primary-partnum'], None)
     
             xelogging.log(results)
         except Exception, e:
@@ -290,8 +292,10 @@ def go(ui, args, answerfile_address, answerfile_script):
         xelogging.collectLogs('/tmp')
 
         # and now on the disk if possible:
-        if 'primary-disk' in results and 'primary-partnum' in results:
-            backend.writeLog(results['primary-disk'], results['primary-partnum'])
+        if 'primary-disk' in results and 'primary-partnum' in results and 'logs-partnum' in results:
+            backend.writeLog(results['primary-disk'], results['primary-partnum'], results['logs-partnum'])
+        elif 'primary-disk' in results and 'primary-partnum' in results:
+            backend.writeLog(results['primary-disk'], results['primary-partnum'], None)
 
         assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
         

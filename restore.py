@@ -192,7 +192,7 @@ def doRestore(backup, progress):
 
         xelogging.log("Bootloader restoration complete.")
         xelogging.log("Restore successful.")
-        backend.writeLog(disk, primary_partnum)
+        backend.writeLog(disk, primary_partnum, logs_partnum)
 
     if logs_partition and boot_partition and backup_version >= limit_version: # From 7.x (new layout) to 7.x (new layout)
          tool.commitActivePartitiontoDisk(boot_partnum)
@@ -340,4 +340,4 @@ def restoreWithoutRepartButUEFI(backup, progress):
 
     xelogging.log("Bootloader restoration complete.")
     xelogging.log("Restore successful.")
-    backend.writeLog(disk, primary_partnum)
+    backend.writeLog(disk, primary_partnum, logs_partnum)
