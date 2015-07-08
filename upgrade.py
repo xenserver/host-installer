@@ -193,7 +193,11 @@ class ThirdGenUpgrader(Upgrader):
 
                 if storage_partnum > 0:
                     storage_part = partitionDevice(primary_disk, storage_partnum)
-                    rc, self.vgs_output_wrong  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
+                    rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
+                    vgs_list = out.split('\n')
+                    self.vgs_output_wrong = filter(lambda x: str(primary_disk) in x, vgs_list)
+                    self.vgs_output_wrong = self.vgs_output_wrong[0]
+                    self.vgs_output_wrong = self.vgs_output_wrong.split()[1]
                     self.vgs_output_wrong = self.vgs_output_wrong.strip()
                     util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
                     util.runCmd2(['vgcreate', self.vgs_output, storage_part])
@@ -235,7 +239,11 @@ class ThirdGenUpgrader(Upgrader):
         if self.safe2upgrade and logs_partition is None:
             if storage_partnum > 0:
                 # Get current Volume Group
-                rc, self.vgs_output  = util.runCmd2(['vgs', '--noheadings', '-o', 'vg_name'], with_stdout = True)
+                rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
+                vgs_list = out.split('\n')
+                self.vgs_output = filter(lambda x: str(target_disk) in x, vgs_list)
+                self.vgs_output = self.vgs_output[0]
+                self.vgs_output = self.vgs_output.split()[1]
                 self.vgs_output = self.vgs_output.strip()
                 # Remove current Volume Group
                 util.runCmd2(['vgremove', '-f', self.vgs_output])
