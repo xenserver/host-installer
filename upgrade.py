@@ -196,10 +196,11 @@ class ThirdGenUpgrader(Upgrader):
                     rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
                     vgs_list = out.split('\n')
                     self.vgs_output_wrong = filter(lambda x: str(primary_disk) in x, vgs_list)
-                    self.vgs_output_wrong = self.vgs_output_wrong[0]
-                    self.vgs_output_wrong = self.vgs_output_wrong.split()[1]
-                    self.vgs_output_wrong = self.vgs_output_wrong.strip()
-                    util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
+                    if self.vgs_output_wrong:
+                        self.vgs_output_wrong = self.vgs_output_wrong[0]
+                        self.vgs_output_wrong = self.vgs_output_wrong.split()[1]
+                        self.vgs_output_wrong = self.vgs_output_wrong.strip()
+                        util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
                     util.runCmd2(['vgcreate', self.vgs_output, storage_part])
 
             else:
@@ -242,14 +243,15 @@ class ThirdGenUpgrader(Upgrader):
                 rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
                 vgs_list = out.split('\n')
                 self.vgs_output = filter(lambda x: str(target_disk) in x, vgs_list)
-                self.vgs_output = self.vgs_output[0]
-                self.vgs_output = self.vgs_output.split()[1]
-                self.vgs_output = self.vgs_output.strip()
-                # Remove current Volume Group
-                util.runCmd2(['vgremove', '-f', self.vgs_output])
-                # Remove LVM Phisical Volume
-                storage_part = partitionDevice(target_disk, storage_partnum)
-                util.runCmd2(['pvremove', storage_part])
+                if self.vgs_output:
+                    self.vgs_output = self.vgs_output[0]
+                    self.vgs_output = self.vgs_output.split()[1]
+                    self.vgs_output = self.vgs_output.strip()
+                    # Remove current Volume Group
+                    util.runCmd2(['vgremove', '-f', self.vgs_output])
+                    # Remove LVM Phisical Volume
+                    storage_part = partitionDevice(target_disk, storage_partnum)
+                    util.runCmd2(['pvremove', storage_part])
                 # Delete LVM partition
                 tool.deletePartition(storage_partnum)
             # Resize backup partition
