@@ -899,6 +899,14 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to enable iscsi"
 
+    if isDeviceMapperNode(partition):
+        # Generate a valid multipath configuration for the initrd
+        shutil.copyfile('/etc/multipath/wwids',
+                        os.path.join(mounts['root'], 'etc/multipath/wwids'))
+        if util.runCmd2(['chroot', mounts['root'],
+                         '/etc/init.d/sm-multipath', 'start']) != 0:
+            raise RuntimeError("Failed to generate multipath configuration")
+
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
 
 def prepFallback(mounts, primary_disk, primary_partnum):
