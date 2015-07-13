@@ -210,7 +210,7 @@ def getFinalisationSequence(ans):
     seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
     if ans['target-boot-mode'] == TARGET_BOOT_MODE_LEGACY:
         seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'partition-table-type'), []))
-    seq.append(Task(writeLog, A(ans, 'primary-disk', 'logs-partnum'), []))
+    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum', 'logs-partnum'), []))
 
     return seq
 
@@ -509,7 +509,11 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
         
         # Return install mode and numbers of boot, primary, backup, log, swap and SR partitions
-        return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
+        storage_partition = tool.getPartition(primary_part+2)
+        if storage_partition:
+            return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
+        else:
+            return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, 0)
     
     tool = PartitionTool(disk)
 
@@ -541,7 +545,11 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
     xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
     # Return install mode and numbers of boot, primary, backup, logs, swap and SR partitions
-    return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    storage_partition = tool.getPartition(primary_part+2)
+    if storage_partition:
+        return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    else:
+        return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, 0)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
@@ -1126,10 +1134,7 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     util.mount(rootp, mounts['root'])
     tool = PartitionTool(primary_disk)
     logs_partition = tool.getPartition(logs_partnum)
-    if logs_partition:
-        mounts['logs'] = os.path.join(mounts['root'], 'var/log')
-        util.assertDir(mounts['logs'])
-        util.mount(partitionDevice(primary_disk, logs_partnum), mounts['logs'])
+    
     util.assertDir(constants.EXTRA_SCRIPTS_DIR)
     util.mount('tmpfs', constants.EXTRA_SCRIPTS_DIR, ['size=2m'], 'tmpfs')
     util.assertDir(os.path.join(mounts['root'], 'mnt'))
@@ -1143,7 +1148,11 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
         util.assertDir(os.path.join(mounts['root'], 'boot', 'efi'))
         util.mount(bootp, mounts['esp'])
         new_cleanup.append(("umount-/tmp/root/boot/efi", util.umount, (mounts['esp'], )))
-
+    if logs_partition:
+        mounts['logs'] = os.path.join(mounts['root'], 'var/log')
+        util.assertDir(mounts['logs'])
+        util.mount(partitionDevice(primary_disk, logs_partnum), mounts['logs'])
+        new_cleanup.append(("umount-/tmp/root/var/log", util.umount, (mounts['logs'], )))
     return mounts, new_cleanup
  
 def umountVolumes(mounts, cleanup, force = False):
@@ -1475,7 +1484,7 @@ def touchSshAuthorizedKeys(mounts):
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
-def writeLog(primary_disk, logs_partnum):
+def writeLog(primary_disk, primary_partnum, logs_partnum):
     tool = PartitionTool(primary_disk)
 
     logs_partition = tool.getPartition(logs_partnum)
