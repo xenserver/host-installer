@@ -1156,6 +1156,8 @@ def umountVolumes(mounts, cleanup, force = False):
     util.umount(constants.EXTRA_SCRIPTS_DIR)
     if 'esp' in mounts:
         util.umount(mounts['esp'])
+    if 'logs' in mounts:
+        util.umount(mounts['logs'])
     util.umount(mounts['root'])
     cleanup = filter(filterCleanup, cleanup)
     return cleanup
