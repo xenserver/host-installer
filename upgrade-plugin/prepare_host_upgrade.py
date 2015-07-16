@@ -28,6 +28,8 @@ import xcp.logger as logger
 import XenAPI
 import XenAPIPlugin
 
+min_upgrade_lvm_part_size = 38 * 2**20 #38GB
+
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
 xs_6_2 = version.Version([6, 2, 0])
 
@@ -504,6 +506,70 @@ def prepare_host_upgrade(url):
             pass
     return done
 
+def testSafe2Upgrade(session, args):
+    res = safe2upgrade()
+    if res == 'not_enough_space':
+        return 'not_enough_space'
+    else:
+        return res and 'true' or 'false'
+
+# plugin safe upgrade test
+def safe2upgrade():
+
+    fh = open('/etc/xensource-inventory')
+    for l in fh:
+        line = l.strip()
+        k, v = line.split('=', 1)
+        if k == 'PRIMARY_DISK':
+            primary_disk = v.strip("'")
+            break
+    fh.close()
+
+    session = XenAPI.xapi_local()
+    session.xenapi.login_with_password('', '')
+
+    this_host = session.xenapi.session.get_this_host(session._session)
+
+    (rc, out) = cmd.runCmd(['blkid', '-L', 'xs-logs'], with_stdout = True)
+    out = out.strip()
+    (rc, dev) = cmd.runCmd(['readlink', '-f', primary_disk], with_stdout = True)
+    dev = dev.strip()
+    if out.startswith(dev):
+        return 'true'
+
+    local_sr = None
+    for pbd in session.xenapi.PBD.get_all_records().values():
+        if pbd.get('host', '') != this_host:
+            continue
+        if not pbd.get('currently_attached', False):
+            continue
+        devconf = pbd.get('device_config', {})
+        if not devconf.get('device', '').startswith(primary_disk):
+            continue
+        local_sr = pbd['SR']
+        break
+
+    if local_sr == None:
+        logger.debug("No PBD found")
+        return 'true'
+    else:
+        logger.debug("PBD: " + local_sr)
+
+    local_sr_size = session.xenapi.SR.get_physical_size(local_sr)
+    logger.debug("PBD size: %s" % local_sr_size)
+    if int(local_sr_size) < min_upgrade_lvm_part_size:
+        logger.debug("PBD size smaller than minimum required")
+        return 'not_enough_space'
+
+    vdi_num = 0
+    for vdi in session.xenapi.VDI.get_all_records().values():
+        if vdi.get('SR', '') != local_sr:
+            continue
+        vdi_num += 1
+    logger.debug("Number of VDIs: %d" % vdi_num)
+
+    return vdi_num == 0
+
 # plugin url test
 def testUrl(session, args):
     if os.path.exists('/var/tmp/plugin_debug'):
@@ -547,10 +613,18 @@ def main(session, args):
         logger.error("There was an error in preparing the host for upgrade.")
         raise Exception('ERROR_PREPARING_HOST')
 
+    if safe2upgrade():
+        fh = open('/var/preserve/safe2upgrade', 'w')
+        fh.close()
+    else:
+        if os.path.isfile('/var/preserve/safe2upgrade'):
+            os.remove('/var/preserve/safe2upgrade')
+
     logger.info("Preparation succeeded, ready for upgrade.")
     return "true"
 
 
 if __name__ == '__main__':
     XenAPIPlugin.dispatch({"main": main,
-                           "testUrl": testUrl})
+                           "testUrl": testUrl,
+                           "testSafe2Upgrade": testSafe2Upgrade})

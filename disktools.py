@@ -478,7 +478,7 @@ class LVMTool:
         pprint(self.__dict__)
 
 def diskDevice(partitionDevice):
-    matches = re.match(r'(.+)(p|(-part))\d+$', partitionDevice)
+    matches = re.match(r'(.+)(p?|(-part))\d+$', partitionDevice)
     if matches:
         return matches.group(1)
     matches = re.match(r'(.+\D)\d+$', partitionDevice)
@@ -493,7 +493,7 @@ def determineMidfix(device):
 
     for key in P_STYLE_DISKS:
         if device.startswith(DISK_PREFIX + key):
-            return 'p'
+            return '' if re.match(r'.+\D$', device) else 'p'
     for key in PART_STYLE_DISKS:
         if device.startswith(DISK_PREFIX + key):
             return '-part'
@@ -1080,7 +1080,7 @@ def PartitionTool(device, partitionType=None):
 def destroyPartnodes(dev):
     # Destroy partition nodes for a device-mapper device
     dmnodes = [ '/dev/mapper/%s' % f for f in os.listdir('/dev/mapper') ]
-    partitions = filter(lambda dmnode: dmnode.startswith(dev + 'p'), dmnodes)
+    partitions = filter(lambda dmnode: re.match(dev + r'p?\d+$', dmnode), dmnodes)
     for partition in partitions:
         # the obvious way to do this is to use "kpartx -d" but that's broken!
         rv = util.runCmd2(['dmsetup', 'remove', partition])
@@ -1096,10 +1096,10 @@ def destroyMpathPartnodes():
 
 def createPartnodes(dev):
     # Create partition nodes for a device-mapper device
-    return util.runCmd2(['kpartx', '-a', '-p', 'p', dev])
+    return util.runCmd2(['kpartx', '-a', dev])
 
 def createMpathPartnodes():
-    return util.runCmd2(['dmsetup', 'ls', '--target', 'multipath', '--exec', "kpartx -a -p p"])
+    return util.runCmd2(['dmsetup', 'ls', '--target', 'multipath', '--exec', "kpartx -a"])
 
 def getMpathNodes():
     nodes = []
