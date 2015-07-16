@@ -4,8 +4,7 @@ include $(PROJECT_OUTPUTDIR)/kernel-dom0/kernel.inc
 
 # inputs
 YUM_CONF := $(PROJECT_OUTPUTDIR)/chroot-dom0/yum.conf
-PKG_LIST := pkgs.txt
-FIRMWARE_RPMS_LIST := $(PROJECT_OUTPUTDIR)/guest-packages-firmware/guest-packages-dom0-firmware-rpms.inc
+DRIVER_RPMS_LIST := $(PROJECT_OUTPUTDIR)/driver-disks/packages.installer
 
 # outputs
 INSTALL_IMG = $(MY_OUTPUT_DIR)/install.img
@@ -13,8 +12,8 @@ MBOOT_IMG = $(MY_OUTPUT_DIR)/mboot.img
 BUILD_FI_IMAGE = $(MY_OUTPUT_DIR)/build-fi-image.sh
 
 # intermediate:
+PKG_LIST := $(MY_OBJ_DIR)/pkgs.txt
 KERNEL_CONFIGURED_STAMP = $(MY_OBJ_DIR)/.kernel-configured.stamp
-FIRMWARE_INSTALLED_STAMP = $(MY_OBJ_DIR)/.firmware-installed.stamp
 BASE_IMAGE_STAMP := $(MY_OBJ_DIR)/.base-image.stamp
 BASE_IMAGE := $(MY_OBJ_DIR)/base-image.tar.gz
 INSTALLER_INSTALLED_STAMP = $(MY_OBJ_DIR)/.installer-installed.stamp
@@ -50,10 +49,13 @@ $(REPO_STAMP):
 	createrepo $(MY_OBJ_DIR)/repos/xenserver
 	@touch $@
 
+$(PKG_LIST): pkgs.txt $(DRIVER_RPMS_LIST)
+	cat $^ >$@
+
 $(BASE_IMAGE): $(YUM_CONF) $(PKG_LIST) $(REPO_STAMP)
 	{ cat $(YUM_CONF) ;\
 	echo -e "\n[xenserver]\nname=xenserver\nenabled=1\ngpgcheck=0\nbaseurl=file://$(MY_OBJ_DIR)/repos/xenserver\n" ;\
-	} | sed -r '/\[base\]|\[updates\]/a\exclude=kernel-xen* *xen* biosdevname' > $(MY_OBJ_DIR)/yum.conf
+	} | sed -r '/\[base\]|\[updates\]/a\exclude=kernel-xen* *xen* linux-firmware biosdevname' > $(MY_OBJ_DIR)/yum.conf
 	rm -rf $(INSTALLER_FILESYSTEM)
 	yum --nogpgcheck --config=$(MY_OBJ_DIR)/yum.conf --installroot=$(INSTALLER_FILESYSTEM) install -v $$(sed -r 's/^ +//; /^#|^$$/d' < $(PKG_LIST))
 	tar -C $(INSTALLER_FILESYSTEM) -zcf $@.tmp .
@@ -100,19 +102,16 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		usr/lib/modules/3.10.0+0/kernel/drivers/infiniband usr/share/cracklib \
 		usr/sbin/{cache_restore,thin_dump,thin_repair,cache_repair,cache_dump,thin_restore,cache_check,era_dump,era_invalidate,thin_rmap,era_check,thin_check} \
 		usr/sbin/{glibc_post_upgrade.x86_64,ldconfig} \
-		usr/share/doc usr/sbin/oxenstored opt/xensource/bin/xenstored
+		usr/share/doc usr/sbin/oxenstored opt/xensource/bin/xenstored \
+		usr/lib/dracut usr/lib/systemd/system/initrd.target.wants usr/lib/systemd/system/shutdown.target.wants \
+		usr/lib/systemd/system/dracut-*.service usr/lib/kernel/install.d/50-dracut.install etc/dracut.conf* \
+		usr/bin/{dracut,lsinitrd,mkinitrd} usr/sbin/dracut var/lib/initramfs
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
 	python remove_dups.py $(INSTALLER_FILESYSTEM)/usr/share/zoneinfo
 	perl delete_bad_exes.pl $(INSTALLER_FILESYSTEM)
 	@touch $@
-
-$(FIRMWARE_INSTALLED_STAMP): $(FIRMWARE_RPMS_LIST)
-	cat $(FIRMWARE_RPMS_LIST) | while read rpm; \
-		do rpm2cpio $(PROJECT_OUTPUTDIR)/guest-packages-firmware/RPMS/noarch/$$rpm | \
-		(cd $(INSTALLER_FILESYSTEM) && cpio -iudv ); done
-	touch $@
 
 $(INIT_CREATED_STAMP): $(BASE_IMAGE_STAMP)
 	ln -f $(INSTALLER_FILESYSTEM)/sbin/init $(INSTALLER_FILESYSTEM)/init
@@ -137,7 +136,6 @@ $(INSTALLER_INSTALLED_STAMP): $(BASE_IMAGE_STAMP)
 # /output/guest-packages-linux-firmware/INSTALLER_FILES (firmware for cards, installed even above ??)
 # /output/kernel-dom0/INSTALLER_FILES (modules)
 $(FILES_COLLECTED_STAMP): $(BASE_IMAGE_STAMP)
-	./collect-files $(INSTALLER_FILESYSTEM) $(PROJECT_OUTPUTDIR) INSTALLER_FILES
 	ln -sf /lib/udev/scsi_id $(INSTALLER_FILESYSTEM)/sbin/scsi_id # symlink needed by multipath-tools
 # remove duplicate modules
 	python remove_dups.py $(INSTALLER_FILESYSTEM)/lib/firmware
@@ -147,8 +145,7 @@ $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
 	$(INSTALLER_CHROOT) depmod $(LINUX_KABI_VERSION)
 	touch $@
 
-$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(FIRMWARE_INSTALLED_STAMP) \
-		$(MY_OUTPUT_DIR)/.dirstamp
+$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(MY_OUTPUT_DIR)/.dirstamp
 	rm -f $@
 # Remove wifi and other firmware
 	set -e; for d in $(INSTALLER_FILESYSTEM)/lib/modules/*; do \

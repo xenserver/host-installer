@@ -28,3 +28,6 @@ openssh-clients
 
 # for XenRT
 efibootmgr
+
+linux-firmware
+aic94xx-firmware
