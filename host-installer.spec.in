@@ -64,6 +64,7 @@ cp startup/preinit %{buildroot}/%{installer_dir}/
 cp startup/depmod.conf %{buildroot}/etc/depmod.d
 cp startup/blacklist %{buildroot}/etc/modprobe.d/installer-blacklist.conf
 cp startup/early-blacklist.conf %{buildroot}/etc/modprobe.d/
+cp startup/bnx2x.conf %{buildroot}/etc/modprobe.d/
 cp startup/modprobe.mlx4 %{buildroot}/etc/modprobe.d/mlx4.conf
 cp startup/multipath.conf.disabled %{buildroot}/etc/
 
