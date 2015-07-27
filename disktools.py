@@ -1055,14 +1055,10 @@ def probePartitioningScheme(device):
         return False
     if rv:
         partitionType = constants.PARTITION_GPT   # default 
-    elif matchline("^Disk label type: gpt$"):
-        partitionType = constants.PARTITION_GPT   # default
-    elif matchline("^.*doesn't contain a valid partition table$"):
-        partitionType = constants.PARTITION_GPT   # default 
-    elif matchline("^.*ee.*GPT$"):
-        partitionType = constants.PARTITION_GPT   # default 
-    else:
+    elif matchline("^Disk label type: dos$"):
         partitionType = constants.PARTITION_DOS
+    else:
+        partitionType = constants.PARTITION_GPT   # default
     return partitionType
     
 def PartitionTool(device, partitionType=None):
