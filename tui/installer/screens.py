@@ -593,7 +593,7 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
                                "The disk selected is larger than the %d GB limit imposed by the DOS partitioning scheme.  Would you like to remove the OEM partitions that require the DOS partitioning scheme, so that the whole disk can be used?" % constants.max_primary_disk_size_dos,
                                ['Yes', 'No'], default=1)
             answers['zap-utility-partitions'] = (val == 'yes')
-        else:
+        elif not constants.GPT_SUPPORT:
             ButtonChoiceWindow(tui.screen,
                                "Large Disk Detected",
                                "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (MY_PRODUCT_BRAND, constants.max_primary_disk_size_dos),
