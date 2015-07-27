@@ -746,6 +746,14 @@ def __mkinitrd(mounts, partition, package, kernel_version):
         util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
         util.mount('none', os.path.join(mounts['root'], 'tmp'), None, 'tmpfs')
 
+        if isDeviceMapperNode(partition):
+            # Generate a valid multipath configuration for the initrd
+            shutil.copyfile('/etc/multipath/wwids',
+                            os.path.join(mounts['root'], 'etc/multipath/wwids'))
+            if util.runCmd2(['chroot', mounts['root'],
+                             '/etc/init.d/sm-multipath', 'start']) != 0:
+                raise RuntimeError("Failed to generate multipath configuration")
+
         # Run mkinitrd inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
 
@@ -894,14 +902,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                    'systemctl', 'enable', 'iscsi']
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to enable iscsi"
-
-    if isDeviceMapperNode(partition):
-        # Generate a valid multipath configuration for the initrd
-        shutil.copyfile('/etc/multipath/wwids',
-                        os.path.join(mounts['root'], 'etc/multipath/wwids'))
-        if util.runCmd2(['chroot', mounts['root'],
-                         '/etc/init.d/sm-multipath', 'start']) != 0:
-            raise RuntimeError("Failed to generate multipath configuration")
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
 
