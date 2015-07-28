@@ -363,3 +363,6 @@ def udevtriggerCmd():
 
 def udevinfoCmd():
     return udevadmCmd('info')
+
+def randomLabelStr():
+    return "".join([random.choice(string.ascii_lowercase) for x in range(6)])

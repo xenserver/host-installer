@@ -110,6 +110,7 @@ def getPrepSequence(ans, interactive):
     seq = [ 
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
+        Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
         Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
@@ -143,7 +144,7 @@ def getPrepSequence(ans, interactive):
                         progress_scale = 100,
                         pass_progress_callback = True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum'), []),
+        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
@@ -171,8 +172,8 @@ def getFinalisationSequence(ans):
         Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
-        Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum'), []),
-        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum'), []),
+        Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
+        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
@@ -182,7 +183,7 @@ def getFinalisationSequence(ans):
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
                                   'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
-                                  'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
+                                  'disk-label-suffix', 'bootloader-location', 'serial-console', 'boot-serial', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -721,20 +722,20 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum):
+def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        rc, err = util.runCmd2(["mkfs.%s" % bootfs_type, "-n", bootfs_label, partitionDevice(disk, boot_partnum)], with_stderr = True)
+        rc, err = util.runCmd2(["mkfs.%s" % bootfs_type, "-n", bootfs_label%disk_label_suffix.upper(), partitionDevice(disk, boot_partnum)], with_stderr = True)
         if rc != 0:
             raise RuntimeError, "Failed to create boot filesystem: %s" % err
 
-    rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label, partitionDevice(disk, primary_partnum)], with_stderr = True)
+    rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label%disk_label_suffix, partitionDevice(disk, primary_partnum)], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to create root filesystem: %s" % err
 
     tool = PartitionTool(disk)
     logs_partition = tool.getPartition(logs_partnum)
     if logs_partition:
-        rc, err = util.runCmd2(["mkfs.%s" % logsfs_type, "-L", logsfs_label, partitionDevice(disk, logs_partnum)], with_stderr = True)
+        rc, err = util.runCmd2(["mkfs.%s" % logsfs_type, "-L", logsfs_label%disk_label_suffix, partitionDevice(disk, logs_partnum)], with_stderr = True)
         if rc != 0:
             raise RuntimeError, "Failed to create logs filesystem: %s" % err
 
@@ -935,7 +936,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     if util.runCmd2(['chroot', mounts['root']] + cmd):
         raise RuntimeError, "Failed to generate fallback initrd"
 
-def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk):
+def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog dom0_max_vcpus=%d" % host_config['dom0-vcpus']
@@ -958,7 +959,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
             cpuid_masks[parts[0]] = parts[1]
     mask_params = ' '.join ( ("%s=%s" % (x, y) for x, y in cpuid_masks.iteritems() ) )
 
-    common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label
+    common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "xencons=hvc console=hvc0"
 
     if diskutil.is_iscsi(primary_disk):
@@ -969,7 +970,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                              kernel = "/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
                              initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND,
-                             root = constants.rootfs_label)
+                             root = constants.rootfs_label%disk_label_suffix)
     boot_config.append("xe", e)
     boot_config.default = "xe"
     if serial:
@@ -980,7 +981,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" (Serial)",
-                                 root = constants.rootfs_label)
+                                 root = constants.rootfs_label%disk_label_suffix)
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
@@ -989,7 +990,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args = ' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" in Safe Mode",
-                                 root = constants.rootfs_label)
+                                 root = constants.rootfs_label%disk_label_suffix)
         boot_config.append("safe", e)
 
     e = bootloader.MenuEntry(hypervisor = "/boot/xen-fallback.gz",
@@ -998,7 +999,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              initrd = "/boot/initrd-fallback.img",
                              title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
-                             root = constants.rootfs_label)
+                             root = constants.rootfs_label%disk_label_suffix)
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor = "/boot/xen-fallback.gz",
@@ -1007,11 +1008,11 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-fallback.img",
                                  title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
-                                 root = constants.rootfs_label)
+                                 root = constants.rootfs_label%disk_label_suffix)
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_partnum, target_boot_mode, branding,
-                      location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None):
+                      disk_label_suffix, location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
     # prepare extra mounts for installing bootloader:
@@ -1034,7 +1035,7 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
             if not xen_kernel_version:
                 raise RuntimeError, "Unable to determine kernel version."
             buildBootLoaderMenu(mounts, xen_kernel_version, boot_config,
-                                serial, boot_serial, host_config, disk)
+                                serial, boot_serial, host_config, disk, disk_label_suffix)
             util.assertDir(os.path.dirname(fn))
             boot_config.commit()
 
@@ -1189,7 +1190,7 @@ def writeKeyboardConfiguration(mounts, keymap):
     vconsole.write("KEYMAP=%s\n" % keymap)
     vconsole.close()
 
-def prepareSwapfile(mounts, primary_disk, swap_partnum):
+def prepareSwapfile(mounts, primary_disk, swap_partnum, disk_label_suffix):
 
     tool = PartitionTool(primary_disk)
 
@@ -1199,7 +1200,7 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum):
         util.bindMount("/proc", "%s/proc" % mounts['root'])
         util.bindMount("/sys", "%s/sys" % mounts['root'])
         util.bindMount("/dev", "%s/dev" % mounts['root'])
-        util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label, partitionDevice(primary_disk, swap_partnum)])
+        util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label%disk_label_suffix, partitionDevice(primary_disk, swap_partnum)])
         util.umount("%s/dev" % mounts['root'])
         util.umount("%s/proc" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
@@ -1214,24 +1215,24 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum):
         util.umount("%s/proc" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
 
-def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum):
+def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum, disk_label_suffix):
 
     tool = PartitionTool(primary_disk)
     swap_partition = tool.getPartition(swap_partnum)
     logs_partition = tool.getPartition(logs_partnum)
 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
-    fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label, rootfs_type))
+    fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label%disk_label_suffix, rootfs_type))
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        fstab.write("LABEL=%s    /boot/efi         %s     defaults   0  2\n" % (bootfs_label, bootfs_type))
+        fstab.write("LABEL=%s    /boot/efi         %s     defaults   0  2\n" % (bootfs_label%disk_label_suffix.upper(), bootfs_type))
 
     if swap_partition:
-        fstab.write("LABEL=%s          swap      swap   defaults   0  0\n" % constants.swap_label)
+        fstab.write("LABEL=%s          swap      swap   defaults   0  0\n" % constants.swap_label%disk_label_suffix)
     else:
         if os.path.exists(os.path.join(mounts['root'], constants.swap_file.lstrip('/'))):
             fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_file))
     if logs_partition:
-        fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label, logsfs_type))
+        fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, logsfs_type))
 
     fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()

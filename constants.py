@@ -101,20 +101,21 @@ root_mbr_size = 18432
 root_gpt_size = 17920
 root_size = max(root_mbr_size, root_gpt_size)  # used for free space calculations
 backup_size = 18432
-bootfs_type = 'vfat'
-bootfs_label = "BOOT-%s" % "".join([random.choice(string.ascii_uppercase)
-                                    for x in range(6)])
-rootfs_type = 'ext3'
-rootfs_label = "root-%s" % "".join([random.choice(string.ascii_lowercase)
-                                    for x in range(8)])
-swap_file = '/var/swap/swap.001'
 swap_file_size = 512
 swap_size = 1024
-swap_label = 'xs-swap'
-
 logs_size = 4096
+
+# filesystems and partitions types:
+bootfs_type = 'vfat'
+rootfs_type = 'ext3'
 logsfs_type = 'ext3'
-logsfs_label = 'xs-logs'
+
+# filesystems and partitions labels:
+bootfs_label = "BOOT-%s"
+rootfs_label = "root-%s"
+swap_file = '/var/swap/swap.001'
+swap_label = 'swap-%s'
+logsfs_label = 'logs-%s'
 
 MIN_PASSWD_LEN=6
 

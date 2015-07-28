@@ -195,7 +195,14 @@ def doRestore(backup, progress):
         backend.writeLog(disk, primary_partnum, logs_partnum)
 
     if logs_partition and boot_partition and backup_version >= limit_version: # From 7.x (new layout) to 7.x (new layout)
-         tool.commitActivePartitiontoDisk(boot_partnum)
+        tool.commitActivePartitiontoDisk(boot_partnum)
+        rdm_label = label.split("-")[1]
+        logs_part = partitionDevice(disk, logs_partnum)
+        swap_part = partitionDevice(disk, swap_partnum)
+        if util.runCmd2(['e2label', logs_part, constants.logsfs_label%rdm_label]) != 0:
+            raise RuntimeError, "Failed to label logs partition"
+        if util.runCmd2(['swaplabel', '-L', constants.swap_label%rdm_label, swap_part]) != 0:
+            raise RuntimeError, "Failed to label swap partition"
 
 def restoreWithoutRepartButUEFI(backup, progress):
 
