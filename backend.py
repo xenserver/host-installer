@@ -874,11 +874,12 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
                     adjustISCSITimeoutForFile(os.path.join(root, f))
 
         src='/etc/iscsi/initiatorname.iscsi'
-        dst=os.path.join(mounts['root'],'var/lib/iscsi/initiatorname.iscsi')
+        for dst in ['etc/iscsi/initiatorname.iscsi', 'var/lib/iscsi/initiatorname.iscsi']:
+            dst = os.path.join(mounts['root'], dst)
 
-        cmd = ['cp','-a', src, dst]
-        if util.runCmd2(cmd):
-            raise RuntimeError, "Failed to copy initiatorname.iscsi"
+            cmd = ['cp','-a', src, dst]
+            if util.runCmd2(cmd):
+                raise RuntimeError, "Failed to copy initiatorname.iscsi"
 
         # Extract iname 
         fd = open(src, "r")
