@@ -1237,6 +1237,13 @@ def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnu
     fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
+    # This should be removed when the packaging CARs are done
+    if logs_partition:
+        # partition therefore daily rotate
+        logrotate = open(os.path.join(mounts['root'], 'etc/sysconfig/logrotate'), "w")
+        logrotate.write("BUDGET_MB=4000")
+        logrotate.close()
+
 def enableAgent(mounts, network_backend):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
         vswitch = ['openvswitch']
