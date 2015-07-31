@@ -863,9 +863,12 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 
         # Mkinitrd needs node files so it can extract 
         # details about the iscsi root disk
-        src = '/var/lib/iscsi/nodes'
-        dst = os.path.join(mounts['root'], 'var/lib/iscsi/')
-        util.runCmd2(['cp','-a', src, dst])
+        for session in diskutil.iscsi_get_sessions():
+            src = '/var/lib/iscsi/nodes/%s/%s,%s,%s' % (
+                     session[4], session[1], session[2], session[3])
+            dst = os.path.join(mounts['root'], 'var/lib/iscsi/nodes/%s' % (session[4],))
+            util.assertDir(dst)
+            util.runCmd2(['cp','-a', src, dst])
 
         # Reduce the timeout for logged-in ISCSI targets when using multipath
         if isDeviceMapperNode(primary_disk):

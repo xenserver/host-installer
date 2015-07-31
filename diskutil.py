@@ -544,6 +544,16 @@ def iscsi_get_sid(targetip, iqn):
     sid = int(tuples[0][0])
     return sid
 
+def iscsi_get_sessions():
+    "Get information about each active iSCSI session"
+    rv, out = util.runCmd2([ 'iscsiadm', '-m', 'session' ], with_stdout=True)
+    assert(rv == 0)
+    lines = out.strip().split('\n')
+    regex = re.compile(r'^tcp: \[(\d+)\] ([^:]+):([^,]+),([^ ]+) ([^ ]+).*$')
+
+    # List of tuples (sid, target_ip, port, target_port_group_tag, iqn)
+    return map(lambda line: regex.match(line).groups(), lines)
+
 def rfc4173_to_disk(rfc4173_spec):
     "Get the disk (e.g. '/dev/sdb') corresponding to a LUN on an IQN to which we are logged in"
     try:
