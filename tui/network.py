@@ -185,7 +185,7 @@ def select_netif(text, conf, offer_existing = False, default = None):
     scroll, height = snackutil.scrollHeight(6, len(netif_list))
     rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
                                         ['Ok', 'Back'], 45, scroll, height, def_iface, help = 'selif:info',
-                                        hotkey='F5', hotkey_cb=iface_details, timeout_ms=5000, timeout_cb=update)
+                                        hotkeys={'F5': iface_details}, timeout_ms=5000, timeout_cb=update)
 
     tui.screen.popHelpLine()
 

@@ -15,7 +15,7 @@ from snack import *
 def ListboxChoiceWindowEx(screen, title, text, items, 
             buttons = ('Ok', 'Cancel'), 
             width = 40, scroll = 0, height = -1, default = None,
-            help = None, hotkey = None, hotkey_cb = None,
+            help = None, hotkeys = {},
             timeout_ms = 0, timeout_cb = None):
     if (height == -1): height = len(items)
 
@@ -45,8 +45,8 @@ def ListboxChoiceWindowEx(screen, title, text, items,
     g.add(t, 0, 0)
     g.add(l, 0, 1, padding = (0, 1, 0, 1))
     g.add(bb, 0, 2, growx = 1)
-    if hotkey:
-        g.addHotKey(hotkey)
+    for k in hotkeys.keys():
+        g.addHotKey(k)
     if timeout_ms > 0:
         g.setTimer(timeout_ms)
 
@@ -56,9 +56,8 @@ def ListboxChoiceWindowEx(screen, title, text, items,
         if rc == 'TIMER':
             if timeout_cb:
                 loop = timeout_cb(l)
-        elif rc == hotkey:
-            if hotkey_cb:
-                loop = hotkey_cb(l.current())
+        elif rc in hotkeys:
+            loop = hotkeys[rc](l.current())
         else:
             loop = False
     screen.popWindow()
@@ -68,7 +67,7 @@ def ListboxChoiceWindowEx(screen, title, text, items,
 def ButtonChoiceWindowEx(screen, title, text, 
                buttons = [ 'Ok', 'Cancel' ], 
                width = 40, x = None, y = None, help = None,
-               default = 0, hotkey = None, hotkey_cb = None,
+               default = 0, hotkeys = {},
                timeout_ms = 0, timeout_cb = None):
     bb = ButtonBar(screen, buttons)
     t = TextboxReflowed(width, text, maxHeight = screen.height - 12)
@@ -80,8 +79,8 @@ def ButtonChoiceWindowEx(screen, title, text,
     g.draw()                                                                   
     g.setCurrent(bb.list[default][0])
     
-    if hotkey:
-        g.addHotKey(hotkey)
+    for k in hotkeys.keys():
+        g.addHotKey(k)
     if timeout_ms > 0:
         g.setTimer(timeout_ms)
 
@@ -91,9 +90,8 @@ def ButtonChoiceWindowEx(screen, title, text,
         if rc == 'TIMER':
             if timeout_cb:
                 loop = timeout_cb()
-        elif rc == hotkey:
-            if hotkey_cb:
-                loop = hotkey_cb()
+        elif rc in hotkeys:
+            loop = hotkeys[rc]()
         else:
             loop = False
     screen.popWindow()

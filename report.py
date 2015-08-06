@@ -116,7 +116,7 @@ def get_local_disk(answers):
         "Please select the device to store the report on.",
         entries,
         ['Ok', 'Back'], 55, scroll, height, default, help = 'getlocaldisk:info',
-        hotkey = 'F5', hotkey_cb = disk_more_info)
+        hotkeys = {'F5': disk_more_info})
 
     tui.screen.popHelpLine()
 
@@ -155,7 +155,7 @@ def get_local_dest(answers):
             "Please select the partition to store the report on.",
             entries,
             ['Ok', 'Back'], 55, scroll, height, default, help = 'getlocaldest:info',
-            hotkey = 'F5', hotkey_cb = disk_more_info)
+            hotkeys = {'F5': disk_more_info})
 
         tui.screen.popHelpLine()
 

@@ -95,7 +95,7 @@ Please make sure you have backed up any data you wish to preserve before proceed
 To load a device driver press <F9>.
 """ % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND),
                                 ['Ok', 'Reboot'], width = 60, help = "welcome",
-                                hotkey = 'F9', hotkey_cb = fn9)
+                                hotkeys = {'F9': fn9})
         if loop:
             load_driver(driver_answers)
             tui.update_help_line([None, "<F9> load driver"])
@@ -265,7 +265,7 @@ def get_installation_type(answers):
         text,
         entries,
         ['Ok', 'Back'], width=60, default = default, help = 'action:info',
-        hotkey = 'F5', hotkey_cb = more_info)
+        hotkeys = {'F5': more_info})
 
     tui.screen.popHelpLine()
 
@@ -571,7 +571,7 @@ def select_primary_disk(answers):
 You may need to change your system settings to boot from this disk.""" % (MY_PRODUCT_BRAND),
             entries,
             ['Ok', 'Back'], 55, scroll, height, default, help = 'pridisk:info',
-            hotkey = 'F5', hotkey_cb = disk_more_info)
+            hotkeys = {'F5': disk_more_info})
 
         tui.screen.popHelpLine()
 
