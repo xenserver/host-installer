@@ -94,7 +94,7 @@ def get_local_disk(answers):
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         # determine current usage
         target_is_sr[de] = False
-        (boot, state, storage) = diskutil.probeDisk(de)
+        (boot, root, state, storage) = diskutil.probeDisk(de)
         if storage[0]:
             target_is_sr[de] = True
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
