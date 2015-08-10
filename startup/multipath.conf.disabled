@@ -1,35 +1,59 @@
 defaults {
 	user_friendly_names	no
+	dev_loss_tmo		30
+	no_path_retry		0
 }
 devices {
 	device {
-		vendor			"DELL",
-		product			"MD36xx(i|f)",
-		features		"2 pg_init_retries 50",
-		hardware_handler	"1 rdac",
-		path_selector		"round-robin 0",
-		path_grouping_policy	group_by_prio,
-		failback		immediate,
-		rr_min_io		100,
-		path_checker		rdac,
-		prio			rdac,
+		vendor			"DataCore"
+		product			"SAN*"
+		path_checker		"tur"
+		path_grouping_policy	failover
+		failback		30
+	}
+	device {
+		vendor			"DELL"
+		product			"MD36xx(i|f)"
+		features		"2 pg_init_retries 50"
+		hardware_handler	"1 rdac"
+		path_selector		"round-robin 0"
+		path_grouping_policy	group_by_prio
+		failback		immediate
+		rr_min_io		100
+		path_checker		rdac
+		prio			rdac
 		no_path_retry		30
 	}
 	device {
-		vendor			"IBM",
-		product			"1723*",
-		hardware_handler	"1 rdac",
-		path_selector		"round-robin 0",
-		path_grouping_policy	group_by_prio,
-		failback		immediate,
-		path_checker		rdac,
-		prio			rdac,
+		vendor			"DGC"
+		product			".*"
+		detect_prio		yes
+		retain_attached_hw_handler yes
 	}
 	device {
-		vendor			"DataCore",
-		product			"SAN*",
-		path_checker		"tur",
-		path_grouping_policy	failover,
-		failback		30,
+		vendor			"EQLOGIC"
+		product			"100E-00"
+		path_grouping_policy	multibus
+		path_checker		tur
+		failback		immediate
+		path_selector		"round-robin 0"
+		rr_min_io		3
+		rr_weight		priorities
+	}
+	device {
+		vendor			"IBM"
+		product			"1723*"
+		hardware_handler	"1 rdac"
+		path_selector		"round-robin 0"
+		path_grouping_policy	group_by_prio
+		failback		immediate
+		path_checker		rdac
+		prio			rdac
+	}
+	device {
+		vendor			"NETAPP"
+		product			"LUN.*"
+		dev_loss_tmo    	30
+		no_path_retry		0
 	}
 }
