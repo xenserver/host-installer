@@ -76,6 +76,16 @@ class Answerfile:
 
         return Answerfile(xmldoc)
 
+    def processAnswerfileSetup(self):
+        """Process enough of the answerfile so that disks can be made available
+        for inspection."""
+
+        xelogging.log("Processing XML answerfile setup.")
+        results = {}
+        results.update(self.parseDriverSource())
+
+        return results
+
     def processAnswerfile(self):
         xelogging.log("Processing XML answerfile for %s." % self.operation)
         if self.operation == 'installation':
@@ -208,7 +218,6 @@ class Answerfile:
         results = {};
 
         results.update(self.parseSource())
-        results.update(self.parseDriverSource())
 
         nodes = getElementsByTagName(self.top_node, ['network-backend'])
         if len(nodes) > 0:

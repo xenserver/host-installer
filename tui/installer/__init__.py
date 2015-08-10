@@ -137,13 +137,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
         return ret
 
-    # initialise the list of installed/upgradeable products.
-    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-    results['installed-products'] = product.find_installed_products()
-    results['upgradeable-products'] = upgrade.filter_for_upgradeable_products(results['installed-products'])
-    results['backups'] = product.findXenSourceBackups()
-    tui.progress.clearModelessDialog()
-
     if not results.has_key('install-type'):
         results['install-type'] = constants.INSTALL_TYPE_FRESH
         results['preserve-settings'] = False

@@ -13,6 +13,7 @@
 
 import sys
 import traceback
+import time
 
 # user-interface stuff:
 import tui.installer
@@ -164,7 +165,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             results['network-hardware'] = netutil.scanConfiguration()
             try:
                 results.update(a.parseScripts())
-                results.update(a.processAnswerfile())
+                results.update(a.processAnswerfileSetup())
+
                 if results.has_key('extra-repos'):
                     # load drivers now
                     for d in results['extra-repos']:
@@ -175,6 +177,17 @@ def go(ui, args, answerfile_address, answerfile_script):
                                     if p.load() != 0:
                                         raise RuntimeError, "Failed to load driver %s." % p.name
                 util.runCmd2(util.udevsettleCmd())
+                time.sleep(1)
+                diskutil.mpath_part_scan()
+
+                # ensure partitions/disks are not locked by LVM
+                lvm = disktools.LVMTool()
+                lvm.deactivateAll()
+                del lvm
+
+                diskutil.log_available_disks()
+
+                results.update(a.processAnswerfile())
                 results = fixMpathResults(results)
             except Exception, e:
                 parsing_except = e
@@ -192,9 +205,6 @@ def go(ui, args, answerfile_address, answerfile_script):
         util.runCmd2(["lsmod"])
 
         status = constants.EXIT_OK
-
-        # debug: print out what disks have been discovered
-        diskutil.log_available_disks()
 
         # how much RAM do we have?
         ram_found_mb = hardware.getHostTotalMemoryKB() / 1024

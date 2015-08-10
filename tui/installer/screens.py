@@ -63,15 +63,6 @@ def welcome_screen(answers):
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
-            xelogging.log("Waiting for partitions to appear...")
-            util.runCmd2(util.udevsettleCmd())
-            time.sleep(1)
-            diskutil.mpath_part_scan()
-            tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-            answers['installed-products'] = product.find_installed_products()
-            answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
-            answers['backups'] = product.findXenSourceBackups()
-            tui.progress.clearModelessDialog()
         return True
 
     global loop
@@ -104,6 +95,24 @@ To load a device driver press <F9>.
 
     if button == 'reboot':
         return EXIT
+
+    xelogging.log("Waiting for partitions to appear...")
+    util.runCmd2(util.udevsettleCmd())
+    time.sleep(1)
+    diskutil.mpath_part_scan()
+
+    # ensure partitions/disks are not locked by LVM
+    lvm = LVMTool()
+    lvm.deactivateAll()
+    del lvm
+
+    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
+    answers['installed-products'] = product.find_installed_products()
+    answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
+    answers['backups'] = product.findXenSourceBackups()
+    tui.progress.clearModelessDialog()
+
+    diskutil.log_available_disks()
 
     # CA-41142, ensure we have at least one network interface and one disk before proceeding
     label = None
