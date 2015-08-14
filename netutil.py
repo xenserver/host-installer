@@ -58,7 +58,11 @@ def scanConfiguration():
 
 def getNetifList():
     all = os.listdir("/sys/class/net")
-    relevant = filter(lambda x: x.startswith("eth"), all)
+
+    def ethfilter(interface):
+        return interface.startswith("eth") and interface.isalnum()
+
+    relevant = filter(lambda x: ethfilter(x), all)
     relevant.sort(lambda l, r: int(l[3:]) - int(r[3:]))
     return relevant
 
