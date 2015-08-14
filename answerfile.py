@@ -83,6 +83,7 @@ class Answerfile:
         xelogging.log("Processing XML answerfile setup.")
         results = {}
         results.update(self.parseDriverSource())
+        results.update(self.parseFCoEInterface())
 
         return results
 
@@ -334,6 +335,40 @@ class Answerfile:
         results['sr-type'] = getMapAttribute(self.top_node, ['sr-type', 'srtype'],
                                              [('lvm', SR_TYPE_LVM),
                                               ('ext', SR_TYPE_EXT)], default = 'lvm')
+        return results
+
+    def parseFCoEInterface(self):
+        results = {}
+        nethw = netutil.scanConfiguration()
+
+        for interface in getElementsByTagName(self.top_node, ['fcoe-interface']):
+            if_hwaddr = None
+            if 'fcoe-interface' not in results:
+                results['fcoe-interface'] = {}
+
+            if_name = getStrAttribute(interface, ['name'])
+            if if_name and if_name in nethw:
+                if_hwaddr = nethw[if_name].hwaddr
+            else:
+                if_hwaddr = getStrAttribute(interface, ['hwaddr'])
+                if if_hwaddr:
+                    matching_list = filter(lambda x: x.hwaddr == if_hwaddr.lower(), nethw.values())
+                    if len(matching_list) == 1:
+                        if_name = matching_list[0].name
+            if not if_name and not if_hwaddr:
+                 raise AnswerfileException("<fcoe-interface> tag must have one of 'name' or 'hwaddr'")
+
+            dcb = getStrAttribute(interface, ['dcb'])
+
+            if dcb in ['on', 'yes', 'true', '1', 'enable']:
+                dcb_state = 'on'
+            elif dcb in ['off', 'no', 'false', '0', 'disable']:
+                dcb_state = 'off'
+            else: # by default dcb is on
+                dcb_state = 'on'
+
+            results['fcoe-interface'][if_name] = dcb_state
+
         return results
 
     def parseInterface(self):
