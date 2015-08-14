@@ -32,5 +32,8 @@ efibootmgr
 linux-firmware
 aic94xx-firmware
 
+# for fcoe
+fcoe-utils
+
 # For software RAID
 mdadm

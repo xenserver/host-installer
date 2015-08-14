@@ -107,7 +107,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		usr/share/doc usr/sbin/oxenstored opt/xensource/bin/xenstored \
 		usr/lib/dracut usr/lib/systemd/system/initrd.target.wants usr/lib/systemd/system/shutdown.target.wants \
 		usr/lib/systemd/system/dracut-*.service usr/lib/kernel/install.d/50-dracut.install etc/dracut.conf* \
-		usr/bin/{dracut,lsinitrd,mkinitrd} usr/sbin/dracut var/lib/initramfs
+		usr/bin/{dracut,lsinitrd,mkinitrd} usr/sbin/dracut var/lib/initramfs \
+		usr/libexec/fcoe etc/fcoe etc/sysconfig/fcoe
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
 # remove duplicate in zoneinfo
