@@ -149,7 +149,7 @@ def select_fcoe_ifaces(answers):
         for k2, v2 in v.items():
             for lun in v2['luns'].values():
                 luns[os.path.basename(lun['device'])] = {'Capacity': lun['capacity'], 'Description': lun['description'],
-                                                         'Port': v2['Port Name'], 'VLAN': k[:-5]}
+                                                         'Port': v2['Port Name'], 'VLAN': k}
 
     xelogging.log("fcoe luns discovered %s" % str(luns))
     def disk_details(context):
