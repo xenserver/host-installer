@@ -35,6 +35,7 @@ import tui
 import tui.network
 import tui.progress
 import driver
+import tui.fcoe
 
 MY_PRODUCT_VERSION = PRODUCT_VERSION or PLATFORM_VERSION
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
@@ -66,15 +67,26 @@ def welcome_screen(answers):
         return True
 
     global loop
+    global popup
     loop = True
 
     def fn9():
         global loop
+        global popup
         loop = True
+        popup = 'driver'
+        return False
+
+    def fn10():
+        global loop
+        global popup
+        loop = True
+        popup = 'storage'
         return False
 
     while loop:
         loop = False
+        popup = None
         driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
 
         button = snackutil.ButtonChoiceWindowEx(tui.screen,
@@ -84,11 +96,15 @@ def welcome_screen(answers):
 Please make sure you have backed up any data you wish to preserve before proceeding.
 
 To load a device driver press <F9>.
+To setup advanced storage classes press <F10>.
 """ % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND),
                                 ['Ok', 'Reboot'], width = 60, help = "welcome",
-                                hotkeys = {'F9': fn9})
-        if loop:
+                                hotkeys = {'F9': fn9, 'F10': fn10})
+        if popup == 'driver':
             load_driver(driver_answers)
+            tui.update_help_line([None, "<F9> load driver"])
+        elif popup == 'storage':
+            tui.fcoe.select_fcoe_ifaces(answers)
             tui.update_help_line([None, "<F9> load driver"])
 
     tui.screen.popHelpLine()

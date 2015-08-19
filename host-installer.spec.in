@@ -113,6 +113,7 @@ rm -rf $RPM_BUILD_ROOT
 %{installer_dir}/upgrade.py
 %{installer_dir}/util.py
 %{installer_dir}/xelogging.py
+%{installer_dir}/fcoeutil.py
 
 # Installer UI
 %{installer_dir}/tui/__init__.py
@@ -122,6 +123,7 @@ rm -rf $RPM_BUILD_ROOT
 %{installer_dir}/tui/network.py
 %{installer_dir}/tui/progress.py
 %{installer_dir}/tui/repo.py
+%{installer_dir}/tui/fcoe.py
 
 # Data
 %{installer_dir}/keymaps
