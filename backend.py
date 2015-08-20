@@ -969,6 +969,9 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
     if diskutil.is_iscsi(primary_disk):
         common_kernel_params += " rd.iscsi.ibft=1 rd.iscsi.firmware=1"
 
+    if diskutil.is_raid(primary_disk):
+        common_kernel_params += " rd.auto"
+
     e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
                              kernel = "/boot/vmlinuz-%s-xen" % short_version,

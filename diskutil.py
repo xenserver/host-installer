@@ -783,3 +783,7 @@ def release_ibft_disks():
         util.runCmd2([ '/sbin/iscsiadm', '-m', 'session', '-u'])
         util.runCmd2([ '/sbin/iscsiadm', '-k', '0'])
         iscsi_disks = []
+
+
+def is_raid(disk):
+    return disk in getMdNodes()
