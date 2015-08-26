@@ -23,7 +23,7 @@ import time
 
 def start_fcoe(interfaces):
     ''' startFCoE takes dictonary of {interface: dcb config}
-        dcb config could be either 'on' or 'off'
+        dcb config could be either True or False
 
         and returns a dictonary {interface:result}
         result could be either OK or error returned from fipvlan
@@ -43,15 +43,15 @@ def start_fcoe(interfaces):
         if netutil.getDriver(interface) == 'bnx2x':
             # This will do modprobe multiple times
             util.runCmd2(['/sbin/modprobe', 'bnx2fc'])
-        if dcb == 'off':
-            util.runCmd2(['/sbin/lldptool', '-i', interface, '-L',
-                          'adminStatus=disabled'])
-        else:
+        if dcb:
             util.runCmd2(['/sbin/dcbtool', 'sc', interface, 'dcb', 'on'])
             util.runCmd2(['/sbin/dcbtool', 'sc', interface, 'app:fcoe',
                           'e:1'])
             util.runCmd2(['/sbin/dcbtool', 'sc', interface, 'pfc',
                           'e:1', 'a:1', 'w:1'])
+        else:
+            util.runCmd2(['/sbin/lldptool', '-i', interface, '-L',
+                          'adminStatus=disabled'])
 
 
     util.runCmd2(['/sbin/lldpad', '-d'])
@@ -133,22 +133,6 @@ def wait_for_fcoe_disks(interface):
             return 1
         time.sleep(1)
         retry -= 1
-
-def get_interface_from_device(device):
-    ''' this routing will return the ethernet interface assoicated
-        with this block device.
-        it should return the parent interface and
-        not the slave vlan interface.
-    '''
-    fcoedisks = get_fcoe_luns()
-
-    for eth, rports in fcoedisks.items():
-        for rport, val in rports.items():
-            for lun in val['luns'].values():
-                if os.path.basename(lun['device']) == device:
-                    return eth
-
-    return None
 
 def get_fcoe_vlans(interface):
     ''' This routine return fcoe vlans associated with an interface.

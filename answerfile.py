@@ -343,8 +343,8 @@ class Answerfile:
 
         for interface in getElementsByTagName(self.top_node, ['fcoe-interface']):
             if_hwaddr = None
-            if 'fcoe-interface' not in results:
-                results['fcoe-interface'] = {}
+            if 'fcoe-interfaces' not in results:
+                results['fcoe-interfaces'] = {}
 
             if_name = getStrAttribute(interface, ['name'])
             if if_name and if_name in nethw:
@@ -361,13 +361,13 @@ class Answerfile:
             dcb = getStrAttribute(interface, ['dcb'])
 
             if dcb in ['on', 'yes', 'true', '1', 'enable']:
-                dcb_state = 'on'
+                dcb_state = True
             elif dcb in ['off', 'no', 'false', '0', 'disable']:
-                dcb_state = 'off'
+                dcb_state = False
             else: # by default dcb is on
-                dcb_state = 'on'
+                dcb_state = True
 
-            results['fcoe-interface'][if_name] = dcb_state
+            results['fcoe-interfaces'][if_name] = dcb_state
 
         return results
 

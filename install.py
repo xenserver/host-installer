@@ -177,8 +177,8 @@ def go(ui, args, answerfile_address, answerfile_script):
                                     if p.load() != 0:
                                         raise RuntimeError, "Failed to load driver %s." % p.name
 
-                if 'fcoe-interface' in results:
-                    fcoeutil.start_fcoe(results['fcoe-interface'])
+                if 'fcoe-interfaces' in results:
+                    fcoeutil.start_fcoe(results['fcoe-interfaces'])
 
                 util.runCmd2(util.udevsettleCmd())
                 time.sleep(1)
