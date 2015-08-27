@@ -40,6 +40,9 @@ import repository
 import xelogging
 import scripts
 
+# fcoe
+import fcoeutil
+
 def main(args):
     ui = tui
     xelogging.log("Starting user interface")
