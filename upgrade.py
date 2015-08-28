@@ -343,6 +343,9 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list += [ 'etc/resolv.conf', 'etc/nsswitch.conf', 'etc/krb5.conf', 'etc/krb5.keytab', 'etc/pam.d/sshd' ]
         self.restore_list.append({'dir': 'var/lib/likewise'})
 
+        # CP-12576: Integrate automatic upgrade tool from Likewise 5.4 to PBIS 8
+        self.restore_list.append({'dir': 'var/lib/pbis'})
+
         # CA-47142: preserve v6 cache
         self.restore_list += [{'src': 'var/xapi/lpe-cache', 'dst': 'var/lib/xcp/lpe-cache'}]
 
@@ -390,21 +393,8 @@ class ThirdGenUpgrader(Upgrader):
         print >>state, "UPGRADE=true"
         state.close()
 
-        # CP-1508: preserve AD service state
-        ad_on = False
-        try:
-            fh = open(os.path.join(mounts['root'], 'etc/nsswitch.conf'), 'r')
-            for line in fh:
-                if line.startswith('passwd:') and 'lsass' in line:
-                    ad_on = True
-                    break
-            fh.close()
-        except:
-            pass
-
-        if ad_on:
-            for service in ['dcerpd', 'eventlogd', 'netlogond', 'npcmuxd', 'lsassd']:
-                util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
+        # CP-12576: Integrate automatic upgrade tool from Likewise 5.4 to PBIS 8
+        util.runCmd2(['chroot', mounts['root'], 'ln', '-s', '/lib/security/pam_lsass.so', '/lib64/security/pam_lsass.so'])
 
         # CA-147442: fix up library paths in AD registry
         try:
