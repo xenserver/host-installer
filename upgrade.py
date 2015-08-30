@@ -344,7 +344,9 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'dir': 'var/lib/likewise'})
 
         # CP-12576: Integrate automatic upgrade tool from Likewise 5.4 to PBIS 8
-        self.restore_list.append({'dir': 'var/lib/pbis'})
+        self.restore_list.append({'dir': 'var/lib/pbis', 're': re.compile(r'.*/krb5.+')})
+        self.restore_list.append({'dir': 'var/lib/pbis', 're': re.compile(r'.*/.+\.xml')})
+        self.restore_list.append({'dir': 'var/lib/pbis/db'})
 
         # CA-47142: preserve v6 cache
         self.restore_list += [{'src': 'var/xapi/lpe-cache', 'dst': 'var/lib/xcp/lpe-cache'}]
@@ -392,19 +394,6 @@ class ThirdGenUpgrader(Upgrader):
         state = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'host.conf'), 'w')
         print >>state, "UPGRADE=true"
         state.close()
-
-        # CP-12576: Integrate automatic upgrade tool from Likewise 5.4 to PBIS 8
-        util.runCmd2(['chroot', mounts['root'], 'ln', '-s', '/lib/security/pam_lsass.so', '/lib64/security/pam_lsass.so'])
-
-        # CA-147442: fix up library paths in AD registry
-        try:
-            os.mkdir(os.path.join(mounts['root'], constants.FIX_AD_WORK_DIR))
-            shutil.copy(os.path.join(constants.INSTALLER_DIR, constants.FIX_AD_REG_PATHS_SCRIPT),
-                        os.path.join(mounts['root'], constants.FIX_AD_WORK_DIR))
-            util.runCmd2(['chroot', mounts['root'], os.path.join(constants.FIX_AD_WORK_DIR, constants.FIX_AD_REG_PATHS_SCRIPT)])
-        except:
-            pass
-        shutil.rmtree(os.path.join(mounts['root'], constants.FIX_AD_WORK_DIR), ignore_errors = True)
 
         # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
         if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):

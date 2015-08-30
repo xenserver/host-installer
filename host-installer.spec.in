@@ -85,7 +85,6 @@ rm -rf $RPM_BUILD_ROOT
 %{installer_dir}/init
 %{installer_dir}/report.py
 %{installer_dir}/bugtool.py
-%{installer_dir}/fix_ad_reg_paths.py
 /usr/bin/support.sh
 /usr/bin/timeutil
 
