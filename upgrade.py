@@ -195,12 +195,12 @@ class ThirdGenUpgrader(Upgrader):
                     storage_part = partitionDevice(primary_disk, storage_partnum)
                     rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
                     vgs_list = out.split('\n')
-                    self.vgs_output_wrong = filter(lambda x: str(primary_disk) in x, vgs_list)
-                    if self.vgs_output_wrong:
-                        self.vgs_output_wrong = self.vgs_output_wrong[0]
-                        self.vgs_output_wrong = self.vgs_output_wrong.split()[1]
-                        self.vgs_output_wrong = self.vgs_output_wrong.strip()
-                        util.runCmd2(['vgremove', '-f', self.vgs_output_wrong])
+                    vgs_output_wrong = filter(lambda x: str(primary_disk) in x, vgs_list)
+                    if vgs_output_wrong:
+                        vgs_output_wrong = vgs_output_wrong[0]
+                        if ' ' in vgs_output_wrong:
+                            _, vgs_label = vgs_output_wrong.split(None, 1)
+                            util.runCmd2(['vgremove', '-f', vgs_label])
                     util.runCmd2(['vgcreate', self.vgs_output, storage_part])
 
             else:
