@@ -147,7 +147,11 @@ $(KERNEL_CONFIGURED_STAMP): $(FILES_COLLECTED_STAMP)
 	$(INSTALLER_CHROOT) depmod $(LINUX_KABI_VERSION)
 	touch $@
 
-$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(MY_OUTPUT_DIR)/.dirstamp
+$(MY_OBJ_DIR)/EULA: $(wildcard $(PROJECT_OUTPUTDIR)/xenserver-docs/RPMS/noarch/xenserver-docs-[0-9]*.rpm)
+	( cd $(MY_OBJ_DIR) ; rpm2cpio $^ | cpio -idv )
+
+$(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_CREATED_STAMP) $(PROC_ADDED_STAMP) $(MY_OUTPUT_DIR)/.dirstamp \
+	$(MY_OBJ_DIR)/EULA
 	rm -f $@
 # Remove wifi and other firmware
 	set -e; for d in $(INSTALLER_FILESYSTEM)/lib/modules/*; do \
@@ -162,7 +166,7 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 	find $(INSTALLER_FILESYSTEM)/lib/modules -name \*.ko -type f -exec strip --strip-unneeded {} \;
 	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
-	install -m644 /output/eulas/EULA_XENSERVER $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
+	install -m644 $(MY_OBJ_DIR)/EULA $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$@
 	chmod 644 $@
 
