@@ -4,6 +4,8 @@ IMPORT_BRANDING := yes
 include $(B_BASE)/common.mk
 include $(B_BASE)/rpmbuild.mk
 
+SM_SOURCE_REPO = $(call git_loc,sm)
+
 # For debugging
 .PHONY: %var
 %var:
@@ -27,6 +29,7 @@ build: $(RPM_BUILD_COOKIE) $(MY_OUTPUT_DIR)/host-installer.inc
 
 SOURCES := $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2
 SOURCES += $(RPM_SPECSDIR)/$(SPEC_FILE)
+SOURCES += $(RPM_SOURCESDIR)/multipath.conf
 
 HOST_INSTALLER_HG_EXCLUDE := -X mk -X tests -X oem -X upgrade-plugin -X sample-version.py
 $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2: $(RPM_SOURCESDIRSTAMP)
@@ -35,6 +38,11 @@ $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2: $(RPM_SOURCE
 	-p host-installer-$(HOST_INSTALLER_VERSION) -t tbz2 $@.tmp; \
 	mv -f $@.tmp $@; \
 	}
+
+$(RPM_SOURCESDIR)/multipath.conf: $(SM_SOURCE_REPO)/multipath/multipath.conf
+# Generate a multipath configuration from sm's copy, removing the blacklist
+# and blacklist_exception sections.
+	perl -0777 -pe 's/^blacklist.*?}$$//sgm' < $< > $@
 
 $(RPM_SPECSDIR)/$(SPEC_FILE): $(SPEC_FILE).in $(RPM_SPECSDIRSTAMP)
 	{ set -e; set -o pipefail; \
