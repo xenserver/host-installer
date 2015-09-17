@@ -197,7 +197,7 @@ class ThirdGenUpgrader(Upgrader):
                     vgs_list = out.split('\n')
                     vgs_output_wrong = filter(lambda x: str(primary_disk) in x, vgs_list)
                     if vgs_output_wrong:
-                        vgs_output_wrong = vgs_output_wrong[0]
+                        vgs_output_wrong = vgs_output_wrong[0].strip()
                         if ' ' in vgs_output_wrong:
                             _, vgs_label = vgs_output_wrong.split(None, 1)
                             util.runCmd2(['vgremove', '-f', vgs_label])
