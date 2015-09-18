@@ -114,6 +114,20 @@ Common Elements
     Replaced by <script stage="installation-complete">
 
 
+  <fcoe-interface name="eth"/> | <fcoe-interface hwaddr="mac"/>*
+
+    Specifies interfaces to run Fibre Channel over Ethernet VLAN
+    Discovery on.
+
+    Optional attributes:
+
+      dcb=bool
+
+        Specify if software-based Data Center Bridging is to be used.
+
+        Default: True
+
+
 (Re)Install Elements
 --------------------
 
