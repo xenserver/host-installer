@@ -75,6 +75,7 @@ cp startup/functions %{buildroot}/etc/init.d/installer-functions
 cp startup/61-xenrt.rules %{buildroot}/etc/udev/rules.d/61-xenrt.rules
 cp startup/id_serial.sh %{buildroot}/usr/lib/udev/id_serial.sh
 cp startup/scsi_id.old %{buildroot}/usr/lib/udev/scsi_id.old
+cp startup/cciss_id %{buildroot}/usr/lib/udev/cciss_id
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -144,6 +145,7 @@ rm -rf $RPM_BUILD_ROOT
 /etc/udev/rules.d/61-xenrt.rules
 %attr(775,root,root) /usr/lib/udev/id_serial.sh
 %attr(775,root,root) /usr/lib/udev/scsi_id.old
+%attr(775,root,root) /usr/lib/udev/cciss_id
 
 %doc
 

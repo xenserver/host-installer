@@ -232,7 +232,7 @@ def getQualifiedDeviceName(disk):
 def idFromPartition(partition):
     symlink = None
     v, out = util.runCmd2(util.udevinfoCmd() + ['-q', 'symlink', '-n', partition], with_stdout = True)
-    prefixes = ['disk/by-id/edd', 'disk/by-id/dm-name-', 'disk/by-id/dm-uuid-', 'disk/by-id/lvm-pv-uuid-']
+    prefixes = ['disk/by-id/edd', 'disk/by-id/dm-name-', 'disk/by-id/dm-uuid-', 'disk/by-id/lvm-pv-uuid-', 'disk/by-id/cciss-']
     if v == 0:
         for link in out.split():
             if link.startswith('disk/by-id') and not True in map(lambda x : link.startswith(x), prefixes):
