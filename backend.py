@@ -765,7 +765,7 @@ def __mkinitrd(mounts, partition, package, kernel_version):
             try:
                 if not isDeviceMapperNode(partition):
                     f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
-                    f.write('omit_dracutmodules+="multipath"\n')
+                    f.write('omit_dracutmodules+=" multipath "\n')
                     f.close()
             except:
                 pass
