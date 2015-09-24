@@ -507,11 +507,7 @@ def prepare_host_upgrade(url):
     return done
 
 def testSafe2Upgrade(session, args):
-    res = safe2upgrade()
-    if res == 'not_enough_space':
-        return 'not_enough_space'
-    else:
-        return res and 'true' or 'false'
+    return safe2upgrade()
 
 # plugin safe upgrade test
 def safe2upgrade():
@@ -565,7 +561,7 @@ def safe2upgrade():
         vdi_num += 1
     logger.debug("Number of VDIs: %d" % vdi_num)
 
-    return vdi_num == 0
+    return vdi_num == 0 and 'true' or 'false'
 
 # plugin url test
 def testUrl(session, args):
@@ -610,7 +606,7 @@ def main(session, args):
         logger.error("There was an error in preparing the host for upgrade.")
         raise Exception('ERROR_PREPARING_HOST')
 
-    if safe2upgrade():
+    if safe2upgrade() == 'true':
         fh = open('/var/preserve/safe2upgrade', 'w')
         fh.close()
     else:
