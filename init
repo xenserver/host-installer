@@ -43,17 +43,14 @@ def configureNetworking(ui, device, config):
     if device == 'all':
         config = 'dhcp'
     config_dict = None
-    try:
-        if config.startswith('static:'):
-            config_dict = {'gateway': None, 'dns': None, 'domain': None}
-            for el in config[7:].split(';'):
-                k, v = el.split('=', 1)
-                config_dict[k] = v
-            if 'dns' in config_dict:
-                config_dict['dns'] = config_dict['dns'].split(',')
-            assert 'ip' in config_dict and 'netmask' in config_dict
-    except:
-        pass
+    if config.startswith('static:'):
+        config_dict = {'gateway': None, 'dns': None, 'domain': None}
+        for el in config[7:].split(';'):
+            k, v = el.split('=', 1)
+            config_dict[k] = v
+        if config_dict['dns'] is not None:
+            config_dict['dns'] = config_dict['dns'].split(',')
+        assert 'ip' in config_dict and 'netmask' in config_dict
 
     nethw = netutil.scanConfiguration()
     netcfg = {}
