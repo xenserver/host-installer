@@ -359,7 +359,7 @@ def set_boot_config(installer_dir, url):
                 if  pif.get('DNS', '') != '':
                     config_str += ";dns=" + pif['DNS']
                 kernel_args.extend(['network_device='+mac,
-                                'network_config='+config_str])
+                                "'network_config=%s'" % (config_str,)])
             else:
                 kernel_args.append('network_device=' + mac)
             kernel_args.append("map_netdev=%s:d:%s" % (real_iface, mac))
