@@ -140,11 +140,17 @@ class ThirdGenUpgrader(Upgrader):
         Upgrader.__init__(self, source)
         primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
         safe2upgrade_path = os.path.join(primary_fs.mount_point, constants.SAFE_2_UPGRADE)
+        default_storage_conf_path = os.path.join(primary_fs.mount_point, "etc/firstboot.d/data/default-storage.conf")
+
         if os.path.isfile(safe2upgrade_path):
             self.safe2upgrade = True
         else:
             self.safe2upgrade = False
         self.vgs_output = None
+
+        input_data = util.readKeyValueFile(default_storage_conf_path)
+        self.storage_type = input_data['TYPE']
+
         primary_fs.unmount()
 
     prepTargetStateChanges = []
@@ -202,6 +208,12 @@ class ThirdGenUpgrader(Upgrader):
                             _, vgs_label = vgs_output_wrong.split(None, 1)
                             util.runCmd2(['vgremove', '-f', vgs_label])
                     util.runCmd2(['vgcreate', self.vgs_output, storage_part])
+
+                    if self.storage_type == 'ext':
+                        _, sr_uuid = self.vgs_output.split('-', 1)
+                        util.runCmd2(['lvcreate', '-n', sr_uuid, '-l', '100%VG', self.vgs_output])
+                        if util.runCmd2(['mkfs.ext3', '-F', '/dev/' + self.vgs_output + '/' + sr_uuid]) != 0:
+                            raise RuntimeError, "Backup: Failed to format filesystem on %s" % storage_part
 
             else:
 
