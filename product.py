@@ -339,11 +339,11 @@ class ExistingInstallation:
                 try:
                     for repo_id in os.listdir(self.join_state_path(constants.INSTALLED_REPOS_DIR)):
                         try:
-                            repo = repository.Repository(repository.FilesystemAccessor(self.join_state_path(constants.INSTALLED_REPOS_DIR, repo_id)))
+                            repo = repository.LegacyRepository(repository.FilesystemAccessor(self.join_state_path(constants.INSTALLED_REPOS_DIR, repo_id)))
                             repo_list.append((repo.identifier(), repo.name(), (repo_id != constants.MAIN_REPOSITORY_NAME)))
                         except repository.RepoFormatError:
                             # probably pre-XML format
-                            repo = open(self.join_state_path(constants.INSTALLED_REPOS_DIR, repo_id, repository.Repository.REPOSITORY_FILENAME))
+                            repo = open(self.join_state_path(constants.INSTALLED_REPOS_DIR, repo_id, repository.LegacyRepository.REPOSITORY_FILENAME))
                             repo_id = repo.readline().strip()
                             repo_name = repo.readline().strip()
                             repo.close()

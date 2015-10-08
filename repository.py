@@ -53,6 +53,15 @@ class ErrorInstallingPackage(Exception):
     pass
 
 class Repository:
+    """ Represents a repository containing packages and associated meta data. """
+    def __init__(self, accessor, base = ""):
+        self._accessor = accessor
+        self._base = base
+
+    def accessor(self):
+        return self._accessor
+
+class LegacyRepository(Repository):
     """ Represents a XenSource repository containing packages and associated
     meta data. """
     REPOSITORY_FILENAME = "XS-REPOSITORY"
@@ -61,9 +70,32 @@ class Repository:
 
     OPER_MAP = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
 
+    def findRepositories(cls, accessor):
+        # Check known locations:
+        package_list = ['', 'packages', 'packages.main', 'packages.linux',
+                        'packages.site']
+        repos = []
+
+        accessor.start()
+        try:
+            extra = accessor.openAddress(cls.REPOLIST_FILENAME)
+            if extra:
+                for line in extra:
+                    package_list.append(line.strip())
+                extra.close()
+        except Exception, e:
+            xelogging.log("Failed to open %s: %s" % (cls.REPOLIST_FILENAME, str(e)))
+
+        for loc in package_list:
+            if LegacyRepository.isRepo(accessor, loc):
+                xelogging.log("Repository (legacy) found in /%s" % loc)
+                repos.append(LegacyRepository(accessor, loc))
+        accessor.finish()
+        return repos
+    findRepositories = classmethod(findRepositories)
+
     def __init__(self, accessor, base = ""):
-        self._accessor = accessor
-        self._base = base
+        Repository.__init__(self, accessor, base)
         self._product_brand = None
         self._product_version = None
         self._md5 = md5.new()
@@ -266,9 +298,6 @@ class Repository:
         xspkg_fd = open(os.path.join(destination, self.PKGDATA_FILENAME), 'w')
         xspkg_fd.write(self._pkgfile_contents)
         xspkg_fd.close()
-
-    def accessor(self):
-        return self._accessor
 
     def __iter__(self):
         return self._packages.__iter__()
@@ -682,26 +711,7 @@ class Accessor:
         pass
     
     def findRepositories(self):
-        # Check known locations:
-        package_list = ['', 'packages', 'packages.main', 'packages.linux',
-                        'packages.site']
-        repos = []
-
-        self.start()
-        try:
-            extra = self.openAddress(Repository.REPOLIST_FILENAME)
-            if extra:
-                for line in extra:
-                    package_list.append(line.strip())
-                extra.close()
-        except Exception, e:
-            xelogging.log("Failed to open %s: %s" % (Repository.REPOLIST_FILENAME, str(e)))
-
-        for loc in package_list:
-            if Repository.isRepo(self, loc):
-                xelogging.log("Repository found in /%s" % loc)
-                repos.append(Repository(self, loc))
-        self.finish()
+        repos = LegacyRepository.findRepositories(self)
         return repos
 
 class FilesystemAccessor(Accessor):
