@@ -249,7 +249,7 @@ class ThirdGenUpgrader(Upgrader):
         logs_partition = tool.getPartition(logs_partnum)
 
         # Check if possible to create new partition layout, increasing the size, using plugin result
-        if self.safe2upgrade and logs_partition is None:
+        if self.safe2upgrade and logs_partition is None and partition_table_type == constants.PARTITION_GPT:
             if storage_partnum > 0:
                 # Get current Volume Group
                 rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)

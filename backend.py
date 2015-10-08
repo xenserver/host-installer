@@ -314,7 +314,7 @@ def performInstallation(answers, ui_package, interactive):
                           'sr-type': constants.SR_TYPE_LVM, 
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
                           'initial-partitions': [], 
-                          'preserve-first-partition': 'if-utility', 
+                          'preserve-first-partition': 'false', 
                           'sr-at-end': True,
                           'sr-on-primary': True })
 
