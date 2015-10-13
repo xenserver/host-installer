@@ -1045,20 +1045,13 @@ class GPTPartitionTool(PartitionToolBase):
 
 def probePartitioningScheme(device):
     """Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt"""
-    rv, out, err = util.runCmd2(['fdisk', '-l', device], with_stdout=True, with_stderr=True)
-    lines = out.split('\n') + err.split('\n')
-    def matchline(s):
-        match = re.compile(s)
-        for l in lines:
-            if match.match(l):
-                return True
-        return False
-    if rv:
-        partitionType = constants.PARTITION_GPT   # default 
-    elif matchline("^Disk label type: dos$"):
+    partitionType = constants.PARTITION_GPT   # default
+    rv, out = util.runCmd2(['blkid', '-s PTTYPE', '-o value', device], with_stdout=True)
+    out = out.strip()
+ 
+    if out == 'dos':
         partitionType = constants.PARTITION_DOS
-    else:
-        partitionType = constants.PARTITION_GPT   # default
+
     return partitionType
     
 def PartitionTool(device, partitionType=None):
