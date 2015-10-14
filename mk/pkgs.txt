@@ -37,3 +37,6 @@ fcoe-utils
 
 # For software RAID
 mdadm
+
+# For yum
+yum
