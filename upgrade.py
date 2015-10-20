@@ -148,8 +148,10 @@ class ThirdGenUpgrader(Upgrader):
             self.safe2upgrade = False
         self.vgs_output = None
 
-        input_data = util.readKeyValueFile(default_storage_conf_path)
-        self.storage_type = input_data['TYPE']
+        self.storage_type = None
+        if os.path.exists(default_storage_conf_path):
+            input_data = util.readKeyValueFile(default_storage_conf_path)
+            self.storage_type = input_data['TYPE']
 
         primary_fs.unmount()
 
