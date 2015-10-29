@@ -102,12 +102,15 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		usr/share/i18n/locales usr/share/perl5 usr/lib64/perl5 usr/bin/perl* \
 		boot/* usr/share/bash-completion usr/lib/modules/3.10.0+0/kernel/fs/{btrfs,cifs,cramfs,exofs,jfs,nfsd,ntfs,ocfs2,reiserfs,xfs} \
 		usr/lib/modules/3.10.0+0/kernel/drivers/infiniband usr/share/cracklib \
-		usr/sbin/{cache_restore,thin_dump,thin_repair,cache_repair,cache_dump,thin_restore,cache_check,era_dump,era_invalidate,thin_rmap,era_check,thin_check} \
+		usr/sbin/{cache_restore,thin_dump,thin_repair,cache_repair,cache_dump,thin_restore,cache_check,era_dump,era_invalidate,thin_rmap,era_check,thin_check,pdata_tools} \
 		usr/sbin/{glibc_post_upgrade.x86_64,ldconfig} \
 		usr/share/doc usr/sbin/oxenstored opt/xensource/bin/xenstored \
 		usr/lib/dracut usr/lib/systemd/system/initrd.target.wants usr/lib/systemd/system/shutdown.target.wants \
 		usr/lib/systemd/system/dracut-*.service usr/lib/kernel/install.d/50-dracut.install etc/dracut.conf* \
 		usr/bin/{dracut,lsinitrd,mkinitrd} usr/sbin/dracut var/lib/initramfs \
+		usr/lib/udev/hwdb.d/* \
+		usr/bin/{as,dwp,ld.gold,ld.bfd} \
+		usr/sbin/{build-locale-archive,sln,userdel,groupdel} \
 		usr/libexec/fcoe etc/fcoe etc/sysconfig/fcoe
 # cleanup all compiled Python to gain some space, python will compile if needed
 	find $(INSTALLER_FILESYSTEM) \( -name \*.pyc -o -name \*.pyo \) -type f | while read f; do test -r "$${f%[co]}" && rm -f "$$f"; done
