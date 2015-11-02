@@ -61,6 +61,43 @@ class Repository:
     def accessor(self):
         return self._accessor
 
+class YumRepository(Repository):
+    """ Represents a Yum repository containing packages and associated meta data. """
+    REPOMD_FILENAME = "repodata/repomd.xml"
+
+    def findRepositories(cls, accessor):
+        accessor.start()
+        is_repo = cls.isRepo(accessor, "")
+        accessor.finish()
+        if not is_repo:
+            return []
+        return [ YumRepository(accessor, "") ]
+    findRepositories = classmethod(findRepositories)
+
+    def __init__(self, accessor, base = ""):
+        Repository.__init__(self, accessor, base)
+
+    def __repr__(self):
+        return "yum@??"
+
+    def isRepo(cls, accessor, base):
+        """ Return whether there is a repository at base address 'base' accessible
+        using accessor."""
+        return accessor.access(accessor.pathjoin(base, cls.REPOMD_FILENAME))
+    isRepo = classmethod(isRepo)
+
+    def compatible_with(self, platform, brand):
+        return True
+
+    def check(self, progress = lambda x: ()):
+        """ Return a list of problematic packages. """
+        # FIXME - verify metadata
+        return []
+
+    def identifier(self):
+        # FIXME - check for presence of group file
+        return MAIN_REPOSITORY_NAME
+
 class LegacyRepository(Repository):
     """ Represents a XenSource repository containing packages and associated
     meta data. """
@@ -711,7 +748,8 @@ class Accessor:
         pass
     
     def findRepositories(self):
-        repos = LegacyRepository.findRepositories(self)
+        repos = YumRepository.findRepositories(self)
+        repos += LegacyRepository.findRepositories(self)
         return repos
 
 class FilesystemAccessor(Accessor):
