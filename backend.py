@@ -154,14 +154,10 @@ def getRepoSequence(ans, repos):
     for repo in repos:
         seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos'], a['branding']])(repo), ['branding']))
         seq.append(Task(repo.accessor().start, lambda x: [], []))
-        for package in repo:
-            seq += [
-                # have to bind package at the current value, hence the myp nonsense:
-                Task(installPackage, (lambda myp: lambda a: [a['mounts'], myp])(package), [],
-                     progress_scale = (package.size / 100),
+        seq.append(Task(repo.installPackages, A(ans, 'mounts'), [],
+                     progress_scale = 100,
                      pass_progress_callback = True,
-                     progress_text = "Installing from %s..." % repo.name())
-                ]
+                     progress_text = "Installing from %s..." % repo.name()))
         seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
@@ -438,9 +434,6 @@ def checkRepoDeps(repo, installed_repos, branding):
                           'product-version': repo._product_version.ver_as_string(),
                           'product-build': repo._product_version.build_as_string() })
     return branding
-
-def installPackage(progress_callback, mounts, package):
-    package.install(mounts['root'], progress_callback)
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):

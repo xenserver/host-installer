@@ -347,6 +347,22 @@ class LegacyRepository(Repository):
     def md5sum(self):
         return self._md5.hexdigest()
 
+    def installPackages(self, progress_callback, mounts):
+        # Squeeze the progress output into a value between 0 and 100
+        def pkg_progress(start, end, pkg_size):
+            def progress_fn(x):
+                progress_callback(int(start + (x / float(pkg_size)) * (end - start)))
+            return progress_fn
+
+        total_size = sum(package.size for package in self)
+        total_progress = 0
+
+        for package in self:
+            start = (total_progress * 100) / total_size
+            end = ((total_progress + package.size) * 100) / total_size
+            package.install(mounts['root'], pkg_progress(start, end, package.size))
+            total_progress += package.size
+
 class Package:
     def copy(self, destination):
         """ Writes the package to destination with the same
@@ -495,7 +511,7 @@ class BzippedPackage(Package):
 
             pipe.stdin.write(data)
             current_progress += len(data)
-            progress(current_progress / 100)
+            progress(current_progress)
 
         pipe.stdin.close()
         rc = pipe.wait()
