@@ -558,7 +558,7 @@ def findXenSourceProducts():
             xelogging.log("This is not fatal.  Continuing anyway.")
 
         if inst:
-            xelogging.log("Found an installation: %s" % str(inst))
+            xelogging.log("Found an installation: %s on %s" % (str(inst), disk))
             installs.append(inst)
 
     return installs

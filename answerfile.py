@@ -245,8 +245,10 @@ class Answerfile:
         inst = getElementsByTagName(self.top_node, ['existing-installation'],
                                     mandatory = True)
         disk = normalize_disk(getText(inst[0]))
+        xelogging.log("Normalized disk: %s" % disk)
         master = disktools.getMpathMaster(disk)
         if master:
+            xelogging.log("Found master disk %s. Converting normalized disk to master..." % master)
             disk = master
         results['primary-disk'] = disk
 
