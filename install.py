@@ -14,6 +14,8 @@
 import sys
 import traceback
 import time
+import os.path
+import simplejson as json
 
 # user-interface stuff:
 import tui.installer
@@ -151,6 +153,11 @@ def go(ui, args, answerfile_address, answerfile_script):
 
     interactive = True
     try:
+        if os.path.isfile(constants.defaults_data_file):
+            data_file = open(constants.defaults_data_file)
+            defaults = json.load(data_file)
+            results.update(defaults)
+
         # loading an answerfile?
         assert ui != None or answerfile_address != None or answerfile_script != None
 
