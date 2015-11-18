@@ -119,7 +119,7 @@ def main(args):
     # probe for XS installations
     insts = product.findXenSourceProducts()
     if len(insts) == 0:
-        xcp.logger.log("No XenServer installations found.")
+        xcp.logger.log("No installations found.")
         return
 
     if not dest_url:

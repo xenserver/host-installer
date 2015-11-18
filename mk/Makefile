@@ -168,7 +168,11 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 	perl clean_fw.pl $(INSTALLER_FILESYSTEM)
 # strip all kernel modules
 	find $(INSTALLER_FILESYSTEM)/lib/modules -name \*.ko -type f -exec strip --strip-unneeded {} \;
-	$(call brand-python) > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
+	{ $(call brand-python); \
+	  echo "try:"; \
+	  echo "    from oem_version import *"; \
+	  echo "except:"; \
+	  echo "    pass"; } > $(INSTALLER_FILESYSTEM)/opt/xensource/installer/version.py
 	$(call brand,$(CURDIR)/issue.in) > $(INSTALLER_FILESYSTEM)/etc/issue
 	install -m644 $(MY_OBJ_DIR)/EULA $(INSTALLER_FILESYSTEM)/opt/xensource/installer/EULA
 	umask 022 && cd $(INSTALLER_FILESYSTEM) && find . | sort | cpio -o -H newc | bzip2 -9c >$@

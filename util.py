@@ -22,6 +22,7 @@ import random
 import string
 import tempfile
 import errno
+from version import *
 
 random.seed()
 
@@ -276,7 +277,7 @@ def getUUID():
 def mkRandomHostname():
     """ Generate a random hostname of the form xenserver-AAAAAAAA """
     s = "".join([random.choice(string.ascii_lowercase) for x in range(8)])
-    return "xenserver-%s" % s
+    return "%s-%s" % (BRAND_SERVER.split()[0].lower(),s)
 
 def splitNetloc(netloc):
     hostname = netloc
