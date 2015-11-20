@@ -51,7 +51,7 @@ class ExistingInstallation:
 
     def __str__(self):
         return "%s %s" % (
-            self.brand, str(self.version))
+            self.visual_brand, self.visual_version)
 
     def mount_state(self):
         """ Mount main state partition on self.state_fs. """
@@ -490,6 +490,18 @@ class ExistingRetailInstallation(ExistingInstallation):
                 self.name = self.inventory['PLATFORM_NAME']
                 self.brand = self.inventory['PLATFORM_NAME']
                 self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'], self.inventory['BUILD_NUMBER']))
+
+            if 'OEM_BRAND' in self.inventory:
+                self.oem_brand = self.inventory['OEM_BRAND']
+                self.visual_brand = self.oem_brand
+            else:
+                self.visual_brand = self.brand
+            if 'OEM_VERSION' in self.inventory:
+                self.oem_version = self.inventory['OEM_VERSION']
+                self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.inventory['BUILD_NUMBER'])
+            else:
+                self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER'])
+
             self.build = self.inventory['BUILD_NUMBER']
         finally:
             self.unmount_root()

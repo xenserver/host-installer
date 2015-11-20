@@ -258,7 +258,7 @@ def get_installation_type(answers):
         if not context: return True
         obj, _ = context
         if isinstance(obj, product.ExistingInstallation):
-            use = "%s installation" % MY_PRODUCT_BRAND
+            use = "%s installation" % obj.visual_brand
         elif isinstance(obj, product.XenServerBackup):
             use = "%s backup" % MY_PRODUCT_BRAND
         else:
@@ -278,7 +278,7 @@ def get_installation_type(answers):
 
         tui.update_help_line([' ', ' '])
         snackutil.TableDialog(tui.screen, "Details", ("Use:", use),
-                              ("Version:", str(obj.version)),
+                              ("Version:", str(obj.visual_version)),
                               ("Installed:", date),
                               ("Disk:", dev))
         tui.screen.popHelpLine()
