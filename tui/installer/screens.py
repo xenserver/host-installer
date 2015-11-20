@@ -260,7 +260,7 @@ def get_installation_type(answers):
         if isinstance(obj, product.ExistingInstallation):
             use = "%s installation" % obj.visual_brand
         elif isinstance(obj, product.XenServerBackup):
-            use = "%s backup" % MY_PRODUCT_BRAND
+            use = "%s backup" % obj.visual_brand
         else:
             return True
 

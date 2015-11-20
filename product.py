@@ -518,12 +518,24 @@ class XenServerBackup:
             self.name = self.inventory['PLATFORM_NAME']
             self.brand = self.inventory['PLATFORM_NAME']
             self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'], self.inventory['BUILD_NUMBER']))
+
+        if 'OEM_BRAND' in self.inventory:
+            self.oem_brand = self.inventory['OEM_BRAND']
+            self.visual_brand = self.oem_brand
+        else:
+            self.visual_brand = self.brand
+        if 'OEM_VERSION' in self.inventory:
+            self.oem_version = self.inventory['OEM_VERSION']
+            self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.inventory['BUILD_NUMBER'])
+        else:
+            self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER'])
+
         self.build = self.inventory['BUILD_NUMBER']
         self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
 
     def __str__(self):
         return "%s %s" % (
-            self.brand, str(self.version))
+            self.visual_brand, self.visual_version)
 
     def __repr__(self):
         return "<XenServerBackup: %s on %s>" % (str(self), self.partition)
