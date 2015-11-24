@@ -954,21 +954,21 @@ def findRepositoriesOnMedia():
     removable_devices = filter(lambda x: not x.startswith('fd'),
                                removable_devices)
 
-    # also scan the partitions of these removable devices:
+    parent_devices = []
     partitions = []
-    for dev in removable_devices:
-        partitions.extend(diskutil.partitionsOnDisk(dev))
-
-    # remove devices we discovered from the static list so we don't
-    # scan them twice:
-    for x in removable_devices:
-        if x in static_devices:
-            static_devices.remove(x)
+    for dev in removable_devices + static_devices:
+        if os.path.exists("/dev/%s" % dev) and os.path.exists("/sys/block/%s" % dev):
+            dev_partitions = diskutil.partitionsOnDisk(dev)
+            if len(dev_partitions) > 0:
+                partitions.extend([x for x in dev_partitions if x not in partitions])
+            else:
+                if dev not in parent_devices:
+                    parent_devices.append(dev)
 
     da = None
     repos = []
     try:
-        for check in removable_devices + partitions + static_devices:
+        for check in parent_devices + partitions:
             device_path = "/dev/%s" % check
             xelogging.log("Looking for repositories: %s" % device_path)
             if os.path.exists(device_path):
