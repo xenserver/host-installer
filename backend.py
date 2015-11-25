@@ -1238,7 +1238,8 @@ def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnu
     if logs_partition:
         fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, logsfs_type))
 
-    fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
+    if os.path.exists(os.path.join(mounts['root'], 'opt/xensource/packages/iso/XenCenter.iso')):
+        fstab.write("/opt/xensource/packages/iso/XenCenter.iso   /var/xen/xc-install   iso9660   loop,ro   0  0\n")
     fstab.close()
 
     # This should be removed when the packaging CARs are done
