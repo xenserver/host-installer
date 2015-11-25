@@ -957,10 +957,14 @@ def findRepositoriesOnMedia():
     parent_devices = []
     partitions = []
     for dev in removable_devices + static_devices:
-        if os.path.exists("/dev/%s" % dev) and os.path.exists("/sys/block/%s" % dev):
-            dev_partitions = diskutil.partitionsOnDisk(dev)
-            if len(dev_partitions) > 0:
-                partitions.extend([x for x in dev_partitions if x not in partitions])
+        if os.path.exists("/dev/%s" % dev):
+            if os.path.exists("/sys/block/%s" % dev):
+                dev_partitions = diskutil.partitionsOnDisk(dev)
+                if len(dev_partitions) > 0:
+                    partitions.extend([x for x in dev_partitions if x not in partitions])
+                else:
+                    if dev not in parent_devices:
+                        parent_devices.append(dev)
             else:
                 if dev not in parent_devices:
                     parent_devices.append(dev)
