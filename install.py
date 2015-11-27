@@ -155,7 +155,10 @@ def go(ui, args, answerfile_address, answerfile_script):
     try:
         if os.path.isfile(constants.defaults_data_file):
             data_file = open(constants.defaults_data_file)
-            defaults = json.load(data_file)
+            try:
+                defaults = json.load(data_file)
+            finally:
+                data_file.close()
             results.update(defaults)
 
         # loading an answerfile?
