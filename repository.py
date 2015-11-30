@@ -155,6 +155,8 @@ class LegacyRepository(Repository):
             _build = repo_node.getAttribute("build").encode()
             if _build == '': _build = None
             _description = getText(desc_node.childNodes)
+            _hidden = repo_node.getAttribute("hidden").encode()
+            if _hidden == '': _hidden='false'
 
             for req_node in xmldoc.getElementsByTagName('requires'):
                 req = {}
@@ -170,6 +172,7 @@ class LegacyRepository(Repository):
         self._identifier = "%s:%s" % (_originator,_name)
         self._name = _description
         self._product_brand = _product
+        self._hidden = _hidden
         ver_str = _version
         if _build: ver_str += '-'+_build
         self._product_version = Version.from_string(ver_str)
@@ -188,6 +191,9 @@ class LegacyRepository(Repository):
 
     def path(self, name):
         return self._accessor.pathjoin(self._base, name)
+
+    def hidden(self):
+        return self._hidden
 
     def _parse_packages(self, pkgfile):
         self._pkgfile_contents = pkgfile.read()
