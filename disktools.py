@@ -1179,19 +1179,25 @@ def getMpathMaster(dev):
     "Returns master device or None"
     try:
         d = getSysfsDir(dev)
-        holders = os.listdir('%s/holders' % d)
-        if len(holders) != 1 or (not holders[0].startswith('dm-')):
-            xelogging.log('getMpathMaster: contents of %s/holders/ is %s' % (d,str(holders)))
+
+        if dev.startswith('/dev/dm-'):
+            holder = dev[5:]
         else:
-            holder = holders[0]
-            (major,minor) = map(int,open('/sys/block/%s/dev' % holder).read().strip().split(':'))
-            for i in os.listdir('/dev/mapper'):
-                dmdev = '/dev/mapper/%s' % i 
-                if getMajMin(dmdev) == (major,minor):
-                    xelogging.log('getMpathMaster: %s has master %s' % (dev,dmdev))
-                    return dmdev
-            xelogging.log('getMpathMaster: could not find master %d:%d of %s in /dev/mapper/' % (major,minor,dev))
-        return None
+            holders = os.listdir('%s/holders' % d)
+            if len(holders) != 1 or (not holders[0].startswith('dm-')):
+                xelogging.log('getMpathMaster: contents of %s/holders/ is %s' % (d,str(holders)))
+                return None
+            else:
+                holder = holders[0]
+
+        (major,minor) = map(int,open('/sys/block/%s/dev' % holder).read().strip().split(':'))
+        for i in os.listdir('/dev/mapper'):
+            dmdev = '/dev/mapper/%s' % i
+            if getMajMin(dmdev) == (major,minor):
+                xelogging.log('getMpathMaster: %s has master %s' % (dev,dmdev))
+                return dmdev
+        xelogging.log('getMpathMaster: could not find master %d:%d of %s in /dev/mapper/' % (major,minor,dev))
+
     except OSError:
         return None
 
