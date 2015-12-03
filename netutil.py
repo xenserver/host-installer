@@ -142,9 +142,9 @@ def linkUp(interface):
     linkUp = None
 
     try:
-        fh = open("/sys/class/net/%s/carrier" % interface)
+        fh = open("/sys/class/net/%s/operstate" % interface)
         state = fh.readline().strip()
-        linkUp = (state == '1')
+        linkUp = (state == 'up')
         fh.close()
     except IOError:
         pass
