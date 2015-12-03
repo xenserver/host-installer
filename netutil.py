@@ -141,13 +141,13 @@ def interfaceUp(interface):
 def linkUp(interface):
     linkUp = None
 
-    rc, out = util.runCmd2(['ethtool', interface], with_stdout = True)
-    if rc != 0:
-        return None
-    for line in out.split('\n'):
-        line = line.strip()
-        if line.startswith('Link detected:'):
-            linkUp = line.endswith('yes')
+    try:
+        fh = open("/sys/class/net/%s/carrier" % interface)
+        state = fh.readline().strip()
+        linkUp = (state == '1')
+        fh.close()
+    except IOError:
+        pass
     return linkUp
 
 def setAllLinksUp():
