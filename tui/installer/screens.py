@@ -547,10 +547,14 @@ def disk_more_info(context):
     tui.screen.popHelpLine()
     return True
 
+def sorted_disk_list():
+    return sorted(diskutil.getQualifiedDiskList(),
+                  lambda x, y: len(x) == len(y) and cmp(x,y) or (len(x)-len(y)))
+
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     button = None
-    diskEntries = diskutil.getQualifiedDiskList()
+    diskEntries = sorted_disk_list()
 
     entries = []
     target_is_sr = {}
@@ -648,7 +652,7 @@ Either return to the previous screen and select a different disk or cancel the i
     return EXIT
 
 def select_guest_disks(answers):
-    diskEntries = diskutil.getQualifiedDiskList()
+    diskEntries = sorted_disk_list()
 
     # CA-38329: filter out device mapper nodes (except primary disk) as these won't exist
     # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
