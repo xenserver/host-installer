@@ -1216,3 +1216,11 @@ def getMdNodes():
     except IOError:
         pass
     return nodes
+
+def hasMdHolder(dev):
+    sysfs = getSysfsDir(dev)
+    if os.path.exists('%s/holders' % sysfs):
+        for holder in os.listdir('%s/holders' % sysfs):
+            if holder.startswith('md'):
+                return True
+    return False

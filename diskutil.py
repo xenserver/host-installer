@@ -163,6 +163,9 @@ def getDiskList():
                 if hasDeviceMapperHolder("/dev/" + name.replace("!","/")):
                     # skip device that cannot be used
                     continue
+                if hasMdHolder("/dev/" + name.replace("!","/")):
+                    # skip device that cannot be used
+                    continue
                 disks.append(name.replace("!", "/"))
             # Handle Block Extended Major devices
             if major == 259 and not regex.match(name):
