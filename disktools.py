@@ -1160,8 +1160,8 @@ def getDeviceMapperNode(n):
     return None
 
 
-def getMpathSlaves(disk):
-    """ Return the list of slaves for an mpath device or an empty list if not mpath """    
+def getDeviceSlaves(disk):
+    """ Return the list of slaves for an device or an empty list """
     slaves = []
     major, minor = getMajMin(disk)
     rv, out = util.runCmd2(['sh','-c','ls -d1 /sys/block/*/holders/*/dev'],with_stdout=True)

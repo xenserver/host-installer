@@ -262,7 +262,10 @@ def getDiskDeviceVendor(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskDeviceVendor(getMpathSlaves(dev)[0])
+        return getDiskDeviceVendor(getDeviceSlaves(dev)[0])
+    if is_raid(dev):
+        vendors = set(map(getDiskDeviceVendor, getDeviceSlaves(dev)))
+        return '/'.join(vendors)
 
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
@@ -278,7 +281,10 @@ def getDiskDeviceModel(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskDeviceModel(getMpathSlaves(dev)[0])
+        return getDiskDeviceModel(getDeviceSlaves(dev)[0])
+    if is_raid(dev):
+        models = set(map(getDiskDeviceModel, getDeviceSlaves(dev)))
+        return '/'.join(models)
 
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
@@ -294,7 +300,7 @@ def getDiskDeviceSize(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskDeviceSize(getMpathSlaves(dev)[0])
+        return getDiskDeviceSize(getDeviceSlaves(dev)[0])
 
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
@@ -309,7 +315,10 @@ def getDiskSerialNumber(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskSerialNumber(getMpathSlaves(dev)[0])
+        return getDiskSerialNumber(getDeviceSlaves(dev)[0])
+    if is_raid(dev):
+        serials = set(map(getDiskSerialNumber, getDeviceSlaves(dev)))
+        return '/'.join(serials)
 
     rc, out = util.runCmd2(['/bin/sdparm', '-q', '-i', '-p', 'sn', dev], with_stdout = True)
     if rc == 0:
@@ -394,7 +403,7 @@ def getHumanDiskName(disk):
     if not disk.startswith("/dev/"):
         disk = '/dev/' + disk
     if isDeviceMapperNode(disk):
-        return getHumanDiskName(getMpathSlaves(disk)[0])
+        return getHumanDiskName(getDeviceSlaves(disk)[0])
     if is_raid(disk):
         name = getMdDeviceName(disk)
         # mdadm may append an _ followed by a number (e.g. d0_0) to prevent
@@ -542,7 +551,7 @@ def is_iscsi(device):
 
     # If this is a multipath device check whether the first slave is iSCSI
     if use_mpath:
-        slaves = getMpathSlaves(device)
+        slaves = getDeviceSlaves(device)
         if slaves:
             device = slaves[0]        
     
