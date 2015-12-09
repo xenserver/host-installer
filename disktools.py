@@ -1046,7 +1046,7 @@ class GPTPartitionTool(PartitionToolBase):
 def probePartitioningScheme(device):
     """Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt"""
     partitionType = constants.PARTITION_GPT   # default
-    rv, out = util.runCmd2(['blkid', '-s PTTYPE', '-o value', device], with_stdout=True)
+    rv, out = util.runCmd2(['blkid', '-s', 'PTTYPE', '-o', 'value', device], with_stdout=True)
     out = out.strip()
  
     if out == 'dos':
