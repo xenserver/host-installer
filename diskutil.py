@@ -378,6 +378,16 @@ def readExtPartitionLabel(partition):
         raise Exception("%s is not ext partition" % partition)
     return label
 
+def getMdDeviceName(disk):
+    rv, out = util.runCmd2(['mdadm', '--detail', '--export', disk],
+                           with_stdout=True)
+    for line in out.split("\n"):
+        line = line.strip().split('=', 1)
+        if line[0] == 'MD_DEVNAME':
+            return line[1]
+
+    return disk
+
 def getHumanDiskName(disk):
 
     # For Multipath nodes return info about 1st slave
@@ -385,6 +395,13 @@ def getHumanDiskName(disk):
         disk = '/dev/' + disk
     if isDeviceMapperNode(disk):
         return getHumanDiskName(getMpathSlaves(disk)[0])
+    if is_raid(disk):
+        name = getMdDeviceName(disk)
+        # mdadm may append an _ followed by a number (e.g. d0_0) to prevent
+        # name collisions. Strip it if necessary.
+        name = re.match("([^_]*)(_\d+)?$", name).group(1)
+        return 'RAID: %s(%s)' % (name, ','.join(map(lambda dev: dev[5:],
+                                                    getDeviceSlaves(disk))))
 
     if disk.startswith('/dev/disk/by-id/'):
         return disk[16:]
