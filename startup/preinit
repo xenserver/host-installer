@@ -54,7 +54,10 @@ for arg in $args; do
     atexit=*)
       atexit=${arg#atexit=}
       copy=0;;
-    blacklist=* | enable-ide | extramodules=* | make-ramdisk=*)
+    blacklist=* | enable-ide | extramodules=*)
+      copy=0;;
+    make-ramdisk=*)
+      /opt/xensource/installer/S05ramdisk start
       copy=0;;
     mount=* | start=*)
       copy=0;;

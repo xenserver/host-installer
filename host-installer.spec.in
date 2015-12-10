@@ -62,6 +62,7 @@ mkdir -p %{buildroot}/etc/depmod.d
 mkdir -p %{buildroot}/etc/udev/rules.d
 mkdir -p %{buildroot}/usr/lib/udev
 cp startup/preinit %{buildroot}/%{installer_dir}/
+cp startup/S05ramdisk %{buildroot}/%{installer_dir}/
 cp startup/depmod.conf %{buildroot}/etc/depmod.d
 cp startup/blacklist %{buildroot}/etc/modprobe.d/installer-blacklist.conf
 cp startup/early-blacklist.conf %{buildroot}/etc/modprobe.d/
@@ -137,6 +138,7 @@ rm -rf $RPM_BUILD_ROOT
 
 /etc/init.d/*
 %{installer_dir}/preinit
+%attr(755,root,root) %{installer_dir}/S05ramdisk
 
 %defattr(664,root,root,775)
 /etc/modprobe.d/*
