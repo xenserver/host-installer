@@ -955,15 +955,6 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
     if rc == 0 and ('1022:7451' in out or '1022:7459' in out):
         common_xen_params += " ioapic_ack=old"
 
-    # CA-101581 - Mask parameters are unique to Xen, and previously accumulated
-    # on upgrade.  Use a dictionary to eat duplicates.
-    cpuid_masks = {"cpuid_mask_xsave_eax": "0"}
-    for mask in host_config['xen-cpuid-masks']:
-        parts = mask.split("=", 1)
-        if len(parts) == 2:
-            cpuid_masks[parts[0]] = parts[1]
-    mask_params = ' '.join ( ("%s=%s" % (x, y) for x, y in cpuid_masks.iteritems() ) )
-
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "xencons=hvc console=hvc0"
 
@@ -978,7 +969,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
             common_kernel_params += " fcoe=%s:%s" % (netutil.getHWAddr(interface), dcb and "dcb" or "nodcb")
 
     e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
-                             hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params, "console=vga vga=mode-0x0311"]),
+                             hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel = "/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
                              initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND,
@@ -989,7 +980,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
         
         e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
-                                 hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
+                                 hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND+" (Serial)",
@@ -1006,7 +997,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
         boot_config.append("safe", e)
 
     e = bootloader.MenuEntry(hypervisor = "/boot/xen-fallback.gz",
-                             hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
+                             hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                              kernel = "/boot/vmlinuz-fallback",
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              initrd = "/boot/initrd-fallback.img",
@@ -1015,7 +1006,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor = "/boot/xen-fallback.gz",
-                                 hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params, mask_params]),
+                                 hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel = "/boot/vmlinuz-fallback",
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-fallback.img",
