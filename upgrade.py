@@ -494,6 +494,17 @@ class ThirdGenUpgrader(Upgrader):
             util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
                           os.path.join(mounts['root'], 'var/lib/xcp/state.db')])
 
+        # handle the conversion of RAID devices from /dev/md_* to /dev/disk/by-id/md-uuid-*
+        if primary_disk.startswith('/dev/md_') and target_link.startswith('/dev/disk/by-id/md-uuid-'):
+            for i in ('etc/firstboot.d/data/default-storage.conf',
+                      'var/lib/xcp/state.db'):
+                # First convert partitions from *pN to *-partN
+                util.runCmd2(['sed', '-i', '-e', "s#\(%s\)p\([[:digit:]]\+\)#\\1-part\\2#g" % primary_disk,
+                              os.path.join(mounts['root'], i)])
+                # Then conert from /dev/md_* to /dev/disk/by-id/md-uuid-*
+                util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
+                              os.path.join(mounts['root'], i)])
+
 ################################################################################
 
 # Upgraders provided here, in preference order:

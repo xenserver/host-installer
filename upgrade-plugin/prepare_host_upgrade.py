@@ -32,6 +32,7 @@ min_upgrade_lvm_part_size = 38 * 2**30 #38GB
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
 xs_6_2 = version.Version([6, 2, 0])
+xs_6_5 = version.Version([6, 5, 0])
 
 def shell_value(line):
     return line.split('=', 1)[1].strip("'")
@@ -126,6 +127,16 @@ def get_fs_labels():
 
     return root_label, boot_label
 
+def get_md_uuid(dev):
+    rv, out = cmd.runCmd(['mdadm', '--detail', '--export', dev],
+                         with_stdout=True)
+    for line in out.split("\n"):
+        line = line.strip().split('=', 1)
+        if line[0] == 'MD_UUID':
+            return line[1]
+
+    return None
+
 def gen_answerfile(accessor, installer_dir, url):
     root_device = None
     root_partition = None
@@ -164,6 +175,11 @@ def gen_answerfile(accessor, installer_dir, url):
             logger.info("Replacing root disk "+root_device+ " with "+new_device)
             root_device = new_device
 
+    # Use /dev/disk/by-id/md-uuid-* rather than /dev/md*
+    if repo_ver > xs_6_5 and root_device.startswith('/dev/md_'):
+        uuid = get_md_uuid(root_device)
+        root_device = '/dev/disk/by-id/md-uuid-%s' % uuid
+
     root_label, boot_label = get_fs_labels()
     if not root_label:
         logger.error("Failed to determine root label")
@@ -182,6 +198,12 @@ def gen_answerfile(accessor, installer_dir, url):
     if boot_label and not boot_partition:
         logger.error("Failed to determine boot partition")
         return False
+
+    # Use /dev/disk/by-id/md-uuid-* rather than /dev/md*
+    if repo_ver > xs_6_5 and root_partition.startswith('/dev/md_'):
+        partno = re.search('[a-zA-Z](\d+)$', root_partition).group(1)
+        uuid = get_md_uuid(root_partition)
+        root_partition = '/dev/disk/by-id/md-uuid-%s-part%s' % (uuid, partno)
 
     logger.debug("Root device: "+root_device)
     logger.debug("Root label: "+root_label)
