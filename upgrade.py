@@ -131,7 +131,7 @@ class Upgrader(object):
 class ThirdGenUpgrader(Upgrader):
     """ Upgrader class for series 5 Retail products. """
     upgrades_product = "xenenterprise"
-    upgrades_versions = [ (product.XENSERVER_6_0_0, product.THIS_PRODUCT_VERSION) ]
+    upgrades_versions = [ (product.XENSERVER_6_0_0, product.THIS_PLATFORM_VERSION) ]
     upgrades_variants = [ 'Retail' ]
     requires_backup = True
     optional_backup = False
@@ -402,7 +402,7 @@ class ThirdGenUpgrader(Upgrader):
 
         v = Version(prev_install.version.ver)
         f = open(os.path.join(mounts['root'], 'var/tmp/.previousVersion'), 'w')
-        f.write("PRODUCT_VERSION='%s'\n" % v)
+        f.write("PLATFORM_VERSION='%s'\n" % v)
         f.close()
 
         state = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'host.conf'), 'w')
@@ -494,12 +494,6 @@ class ThirdGenUpgrader(Upgrader):
             util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
                           os.path.join(mounts['root'], 'var/lib/xcp/state.db')])
 
-class XCPUpgrader(ThirdGenUpgrader):
-    """ Upgrader class for XCP products. """
-    upgrades_product = "XCP"
-    upgrades_versions = [ (product.XCP_1_6_0, product.THIS_PLATFORM_VERSION) ]
-
-
 ################################################################################
 
 # Upgraders provided here, in preference order:
@@ -516,7 +510,7 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ ThirdGenUpgrader, XCPUpgrader ])
+__upgraders__ = UpgraderList([ ThirdGenUpgrader ])
 
 def filter_for_upgradeable_products(installed_products):
     upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),

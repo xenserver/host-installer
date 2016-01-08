@@ -37,7 +37,6 @@ import tui.progress
 import driver
 import tui.fcoe
 
-MY_PRODUCT_VERSION = PRODUCT_VERSION or PLATFORM_VERSION
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
 def selectDefault(key, entries):

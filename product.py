@@ -33,10 +33,8 @@ import simplejson as json
 class SettingsNotAvailable(Exception):
     pass
 
-THIS_PRODUCT_VERSION = Version.from_string(version.PRODUCT_VERSION)
 THIS_PLATFORM_VERSION = Version.from_string(version.PLATFORM_VERSION)
-XENSERVER_6_0_0 = Version([6, 0, 0])
-XCP_1_6_0 = Version([1, 6, 0])
+XENSERVER_6_0_0 = Version([1, 0, 99]) # Platform version
 
 class ExistingInstallation:
     def __init__(self, primary_disk, boot_device, state_device):
@@ -482,15 +480,18 @@ class ExistingRetailInstallation(ExistingInstallation):
     def readInventory(self):
         self.mount_root()
         try:
-            self.inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
+            self.inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point,
+                                                                constants.INVENTORY_FILE),
+                                                   strip_quotes = True)
+            self.build = self.inventory['BUILD_NUMBER']
+            self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
+                                                          self.build))
             if 'PRODUCT_NAME' in self.inventory:
                 self.name = self.inventory['PRODUCT_NAME']
                 self.brand = self.inventory['PRODUCT_BRAND']
-                self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
             else:
                 self.name = self.inventory['PLATFORM_NAME']
                 self.brand = self.inventory['PLATFORM_NAME']
-                self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'], self.inventory['BUILD_NUMBER']))
 
             if 'OEM_BRAND' in self.inventory:
                 self.oem_brand = self.inventory['OEM_BRAND']
@@ -499,11 +500,11 @@ class ExistingRetailInstallation(ExistingInstallation):
                 self.visual_brand = self.brand
             if 'OEM_VERSION' in self.inventory:
                 self.oem_version = self.inventory['OEM_VERSION']
-                self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.inventory['BUILD_NUMBER'])
+                self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'],
+                                                 self.build)
             else:
-                self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER'])
-
-            self.build = self.inventory['BUILD_NUMBER']
+                self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'],
+                                                 self.build)
         finally:
             self.unmount_root()
 
@@ -511,14 +512,16 @@ class XenServerBackup:
     def __init__(self, part, mnt):
         self.partition = part
         self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes = True)
+        self.build = self.inventory['BUILD_NUMBER']
+        self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
+                                                      self.build))
+        self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
         if 'PRODUCT_NAME' in self.inventory:
             self.name = self.inventory['PRODUCT_NAME']
             self.brand = self.inventory['PRODUCT_BRAND']
-            self.version = Version.from_string("%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER']))
         else:
             self.name = self.inventory['PLATFORM_NAME']
             self.brand = self.inventory['PLATFORM_NAME']
-            self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'], self.inventory['BUILD_NUMBER']))
 
         if 'OEM_BRAND' in self.inventory:
             self.oem_brand = self.inventory['OEM_BRAND']
@@ -527,12 +530,9 @@ class XenServerBackup:
             self.visual_brand = self.brand
         if 'OEM_VERSION' in self.inventory:
             self.oem_version = self.inventory['OEM_VERSION']
-            self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.inventory['BUILD_NUMBER'])
+            self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.build)
         else:
-            self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.inventory['BUILD_NUMBER'])
-
-        self.build = self.inventory['BUILD_NUMBER']
-        self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
+            self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.build)
 
     def __str__(self):
         return "%s %s" % (

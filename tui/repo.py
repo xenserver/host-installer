@@ -36,7 +36,7 @@ def selectDefault(key, entries):
     REPOCHK_NO_ACCESS,
     REPOCHK_NO_REPO,
     REPOCHK_NO_BASE_REPO,
-    REPOCHK_PRODUCT_VERSION_MISMATCH,
+    REPOCHK_PLATFORM_VERSION_MISMATCH,
     REPOCHK_NO_ERRORS
 ) = range(5)
 
@@ -57,7 +57,7 @@ def check_repo_def(definition, require_base_repo):
         elif constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in repos] and require_base_repo:
             return REPOCHK_NO_BASE_REPO
         elif False in [ r.compatible_with(version.PLATFORM_NAME, version.PRODUCT_BRAND) for r in repos ]:
-            return REPOCHK_PRODUCT_VERSION_MISMATCH
+            return REPOCHK_PLATFORM_VERSION_MISMATCH
 
     return REPOCHK_NO_ERRORS
 
@@ -81,7 +81,7 @@ def interactive_check_repo_def(definition, require_base_repo):
            "A base installation repository was not found at that location.  Please check and try again.",
            ['Ok']
            )
-    elif rc == REPOCHK_PRODUCT_VERSION_MISMATCH:
+    elif rc == REPOCHK_PLATFORM_VERSION_MISMATCH:
         cont = ButtonChoiceWindow(
             tui.screen,
             "Version Mismatch",

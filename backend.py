@@ -41,7 +41,6 @@ from version import *
 from constants import *
 
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
-MY_PRODUCT_VERSION = PRODUCT_VERSION or PLATFORM_VERSION
 
 class InvalidInstallerConfiguration(Exception):
     pass
