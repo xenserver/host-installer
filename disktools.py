@@ -1046,7 +1046,7 @@ class GPTPartitionTool(PartitionToolBase):
 def probePartitioningScheme(device):
     """Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt"""
     partitionType = constants.PARTITION_GPT   # default
-    rv, out = util.runCmd2(['blkid', '-s PTTYPE', '-o value', device], with_stdout=True)
+    rv, out = util.runCmd2(['blkid', '-s', 'PTTYPE', '-o', 'value', device], with_stdout=True)
     out = out.strip()
  
     if out == 'dos':
@@ -1160,8 +1160,8 @@ def getDeviceMapperNode(n):
     return None
 
 
-def getMpathSlaves(disk):
-    """ Return the list of slaves for an mpath device or an empty list if not mpath """    
+def getDeviceSlaves(disk):
+    """ Return the list of slaves for an device or an empty list """
     slaves = []
     major, minor = getMajMin(disk)
     rv, out = util.runCmd2(['sh','-c','ls -d1 /sys/block/*/holders/*/dev'],with_stdout=True)
@@ -1216,3 +1216,11 @@ def getMdNodes():
     except IOError:
         pass
     return nodes
+
+def hasMdHolder(dev):
+    sysfs = getSysfsDir(dev)
+    if os.path.exists('%s/holders' % sysfs):
+        for holder in os.listdir('%s/holders' % sysfs):
+            if holder.startswith('md'):
+                return True
+    return False

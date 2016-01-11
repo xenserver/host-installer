@@ -515,7 +515,6 @@ class XenServerBackup:
         self.build = self.inventory['BUILD_NUMBER']
         self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
                                                       self.build))
-        self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
         if 'PRODUCT_NAME' in self.inventory:
             self.name = self.inventory['PRODUCT_NAME']
             self.brand = self.inventory['PRODUCT_BRAND']
@@ -533,6 +532,12 @@ class XenServerBackup:
             self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.build)
         else:
             self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.build)
+
+        if self.inventory['PRIMARY_DISK'].startswith('/dev/md_'):
+            # Handle restoring an installation using a /dev/md_* path
+            self.root_disk = os.path.realpath(self.inventory['PRIMARY_DISK'].replace('md_', 'md/') + '_0')
+        else:
+            self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
 
     def __str__(self):
         return "%s %s" % (

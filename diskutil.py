@@ -163,6 +163,9 @@ def getDiskList():
                 if hasDeviceMapperHolder("/dev/" + name.replace("!","/")):
                     # skip device that cannot be used
                     continue
+                if hasMdHolder("/dev/" + name.replace("!","/")):
+                    # skip device that cannot be used
+                    continue
                 disks.append(name.replace("!", "/"))
             # Handle Block Extended Major devices
             if major == 259 and not regex.match(name):
@@ -259,7 +262,10 @@ def getDiskDeviceVendor(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskDeviceVendor(getMpathSlaves(dev)[0])
+        return getDiskDeviceVendor(getDeviceSlaves(dev)[0])
+    if is_raid(dev):
+        vendors = set(map(getDiskDeviceVendor, getDeviceSlaves(dev)))
+        return '/'.join(vendors)
 
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
@@ -275,7 +281,10 @@ def getDiskDeviceModel(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskDeviceModel(getMpathSlaves(dev)[0])
+        return getDiskDeviceModel(getDeviceSlaves(dev)[0])
+    if is_raid(dev):
+        models = set(map(getDiskDeviceModel, getDeviceSlaves(dev)))
+        return '/'.join(models)
 
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
@@ -291,7 +300,7 @@ def getDiskDeviceSize(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskDeviceSize(getMpathSlaves(dev)[0])
+        return getDiskDeviceSize(getDeviceSlaves(dev)[0])
 
     if dev.startswith("/dev/"):
         dev = re.match("/dev/(.*)", dev).group(1)
@@ -306,7 +315,10 @@ def getDiskSerialNumber(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
-        return getDiskSerialNumber(getMpathSlaves(dev)[0])
+        return getDiskSerialNumber(getDeviceSlaves(dev)[0])
+    if is_raid(dev):
+        serials = set(map(getDiskSerialNumber, getDeviceSlaves(dev)))
+        return '/'.join(serials)
 
     rc, out = util.runCmd2(['/bin/sdparm', '-q', '-i', '-p', 'sn', dev], with_stdout = True)
     if rc == 0:
@@ -375,13 +387,30 @@ def readExtPartitionLabel(partition):
         raise Exception("%s is not ext partition" % partition)
     return label
 
+def getMdDeviceName(disk):
+    rv, out = util.runCmd2(['mdadm', '--detail', '--export', disk],
+                           with_stdout=True)
+    for line in out.split("\n"):
+        line = line.strip().split('=', 1)
+        if line[0] == 'MD_DEVNAME':
+            return line[1]
+
+    return disk
+
 def getHumanDiskName(disk):
 
     # For Multipath nodes return info about 1st slave
     if not disk.startswith("/dev/"):
         disk = '/dev/' + disk
     if isDeviceMapperNode(disk):
-        return getHumanDiskName(getMpathSlaves(disk)[0])
+        return getHumanDiskName(getDeviceSlaves(disk)[0])
+    if is_raid(disk):
+        name = getMdDeviceName(disk)
+        # mdadm may append an _ followed by a number (e.g. d0_0) to prevent
+        # name collisions. Strip it if necessary.
+        name = re.match("([^_]*)(_\d+)?$", name).group(1)
+        return 'RAID: %s(%s)' % (name, ','.join(map(lambda dev: dev[5:],
+                                                    getDeviceSlaves(disk))))
 
     if disk.startswith('/dev/disk/by-id/'):
         return disk[16:]
@@ -527,7 +556,7 @@ def is_iscsi(device):
 
     # If this is a multipath device check whether the first slave is iSCSI
     if use_mpath:
-        slaves = getMpathSlaves(device)
+        slaves = getDeviceSlaves(device)
         if slaves:
             device = slaves[0]        
     
