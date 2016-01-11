@@ -84,6 +84,7 @@ def error_string(error, logname, with_hd):
 # memory checks should be done against MIN_SYSTEM_RAM_MB since libxc
 # reports the total system ram after the Xen heap.  The UI should
 # display the value given by MIN_SYSTEM_RAM_MB_RAW.
+min_primary_disk_size_old = 12 #GB
 min_primary_disk_size = 46 #GB
 max_primary_disk_size_dos = 2047 #GB
 MIN_SYSTEM_RAM_MB_RAW = 1024 # MB
@@ -97,9 +98,13 @@ FORCE_LEGACY_BOOT = False
 
 # filesystems and partitions (sizes in MB):
 boot_size = 512
+root_mbr_size_old = 4096
 root_mbr_size = 18432
+root_gpt_size_old = 3584
 root_gpt_size = 17920
+root_size_old = max(root_mbr_size_old, root_gpt_size_old)  # used for free space calculations
 root_size = max(root_mbr_size, root_gpt_size)  # used for free space calculations
+backup_size_old = 4096
 backup_size = 18432
 swap_file_size = 512
 swap_size = 1024

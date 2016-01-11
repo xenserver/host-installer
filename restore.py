@@ -183,8 +183,8 @@ def doRestore(backup, progress):
         # Rename logs partition to be n.1
         tool.renamePartition(srcNumber = logs_partnum, destNumber = primary_partnum, overwrite = False)
 
-        # Create 4GB backup partition - we may want to keep the old variable for sizes
-        tool.createPartition(tool.ID_LINUX, sizeBytes = constants.logs_size * 2**20, startBytes = tool.partitionEnd(primary_partnum) + tool.sectorSize, number = backup_partnum)
+        # Create 4GB backup partition
+        tool.createPartition(tool.ID_LINUX, sizeBytes = constants.backup_size_old * 2**20, startBytes = tool.partitionEnd(primary_partnum) + tool.sectorSize, number = backup_partnum)
 
         # Commit partition table and mark dom0 disk as bootable
         tool.commit(log = True)

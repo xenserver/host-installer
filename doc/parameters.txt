@@ -182,3 +182,7 @@ Installer
   --disable-uefi
 
     Install in legacy boot mode.
+
+  --legacy-partitions
+
+    Revert to old three partition scheme for new installs. (New in 7.0)

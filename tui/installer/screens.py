@@ -558,9 +558,14 @@ def select_primary_disk(answers):
     entries = []
     target_is_sr = {}
     
+    if answers['create-new-partitions']:
+        min_primary_disk_size = constants.min_primary_disk_size
+    else:
+        min_primary_disk_size = constants.min_primary_disk_size_old
+
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        if constants.min_primary_disk_size <= diskutil.blockSizeToGBSize(size):
+        if min_primary_disk_size <= diskutil.blockSizeToGBSize(size):
             # determine current usage
             target_is_sr[de] = False
             (boot, root, state, storage) = diskutil.probeDisk(de)
@@ -640,11 +645,16 @@ def check_sr_space(answers):
 # NB. there's some stuff here that's not really consistent with XCP
 # but that's ok, since it's never called on an XCP host
 
+    if answers['create-new-partitions']:
+        root_size = constants.root_size
+    else:
+        root_size = constants.root_size_old
+
     button = ButtonChoiceWindow(tui.screen,
                                 "Insufficient Space",
                                 """The disk selected contains a storage repository which does not have enough space to also install %s on.
 
-Either return to the previous screen and select a different disk or cancel the installation, restart the %s and use %s to free up %dMB of space in the local storage repository.""" % (MY_PRODUCT_BRAND, BRAND_SERVER, BRAND_CONSOLE, 2 * constants.root_size),
+    Either return to the previous screen and select a different disk or cancel the installation, restart the %s and use %s to free up %dMB of space in the local storage repository.""" % (MY_PRODUCT_BRAND, BRAND_SERVER, BRAND_CONSOLE, 2 * root_size),
                                 ['Back', 'Cancel'], width = 60, help = 'insuffsr')
     if button == 'back': return LEFT_BACKWARDS
 

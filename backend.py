@@ -110,7 +110,7 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary', 'create-new-partitions'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
         ]
     if not interactive:
@@ -118,7 +118,7 @@ def getPrepSequence(ans, interactive):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type', 'create-new-partitions'), []),
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
@@ -480,7 +480,7 @@ def configureTimeManually(mounts, ui_package):
     os.unlink("%s/tmp/timeutil" % mounts['root'])
 
 
-def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part):
+def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part, create_new_partitions):
 
     uefi_installer = os.path.exists("/sys/firmware/efi")
     xelogging.log("Installed boot with %s" % ("UEFI" if uefi_installer else "legacy"))
@@ -546,7 +546,10 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
     xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
     # Return install mode and numbers of boot, primary, backup, logs, swap and SR partitions
-    return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    if create_new_partitions:
+        return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    else:
+        return (target_boot_mode, boot_part, primary_part, primary_part + 1, 0, 0, sr_part)
 
 # Determine which partition table type to use
 def selectPartitionTableType(disk, install_type, primary_part):
@@ -577,7 +580,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end, partition_table_type):
+def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end, partition_table_type, create_new_partitions):
 
     # we really don't want to screw this up...
     assert type(disk) == str
@@ -586,9 +589,13 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     if not os.path.exists(disk):
         raise RuntimeError, "The disk %s could not be found." % disk
 
-    # check disk is large enough
-    if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
-        raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size)
+    # Exit if disk is not big enough even for the pre-Dundee partition layout
+    if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size_old:
+        raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size_old)
+    # If new partition layout requested: exit if disk is not big enough, otherwise implement it
+    elif create_new_partitions:
+        if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
+            raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size)
 
     tool = PartitionTool(disk, partition_table_type)
     for num, part in tool.iteritems():
@@ -597,43 +604,73 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
 
     order = primary_partnum
 
-    # Create the new partition layout (5,2,1,4,6,3)
-    # 1 - dom0 partition
-    # 2 - backup partition
-    # 3 - LVM partition
-    # 4 - Boot partition
-    # 5 - logs partition
-    # 6 - swap partition
+    if create_new_partitions:
 
-    # Create logs partition
-    tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2**20, number = logs_partnum, order = order)
-    order += 1
+        # Create the new partition layout (5,2,1,4,6,3)
+        # 1 - dom0 partition
+        # 2 - backup partition
+        # 3 - LVM partition
+        # 4 - Boot partition
+        # 5 - logs partition
+        # 6 - swap partition
+    
+        # Create logs partition
+        tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2**20, number = logs_partnum, order = order)
+        order += 1
+    
+        # Create backup partition
+        if backup_partnum > 0:
+            tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
+            order += 1
+    
+        # Create dom0 partition
+        tool.createPartition(tool.ID_LINUX, sizeBytes = constants.root_size * 2**20, number = primary_partnum, order = order)
+        order += 1
+    
+        # Create Boot partition
+        if partition_table_type == constants.PARTITION_GPT:
+            if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+            else:
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+            order += 1
+    
+        # Create swap partition
+        tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = swap_size * 2**20, number = swap_partnum, order = order)
+        order += 1
+    
+        # Create LVM partition
+        if storage_partnum > 0:
+            tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
+            order += 1
 
-    # Create backup partition
-    if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
+    else:
+
+        # Pre-Dundee partition layout
+        
+        # Create Boot partition
+        if partition_table_type == constants.PARTITION_GPT:
+            if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+            else:
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
+            order += 1
+
+        # Create dom0 partition
+        root_size = root_gpt_size_old if partition_table_type == constants.PARTITION_GPT else root_mbr_size_old
+        tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
         order += 1
 
-    # Create dom0 partition
-    tool.createPartition(tool.ID_LINUX, sizeBytes = root_size * 2**20, number = primary_partnum, order = order)
-    order += 1
+        # Create backup partition
+        if backup_partnum > 0:
+            tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size_old * 2**20, number = backup_partnum, order = order)
+            order += 1
 
-    # Create Boot partition
-    if partition_table_type == constants.PARTITION_GPT:
-        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-            tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
-        else:
-            tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
-        order += 1
+        # Create LVM partition
+        if storage_partnum > 0:
+            tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
+            order += 1
 
-    # Create swap partition
-    tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = swap_size * 2**20, number = swap_partnum, order = order)
-    order += 1
-
-    # Create LVM partition
-    if storage_partnum > 0:
-        tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
-        order += 1
 
     if not sr_at_end:
         # For upgrade testing, out-of-order partition layout

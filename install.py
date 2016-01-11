@@ -107,6 +107,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'extra-repos': [],
         'network-backend': constants.NETWORK_BACKEND_DEFAULT,
         'root-password': ('pwdhash', '!!'),
+        'create-new-partitions': True,
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -138,6 +139,9 @@ def go(ui, args, answerfile_address, answerfile_script):
             constants.GPT_SUPPORT = False
         elif opt == "--disable-uefi":
             constants.FORCE_LEGACY_BOOT = True
+        elif opt == "--legacy-partitions":
+            results["create-new-partitions"] = False
+            xelogging.log("Forcing old partition layout via command-line")
 
     if boot_console and not serial_console:
         serial_console = boot_console
