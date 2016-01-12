@@ -392,6 +392,9 @@ class ThirdGenUpgrader(Upgrader):
         # CP-12750: Increase log size when dedicated partion is on the disk
         self.restore_list += ['etc/sysconfig/logrotate']
 
+        # CA-195388: Preserve /etc/mdadm.conf across upgrades
+        self.restore_list += ['etc/mdadm.conf']
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 
