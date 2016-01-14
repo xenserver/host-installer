@@ -1007,7 +1007,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
     e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
                              hypervisor_args = ' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel = "/boot/vmlinuz-%s-xen" % short_version,
-                             kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash"]),
+                             kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
                              initrd = "/boot/initrd-%s-xen.img" % short_version, title = MY_PRODUCT_BRAND,
                              root = constants.rootfs_label%disk_label_suffix)
     boot_config.append("xe", e)
