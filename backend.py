@@ -1287,12 +1287,11 @@ def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnu
 
 def enableAgent(mounts, network_backend):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
-        vswitch = ['openvswitch']
-    else:
-        vswitch = []
-        
-    for service in ['snapwatchd'] + vswitch:
-        util.runCmd2(['chroot', mounts['root'], 'chkconfig', '--add', service])
+        util.runCmd2(['chroot', mounts['root'],
+                      'systemctl', 'enable',
+                                   'openvswitch.service',
+                                   'openvswitch-xapi-sync.service'])
+
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
