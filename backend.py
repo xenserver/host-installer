@@ -289,8 +289,12 @@ def performInstallation(answers, ui_package, interactive):
     xelogging.log("SCRIPTS DICTIONARY:")
     prettyLogAnswers(scripts.script_dict)
 
-    dom0_mem = xcp.dom0.default_memory(hardware.getHostTotalMemoryKB()) / 1024
-    dom0_vcpus = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs())
+    if 'dom0-mem' not in answers['host-config']:
+        dom0_mem = (xcp.dom0.default_memory(hardware.getHostTotalMemoryKB()) / 1024)
+    else:
+        dom0_mem = answers['host-config']['dom0-mem']
+
+    dom0_vcpus = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(), dom0_mem)
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
                             'xen-cpuid-masks': [] }
