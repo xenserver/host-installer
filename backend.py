@@ -111,7 +111,7 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
         Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary', 'create-new-partitions'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
-        Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum'), ['partition-table-type']),
+        Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum', 'create-new-partitions'), ['partition-table-type']),
         ]
     if not interactive:
         seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address', 'ui'), []))
@@ -556,7 +556,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         return (target_boot_mode, boot_part, primary_part, primary_part + 1, 0, 0, sr_part)
 
 # Determine which partition table type to use
-def selectPartitionTableType(disk, install_type, primary_part):
+def selectPartitionTableType(disk, install_type, primary_part, create_new_partitions):
     if not constants.GPT_SUPPORT:
         return constants.PARTITION_DOS
 
@@ -570,6 +570,10 @@ def selectPartitionTableType(disk, install_type, primary_part):
     # partition table type as we are probably chain booting from that.
     if primary_part > 1:
         return tool.partTableType
+
+    # This is a fresh install but we want to preserve old layout
+    if not create_new_partitions:
+        return constants.PARTITION_DOS
 
     # This is a fresh install and we do not need to preserve partition1
     # Use GPT because it is better.
