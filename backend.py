@@ -305,10 +305,10 @@ def performInstallation(answers, ui_package, interactive):
             answers.update(answers['installation-to-overwrite'].readSettings())
 
             # update the number of dom0 vcpus
-	    # taking the amount of ram from previous installation into account
-	    if 'dom0-mem' in answers['host-config']:
+            # taking the amount of ram from previous installation into account
+            if 'dom0-mem' in answers['host-config']:
                 default_host_config['dom0-vcpus'] = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(),
-				                                           answers['host-config']['dom0-mem'])
+                                                                           answers['host-config']['dom0-mem'])
         except Exception, e:
             xelogging.logException(e)
             raise RuntimeError("Failed to get existing installation settings")
