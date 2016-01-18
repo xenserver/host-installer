@@ -289,11 +289,7 @@ def performInstallation(answers, ui_package, interactive):
     xelogging.log("SCRIPTS DICTIONARY:")
     prettyLogAnswers(scripts.script_dict)
 
-    if 'dom0-mem' not in answers['host-config']:
-        dom0_mem = (xcp.dom0.default_memory(hardware.getHostTotalMemoryKB()) / 1024)
-    else:
-        dom0_mem = answers['host-config']['dom0-mem']
-
+    dom0_mem = xcp.dom0.default_memory(hardware.getHostTotalMemoryKB()) / 1024
     dom0_vcpus = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(), dom0_mem)
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
@@ -307,6 +303,12 @@ def performInstallation(answers, ui_package, interactive):
         xelogging.log("Updating answers dictionary based on existing installation")
         try:
             answers.update(answers['installation-to-overwrite'].readSettings())
+
+            # update the number of dom0 vcpus
+	    # taking the amount of ram from previous installation into account
+	    if 'dom0-mem' in answers['host-config']:
+                default_host_config['dom0-vcpus'] = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(),
+				                                           answers['host-config']['dom0-mem'])
         except Exception, e:
             xelogging.logException(e)
             raise RuntimeError("Failed to get existing installation settings")
