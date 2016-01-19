@@ -30,7 +30,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
 
     disk = backup.root_disk
     tool = PartitionTool(disk)
-    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True)
+    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True, True)
     backup_version = backup.version
     limit_version = product.THIS_PLATFORM_VERSION
     logs_partition = tool.getPartition(logs_partnum)
@@ -47,7 +47,7 @@ def doRestore(backup, progress):
     backup_version = backup.version
     disk = backup.root_disk
     tool = PartitionTool(disk)
-    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True)
+    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True, True)
     limit_version = product.THIS_PLATFORM_VERSION
     logs_partition = tool.getPartition(logs_partnum)
     boot_partition = tool.getPartition(boot_partnum)
@@ -231,7 +231,7 @@ def restoreWithoutRepartButUEFI(backup, progress):
 
     label = None
     bootlabel = None
-    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True)
+    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True, True)
     restore_partition = partitionDevice(disk, primary_partnum)
     xelogging.log("Restoring to partition %s." % restore_partition)
 
