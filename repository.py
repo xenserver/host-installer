@@ -57,6 +57,7 @@ class Repository:
     def __init__(self, accessor, base = ""):
         self._accessor = accessor
         self._base = base
+        self._product_version = None
 
     def accessor(self):
         return self._accessor
@@ -183,6 +184,12 @@ baseurl=%s
             value = line[1].strip()
             if key in keys:
                 branding[key] = value
+
+        if 'product-version' in branding:
+            ver_str = branding['product-version']
+            if 'product-build' in branding:
+                ver_str += branding['product-build']
+            self._product_version = Version.from_string(ver_str)
 
         return branding
 
