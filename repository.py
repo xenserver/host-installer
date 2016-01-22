@@ -97,7 +97,7 @@ class YumRepository(Repository):
 
     def identifier(self):
         # FIXME - check for presence of group file
-        return MAIN_REPOSITORY_NAME
+        return MAIN_XS_REPOSITORY_NAME
 
     def name(self):
         # FIXME
