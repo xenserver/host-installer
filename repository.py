@@ -188,7 +188,7 @@ baseurl=%s
         if 'product-version' in branding:
             ver_str = branding['product-version']
             if 'product-build' in branding:
-                ver_str += branding['product-build']
+                ver_str += '-' + branding['product-build']
             self._product_version = Version.from_string(ver_str)
 
         return branding
@@ -229,7 +229,6 @@ class LegacyRepository(Repository):
     def __init__(self, accessor, base = ""):
         Repository.__init__(self, accessor, base)
         self._product_brand = None
-        self._product_version = None
         self._md5 = md5.new()
         self.requires = []
 
