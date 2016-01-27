@@ -155,9 +155,9 @@ class ThirdGenUpgrader(Upgrader):
 
         primary_fs.unmount()
 
-    prepTargetStateChanges = []
-    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'partition-table-type']
-    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, partition_table_type):
+    prepTargetStateChanges = ['new-partition-layout']
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'partition-table-type', 'new-partition-layout']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, partition_table_type, new_partition_layout):
         """ Modify partition layout prior to installation. """
 
         if partition_table_type == constants.PARTITION_GPT:
@@ -173,6 +173,9 @@ class ThirdGenUpgrader(Upgrader):
             # 6 - swap partition
 
             if self.safe2upgrade and logs_partition is None:
+
+                new_partition_layout = True
+
                 # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
                 # dom0 and Boot partitions using the same numbers)
                 tool.renamePartition(srcNumber = primary_partnum, destNumber = 10, overwrite = False)
@@ -217,13 +220,19 @@ class ThirdGenUpgrader(Upgrader):
                         if util.runCmd2(['mkfs.ext3', '-F', '/dev/' + self.vgs_output + '/' + sr_uuid]) != 0:
                             raise RuntimeError, "Backup: Failed to format filesystem on %s" % storage_part
 
+                return new_partition_layout
+
             else:
 
                 # If the boot partition already, exists, no partition updates are
                 # necessary.
                 part = tool.getPartition(boot_partnum)
                 if part:
-                    return
+                    if logs_partition is None:
+                        return new_partition_layout #FALSE
+                    else:
+                        new_partition_layout = True
+                        return new_partition_layout
 
                 # Otherwise, replace the root partition with a boot partition and
                 # a smaller root partition.

@@ -118,7 +118,7 @@ def getPrepSequence(ans, interactive):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type', 'create-new-partitions'), []),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type', 'create-new-partitions', 'new-partition-layout'), ['new-partition-layout']),
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
@@ -176,7 +176,7 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
-                               'branding', 'net-admin-configuration', 'host-config'), []),
+                               'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type'), []),
         Task(configureISCSITimeout, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
@@ -590,7 +590,7 @@ def removeBlockingVGs(disks):
 ###
 # Functions to write partition tables to disk
 
-def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end, partition_table_type, create_new_partitions):
+def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end, partition_table_type, create_new_partitions, new_partition_layout):
 
     # we really don't want to screw this up...
     assert type(disk) == str
@@ -623,7 +623,9 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
         # 4 - Boot partition
         # 5 - logs partition
         # 6 - swap partition
-    
+
+        new_partition_layout = True
+
         # Create logs partition
         tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2**20, number = logs_partnum, order = order)
         order += 1
@@ -709,6 +711,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
 
     tool.commit(log = True)
 
+    return new_partition_layout
 
 def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
     # At the moment this code uses the same partition table type for Guest Disks as it 
@@ -1492,7 +1495,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     netutil.dynamic_rules.save()
 
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, new_partition_layout, partition_table_type):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
@@ -1512,6 +1515,16 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
        inv.write("BRAND_CONSOLE='%s'\n" % BRAND_CONSOLE) 
     inv.write("PLATFORM_NAME='%s'\n" % branding['platform-name'])
     inv.write("PLATFORM_VERSION='%s'\n" % branding['platform-version'])
+
+    layout = 'ROOT,BACKUP'
+    if partition_table_type == constants.PARTITION_GPT:
+        if new_partition_layout:
+            layout += ',LOG,BOOT,SWAP'
+        else:
+            layout += ',BOOT'
+    if storage_partnum > 0:
+        layout += ',SR'
+    inv.write("PARTITION_LAYOUT='%s'\n" % layout)
 
     inv.write("BUILD_NUMBER='%s'\n" % branding.get('product-build', BUILD_NUMBER))
     inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
