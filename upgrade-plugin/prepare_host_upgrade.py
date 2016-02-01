@@ -31,8 +31,8 @@ import XenAPIPlugin
 min_upgrade_lvm_part_size = 38 * 2**30 #38GB
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
-xs_6_2 = version.Version([6, 2, 0])
-xs_6_5 = version.Version([6, 5, 0])
+xs_6_2 = version.Version([1, 8, 0])
+xs_6_5 = version.Version([1, 9, 0])
 
 def shell_value(line):
     return line.split('=', 1)[1].strip("'")
@@ -79,7 +79,7 @@ def get_repo_ver(accessor):
     try:
         repos = repository.Repository.findRepositories(accessor)
         for r in repos:
-            if r.identifier == repository.Repository.XS_MAIN_IDENT:
+            if r.identifier == repository.Repository.XCP_MAIN_IDENT:
                 logger.debug("Repository found: " + str(r))
                 repo_ver = r.product_version
                 break
@@ -486,7 +486,7 @@ def test_repo(url):
         i = open('/etc/xensource-inventory')
         for l in i:
             line = l.strip()
-            if line.startswith('PRODUCT_VERSION='):
+            if line.startswith('PLATFORM_VERSION='):
                 curr_ver = version.Version.from_string(shell_value(line))
                 break
         i.close()
