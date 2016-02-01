@@ -113,15 +113,16 @@ def get_fs_labels():
     boot_label = None
     try:
         # determine root and boot labels
-        with open('/etc/fstab') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('LABEL=root-'):
-                    v, _ = line.split(None, 1)
-                    root_label = v[6:]
-                if line.startswith('LABEL=BOOT-'):
-                    v, _ = line.split(None, 1)
-                    boot_label = v[6:]
+        f = open('/etc/fstab')
+        for line in f:
+            line = line.strip()
+            if line.startswith('LABEL=root-'):
+                v, _ = line.split(None, 1)
+                root_label = v[6:]
+            if line.startswith('LABEL=BOOT-'):
+                v, _ = line.split(None, 1)
+                boot_label = v[6:]
+        f.close()
     except:
         logger.error("Failed to read fstab")
 
