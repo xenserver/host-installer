@@ -73,21 +73,6 @@ def get_boot_files(accessor, dest_dir):
     accessor.finish()
     return done
 
-def get_repo_ver(accessor):
-    repo_ver = None
-
-    try:
-        repos = repository.Repository.findRepositories(accessor)
-        for r in repos:
-            if r.identifier == repository.Repository.XCP_MAIN_IDENT:
-                logger.debug("Repository found: " + str(r))
-                repo_ver = r.product_version
-                break
-    except:
-        pass
-
-    return repo_ver
-
 def map_label_to_partition(label):
     partition = None
     (rc, out) = cmd.runCmd(['blkid', '-l', '-t', 'LABEL="%s"' % label, '-o', 'device'],
@@ -164,7 +149,7 @@ def gen_answerfile(accessor, installer_dir, url):
         return False
 
     # Some G6/G7 controllers moved from the cciss subsystem to scsi
-    repo_ver = get_repo_ver(accessor)
+    repo_ver = repository.Repository.getRepoVer(accessor)
     if (repo_ver > xs_6_2):
         devices = pci.PCIDevices()
         raid_devs = devices.findByClass('01', '04')
@@ -472,7 +457,7 @@ def test_repo(url):
         if not test_boot_files(a):
             return TEST_URL_INVALID
         logger.debug("Boot files ok, testing repository...")
-        repo_ver = get_repo_ver(a)
+        repo_ver = repository.Repository.getRepoVer(a)
     except Exception, e:
         logger.error(str(e))
         return TEST_URL_INVALID
