@@ -38,14 +38,14 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     root_partition = partitionDevice(disk, primary_partnum)
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options = ['ro'])
-    inventory = readInventoryFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
+    inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
     backup_partition_layout = []
     if 'PARTITION_LAYOUT' in inventory:  # Present from XS 7.0
         backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
     backup_fs.unmount()
 
     root_fs = util.TempMount(root_partition, 'primary-', options = ['ro'])
-    inventory = readInventoryFile(os.path.join(root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
+    inventory = util.readKeyValueFile(os.path.join(root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
     root_partition_layout = []
     if 'PARTITION_LAYOUT' in inventory:  # Present from XS 7.0
         root_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
