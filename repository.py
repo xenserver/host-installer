@@ -875,8 +875,11 @@ class Accessor:
         pass
     
     def findRepositories(self):
-        repos = YumRepository.findRepositories(self)
-        repos += LegacyRepository.findRepositories(self)
+        repos = []
+        if YumRepository.isRepo(self, ""):
+            repos += YumRepository.findRepositories(self)
+        if LegacyRepository.isRepo(self, ""):
+            repos += LegacyRepository.findRepositories(self)
         return repos
 
 class FilesystemAccessor(Accessor):
