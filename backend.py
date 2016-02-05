@@ -319,9 +319,13 @@ def performInstallation(answers, ui_package, interactive):
                           'sr-type': constants.SR_TYPE_LVM, 
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
                           'initial-partitions': [], 
-                          'preserve-first-partition': 'false', 
                           'sr-at-end': True,
                           'sr-on-primary': True })
+
+        if answers["create-new-partitions"]: # GPT - No utility partition
+            defaults.update({ 'preserve-first-partition': 'false' })
+        else: # DOS - Preserve utility if present
+            defaults.update({ 'preserve-first-partition': 'if-utility' })
 
         xelogging.log("Updating answers dictionary based on defaults")
 
