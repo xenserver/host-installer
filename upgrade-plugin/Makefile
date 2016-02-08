@@ -66,5 +66,5 @@ $(UPGRADE_PLUGIN_STAMP): $(RPM_DIRECTORIES) $(RPM_SPECSDIR)/$(UPGRADE_PLUGIN_SPE
 	mv -f $(UPGRADE_PLUGIN_SRC).keep $(UPGRADE_PLUGIN_SRC)
 	touch $@
 
-$(MY_OUTPUT_DIR)/%.xsupdate: $(CARBON_DISTFILES)/rpu-temp/%.xsupdate
-	cp -p $^ $@
+$(MY_OUTPUT_DIR)/%.xsupdate:
+	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/$*/1.0/$*.xsupdate
