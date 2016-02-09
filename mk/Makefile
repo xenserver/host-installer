@@ -27,13 +27,24 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 # commands:
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
+KERNEL_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_PKG_FILE)
+KERNEL_DEBUGINFO_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_DEBUGINFO_PKG_FILE)
+VMLINUX_PATH := /usr/lib/debug/lib/modules/$(LINUX_KABI_VERSION)/vmlinux
+
 .PHONY: build
 build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(MAKE) -C $(call hg_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 	zcat $(PROJECT_OUTPUTDIR)/xen/CD_FILES.main/boot/xen.gz >$(MY_OBJ_DIR)/xen
-	zcat $(PROJECT_OUTPUTDIR)/kernel-dom0/CD_FILES.main/boot/vmlinux.gz >$(MY_OBJ_DIR)/vmlinux
+	mkdir -p $(MY_MAIN_CDFILES)/boot
+	rpm2cpio $(KERNEL_RPM) | ( cd $(MY_MAIN_CDFILES)/boot ; \
+				   cpio -i --to-stdout ./boot/vmlinuz-$(LINUX_KABI_VERSION) \
+					> $(MY_MAIN_CDFILES)/boot/vmlinuz )
+	rpm2cpio $(KERNEL_DEBUGINFO_RPM) \
+		| cpio -i --to-stdout .$(VMLINUX_PATH) > $(MY_OBJ_DIR)/vmlinux
+	objcopy --strip-debug --strip-unneeded $(MY_OBJ_DIR)/vmlinux
+	gzip < $(MY_OBJ_DIR)/vmlinux > $(MY_MAIN_CDFILES)/boot/vmlinux.gz
 	mbootpack -o $(MBOOT_IMG) $(MY_OBJ_DIR)/xen -m $(MY_OBJ_DIR)/vmlinux -m $(INSTALL_IMG)
 	rm -f $(MY_OBJ_DIR)/xen $(MY_OBJ_DIR)/vmlinux
 
