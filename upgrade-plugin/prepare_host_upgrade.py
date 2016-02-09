@@ -149,7 +149,7 @@ def gen_answerfile(accessor, installer_dir, url):
         return False
 
     # Some G6/G7 controllers moved from the cciss subsystem to scsi
-    repo_ver = repository.Repository.getRepoVer(accessor)
+    repo_ver = repository.BaseRepository.getRepoVer(accessor)
     if (repo_ver > xs_6_2):
         devices = pci.PCIDevices()
         raid_devs = devices.findByClass('01', '04')
@@ -457,7 +457,7 @@ def test_repo(url):
         if not test_boot_files(a):
             return TEST_URL_INVALID
         logger.debug("Boot files ok, testing repository...")
-        repo_ver = repository.Repository.getRepoVer(a)
+        repo_ver = repository.BaseRepository.getRepoVer(a)
     except Exception, e:
         logger.error(str(e))
         return TEST_URL_INVALID
