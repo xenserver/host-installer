@@ -31,8 +31,8 @@ import XenAPIPlugin
 min_upgrade_lvm_part_size = 38 * 2**30 #38GB
 
 boot_files = [ 'install.img', 'boot/vmlinuz', 'boot/xen.gz', 'boot/isolinux/isolinux.cfg' ]
-xs_6_2 = version.Version([6, 2, 0])
-xs_6_5 = version.Version([6, 5, 0])
+xs_6_2 = version.Version([1, 8, 0])
+xs_6_5 = version.Version([1, 9, 0])
 
 def shell_value(line):
     return line.split('=', 1)[1].strip("'")
@@ -73,21 +73,6 @@ def get_boot_files(accessor, dest_dir):
     accessor.finish()
     return done
 
-def get_repo_ver(accessor):
-    repo_ver = None
-
-    try:
-        repos = repository.Repository.findRepositories(accessor)
-        for r in repos:
-            if r.identifier == repository.Repository.XS_MAIN_IDENT:
-                logger.debug("Repository found: " + str(r))
-                repo_ver = r.product_version
-                break
-    except:
-        pass
-
-    return repo_ver
-
 def map_label_to_partition(label):
     partition = None
     (rc, out) = cmd.runCmd(['blkid', '-l', '-t', 'LABEL="%s"' % label, '-o', 'device'],
@@ -113,15 +98,16 @@ def get_fs_labels():
     boot_label = None
     try:
         # determine root and boot labels
-        with open('/etc/fstab') as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith('LABEL=root-'):
-                    v, _ = line.split(None, 1)
-                    root_label = v[6:]
-                if line.startswith('LABEL=BOOT-'):
-                    v, _ = line.split(None, 1)
-                    boot_label = v[6:]
+        f = open('/etc/fstab')
+        for line in f:
+            line = line.strip()
+            if line.startswith('LABEL=root-'):
+                v, _ = line.split(None, 1)
+                root_label = v[6:]
+            if line.startswith('LABEL=BOOT-'):
+                v, _ = line.split(None, 1)
+                boot_label = v[6:]
+        f.close()
     except:
         logger.error("Failed to read fstab")
 
@@ -163,7 +149,7 @@ def gen_answerfile(accessor, installer_dir, url):
         return False
 
     # Some G6/G7 controllers moved from the cciss subsystem to scsi
-    repo_ver = get_repo_ver(accessor)
+    repo_ver = repository.BaseRepository.getRepoVer(accessor)
     if (repo_ver > xs_6_2):
         devices = pci.PCIDevices()
         raid_devs = devices.findByClass('01', '04')
@@ -471,7 +457,7 @@ def test_repo(url):
         if not test_boot_files(a):
             return TEST_URL_INVALID
         logger.debug("Boot files ok, testing repository...")
-        repo_ver = get_repo_ver(a)
+        repo_ver = repository.BaseRepository.getRepoVer(a)
     except Exception, e:
         logger.error(str(e))
         return TEST_URL_INVALID
@@ -485,7 +471,7 @@ def test_repo(url):
         i = open('/etc/xensource-inventory')
         for l in i:
             line = l.strip()
-            if line.startswith('PRODUCT_VERSION='):
+            if line.startswith('PLATFORM_VERSION='):
                 curr_ver = version.Version.from_string(shell_value(line))
                 break
         i.close()

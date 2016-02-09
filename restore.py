@@ -35,13 +35,31 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     limit_version = product.THIS_PLATFORM_VERSION
     logs_partition = tool.getPartition(logs_partnum)
     boot_partition = tool.getPartition(boot_partnum)
+    root_partition = partitionDevice(disk, primary_partnum)
 
-    if not logs_partition and boot_partition and backup_version < limit_version: # From 7.x (no new layout - yes Boot partition) to 6.x
+    backup_fs = util.TempMount(backup.partition, 'backup-', options = ['ro'])
+    inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
+    backup_partition_layout = []
+    if 'PARTITION_LAYOUT' in inventory:  # Present from XS 7.0
+        backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
+    backup_fs.unmount()
+
+    root_fs = util.TempMount(root_partition, 'primary-', options = ['ro'])
+    inventory = util.readKeyValueFile(os.path.join(root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
+    root_partition_layout = []
+    if 'PARTITION_LAYOUT' in inventory:  # Present from XS 7.0
+        root_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
+    root_fs.unmount()
+
+    xelogging.log("BACKUP DISK PARTITION LAYOUT: %s" % backup_partition_layout)
+    xelogging.log("ROOT DISK PARTITION LAYOUT: %s" % root_partition_layout)
+
+    if 'LOG' not in root_partition_layout and 'BOOT' in root_partition_layout and not backup_partition_layout: # From 7.x (no new layout - yes Boot partition) to 6.x
         restoreWithoutRepartButUEFI(backup, progress)
     else:
-        doRestore(backup, progress)
+        doRestore(backup, progress, backup_partition_layout, root_partition_layout)
 
-def doRestore(backup, progress):
+def doRestore(backup, progress, backup_partition_layout, root_partition_layout):
 
     backup_partition = backup.partition
     backup_version = backup.version
@@ -57,7 +75,7 @@ def doRestore(backup, progress):
 
     label = None
     bootlabel = None
-    if logs_partition and boot_partition and backup_version < limit_version: # From 7.x (new layout) to 6.x
+    if 'LOG' in root_partition_layout and not backup_partition_layout: # From 7.x (new layout) to 6.x
         restore_partition = partitionDevice(disk, logs_partnum)
     else:
         restore_partition = partitionDevice(disk, primary_partnum)
@@ -173,36 +191,36 @@ def doRestore(backup, progress):
         if util.runCmd2(['fatlabel', boot_device, bootlabel]) != 0:
             raise RuntimeError, "Failed to label boot partition"
 
-    if logs_partition and boot_partition and backup_version < limit_version: # From 7.x (new layout) to 6.x
-        # Delete backup, dom0, Boot and swap partitions
-        tool.deletePartition(backup_partnum)
-        tool.deletePartition(primary_partnum)
-        tool.deletePartition(boot_partnum)
-        tool.deletePartition(swap_partnum)
+    if 'LOG' in root_partition_layout: 
+        if not backup_partition_layout: # From 7.x (new layout) to 6.x
+            # Delete backup, dom0, Boot and swap partitions
+            tool.deletePartition(backup_partnum)
+            tool.deletePartition(primary_partnum)
+            tool.deletePartition(boot_partnum)
+            tool.deletePartition(swap_partnum)
 
-        # Rename logs partition to be n.1
-        tool.renamePartition(srcNumber = logs_partnum, destNumber = primary_partnum, overwrite = False)
+            # Rename logs partition to be n.1
+            tool.renamePartition(srcNumber = logs_partnum, destNumber = primary_partnum, overwrite = False)
 
-        # Create 4GB backup partition
-        tool.createPartition(tool.ID_LINUX, sizeBytes = constants.backup_size_old * 2**20, startBytes = tool.partitionEnd(primary_partnum) + tool.sectorSize, number = backup_partnum)
+            # Create 4GB backup partition
+            tool.createPartition(tool.ID_LINUX, sizeBytes = constants.backup_size_old * 2**20, startBytes = tool.partitionEnd(primary_partnum) + tool.sectorSize, number = backup_partnum)
 
-        # Commit partition table and mark dom0 disk as bootable
-        tool.commit(log = True)
-        tool.commitActivePartitiontoDisk(primary_partnum)
+            # Commit partition table and mark dom0 disk as bootable
+            tool.commit(log = True)
+            tool.commitActivePartitiontoDisk(primary_partnum)
 
-        xelogging.log("Bootloader restoration complete.")
-        xelogging.log("Restore successful.")
-        backend.writeLog(disk, primary_partnum, logs_partnum)
-
-    if logs_partition and boot_partition and backup_version >= limit_version: # From 7.x (new layout) to 7.x (new layout)
-        tool.commitActivePartitiontoDisk(boot_partnum)
-        rdm_label = label.split("-")[1]
-        logs_part = partitionDevice(disk, logs_partnum)
-        swap_part = partitionDevice(disk, swap_partnum)
-        if util.runCmd2(['e2label', logs_part, constants.logsfs_label%rdm_label]) != 0:
-            raise RuntimeError, "Failed to label logs partition"
-        if util.runCmd2(['swaplabel', '-L', constants.swap_label%rdm_label, swap_part]) != 0:
-            raise RuntimeError, "Failed to label swap partition"
+            xelogging.log("Bootloader restoration complete.")
+            xelogging.log("Restore successful.")
+            backend.writeLog(disk, primary_partnum, logs_partnum)
+        elif 'LOG' in backup_partition_layout: # From 7.x (new layout) to 7.x (new layout)
+            tool.commitActivePartitiontoDisk(boot_partnum)
+            rdm_label = label.split("-")[1]
+            logs_part = partitionDevice(disk, logs_partnum)
+            swap_part = partitionDevice(disk, swap_partnum)
+            if util.runCmd2(['e2label', logs_part, constants.logsfs_label%rdm_label]) != 0:
+                raise RuntimeError, "Failed to label logs partition"
+            if util.runCmd2(['swaplabel', '-L', constants.swap_label%rdm_label, swap_part]) != 0:
+                raise RuntimeError, "Failed to label swap partition"
 
 def restoreWithoutRepartButUEFI(backup, progress):
 
