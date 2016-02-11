@@ -107,8 +107,8 @@ def go(ui, args, answerfile_address, answerfile_script):
         'extra-repos': [],
         'network-backend': constants.NETWORK_BACKEND_DEFAULT,
         'root-password': ('pwdhash', '!!'),
-        'create-new-partitions': True,
-        'new-partition-layout': False,
+        'create-new-partitions': True,  # FALSE = DOS | TRUE = GPT set via command line only with --disable-gpt
+        'new-partition-layout': False,  # TRUE = GPT with LOG,BACKUP,ROOT,BOOT,SWAP,SR automatically set during install/upgrade
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -138,12 +138,11 @@ def go(ui, args, answerfile_address, answerfile_script):
             suppress_extra_cd_dialog = True
         elif opt == "--disable-gpt":
             constants.GPT_SUPPORT = False
-        elif opt == "--disable-uefi":
-            constants.FORCE_LEGACY_BOOT = True
-        elif opt == "--legacy-partitions":
             results["create-new-partitions"] = False
             xelogging.log("Forcing old partition layout via command-line")
-
+        elif opt == "--disable-uefi":
+            constants.FORCE_LEGACY_BOOT = True
+           
     if boot_console and not serial_console:
         serial_console = boot_console
         boot_serial = True
