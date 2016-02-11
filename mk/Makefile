@@ -108,6 +108,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 		usr/lib/dracut usr/lib/systemd/system/initrd.target.wants usr/lib/systemd/system/shutdown.target.wants \
 		usr/lib/systemd/system/dracut-*.service usr/lib/kernel/install.d/50-dracut.install etc/dracut.conf* \
 		usr/bin/{dracut,lsinitrd,mkinitrd} usr/sbin/dracut var/lib/initramfs \
+		usr/bin/{dgawk,pgawk,busctl,bootctl,coredumpctl,hostnamectl,journalctl,localectl,loginctl,machinectl,ssh-agent,systemd-{analyze,cgls,cgtop,coredumpctl,inhibit,nspawn,run},timedatectl} \
+		usr/libexec/xen/{boot,bin/{convert-legacy-stream,xenpvnetboot,libxl-save-helper,verify-stream-v2,pygrub,xenguest}} \
 		usr/lib/udev/hwdb.d/* \
 		usr/bin/{as,dwp,ld.gold,ld.bfd} \
 		usr/sbin/{build-locale-archive,sln,userdel,groupdel} \
