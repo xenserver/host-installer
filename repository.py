@@ -72,14 +72,15 @@ class YumRepository(Repository):
         accessor.finish()
         if not is_repo:
             return []
-        return [ YumRepository(accessor, "") ]
+        return [ YumRepository(accessor, MAIN_REPOSITORY_NAME), YumRepository(accessor, MAIN_XS_REPOSITORY_NAME) ]
     findRepositories = classmethod(findRepositories)
 
-    def __init__(self, accessor, base = ""):
-        Repository.__init__(self, accessor, base)
+    def __init__(self, accessor, identifier):
+        Repository.__init__(self, accessor, "")
+        self._identifier = identifier
 
     def __repr__(self):
-        return "yum@??"
+        return "%s@yum" % self._identifier
 
     def isRepo(cls, accessor, base):
         """ Return whether there is a repository at base address 'base' accessible
@@ -96,8 +97,7 @@ class YumRepository(Repository):
         return []
 
     def identifier(self):
-        # FIXME - check for presence of group file
-        return MAIN_REPOSITORY_NAME
+        return self._identifier
 
     def name(self):
         # FIXME
@@ -111,6 +111,8 @@ class YumRepository(Repository):
         return []
 
     def installPackages(self, progress_callback, mounts):
+        if self._identifier != MAIN_REPOSITORY_NAME:
+            return
         xelogging.log("URL: " + self._accessor.url())
         with open('/root/yum.conf', 'w') as yum_conf:
             yum_conf.write("""[main]
@@ -878,8 +880,7 @@ class Accessor:
         repos = []
         if YumRepository.isRepo(self, ""):
             repos += YumRepository.findRepositories(self)
-        if LegacyRepository.isRepo(self, ""):
-            repos += LegacyRepository.findRepositories(self)
+        repos += LegacyRepository.findRepositories(self)
         return repos
 
 class FilesystemAccessor(Accessor):
