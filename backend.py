@@ -151,17 +151,14 @@ def getPrepSequence(ans, interactive):
 def getRepoSequence(ans, repos):
     seq = []
     for repo in repos:
-        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos'], a['branding']])(repo), ['branding']))
+        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos']])(repo), []))
         seq.append(Task(repo.accessor().start, lambda x: [], []))
-        for package in repo:
-            seq += [
-                # have to bind package at the current value, hence the myp nonsense:
-                Task(installPackage, (lambda myp: lambda a: [a['mounts'], myp])(package), [],
-                     progress_scale = (package.size / 100),
+        seq.append(Task(repo.installPackages, A(ans, 'mounts'), [],
+                     progress_scale = 100,
                      pass_progress_callback = True,
-                     progress_text = "Installing from %s..." % repo.name())
-                ]
+                     progress_text = "Installing from %s..." % repo.name()))
         seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
+        seq.append(Task(repo.getBranding, A(ans, 'mounts', 'branding'), ['branding']))
         seq.append(Task(repo.accessor().finish, lambda x: [], []))
     return seq
 
@@ -430,26 +427,13 @@ def performInstallation(answers, ui_package, interactive):
 
     return new_ans
 
-def checkRepoDeps(repo, installed_repos, branding):
+def checkRepoDeps(repo, installed_repos):
     xelogging.log("Checking for dependencies of %s" % repo.identifier())
     missing_repos = repo.check_requires(installed_repos)
     if len(missing_repos) > 0:
         text = "Repository dependency error:\n\n"
         text += '\n'.join(missing_repos)
         raise RuntimeError, text
-
-    # preserve branding
-    if repo.identifier() == MAIN_REPOSITORY_NAME:
-        branding.update({ 'platform-name': repo._product_brand,
-                          'platform-version': repo._product_version.ver_as_string() })
-    elif repo.identifier() == MAIN_XS_REPOSITORY_NAME:
-        branding.update({ 'product-brand': repo._product_brand,
-                          'product-version': repo._product_version.ver_as_string(),
-                          'product-build': repo._product_version.build_as_string() })
-    return branding
-
-def installPackage(progress_callback, mounts, package):
-    package.install(mounts['root'], progress_callback)
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):
