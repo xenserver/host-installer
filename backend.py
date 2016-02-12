@@ -948,7 +948,7 @@ def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to enable iscsi"
 
-    __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
+    __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version, fcoe_interfaces)
 
 def prepFallback(mounts, primary_disk, primary_partnum):
     kernel_version =  getKernelVersion(mounts['root'])
