@@ -462,7 +462,12 @@ class BzippedPackage(Package):
             if data == '':
                 break
 
-            pipe.stdin.write(data)
+            try:
+                pipe.stdin.write(data)
+            except IOError as e:
+                xelogging.logException(e)
+                break
+
             current_progress += len(data)
             progress(current_progress / 100)
 
