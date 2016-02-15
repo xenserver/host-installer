@@ -31,8 +31,11 @@ KERNEL_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_PKG_FILE)
 KERNEL_DEBUGINFO_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_DEBUGINFO_PKG_FILE)
 VMLINUX_PATH := /usr/lib/debug/lib/modules/$(LINUX_KABI_VERSION)/vmlinux
 
+RPUS := RPU001 RPU002
+RPU_OUT := $(RPUS:%=$(MY_OUTPUT_DIR)/%.xsupdate)
+
 .PHONY: build
-build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
+build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp $(RPU_OUT)
 	$(MAKE) -C $(call hg_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
@@ -192,3 +195,6 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 # Dell factory installation
 $(BUILD_FI_IMAGE):
 	$(MAKE) -C $(call hg_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
+
+$(MY_OUTPUT_DIR)/%.xsupdate:
+	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/$*/1.0/$*.xsupdate
