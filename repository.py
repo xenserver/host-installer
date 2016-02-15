@@ -57,9 +57,143 @@ class Repository:
     def __init__(self, accessor, base = ""):
         self._accessor = accessor
         self._base = base
+        self._product_version = None
 
     def accessor(self):
         return self._accessor
+
+class YumRepository(Repository):
+    """ Represents a Yum repository containing packages and associated meta data. """
+    REPOMD_FILENAME = "repodata/repomd.xml"
+
+    def findRepositories(cls, accessor):
+        accessor.start()
+        is_repo = cls.isRepo(accessor, "")
+        accessor.finish()
+        if not is_repo:
+            return []
+        return [ YumRepository(accessor, MAIN_REPOSITORY_NAME), YumRepository(accessor, MAIN_XS_REPOSITORY_NAME) ]
+    findRepositories = classmethod(findRepositories)
+
+    def __init__(self, accessor, identifier):
+        Repository.__init__(self, accessor, "")
+        self._identifier = identifier
+
+    def __repr__(self):
+        return "%s@yum" % self._identifier
+
+    def isRepo(cls, accessor, base):
+        """ Return whether there is a repository at base address 'base' accessible
+        using accessor."""
+        return accessor.access(accessor.pathjoin(base, cls.REPOMD_FILENAME))
+    isRepo = classmethod(isRepo)
+
+    def compatible_with(self, platform, brand):
+        return True
+
+    def check(self, progress = lambda x: ()):
+        """ Return a list of problematic packages. """
+        # FIXME - verify metadata
+        return []
+
+    def identifier(self):
+        return self._identifier
+
+    def name(self):
+        # FIXME
+        return "Yum repository"
+
+    def record_install(self, answers, installed_repos):
+        installed_repos[str(self)] = self
+        return installed_repos
+
+    def check_requires(self, installed_repos):
+        return []
+
+    def installPackages(self, progress_callback, mounts):
+        if self._identifier != MAIN_REPOSITORY_NAME:
+            return
+        xelogging.log("URL: " + self._accessor.url())
+        with open('/root/yum.conf', 'w') as yum_conf:
+            yum_conf.write("""[main]
+cachedir=/var/cache/yum/$basearch/$releasever
+keepcache=0
+debuglevel=2
+logfile=/var/log/yum.log
+exactarch=1
+obsoletes=1
+gpgcheck=0
+plugins=0
+installonly_limit=5
+distroverpkg=xenserver-release
+reposdir=/tmp/repos
+""")
+            yum_conf.write("""
+[install]
+name=install
+baseurl=%s
+""" % self._accessor.url())
+
+        # Use a temporary file to avoid deadlocking
+        stderr = tempfile.TemporaryFile()
+
+        yum_command = ['yum', '-c', '/root/yum.conf',
+                       '--installroot', mounts['root'],
+                       'install', '-y', '@xenserver_base', '@xenserver_dom0']
+        xelogging.log("Running yum: %s" % ' '.join(yum_command))
+        p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
+        count = 0
+        total = 0
+        while True:
+            line = p.stdout.readline()
+            if not line:
+                break
+            line = line.rstrip()
+            xelogging.log("YUM: %s" % line)
+            if line.endswith(' will be installed'):
+                total += 1
+            elif line.startswith('  Installing : '):
+                count += 1
+                if total > 0:
+                    progress_callback(int((count * 100.0) / total))
+        rv = p.wait()
+        stderr.seek(0)
+        stderr = stderr.read()
+        if stderr:
+            xelogging.log("YUM stderr: %s" % stderr.strip())
+
+        if rv:
+            xelogging.log("Yum exited with %d" % rv)
+            raise ErrorInstallingPackage("Error installing packages")
+
+    def getBranding(self, mounts, branding):
+        keys = ('platform-name',
+                'platform-version',
+                'product-brand',
+                'product-version',
+                'product-build')
+        rc, lines = util.runCmd2(['/usr/sbin/chroot', mounts['root'],
+                                  '/bin/rpm', '-q', '--provides', 'xenserver-release'],
+                                 with_stdout = True)
+        if rc != 0:
+            return branding
+
+        for line in lines.split("\n"):
+            line = line.strip().split('=', 1)
+            if len(line) < 2:
+                continue
+            key = line[0].strip()
+            value = line[1].strip()
+            if key in keys:
+                branding[key] = value
+
+        if 'product-version' in branding:
+            ver_str = branding['product-version']
+            if 'product-build' in branding:
+                ver_str += '-' + branding['product-build']
+            self._product_version = Version.from_string(ver_str)
+
+        return branding
 
 class LegacyRepository(Repository):
     """ Represents a XenSource repository containing packages and associated
@@ -97,7 +231,6 @@ class LegacyRepository(Repository):
     def __init__(self, accessor, base = ""):
         Repository.__init__(self, accessor, base)
         self._product_brand = None
-        self._product_version = None
         self._md5 = md5.new()
         self.requires = []
 
@@ -316,6 +449,33 @@ class LegacyRepository(Repository):
     def md5sum(self):
         return self._md5.hexdigest()
 
+    def installPackages(self, progress_callback, mounts):
+        # Squeeze the progress output into a value between 0 and 100
+        def pkg_progress(start, end, pkg_size):
+            def progress_fn(x):
+                progress_callback(int(start + (x / float(pkg_size)) * (end - start)))
+            return progress_fn
+
+        total_size = sum(package.size for package in self)
+        total_progress = 0
+
+        for package in self:
+            start = (total_progress * 100) / total_size
+            end = ((total_progress + package.size) * 100) / total_size
+            package.install(mounts['root'], pkg_progress(start, end, package.size))
+            total_progress += package.size
+
+    def getBranding(self, mounts, branding):
+        if self.identifier() == MAIN_REPOSITORY_NAME:
+            branding.update({ 'platform-name': self._product_brand,
+                              'platform-version': self._product_version.ver_as_string() })
+        elif self.identifier() == MAIN_XS_REPOSITORY_NAME:
+            branding.update({ 'product-brand': self._product_brand,
+                              'product-version': self._product_version.ver_as_string(),
+                              'product-build': self._product_version.build_as_string() })
+
+        return branding
+
 class Package:
     def copy(self, destination):
         """ Writes the package to destination with the same
@@ -464,7 +624,7 @@ class BzippedPackage(Package):
 
             pipe.stdin.write(data)
             current_progress += len(data)
-            progress(current_progress / 100)
+            progress(current_progress)
 
         pipe.stdin.close()
         rc = pipe.wait()
@@ -717,7 +877,10 @@ class Accessor:
         pass
     
     def findRepositories(self):
-        repos = LegacyRepository.findRepositories(self)
+        repos = []
+        if YumRepository.isRepo(self, ""):
+            repos += YumRepository.findRepositories(self)
+        repos += LegacyRepository.findRepositories(self)
         return repos
 
 class FilesystemAccessor(Accessor):
@@ -732,6 +895,9 @@ class FilesystemAccessor(Accessor):
 
     def openAddress(self, addr):
         return open(os.path.join(self.location, addr), 'r')
+
+    def url(self):
+        return "file://%s" % self.location
 
 class MountingAccessor(FilesystemAccessor):
     def __init__(self, mount_types, mount_source, mount_options = ['ro']):
@@ -925,6 +1091,9 @@ class URLAccessor(Accessor):
     def openAddress(self, address):
         ret_val = urllib2.urlopen(self._url_concat(self.baseAddress, address))
         return URLFileWrapper(ret_val)
+
+    def url(self):
+        return self.baseAddress
 
 def repositoriesFromDefinition(media, address):
     if media == 'local':
