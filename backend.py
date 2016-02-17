@@ -1190,6 +1190,8 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     rootp = partitionDevice(primary_disk, primary_partnum)
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
+    rc, out = util.runCmd2(['cat', '/proc/mounts'], with_stdout = True)
+    xelogging.log(out)
     tool = PartitionTool(primary_disk)
     logs_partition = tool.getPartition(logs_partnum)
     
