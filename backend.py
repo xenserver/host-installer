@@ -175,7 +175,8 @@ def getFinalisationSequence(ans):
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type'), []),
         Task(configureISCSITimeout, A(ans, 'mounts', 'primary-disk'), []),
-        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
+                              'fcoe-interfaces'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
                                   'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
@@ -777,7 +778,7 @@ def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_part
         if rc != 0:
             raise RuntimeError, "Failed to create logs filesystem: %s" % err
 
-def __mkinitrd(mounts, partition, package, kernel_version):
+def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
     try:
         util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
@@ -789,8 +790,9 @@ def __mkinitrd(mounts, partition, package, kernel_version):
             # Generate a valid multipath configuration for the initrd
             shutil.copyfile('/etc/multipath/wwids',
                             os.path.join(mounts['root'], 'etc/multipath/wwids'))
+            action = 'generate-fcoe' if fcoe_interfaces else 'start'
             if util.runCmd2(['chroot', mounts['root'],
-                             '/etc/init.d/sm-multipath', 'start']) != 0:
+                             '/etc/init.d/sm-multipath', action]) != 0:
                 raise RuntimeError("Failed to generate multipath configuration")
 
         # Run mkinitrd inside dom0 chroot
@@ -891,7 +893,7 @@ def configureISCSITimeout(mounts, primary_disk):
     if isDeviceMapperNode(primary_disk):
         adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'], force=True)
 
-def mkinitrd(mounts, primary_disk, primary_partnum):
+def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
     xen_kernel_version = getKernelVersion(mounts['root'])
     if not xen_kernel_version:
         raise RuntimeError, "Unable to determine kernel version."
@@ -946,7 +948,7 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
             if util.runCmd2(cmd):
                 raise RuntimeError, "Failed to enable iscsi"
 
-    __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version)
+    __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version, fcoe_interfaces)
 
 def prepFallback(mounts, primary_disk, primary_partnum):
     kernel_version =  getKernelVersion(mounts['root'])
