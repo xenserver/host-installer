@@ -65,6 +65,7 @@ class Repository:
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
+    TREEINFO_FILENAME = ".treeinfo"
 
     def findRepositories(cls, accessor):
         accessor.start()
@@ -85,7 +86,7 @@ class YumRepository(Repository):
     def isRepo(cls, accessor, base):
         """ Return whether there is a repository at base address 'base' accessible
         using accessor."""
-        return accessor.access(accessor.pathjoin(base, cls.REPOMD_FILENAME))
+        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.TREEINFO_FILENAME, cls.REPOMD_FILENAME] ]
     isRepo = classmethod(isRepo)
 
     def compatible_with(self, platform, brand):
