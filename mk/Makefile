@@ -1,6 +1,7 @@
 USE_BRANDING := yes
 include $(B_BASE)/common.mk
 include $(PROJECT_OUTPUTDIR)/kernel-dom0/kernel.inc
+include $(PROJECT_OUTPUTDIR)/xen/xen.inc
 
 # inputs
 YUM_CONF := $(PROJECT_OUTPUTDIR)/chroot-dom0/yum.conf
@@ -27,6 +28,8 @@ INSTALLER_FILESYSTEM = $(MY_OBJ_DIR)/filesystem
 # commands:
 INSTALLER_CHROOT = chroot $(INSTALLER_FILESYSTEM)
 
+HYPERVISOR_OUTPUT_RPM := xen-hypervisor-$(XEN_VERSION)-*.$(DOMAIN0_ARCH_OPTIMIZED).rpm
+
 KERNEL_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_PKG_FILE)
 KERNEL_DEBUGINFO_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_DEBUGINFO_PKG_FILE)
 VMLINUX_PATH := /usr/lib/debug/lib/modules/$(LINUX_KABI_VERSION)/vmlinux
@@ -39,7 +42,9 @@ build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp 
 	$(MAKE) -C $(call hg_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
-	zcat $(PROJECT_OUTPUTDIR)/xen/CD_FILES.main/boot/xen.gz >$(MY_OBJ_DIR)/xen
+	rpm2cpio $(PROJECT_OUTPUTDIR)/xen/RPMS/$(DOMAIN0_ARCH_OPTIMIZED)/$(HYPERVISOR_OUTPUT_RPM) | \
+		( cd $(MY_MAIN_CDFILES) ; cpio --extract --make-directories --unconditional ./boot/xen-$(XEN_VERSION)*-d.gz )
+	zcat $(MY_MAIN_CDFILES)/boot/xen-$(XEN_VERSION)*-d.gz >$(MY_OBJ_DIR)/xen
 	mkdir -p $(MY_MAIN_CDFILES)/boot
 	rpm2cpio $(KERNEL_RPM) | ( cd $(MY_MAIN_CDFILES)/boot ; \
 				   cpio -i --to-stdout ./boot/vmlinuz-$(LINUX_KABI_VERSION) \

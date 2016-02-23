@@ -31,6 +31,7 @@ from xcp.version import *
 import cpiofile
 from constants import *
 import xml.dom.minidom
+import ConfigParser
 
 # get text from a node:
 def getText(nodelist):
@@ -65,6 +66,7 @@ class Repository:
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
+    TREEINFO_FILENAME = ".treeinfo"
 
     def findRepositories(cls, accessor):
         accessor.start()
@@ -79,13 +81,32 @@ class YumRepository(Repository):
         Repository.__init__(self, accessor, "")
         self._identifier = identifier
 
+        accessor.start()
+        try:
+            treeinfofp = accessor.openAddress(self.TREEINFO_FILENAME)
+            treeinfo = ConfigParser.SafeConfigParser()
+            treeinfo.readfp(treeinfofp)
+            treeinfofp.close()
+
+            if treeinfo.has_section('platform'):
+                self._platform_name = treeinfo.get('platform', 'name')
+                ver_str = treeinfo.get('platform', 'version')
+                self._platform_version = Version.from_string(ver_str)
+            if treeinfo.has_section('branding'):
+                self._product_brand = treeinfo.get('branding', 'name')
+                ver_str = treeinfo.get('branding', 'version')
+                self._product_version = Version.from_string(ver_str)
+        except Exception, e:
+            raise RepoFormatError, "Failed to read %s: %s" % (self.TREEINFO_FILENAME, str(e))
+        accessor.finish()
+
     def __repr__(self):
         return "%s@yum" % self._identifier
 
     def isRepo(cls, accessor, base):
         """ Return whether there is a repository at base address 'base' accessible
         using accessor."""
-        return accessor.access(accessor.pathjoin(base, cls.REPOMD_FILENAME))
+        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.TREEINFO_FILENAME, cls.REPOMD_FILENAME] ]
     isRepo = classmethod(isRepo)
 
     def compatible_with(self, platform, brand):
@@ -167,32 +188,10 @@ baseurl=%s
             raise ErrorInstallingPackage("Error installing packages")
 
     def getBranding(self, mounts, branding):
-        keys = ('platform-name',
-                'platform-version',
-                'product-brand',
-                'product-version',
-                'product-build')
-        rc, lines = util.runCmd2(['/usr/sbin/chroot', mounts['root'],
-                                  '/bin/rpm', '-q', '--provides', 'xenserver-release'],
-                                 with_stdout = True)
-        if rc != 0:
-            return branding
-
-        for line in lines.split("\n"):
-            line = line.strip().split('=', 1)
-            if len(line) < 2:
-                continue
-            key = line[0].strip()
-            value = line[1].strip()
-            if key in keys:
-                branding[key] = value
-
-        if 'product-version' in branding:
-            ver_str = branding['product-version']
-            if 'product-build' in branding:
-                ver_str += '-' + branding['product-build']
-            self._product_version = Version.from_string(ver_str)
-
+        branding.update({ 'platform-name': self._platform_name,
+                          'platform-version': self._platform_version.ver_as_string(),
+                          'product-brand': self._product_brand,
+                          'product-version': self._product_version.ver_as_string() })
         return branding
 
 class LegacyRepository(Repository):
