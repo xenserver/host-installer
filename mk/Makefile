@@ -68,8 +68,11 @@ $(REPO_STAMP):
 	createrepo $(MY_OBJ_DIR)/repos/xenserver
 	@touch $@
 
-$(PKG_LIST): pkgs.txt $(DRIVER_RPMS_LIST)
+$(PKG_LIST): pkgs.txt
 	cat $^ >$@
+	if [ -f $(DRIVER_RPMS_LIST) ]; then \
+		cat $(DRIVER_RPMS_LIST) >>$@ ; \
+	fi
 
 $(BASE_IMAGE): $(YUM_CONF) $(PKG_LIST) $(REPO_STAMP)
 	{ cat $(YUM_CONF) ;\
