@@ -541,6 +541,13 @@ class PartitionToolBase:
         if not matches:
             raise Exception("Could not determine partition number for device '"+partitionDevice+"'")
         return int(matches.group(1))
+
+    def settleUdev(self):
+        timeout = 10
+        try:
+            self.cmdWrap(util.udevsettleCmd() + ['--timeout=%d' % timeout ])
+        except:
+            xelogging.log('udevsettle with %d second timeout failed' % timeout)
         
     def writePartitionTable(self, dryrun = False, log = False):
         try:
@@ -555,11 +562,7 @@ class PartitionToolBase:
         else:
             # Ensure new device nodes are available before we continue
             self.cmdWrap(util.udevtriggerCmd())
-            timeout = 10
-            try:
-                self.cmdWrap(util.udevsettleCmd() + ['--timeout=%d' % timeout ])
-            except:
-                xelogging.log('udevsettle with %d second timeout failed' % timeout)
+            self.settleUdev()
 
     # Public methods from here onward:
     def getPartition(self, number, default = None):
@@ -821,7 +824,8 @@ class DOSPartitionTool(PartitionToolBase):
         return partitions
 
     def commitActivePartitiontoDisk(self, part_num):
-        self.cmdWrap([self.SFDISK, '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
+        self.settleUdev()
+        self.cmdWrap([self.SFDISK, '--no-reread', '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
     	
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         input = 'unit: sectors\n\n'
@@ -853,10 +857,11 @@ class DOSPartitionTool(PartitionToolBase):
             heads = 255
             sectors = 63
             cylinders = self.sectorExtent/(heads * sectors)
-            cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '-f', '-C%d' % cylinders, '-H%d' % heads, '-S%d' % sectors, self.device]
+            cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '--no-reread', '-f', '-C%d' % cylinders, '-H%d' % heads, '-S%d' % sectors, self.device]
         else:
-            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '-f', self.device]
+            cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '--no-reread', '-f', self.device]
         xelogging.log('sfdisk command: %s' % ' '.join(cmd))
+        self.settleUdev()
         process = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
@@ -1022,7 +1027,8 @@ class GPTPartitionTool(PartitionToolBase):
             # bootloader uses a DOS partition table.  Instead the BIOSes _should_ just check for 0x55,0xaa
             # at location 0x1fe.
             # However, let's keep them happy by making the single partition in the protective MBR "active".
-            self.cmdWrap(['sfdisk', '-A1', self.device])
+            self.settleUdev()
+            self.cmdWrap(['sfdisk', '--no-reread', '-A1', self.device])
 
         # Ensure that we write out in on-disk order to prevent conflicts when
         # partition sizes get rounded.
