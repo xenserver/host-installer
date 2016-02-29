@@ -38,7 +38,7 @@ RPUS := RPU001 RPU002
 RPU_OUT := $(RPUS:%=$(MY_OUTPUT_DIR)/%.xsupdate)
 
 .PHONY: build
-build: $(INSTALL_IMG) $(MBOOTPACK) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp $(RPU_OUT)
+build: $(INSTALL_IMG) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp $(RPU_OUT)
 	$(MAKE) -C $(call hg_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
