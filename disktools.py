@@ -548,6 +548,13 @@ class PartitionToolBase:
             self.cmdWrap(util.udevsettleCmd() + ['--timeout=%d' % timeout ])
         except:
             xelogging.log('udevsettle with %d second timeout failed' % timeout)
+
+    def waitForDeviceNodes(self):
+        # Ensure new device nodes are available before we continue.
+        # Wait a second to ensure that udev picks up the change event from
+        # the kernel, then call settle to wait for all events complete.
+        time.sleep(1)
+        self.settleUdev()
         
     def writePartitionTable(self, dryrun = False, log = False):
         try:
@@ -560,11 +567,7 @@ class PartitionToolBase:
                 raise Exception('The new partition table could not be written: '+str(e)+'\nReversion also failed: '+str(e2))
             raise Exception('The new partition table could not be written but was reverted successfully: '+str(e))
         else:
-            # Ensure new device nodes are available before we continue.
-            # Wait a second to ensure that udev picks up the change event from
-            # the kernel, then call settle to wait for all events complete.
-            time.sleep(1)
-            self.settleUdev()
+            self.waitForDeviceNodes()
 
     # Public methods from here onward:
     def getPartition(self, number, default = None):
@@ -828,6 +831,7 @@ class DOSPartitionTool(PartitionToolBase):
     def commitActivePartitiontoDisk(self, part_num):
         self.settleUdev()
         self.cmdWrap([self.SFDISK, '--no-reread', '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
+        self.waitForDeviceNodes()
     	
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         input = 'unit: sectors\n\n'
@@ -939,6 +943,7 @@ class GPTPartitionTool(PartitionToolBase):
         rv, out, err = util.runCmd2(cmd, True, True)
         if rv != 0:
             xelogging.log('Invalid or corrupt partition table found on disk %s. Skipping...' % self.device)
+            self.waitForDeviceNodes()
             return {}
 
         matchWarning   = re.compile('Found invalid GPT and valid MBR; converting MBR to GPT format.')
@@ -980,7 +985,11 @@ class GPTPartitionTool(PartitionToolBase):
                 if m:
                     partitions[number]['id'] = m.group(1)
             assert partitions[number].has_key('id')
-            
+
+        # sgdisk opens the device with O_WRONLY even when not changing anything
+        # so settle udev to ensure device nodes are available for subsequent
+        # commands.
+        self.waitForDeviceNodes()
         return partitions
     
     def commitActivePartitiontoDisk(self, partnum):
@@ -989,6 +998,8 @@ class GPTPartitionTool(PartitionToolBase):
                 self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag set
             else:
                 self.cmdWrap([self.SGDISK, '--attributes=%d:clear:2' % num, self.device]) # BIOS bootable flag clear
+
+        self.waitForDeviceNodes()
 
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         for part in table.values():
