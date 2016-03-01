@@ -5,7 +5,7 @@
 # countries.
 
 import constants
-import re, subprocess, types, os
+import re, subprocess, types, os, time
 from pprint import pprint
 from copy import copy, deepcopy
 import util, xelogging
@@ -560,8 +560,10 @@ class PartitionToolBase:
                 raise Exception('The new partition table could not be written: '+str(e)+'\nReversion also failed: '+str(e2))
             raise Exception('The new partition table could not be written but was reverted successfully: '+str(e))
         else:
-            # Ensure new device nodes are available before we continue
-            self.cmdWrap(util.udevtriggerCmd())
+            # Ensure new device nodes are available before we continue.
+            # Wait a second to ensure that udev picks up the change event from
+            # the kernel, then call settle to wait for all events complete.
+            time.sleep(1)
             self.settleUdev()
 
     # Public methods from here onward:
