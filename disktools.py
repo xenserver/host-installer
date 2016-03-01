@@ -543,7 +543,7 @@ class PartitionToolBase:
         return int(matches.group(1))
 
     def settleUdev(self):
-        timeout = 10
+        timeout = 30
         try:
             self.cmdWrap(util.udevsettleCmd() + ['--timeout=%d' % timeout ])
         except:
