@@ -13,6 +13,7 @@
 import os
 import errno
 import md5
+import hashlib
 import tempfile
 import urlparse
 import urllib
@@ -20,6 +21,8 @@ import urllib2
 import ftplib
 import subprocess
 import re
+import gzip
+from xml.dom.minidom import parse
 
 import xelogging
 import diskutil
@@ -63,10 +66,34 @@ class Repository:
     def accessor(self):
         return self._accessor
 
+    def check(self, progress = lambda x: ()):
+        """ Return a list of problematic packages. """
+        def pkg_progress(start, end):
+            def progress_fn(x):
+                progress(start + ((x * (end - start)) / 100))
+            return progress_fn
+
+        self._accessor.start()
+
+        try:
+            problems = []
+            total_size = sum((p.size for p in self._packages))
+            total_progress = 0
+            for p in self._packages:
+                start = (total_progress * 100) / total_size
+                end = ((total_progress + p.size) * 100) / total_size
+                if not p.check(False, pkg_progress(start, end)):
+                    problems.append(p)
+                total_progress += p.size
+        finally:
+            self._accessor.finish()
+        return problems
+
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
     TREEINFO_FILENAME = ".treeinfo"
+    _name = "Yum Repository"
 
     def findRepositories(cls, accessor):
         accessor.start()
@@ -98,6 +125,42 @@ class YumRepository(Repository):
                 self._product_version = Version.from_string(ver_str)
         except Exception, e:
             raise RepoFormatError, "Failed to read %s: %s" % (self.TREEINFO_FILENAME, str(e))
+
+        # Read packages from xml
+        repomdfp = accessor.openAddress(self.REPOMD_FILENAME)
+        repomd_xml = parse(repomdfp)
+        xml_datas = repomd_xml.getElementsByTagName("data")
+        for data_node in xml_datas:
+            data = data_node.getAttribute("type")
+            if data == "primary":
+                primary_location = data_node.getElementsByTagName("location")
+                primary_location = primary_location[0].getAttribute("href")
+        repomdfp.close()
+
+        primaryfp = accessor.openAddress(primary_location)
+        # Open compressed xml using cpiofile._Stream which is an adapter between CpioFile and a stream-like object.
+        # Useful when specifying the URL for HTTP or FTP repository - A simple GzipFile object will not work in this situation.
+        primary_xml = cpiofile._Stream("", "r", "gz", primaryfp, 20*512)
+        primary_dom = parse(primary_xml)
+        package_names = primary_dom.getElementsByTagName("location")
+        package_sizes = primary_dom.getElementsByTagName("size")
+        package_checksums = primary_dom.getElementsByTagName("checksum")
+        primary_xml.close()
+        primaryfp.close()
+
+        # Filter using only sha256 checksum
+        sha256_checksums = filter(lambda x: x.getAttribute("type") == "sha256", package_checksums)
+
+        # After the filter, the list of checksums will have the same size
+        # of the list of names
+        self._packages = []
+        for name_node, size_node, checksum_node in zip(package_names, package_sizes, sha256_checksums):
+            name = name_node.getAttribute("href")
+            size = size_node.getAttribute("package")
+            checksum = checksum_node.childNodes[0]
+            pkg = NewRPMPackage(self, name, size, checksum.data)
+            self._packages.append(pkg)
+
         accessor.finish()
 
     def __repr__(self):
@@ -111,11 +174,6 @@ class YumRepository(Repository):
 
     def compatible_with(self, platform, brand):
         return True
-
-    def check(self, progress = lambda x: ()):
-        """ Return a list of problematic packages. """
-        # FIXME - verify metadata
-        return []
 
     def identifier(self):
         return self._identifier
@@ -370,30 +428,6 @@ class LegacyRepository(Repository):
             pkg.type = _type
 
             self._packages.append(pkg)
-
-    def check(self, progress = lambda x: ()):
-        """ Return a list of problematic packages. """
-        def pkg_progress(start, end):
-            def progress_fn(x):
-                progress(start + ((x * (end - start)) / 100))
-            return progress_fn
-
-        self._accessor.start()
-
-        try:
-            problems = []
-            total_size = reduce(lambda x, y: x + y,
-                                [ p.size for p in self._packages ])
-            total_progress = 0
-            for p in self._packages:
-                start = (total_progress * 100) / total_size
-                end = ((total_progress + p.size) * 100) / total_size
-                if not p.check(False, pkg_progress(start, end)):
-                    problems.append(p)
-                total_progress += p.size
-        finally:
-            self._accessor.finish()
-        return problems
 
     def check_requires(self, installed_repos):
         """ Return a list the prerequisites that are not yet installed. """
@@ -790,6 +824,41 @@ class RPMPackage(Package):
         os.unlink(temploc)
 
         return data
+
+class NewRPMPackage(Package):
+    def __init__(self, repository, name, size, sha256sum):
+        (
+            self.repository,
+            self.name,
+            self.size,
+            self.sha256sum,
+        ) = ( repository, name, long(size), sha256sum )
+
+    def check(self, fast = False, progress = lambda x : ()):
+        """ Check a package against it's known checksum, or if fast is
+        specified, just check that the package exists. """
+        if fast:
+            return self.repository.accessor().access(self.name)
+        else:
+            try:
+                namefp = self.repository.accessor().openAddress(self.name)
+                m = hashlib.sha256()
+                data = ''
+                total_read = 0
+                while True:
+                    data = namefp.read(10485760)
+                    total_read += len(data)
+                    if data == '':
+                        break
+                    else:
+                        m.update(data)
+                    progress(total_read / (self.size / 100))
+                namefp.close()
+                calculated = m.hexdigest()
+                valid = (self.sha256sum == calculated)
+                return valid
+            except Exception, e:
+                return False
 
 class DriverRPMPackage(RPMPackage):
     def __init__(self, repository, name, size, md5sum, kernel, src, options):
