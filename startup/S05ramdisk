@@ -62,6 +62,7 @@ start()
   	    fssize=`df -k /tmp/src | sed -ne 's#^/[^ ]\+ \+[0-9]\+ \+\([0-9]\+\).*#\1#p'`
 	  fi
 	  mkdir /tmp/ramdisk
+	  shopt -s dotglob
 	  mount -t tmpfs -o size=$((fssize * 11/10 + 2000))k tmpfs /tmp/ramdisk
           if [ -d /tmp/src/$xsinst ]; then
 	    # ISO mode. Iterate through ISOs in the $xsinst directory
