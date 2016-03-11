@@ -72,9 +72,9 @@ start()
                 mkdir -p /tmp/srciso
                 mount -oloop -t iso9660 $isofile /tmp/srciso
 		if grep -q ' /tmp/srciso ' /proc/mounts; then
-                  if [ -d /tmp/srciso/packages.main ]; then
+                  if [ -f /tmp/srciso/.treeinfo ]; then
                     # This is the main product ISO
-                    if ! cp -a /tmp/srciso/packages.main /tmp/ramdisk; then
+                    if ! cp -a /tmp/srciso/* /tmp/ramdisk; then
 		      errors=$(($errors + 1))
                     fi
                   fi
