@@ -109,6 +109,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	ln -s /etc/systemd/system/lvm2-activation.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation.service'
 	ln -s /etc/systemd/system/lvm2-activation-early.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation-early.service'
 	ln -s /etc/systemd/system/lvm2-activation-net.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation-net.service'
+# Set the default target to multi-user
+	ln -sf /usr/lib/systemd/system/multi-user.target $(INSTALLER_FILESYSTEM)'/etc/systemd/system/default.target'
 # enable network by default to make nfs start correctly
 	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
 # TODO remove
