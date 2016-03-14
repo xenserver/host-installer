@@ -790,7 +790,7 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
             # Generate a valid multipath configuration for the initrd
             shutil.copyfile('/etc/multipath/wwids',
                             os.path.join(mounts['root'], 'etc/multipath/wwids'))
-            action = 'generate-fcoe' if fcoe_interfaces else 'start'
+            action = 'generate-fcoe' if fcoe_interfaces else 'generate-bfs'
             if util.runCmd2(['chroot', mounts['root'],
                              '/etc/init.d/sm-multipath', action]) != 0:
                 raise RuntimeError("Failed to generate multipath configuration")
