@@ -93,7 +93,6 @@ class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
     TREEINFO_FILENAME = ".treeinfo"
-    _name = "Yum Repository"
 
     def findRepositories(cls, accessor):
         accessor.start()
@@ -179,8 +178,7 @@ class YumRepository(Repository):
         return self._identifier
 
     def name(self):
-        # FIXME
-        return "Yum repository"
+        return self._product_brand
 
     def record_install(self, answers, installed_repos):
         installed_repos[str(self)] = self
