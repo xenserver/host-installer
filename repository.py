@@ -652,7 +652,8 @@ class BzippedPackage(Package):
         cmd = ['tar', '-C', os.path.join(base, self.destination), '-xj']
         pipe = subprocess.Popen(cmd,
                                 bufsize = 1024 * 1024, stdin = subprocess.PIPE, 
-                                stdout = tmpout, stderr = tmperr)
+                                stdout = tmpout, stderr = tmperr,
+                                close_fds = True)
     
         data = ''
         current_progress = 0

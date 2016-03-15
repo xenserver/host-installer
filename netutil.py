@@ -155,7 +155,7 @@ def setAllLinksUp():
     
     for nif in getNetifList():
         if nif not in diskutil.ibft_reserved_nics:
-            subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up']))
+            subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up'], close_fds = True))
 
     while None in map(lambda x: x.poll(), subprocs):
         time.sleep(1)

@@ -66,7 +66,8 @@ def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None)
                            stdin = (inputtext and subprocess.PIPE or None),
                            stdout = subprocess.PIPE,
                            stderr = subprocess.PIPE,
-                           shell = isinstance(command, str))
+                           shell = isinstance(command, str),
+                           close_fds = True)
 
 #     if inputtext:
 #      (out, err) = cmd.communicate(inputtext)
