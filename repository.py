@@ -100,6 +100,7 @@ class YumRepository(Repository):
         accessor.finish()
         if not is_repo:
             return []
+        xelogging.log("Repository (yum) found")
         return [ YumRepository(accessor, MAIN_REPOSITORY_NAME) ]
     findRepositories = classmethod(findRepositories)
 
@@ -849,6 +850,7 @@ class NewRPMPackage(Package):
             return self.repository.accessor().access(self.name)
         else:
             try:
+                xelogging.log("Validating package %s" % self.name)
                 namefp = self.repository.accessor().openAddress(self.name)
                 m = hashlib.sha256()
                 data = ''
