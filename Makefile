@@ -42,7 +42,7 @@ $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2: $(RPM_SOURCE
 $(RPM_SOURCESDIR)/multipath.conf: $(SM_SOURCE_REPO)/multipath/multipath.conf
 # Generate a multipath configuration from sm's copy, removing the blacklist
 # and blacklist_exception sections.
-	sed 's/find_multipaths yes/find_multpaths no/' < $< > $@
+	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)yes/\1no/' < $< > $@
 
 $(RPM_SPECSDIR)/$(SPEC_FILE): $(SPEC_FILE).in $(RPM_SPECSDIRSTAMP)
 	{ set -e; set -o pipefail; \
