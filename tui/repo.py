@@ -366,7 +366,7 @@ def interactive_source_verification(repos, label):
         r = repos[i]
         def progress(x):
             #print i * 100 + x
-            tui.progress.displayProgressDialog(i*100 + x, pd, "Checking %s..." % r._name)
+            tui.progress.displayProgressDialog(i*100 + x, pd, "Checking %s..." % r.name())
         errors.extend(r.check(progress))
 
     tui.progress.clearModelessDialog()

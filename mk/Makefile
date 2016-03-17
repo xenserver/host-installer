@@ -105,10 +105,23 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/11-dm-mpath.rules
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/62-multipath.rules
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/udev/rules.d/69-dm-lvm-metad.rules
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/xen-init-dom0.service
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/sockets.target.wants/xenstored_ro.socket
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/sockets.target.wants/xenstored.socket
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/xenstored.service
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/xenconsoled.service
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/fcoe.service
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/systemd-journal-catalog-update.service
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/systemd-journal-flush.service
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/ldconfig.service
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/proc-fs-nfsd.mount
+	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/xenstored.service
 # Prevent lvm from automatically activating volumes on boot
 	ln -s /etc/systemd/system/lvm2-activation.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation.service'
 	ln -s /etc/systemd/system/lvm2-activation-early.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation-early.service'
 	ln -s /etc/systemd/system/lvm2-activation-net.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/getty.target.wants/lvm2-activation-net.service'
+# Set the default target to multi-user
+	ln -sf /usr/lib/systemd/system/multi-user.target $(INSTALLER_FILESYSTEM)'/etc/systemd/system/default.target'
 # enable network by default to make nfs start correctly
 	echo -e 'NETWORKING=yes\nHOSTNAME=localhost.localdomain' > $(INSTALLER_FILESYSTEM)/etc/sysconfig/network
 # TODO remove
@@ -207,4 +220,4 @@ $(BUILD_FI_IMAGE):
 	$(MAKE) -C $(call hg_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
 
 $(MY_OUTPUT_DIR)/%.xsupdate:
-	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/$*/1.0/$*.xsupdate
+	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/$*/2.0/$*.xsupdate

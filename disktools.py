@@ -873,6 +873,7 @@ class DOSPartitionTool(PartitionToolBase):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            close_fds = True,
             )
         output = process.communicate(input)
         if log:

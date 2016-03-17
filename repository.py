@@ -93,7 +93,6 @@ class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
     TREEINFO_FILENAME = ".treeinfo"
-    _name = "Yum Repository"
 
     def findRepositories(cls, accessor):
         accessor.start()
@@ -101,7 +100,8 @@ class YumRepository(Repository):
         accessor.finish()
         if not is_repo:
             return []
-        return [ YumRepository(accessor, MAIN_REPOSITORY_NAME), YumRepository(accessor, MAIN_XS_REPOSITORY_NAME) ]
+        xelogging.log("Repository (yum) found")
+        return [ YumRepository(accessor, MAIN_REPOSITORY_NAME) ]
     findRepositories = classmethod(findRepositories)
 
     def __init__(self, accessor, identifier):
@@ -179,12 +179,18 @@ class YumRepository(Repository):
         return self._identifier
 
     def name(self):
-        # FIXME
-        return "Yum repository"
+        return self._product_brand
 
     def record_install(self, answers, installed_repos):
         installed_repos[str(self)] = self
         return installed_repos
+
+    def repo_satisfies(self, dep, want_id, want_ver):
+        if want_id == MAIN_REPOSITORY_NAME:
+            return eval("self._platform_version.__%s__(want_ver)" % dep['test'])
+        if want_id == MAIN_XS_REPOSITORY_NAME:
+            return eval("self._product_version.__%s__(want_ver)" % dep['test'])
+        return False
 
     def check_requires(self, installed_repos):
         return []
@@ -429,6 +435,9 @@ class LegacyRepository(Repository):
 
             self._packages.append(pkg)
 
+    def repo_satisfies(self, dep, want_id, want_ver):
+        return self.identifier() == want_id and eval("self._product_version.__%s__(want_ver)" % dep['test'])
+
     def check_requires(self, installed_repos):
         """ Return a list the prerequisites that are not yet installed. """
         problems = []
@@ -448,7 +457,7 @@ class LegacyRepository(Repository):
             want_ver = Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
             found = False
             for repo in installed_repos.values():
-                if repo.identifier() == want_id and eval("repo._product_version.__%s__(want_ver)" % dep['test']):
+                if repo.repo_satisfies(dep, want_id, want_ver):
                     xelogging.log("Dependency match: %s satisfies test %s" % (str(repo), fmt_dep(self._identifier, dep)))
                     found = True
                     break
@@ -643,7 +652,8 @@ class BzippedPackage(Package):
         cmd = ['tar', '-C', os.path.join(base, self.destination), '-xj']
         pipe = subprocess.Popen(cmd,
                                 bufsize = 1024 * 1024, stdin = subprocess.PIPE, 
-                                stdout = tmpout, stderr = tmperr)
+                                stdout = tmpout, stderr = tmperr,
+                                close_fds = True)
     
         data = ''
         current_progress = 0
@@ -841,6 +851,7 @@ class NewRPMPackage(Package):
             return self.repository.accessor().access(self.name)
         else:
             try:
+                xelogging.log("Validating package %s" % self.name)
                 namefp = self.repository.accessor().openAddress(self.name)
                 m = hashlib.sha256()
                 data = ''
