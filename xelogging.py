@@ -48,6 +48,7 @@ def collectLogs(dst, tarball_dir = None):
     os.system("tty >%s/tty-log" % dst)
     os.system("cat /proc/cmdline >%s/cmdline-log" % dst)
     os.system("dmesg >%s/dmesg-log" % dst)
+    os.system("xl dmesg >%s/xl-dmesg-log" % dst)
     os.system("ps axf >%s/processes-log" % dst)
     os.system("vgscan -P >%s/vgscan-log 2>&1" % dst)
     os.system("cat /var/log/multipathd >%s/multipathd-log 2>&1" % dst)
