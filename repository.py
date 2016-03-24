@@ -238,18 +238,30 @@ baseurl=%s
         p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
         count = 0
         total = 0
+        verify_count = 0
         while True:
             line = p.stdout.readline()
             if not line:
                 break
             line = line.rstrip()
             xelogging.log("YUM: %s" % line)
-            if line.endswith(' will be installed'):
+            if line == 'Resolving Dependencies':
+                progress_callback(1)
+            elif line == 'Dependencies Resolved':
+                progress_callback(3)
+            elif line.startswith('-----------------------------------------'):
+                progress_callback(7)
+            elif line == 'Running transaction':
+                progress_callback(10)
+            elif line.endswith(' will be installed'):
                 total += 1
             elif line.startswith('  Installing : '):
                 count += 1
                 if total > 0:
-                    progress_callback(int((count * 100.0) / total))
+                    progress_callback(10 + int((count * 80.0) / total))
+            elif line.startswith('  Verifying  : '):
+                verify_count += 1
+                progress_callback(90 + int((verify_count * 10.0) / total))
         rv = p.wait()
         stderr.seek(0)
         stderr = stderr.read()
