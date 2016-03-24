@@ -219,6 +219,15 @@ name=install
 baseurl=%s
 """ % self._accessor.url())
 
+        # Speed up the install by disabling initrd creation.
+        # It is created after the yum install phase.
+        confdir = os.path.join(mounts['root'], 'etc', 'dracut.conf.d')
+        conffile = os.path.join(confdir, 'xs_disable.conf')
+        os.makedirs(confdir, 0775)
+        with open(conffile, 'w') as f:
+            print >> f, 'echo Skipping initrd creation during host installation'
+            print >> f, 'exit 0'
+
         # Use a temporary file to avoid deadlocking
         stderr = tempfile.TemporaryFile()
 
@@ -250,6 +259,8 @@ baseurl=%s
         if rv:
             xelogging.log("Yum exited with %d" % rv)
             raise ErrorInstallingPackage("Error installing packages")
+
+        os.unlink(conffile)
 
     def getBranding(self, mounts, branding):
         branding.update({ 'platform-name': self._platform_name,
