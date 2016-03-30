@@ -517,6 +517,13 @@ class ThirdGenUpgrader(Upgrader):
                 util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
                               os.path.join(mounts['root'], i)])
 
+        # handle the conversion of devices from scsi-* links to ata-* links
+        if primary_disk.startswith('/dev/disk/by-id/scsi-') and target_link.startswith('/dev/disk/by-id/ata-'):
+            for i in (os.path.join(constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'),
+                      constants.XAPI_DB):
+                util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
+                              os.path.join(mounts['root'], i)])
+
 ################################################################################
 
 # Upgraders provided here, in preference order:
