@@ -156,6 +156,8 @@ NETWORK_DB = "var/lib/xcp/networkd.db"
 NETWORKD_DB = "usr/bin/networkd_db"
 OLD_NETWORKD_DB = "opt/xensource/libexec/networkd_db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
+OLD_XAPI_DB = 'var/xapi/state.db'
+XAPI_DB = 'var/lib/xcp/state.db'
 
 POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
 

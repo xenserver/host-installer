@@ -354,8 +354,8 @@ class ThirdGenUpgrader(Upgrader):
 	self.restore_list.append({'src': constants.OLD_DBCACHE, 'dst': constants.DBCACHE})
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
-        self.restore_list += ['var/lib/xcp/state.db', 'etc/xensource/license']
-	self.restore_list.append({'src': 'var/xapi/state.db', 'dst': 'var/lib/xcp/state.db'})
+        self.restore_list += [constants.XAPI_DB, 'etc/xensource/license']
+        self.restore_list.append({'src': constants.OLD_XAPI_DB, 'dst': constants.XAPI_DB})
         self.restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
 
         self.restore_list += ['etc/xensource/syslog.conf']
@@ -502,14 +502,14 @@ class ThirdGenUpgrader(Upgrader):
         target_link = diskutil.idFromPartition(target_disk)
         if 'cciss' in primary_disk and 'scsi' in target_link:
             util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
-                          os.path.join(mounts['root'], 'etc/firstboot.d/data/default-storage.conf')])
+                          os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf')])
             util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
-                          os.path.join(mounts['root'], 'var/lib/xcp/state.db')])
+                          os.path.join(mounts['root'], constants.XAPI_DB)])
 
         # handle the conversion of RAID devices from /dev/md_* to /dev/disk/by-id/md-uuid-*
         if primary_disk.startswith('/dev/md_') and target_link.startswith('/dev/disk/by-id/md-uuid-'):
-            for i in ('etc/firstboot.d/data/default-storage.conf',
-                      'var/lib/xcp/state.db'):
+            for i in (os.path.join(constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'),
+                      constants.XAPI_DB):
                 # First convert partitions from *pN to *-partN
                 util.runCmd2(['sed', '-i', '-e', "s#\(%s\)p\([[:digit:]]\+\)#\\1-part\\2#g" % primary_disk,
                               os.path.join(mounts['root'], i)])
