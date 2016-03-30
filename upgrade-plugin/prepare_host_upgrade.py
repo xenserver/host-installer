@@ -525,7 +525,7 @@ def safe2upgrade():
         line = l.strip()
         k, v = line.split('=', 1)
         if k == 'PRIMARY_DISK':
-            primary_disk = v.strip("'")
+            primary_disk = os.path.realpath(v.strip("'"))
             break
     fh.close()
 
@@ -545,7 +545,10 @@ def safe2upgrade():
         if not pbd.get('currently_attached', False):
             continue
         devconf = pbd.get('device_config', {})
-        if not devconf.get('device', '').startswith(primary_disk):
+        devpath = devconf.get('device', '')
+        if devpath != '':
+            devpath = os.path.realpath(devpath)
+        if not re.match("%s[0-9]+$" % primary_disk, devpath):
             continue
         local_sr = pbd['SR']
         break
