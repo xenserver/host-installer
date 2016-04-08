@@ -89,6 +89,9 @@ class Repository:
             self._accessor.finish()
         return problems
 
+    def __iter__(self):
+        return self._packages.__iter__()
+
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
@@ -159,6 +162,7 @@ class YumRepository(Repository):
             size = size_node.getAttribute("package")
             checksum = checksum_node.childNodes[0]
             pkg = NewRPMPackage(self, name, size, checksum.data)
+            pkg.type = 'rpm'
             self._packages.append(pkg)
 
         accessor.finish()
@@ -502,9 +506,6 @@ class LegacyRepository(Repository):
         xspkg_fd = open(os.path.join(destination, self.PKGDATA_FILENAME), 'w')
         xspkg_fd.write(self._pkgfile_contents)
         xspkg_fd.close()
-
-    def __iter__(self):
-        return self._packages.__iter__()
 
     def record_install(self, answers, installed_repos):
         self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier))
