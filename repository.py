@@ -929,7 +929,7 @@ class DriverRPMPackage(RPMPackage):
         self.write(temploc)
 
         # Install the RPM into the ramdisk:
-        rc = util.runCmd2(['/bin/rpm', '-i', temploc])
+        rc = util.runCmd2(['/bin/rpm', '-i', '--nodeps', '--ignoresize', temploc])
 
         if rc == 0:
             util.runCmd2(['/sbin/depmod'])
