@@ -985,7 +985,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
     safe_xen_params = ("nosmp noreboot noirqbalance no-mce no-bootscrub "
                        "no-numa no-hap no-mmcfg iommu=off max_cstate=0 "
                        "nmi=ignore allow_unsafe")
-    xen_mem_params = "crashkernel=128M@32M"
+    xen_mem_params = "crashkernel=128M@256M"
 
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout = True)
