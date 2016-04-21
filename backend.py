@@ -1052,7 +1052,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_partnum, target_boot_mode, branding,
-                      disk_label_suffix, location = constants.BOOT_LOCATION_MBR, serial = None, boot_serial = None, host_config = None, fcoe_interface=None):
+                      disk_label_suffix, location, serial = None, boot_serial = None, host_config = None, fcoe_interface=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
     # prepare extra mounts for installing bootloader:
@@ -1080,10 +1080,14 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
             util.assertDir(os.path.dirname(fn))
             boot_config.commit()
 
+        root_partition = partitionDevice(disk, primary_partnum)
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
             setEfiBootEntry(mounts, disk, boot_partnum, branding)
         else:
-            installGrub2(mounts, disk)
+            if location == constants.BOOT_LOCATION_MBR:
+                installGrub2(mounts, disk, False)
+            else:
+                installGrub2(mounts, root_partition, True)
 
         if serial:
             # ensure a getty will run on the serial console
@@ -1126,8 +1130,11 @@ def setEfiBootEntry(mounts, disk, boot_partnum, branding):
     if rc != 0:
         raise RuntimeError, "Failed to run efibootmgr: %s" % err
 
-def installGrub2(mounts, disk):
-    rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", disk], with_stderr = True)
+def installGrub2(mounts, disk, force):
+    if force:
+        rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", "--force", disk], with_stderr = True)
+    else:
+        rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", disk], with_stderr = True)
     if rc != 0:
         raise RuntimeError, "Failed to install bootloader: %s" % err
 

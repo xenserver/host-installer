@@ -64,11 +64,11 @@ Common Elements
       nfs://server:/path/
 
 
-  <bootloader location="mbr|partition">extlinux|grub[D]</bootloader>?
+  <bootloader location="mbr|partition">grub2|extlinux[D]|grub[D]</bootloader>?
 
     Default: mbr
 
-    grub is no longer supported as of 6.0
+    grub is no longer supported as of 6.0. extlinux is no longer supported as of 7.0
 
     Defines the bootloader variant and location.
 

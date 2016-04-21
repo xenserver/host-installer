@@ -234,7 +234,7 @@ class Answerfile:
                                                              [('mbr', BOOT_LOCATION_MBR),
                                                               ('partition', BOOT_LOCATION_PARTITION)],
                                                              default = 'mbr')
-            if getText(nodes[0]) != 'extlinux':
+            if getText(nodes[0]) != 'grub2':
                 raise AnswerfileException, "Unsupported bootloader '%s'" % getText(nodes[0])
             
         return results
