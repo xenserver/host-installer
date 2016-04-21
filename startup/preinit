@@ -27,7 +27,6 @@ term=vt102
 interactive=1
 bash_shell=0
 atexit=reboot
-sshpassword=""
 OLDIFS="$IFS"
 IFS="
 "
@@ -62,7 +61,6 @@ for arg in $args; do
     mount=* | start=*)
       copy=0;;
     sshpassword=*)
-      sshpassword=${arg#sshpassword=}
       copy=0;;
   esac
   [ $copy -eq 1 ] && set -- "$@" "--$arg"
@@ -115,12 +113,6 @@ if [ $started_by_init -eq 1 ]; then
 	  fi
       esac
     done
-  fi
-
-  if [ -n "$sshpassword" ]; then
-      echo root:$sshpassword | chpasswd
-      grep -q devpts /proc/mounts || mount -t devpts devpts /dev/pts
-      service sshd start
   fi
 fi
 

@@ -99,6 +99,9 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 # init configuration to start our installer
 	cp installer.service $(INSTALLER_FILESYSTEM)/etc/systemd/system
 	ln -s /etc/systemd/system/installer.service $(INSTALLER_FILESYSTEM)'/etc/systemd/system/multi-user.target.wants/installer.service'
+# override the CentOS sshd unit
+	mkdir -p $(INSTALLER_FILESYSTEM)/etc/systemd/system/sshd.service.d
+	cp sshd_installer.conf $(INSTALLER_FILESYSTEM)/etc/systemd/system/sshd.service.d/installer.conf
 # Disable some services and udev rules
 	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/sockets.target.wants/lvm2-lvmetad.socket
 	sed -i 's/use_lvmetad = 1/use_lvmetad = 0/' $(INSTALLER_FILESYSTEM)/etc/lvm/lvm.conf
