@@ -163,7 +163,10 @@ def doRestore(backup, progress, backup_partition_layout, root_partition_layout):
                     branding['product-brand'] = branding['PRODUCT_BRAND']
                     backend.setEfiBootEntry(mounts, disk, boot_partnum, branding)
                 else:
-                    backend.installGrub2(mounts, disk)
+                    if location == constants.BOOT_LOCATION_MBR:
+                        backend.installGrub2(mounts, disk, False)
+                    else:
+                        backend.installGrub2(mounts, restore_partition, True)
             else:
                 backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
 
@@ -335,7 +338,10 @@ def restoreWithoutRepartButUEFI(backup, progress):
                     branding['product-brand'] = branding['PRODUCT_BRAND']
                     backend.setEfiBootEntry(mounts, disk, boot_partnum, branding)
                 else:
-                    backend.installGrub2(mounts, disk)
+                    if location == constants.BOOT_LOCATION_MBR:
+                        backend.installGrub2(mounts, disk, False)
+                    else:
+                        backend.installGrub2(mounts, restore_partition, True)
             else:
                 backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
 
