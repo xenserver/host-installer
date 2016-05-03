@@ -152,7 +152,8 @@ def getDiskList():
                 disks.append(name.replace("!", "/"))
             # Handle Block Extended Major devices
             if major == 259:
-                rc, out = util.runCmd2(['/bin/lsblk', '-d', '-n', '-o', 'TYPE', "/dev/" + name.replace("!","/")])
+                rc, out = util.runCmd2(['/bin/lsblk', '-d', '-n', '-o', 'TYPE', "/dev/" + name.replace("!","/")],
+                                       with_stdout = True)
                 if rc == 0 and out.strip() != 'part':
                     disks.append(name.replace("!", "/"))
 
