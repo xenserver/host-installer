@@ -134,8 +134,6 @@ def getDiskList():
                     parts.readlines())
     parts.close()
 
-    # Build regex for Block Extended Major device partitions
-    regex = re.compile('.*p?[0-9]{1,2}$')
     # parse it:
     disks = []
     for l in partlines:
@@ -153,8 +151,10 @@ def getDiskList():
                     continue
                 disks.append(name.replace("!", "/"))
             # Handle Block Extended Major devices
-            if major == 259 and not regex.match(name):
-                disks.append(name.replace("!", "/"))
+            if major == 259:
+                rc, out = util.runCmd2(['/bin/lsblk', '-d', '-n', '-o', 'TYPE', "/dev/" + name.replace("!","/")])
+                if rc == 0 and out.strip() != 'part':
+                    disks.append(name.replace("!", "/"))
 
         except:
             # it wasn't an actual entry, maybe the headers or something:
