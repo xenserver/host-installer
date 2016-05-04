@@ -1190,6 +1190,8 @@ class URLAccessor(Accessor):
             ftp = ftplib.FTP(hostname)
             ftp.login(username, password)
             ftp.cwd(directory)
+            if ftp.size(fname) is not None:
+                return True
             lst = ftp.nlst()
             return fname in lst
         except:
