@@ -223,4 +223,4 @@ $(BUILD_FI_IMAGE):
 	$(MAKE) -C $(call hg_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
 
 $(MY_OUTPUT_DIR)/%.xsupdate:
-	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/dundee/$*/2.0/$*.xsupdate
+	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/dundee/$*/3.0/$*.xsupdate
