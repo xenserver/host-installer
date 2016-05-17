@@ -124,9 +124,9 @@ def ipaddr(interface):
         return None
     inets = filter(lambda x: 'inet ' in x, out.split("\n"))
     if len(inets) == 1:
-        m = re.search(r'inet (S+)/', inets[0])
+        m = re.search(r'inet (\S+)/', inets[0])
         if m:
-            return m.match(1)
+            return m.group(1)
     return None
 
 # work out if an interface is up:
