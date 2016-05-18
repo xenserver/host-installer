@@ -98,7 +98,8 @@ class Upgrader(object):
                                          with_stdout=True)
             if rc == 0:
                 rc = util.runCmd2(['/usr/sbin/chroot', dst_root,
-                                   '/usr/bin/chown', ownership.strip(), dst_path])
+                                   '/usr/bin/chown', '--no-dereference',
+                                   ownership.strip(), dst_path])
                 assert rc == 0
 
         def restore_file(src_base, f, d = None):
