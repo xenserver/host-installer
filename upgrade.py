@@ -89,6 +89,18 @@ class Upgrader(object):
         """ Write any data back into the new filesystem as needed to follow
         through the upgrade. """
 
+        # Copy ownership from a path in a source root to another path in a
+        # destination root. The ownership is copied such that it is not
+        # affected by changes in the underlying uid/gid.
+        def copy_ownership(src_root, src_path, dst_root, dst_path):
+            rc, ownership = util.runCmd2(['/usr/sbin/chroot', src_root,
+                                          '/usr/bin/stat', '-c', '%U:%G', src_path],
+                                         with_stdout=True)
+            if rc == 0:
+                rc = util.runCmd2(['/usr/sbin/chroot', dst_root,
+                                   '/usr/bin/chown', ownership.strip(), dst_path])
+                assert rc == 0
+
         def restore_file(src_base, f, d = None):
             if not d: d = f
             src = os.path.join(src_base, f)
@@ -100,6 +112,15 @@ class Upgrader(object):
                 else:
                     util.assertDir(os.path.dirname(dst))
                     util.runCmd2(['cp', '-p', src, dst])
+
+                abs_f = os.path.join('/', f)
+                abs_d = os.path.join('/', d)
+                copy_ownership(src_base, abs_f, mounts['root'], abs_d)
+                for dirpath, dirnames, filenames in os.walk(src):
+                    for i in dirnames + filenames:
+                        src_path = os.path.join(dirpath, i)[len(src_base):]
+                        dst_path = os.path.join(abs_d, src_path[len(abs_f) + 1:])
+                        copy_ownership(src_base, src_path, mounts['root'], dst_path)
             else:
                 xelogging.log("WARNING: /%s did not exist in the backup image." % f)
 
