@@ -114,6 +114,8 @@ $(BASE_IMAGE_STAMP): $(BASE_IMAGE)
 	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/xenstored.service
 	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/xenconsoled.service
 	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/fcoe.service
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/sockets.target.wants/lldpad.socket
+	rm -f $(INSTALLER_FILESYSTEM)/etc/systemd/system/multi-user.target.wants/lldpad.service
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/systemd-journal-catalog-update.service
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/systemd-journal-flush.service
 	ln -sf /dev/null $(INSTALLER_FILESYSTEM)/etc/systemd/system/ldconfig.service

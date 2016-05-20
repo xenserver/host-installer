@@ -21,6 +21,9 @@ import xelogging
 from disktools import *
 import time
 
+def start_lldpad():
+    util.runCmd2(['/sbin/lldpad', '-d'])
+
 def start_fcoe(interfaces):
     ''' startFCoE takes dictonary of {interface: dcb config}
         dcb config could be either True or False
@@ -36,6 +39,7 @@ def start_fcoe(interfaces):
 
     result = {}
 
+    start_lldpad()
     util.runCmd2(['/sbin/modprobe', 'sg'])
     util.runCmd2(['/sbin/modprobe', 'fcoe'])
 
@@ -52,9 +56,6 @@ def start_fcoe(interfaces):
         else:
             util.runCmd2(['/sbin/lldptool', '-i', interface, '-L',
                           'adminStatus=disabled'])
-
-
-    util.runCmd2(['/sbin/lldpad', '-d'])
 
     for interface in interfaces:
         xelogging.log("Starting fipvlan on %s"% interface)
@@ -84,6 +85,8 @@ def get_dcb_capable_ifaces(check_lun):
         with an interface and will exclued them
         from the dictonary that is returned.
     '''
+
+    start_lldpad()
 
     dcb_nics = {}
     nics = netutil.scanConfiguration()
