@@ -109,8 +109,14 @@ def writeResolverFile(configuration, filename):
 interface_up = {}
 
 # simple wrapper for calling the local ifup script:
+def splitInterfaceVlan(interface):
+    if "." in interface:
+        return interface.split(".", 1)
+    return interface, None
+
 def ifup(interface):
-    assert interface in getNetifList()
+    device, vlan = splitInterfaceVlan(interface)
+    assert device in getNetifList()
     interface_up[interface] = True
     return util.runCmd2(['ifup', interface])
 
@@ -169,6 +175,7 @@ def networkingUp():
 
 # make a string to help users identify a network interface:
 def getPCIInfo(interface):
+    interface, vlan = splitInterfaceVlan(interface)
     info = "<Information unknown>"
     devpath = os.path.realpath('/sys/class/net/%s/device' % interface)
     slot = devpath[len(devpath) - 7:]
@@ -191,6 +198,7 @@ def getPCIInfo(interface):
     return info
 
 def getDriver(interface):
+    interface, vlan = splitInterfaceVlan(interface)
     return os.path.basename(os.path.realpath('/sys/class/net/%s/device/driver' % interface))
 
 def __readOneLineFile__(filename):
@@ -215,6 +223,12 @@ def valid_hostname(x, emptyValid = False, fqdn = False):
     else:
         return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?$', x) != None
 
+def valid_vlan(vlan):
+    if not re.match('^\d+$', vlan):
+        return False
+    if int(vlan)<1 or int(vlan)>=4095:
+        return False
+    return True
 
 def valid_ip_addr(addr):
     if not re.match('^\d+\.\d+\.\d+\.\d+$', addr):

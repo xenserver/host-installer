@@ -31,7 +31,8 @@ class NetInterface:
     DHCP = 2
     Autoconf = 3
 
-    def __init__(self, mode, hwaddr, ipaddr=None, netmask=None, gateway=None, dns=None, domain=None):
+    def __init__(self, mode, hwaddr, ipaddr=None, netmask=None, gateway=None,
+                 dns=None, domain=None, vlan=None):
         assert mode == None or mode == self.Static or mode == self.DHCP
         if ipaddr == '':
             ipaddr = None
@@ -61,6 +62,7 @@ class NetInterface:
             self.gateway = None
             self.dns = None
             self.domain = None
+        self.vlan = vlan
 
         # Initialise IPv6 to None.
         self.modev6 = None
@@ -89,8 +91,9 @@ class NetInterface:
             ipv6 = "autoconf"
         else:
             ipv6 = "None"
+        vlan = ("vlan = '%d' " % self.vlan) if self.vlan else ""
 
-        return "<NetInterface: %s ipv4:%s ipv6:%s>" % (hw, ipv4, ipv6)
+        return "<NetInterface: %s%s ipv4:%s ipv6:%s>" % (hw, vlan, ipv4, ipv6)
 
     def get(self, name, default = None):
         retval = default
@@ -99,7 +102,10 @@ class NetInterface:
             if attr is not None:
                 retval = attr
         return retval
-        
+
+    def getInterfaceName(self, iface):
+        return ("%s.%d" % (iface, self.vlan)) if self.vlan else iface
+
     def addIPv6(self, modev6, ipv6addr=None, ipv6gw=None):
         assert modev6 == None or modev6 == self.Static or modev6 == self.DHCP or modev6 == self.Autoconf
         if ipv6addr == '':
@@ -128,6 +134,9 @@ class NetInterface:
         """ Returns true if a static interface configuration is represented. """
         return self.mode == self.Static
 
+    def isVlan(self):
+        return self.vlan != None
+
     def getBroadcast(self):
         bcast = None
         rc, output = util.runCmd2(['/bin/ipcalc', '-b', self.ipaddr, self.netmask],
@@ -143,14 +152,15 @@ class NetInterface:
         # Debian style interfaces are only used for the installer; dom0 only uses CentOS style
         # IPv6 is only enabled through answerfiles and so is not supported here.
         assert self.modev6 == None
-
         assert self.mode
+        iface_vlan = self.getInterfaceName(iface)
+
         if self.mode == self.DHCP:
-            f.write("iface %s inet dhcp\n" % iface)
+            f.write("iface %s inet dhcp\n" % iface_vlan)
         else:
             # CA-11825: broadcast needs to be determined for non-standard networks
             bcast = self.getBroadcast()
-            f.write("iface %s inet static\n" % iface)
+            f.write("iface %s inet static\n" % iface_vlan)
             f.write("   address %s\n" % self.ipaddr)
             if bcast != None:
                 f.write("   broadcast %s\n" % bcast)
@@ -164,9 +174,10 @@ class NetInterface:
 
         assert self.modev6 == None
         assert self.mode
+        iface_vlan = self.getInterfaceName(iface)
 
-        f = open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface, 'w')
-        f.write("DEVICE=%s\n" % iface)
+        f = open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface_vlan, 'w')
+        f.write("DEVICE=%s\n" % iface_vlan)
         f.write("ONBOOT=yes\n")
         if self.mode == self.DHCP:
             f.write("BOOTPROTO=dhcp\n")
@@ -181,6 +192,8 @@ class NetInterface:
             f.write("NETMASK=%s\n" % self.netmask)
             if self.gateway:
                 f.write("GATEWAY=%s\n" % self.gateway)
+        if self.vlan:
+            f.write("VLAN=yes\n")
         f.close()
 
 
@@ -190,7 +203,8 @@ class NetInterface:
         if not self.gateway:
             return True
 
-        rc = util.runCmd2(['/usr/sbin/arping', '-f', '-w', '120', '-I', iface, self.gateway])
+        rc = util.runCmd2(['/usr/sbin/arping', '-f', '-w', '120', '-I',
+                           self.getInterfaceName(iface), self.gateway])
         return rc == 0
 
     @staticmethod

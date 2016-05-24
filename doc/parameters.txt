@@ -122,7 +122,7 @@ Installer
     interface name.
 
 
-  --network_config=dhcp|static:ip=ip;netmask=netmask[;gateway=gw][;dns=dns1[,dns2]][;domain=domain]
+  --network_config=dhcp[:vlan=vlan]|static:ip=ip;netmask=netmask[;gateway=gw][;dns=dns1[,dns2]][;domain=domain][;vlan=vlan]
 
     Defines the IP configuration to bring up to allow access to
     answerfiles.

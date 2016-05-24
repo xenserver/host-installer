@@ -42,45 +42,50 @@ def configureNetworking(ui, device, config):
 
     if device == 'all':
         config = 'dhcp'
-    config_dict = None
-    if config.startswith('static:'):
-        config_dict = {'gateway': None, 'dns': None, 'domain': None}
-        for el in config[7:].split(';'):
+    mode, rest = config.split(":", 1) if config and ":" in config else (config, None)
+    config_dict = {'gateway': None, 'dns': None, 'domain': None, 'vlan': None}
+    if rest:
+        for el in rest.split(';'):
             k, v = el.split('=', 1)
             config_dict[k] = v
+    if mode == 'static':
         if config_dict['dns'] is not None:
             config_dict['dns'] = config_dict['dns'].split(',')
         assert 'ip' in config_dict and 'netmask' in config_dict
+    if config_dict['vlan']:
+        config_dict['vlan'] = int(config_dict['vlan'])
 
     nethw = netutil.scanConfiguration()
     netcfg = {}
     for i in nethw.keys():
-        if (device == i or device == nethw[i].hwaddr) and config_dict:
+        if (device == i or device == nethw[i].hwaddr) and mode == 'static':
             netcfg[i] = NetInterface(NetInterface.Static, nethw[i].hwaddr,
                                      config_dict['ip'], config_dict['netmask'],
                                      config_dict['gateway'], config_dict['dns'],
-                                     config_dict['domain'])
+                                     config_dict['domain'], config_dict['vlan'])
         else:
-            netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr)
+            netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr,
+                                     vlan=config_dict['vlan'])
 
     netutil.writeNetInterfaceFiles(netcfg)
     netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
+    iface_to_start = []
     if device == 'all':
-        for i in nethw.keys():
-            netutil.ifup(i)
-            netcfg[i].waitUntilUp(i)
+        iface_to_start.extend(netcfg.keys())
     elif device.startswith('eth'):
         if nethw.has_key(device):
-            netutil.ifup(device)
-            netcfg[device].waitUntilUp(device)
+            iface_to_start.append(device)
     else:
         # MAC address
         matching_list = filter(lambda x: x.hwaddr == device, nethw.values())
         if len(matching_list) == 1:
             devname = matching_list[0].name
-            netutil.ifup(devname)
-            netcfg[devname].waitUntilUp(devname)
+            iface_to_start.append(devname)
+
+    for i in iface_to_start:
+        netutil.ifup(netcfg[i].getInterfaceName(i))
+        netcfg[i].waitUntilUp(i)
 
     if ui:
         ui.progress.clearModelessDialog()
