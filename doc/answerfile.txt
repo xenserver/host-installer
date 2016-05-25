@@ -222,6 +222,11 @@ Common Elements
 
     Optional attributes:
 
+      vlan="vlan"
+
+        Specifies tagged VLAN id for management interface. If not present,
+        untagged VLAN is used as default. VLAN is supported from 1 to 4094.
+
       protov6="static|dhcp|autoconf|none"
 
       Default: none

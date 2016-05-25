@@ -125,7 +125,7 @@ Installer
   --network_config=dhcp[:vlan=vlan]|static:ip=ip;netmask=netmask[;gateway=gw][;dns=dns1[,dns2]][;domain=domain][;vlan=vlan]
 
     Defines the IP configuration to bring up to allow access to
-    answerfiles.
+    answerfiles. VLAN is supported from 1 to 4094.
 
     Default: dhcp
 

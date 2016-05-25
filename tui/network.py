@@ -71,7 +71,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
     vlan_cb = Checkbox("Use VLAN:", defaults.isVlan() if defaults else False)
     vlan_cb.setCallback(use_vlan_cb_change, ())
     if defaults and defaults.isVlan():
-        vlan_field.set(defaults.vlan)
+        vlan_field.set(str(defaults.vlan))
     else:
         vlan_field.setFlags(FLAG_DISABLED, False)
 

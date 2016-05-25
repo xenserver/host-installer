@@ -1438,6 +1438,8 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
             print >>mc, "IPv6='%s'" % admin_config.ipv6addr
             if admin_config.ipv6_gateway:
                 print >>mc, "IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway
+        if admin_config.vlan:
+            print >>mc, "VLAN='%d'" % admin_config.vlan
         mc.close()
 
     if preserve_settings:

@@ -420,6 +420,12 @@ class Answerfile:
         elif protov6 == 'autoconf':
             results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
 
+        vlan = getStrAttribute(node, ['vlan'])
+        if vlan:
+            if not netutil.valid_vlan(vlan):
+                raise AnswerfileException, "Invalid value for vlan attribute specified."
+            results['net-admin-configuration'].vlan = int(vlan)
+
         if not results['net-admin-configuration'].valid():
             raise AnswerfileException, "<admin-interface> tag must have IPv4 or IPv6 defined."
         return results

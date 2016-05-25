@@ -53,6 +53,8 @@ def configureNetworking(ui, device, config):
             config_dict['dns'] = config_dict['dns'].split(',')
         assert 'ip' in config_dict and 'netmask' in config_dict
     if config_dict['vlan']:
+        if not netutil.valid_vlan(config_dict['vlan']):
+            raise RuntimeError, "Invalid VLAN value for installer network"
         config_dict['vlan'] = int(config_dict['vlan'])
 
     nethw = netutil.scanConfiguration()
