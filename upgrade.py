@@ -110,9 +110,9 @@ class Upgrader(object):
                 xelogging.log("Restoring /%s" % f)
                 util.assertDir(os.path.dirname(dst))
                 if os.path.isdir(src):
-                    util.runCmd2(['cp', '-rp', src, os.path.dirname(dst)])
+                    util.runCmd2(['cp', '-a', src, os.path.dirname(dst)])
                 else:
-                    util.runCmd2(['cp', '-p', src, dst])
+                    util.runCmd2(['cp', '-a', src, dst])
 
                 abs_f = os.path.join('/', f)
                 abs_d = os.path.join('/', d)
