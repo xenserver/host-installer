@@ -521,7 +521,7 @@ class ThirdGenUpgrader(Upgrader):
 
         # handle the conversion of HP Gen6 controllers from cciss to scsi
         primary_disk = self.source.getInventoryValue("PRIMARY_DISK")
-        target_link = diskutil.idFromPartition(target_disk)
+        target_link = diskutil.idFromPartition(target_disk) or target_disk
         if 'cciss' in primary_disk and 'scsi' in target_link:
             util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
                           os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf')])
