@@ -224,7 +224,9 @@ class ExistingInstallation:
             if not os.path.exists(self.join_state_path(dbcache_path)):
                 dbcache_path = constants.OLD_DBCACHE
 
-            if os.path.exists(self.join_state_path(networkdb_path)):
+            if not mgmt_iface:
+                xelogging.log('No existing management interface configuration found.')
+            elif os.path.exists(self.join_state_path(networkdb_path)):
                 networkd_db = constants.NETWORKD_DB
                 if not os.path.exists(self.join_state_path(networkd_db)):
                     networkd_db = constants.OLD_NETWORKD_DB
