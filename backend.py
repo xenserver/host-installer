@@ -337,10 +337,12 @@ def performInstallation(answers, ui_package, interactive):
     # Slight hack: we need to write the bridge name to xensource-inventory 
     # further down; compute it here based on the admin interface name if we
     # haven't already recorded it as part of reading settings from an upgrade:
-    if not answers.has_key('net-admin-bridge'):
+    if answers['install-type'] == INSTALL_TYPE_FRESH:
+        answers['net-admin-bridge'] = ''
+    elif not answers.has_key('net-admin-bridge'):
         assert answers['net-admin-interface'].startswith("eth")
         answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
- 
+
     # perform installation:
     prep_seq = getPrepSequence(answers, interactive)
     answers_pristine = answers.copy()
