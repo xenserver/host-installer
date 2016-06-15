@@ -214,7 +214,7 @@ class ThirdGenUpgrader(Upgrader):
                 # Create swap partition
                 tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = constants.swap_size * 2**20, number = swap_partnum)
                 # Create storage LVM partition
-                if storage_partnum > 0:
+                if storage_partnum > 0 and self.vgs_output:
                     tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
                 # Create logs partition using the old dom0 + Boot (if any) partitions
                 tool.deletePartition(10)
@@ -224,7 +224,7 @@ class ThirdGenUpgrader(Upgrader):
 
                 tool.commit(log = True)
 
-                if storage_partnum > 0:
+                if storage_partnum > 0 and self.vgs_output:
                     storage_part = partitionDevice(primary_disk, storage_partnum)
                     rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
                     vgs_list = out.split('\n')
@@ -303,7 +303,7 @@ class ThirdGenUpgrader(Upgrader):
             tool.resizePartition(number = backup_partnum, sizeBytes = constants.backup_size * 2**20)
             # Write partition table
             tool.commit(log = True)
-        
+
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)
         if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
