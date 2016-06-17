@@ -231,19 +231,32 @@ class ExistingInstallation:
                 if not os.path.exists(self.join_state_path(networkd_db)):
                     networkd_db = constants.OLD_NETWORKD_DB
 
-                args = ['chroot', self.state_fs.mount_point, '/'+networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
-                rv, out = util.runCmd2(args, with_stdout = True)
+                def fetchIfaceInfoFromNetworkdbAsDict(bridge, iface=None):
+                    args = ['chroot', self.state_fs.mount_point, '/'+networkd_db, '-bridge', bridge]
+                    if iface:
+                        args.extend(['-iface', iface])
+                    rv, out = util.runCmd2(args, with_stdout = True)
+                    d = {}
+                    for line in (x.strip() for x in out.split('\n') if len(x.strip())):
+                        for key_value in line.split(" "):
+                            var = key_value.split('=', 1)
+                            d[var[0]] = var[1]
+                    return d
 
-                d = {}
-                for line in ( x for x in out.split('\n') if len(x.strip()) ):
-                    var = line.split('=', 1)
-                    d[var[0]] = var[1]
+                d = fetchIfaceInfoFromNetworkdbAsDict(mgmt_iface, mgmt_iface)
+                # For mgmt on tagged vlan, networkdb output has no value for
+                # 'interfaces' but instead has 'parent' specified. We need
+                # to fetch 'interfaces' of parent and use for mgmt bridge.
+                if not d.get('interfaces') and 'parent' in d:
+                    p = fetchIfaceInfoFromNetworkdbAsDict(d['parent'])
+                    d['interfaces'] = p['interfaces']
 
                 results['net-admin-bridge'] = mgmt_iface
                 results['net-admin-interface'] = d.get('interfaces').split(',')[0]
 
                 if_hwaddr = netutil.getHWAddr(results['net-admin-interface'])
 
+                vlan = int(d['vlan']) if 'vlan' in d else None
                 proto = d.get('mode')
                 if proto == 'static':
                     ip = d.get('ipaddr')
@@ -251,11 +264,11 @@ class ExistingInstallation:
                     gateway = d.get('gateway')
                     dns = d.get('dns', '').split(',')
                     if ip and netmask:
-                        results['net-admin-configuration'] = NetInterface(NetInterface.Static, if_hwaddr, ip, netmask, gateway, dns)
+                        results['net-admin-configuration'] = NetInterface(NetInterface.Static, if_hwaddr, ip, netmask, gateway, dns, vlan=vlan)
                 elif proto == 'dhcp':
-                    results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, if_hwaddr)
+                    results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, if_hwaddr, vlan=vlan)
                 else:
-                    results['net-admin-configuration'] = NetInterface(None, if_hwaddr)
+                    results['net-admin-configuration'] = NetInterface(None, if_hwaddr, vlan=vlan)
 
                 protov6 = d.get('modev6')
                 if protov6 == 'static':
