@@ -523,7 +523,7 @@ def disk_more_info(context):
     if not context: return True
 
     usage = 'unknown'
-    (boot, root, state, storage) = diskutil.probeDisk(context)
+    (boot, root, state, storage, logs) = diskutil.probeDisk(context)
     if root[0]:
         usage = "%s installation" % MY_PRODUCT_BRAND
     elif storage[0]:
@@ -568,7 +568,7 @@ def select_primary_disk(answers):
         if min_primary_disk_size <= diskutil.blockSizeToGBSize(size):
             # determine current usage
             target_is_sr[de] = False
-            (boot, root, state, storage) = diskutil.probeDisk(de)
+            (boot, root, state, storage, logs) = diskutil.probeDisk(de)
             if storage[0]:
                 target_is_sr[de] = True
             (vendor, model, size) = diskutil.getExtendedDiskInfo(de)

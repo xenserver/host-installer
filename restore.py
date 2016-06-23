@@ -14,6 +14,7 @@ import backend
 import product
 from disktools import *
 import xelogging
+import diskutil
 import util
 import os
 import os.path
@@ -44,22 +45,16 @@ def restoreFromBackup(backup, progress = lambda x: ()):
         backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
     backup_fs.unmount()
 
-    root_fs = util.TempMount(root_partition, 'primary-', options = ['ro'])
-    inventory = util.readKeyValueFile(os.path.join(root_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
-    root_partition_layout = []
-    if 'PARTITION_LAYOUT' in inventory:  # Present from XS 7.0
-        root_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
-    root_fs.unmount()
+    (boot, _, _, _, logs) = diskutil.probeDisk(disk)
 
     xelogging.log("BACKUP DISK PARTITION LAYOUT: %s" % backup_partition_layout)
-    xelogging.log("ROOT DISK PARTITION LAYOUT: %s" % root_partition_layout)
 
-    if 'LOG' not in root_partition_layout and 'BOOT' in root_partition_layout and not backup_partition_layout: # From 7.x (no new layout - yes Boot partition) to 6.x
+    if not logs[0] and boot[0] and not backup_partition_layout: # From 7.x (no new layout - yes Boot partition) to 6.x
         restoreWithoutRepartButUEFI(backup, progress)
     else:
-        doRestore(backup, progress, backup_partition_layout, root_partition_layout)
+        doRestore(backup, progress, backup_partition_layout, logs[0])
 
-def doRestore(backup, progress, backup_partition_layout, root_partition_layout):
+def doRestore(backup, progress, backup_partition_layout, has_logs_partition):
 
     backup_partition = backup.partition
     backup_version = backup.version
@@ -75,7 +70,7 @@ def doRestore(backup, progress, backup_partition_layout, root_partition_layout):
 
     label = None
     bootlabel = None
-    if 'LOG' in root_partition_layout and not backup_partition_layout: # From 7.x (new layout) to 6.x
+    if has_logs_partition and not backup_partition_layout: # From 7.x (new layout) to 6.x
         restore_partition = partitionDevice(disk, logs_partnum)
     else:
         restore_partition = partitionDevice(disk, primary_partnum)
@@ -194,7 +189,7 @@ def doRestore(backup, progress, backup_partition_layout, root_partition_layout):
         if util.runCmd2(['fatlabel', boot_device, bootlabel]) != 0:
             raise RuntimeError, "Failed to label boot partition"
 
-    if 'LOG' in root_partition_layout: 
+    if has_logs_partition:
         if not backup_partition_layout: # From 7.x (new layout) to 6.x
             # Delete backup, dom0, Boot and swap partitions
             tool.deletePartition(backup_partnum)

@@ -484,6 +484,7 @@ def probeDisk(device, justInstall = False):
     root = (None, None)
     state = (False, None)
     storage = (None, None)
+    logs = (False, None)
     possible_srs = []
         
     tool = PartitionTool(device)
@@ -505,6 +506,8 @@ def probeDisk(device, justInstall = False):
                 if tool.partitions.has_key(num+2):
                     # George Retail and earlier didn't use the correct id for SRs
                     possible_srs = [num+2]
+            elif label and label.startswith('logs-'):
+                logs = (True, part_device)
         elif part['id'] == tool.ID_LINUX_LVM:
             if num not in possible_srs:
                 possible_srs.append(num)
@@ -526,9 +529,10 @@ def probeDisk(device, justInstall = False):
                 else:
                     storage = (STORAGE_LVM, part_device)
     
-    xelogging.log('Probe of '+device+' found boot='+str(boot)+' root='+str(root)+' state='+str(state)+' storage='+str(storage))
+    xelogging.log('Probe of %s found boot=%s root=%s state=%s storage=%s logs=%s' %
+                  (device, str(boot), str(root), str(state), str(storage), str(logs)))
 
-    return (boot, root, state, storage)
+    return (boot, root, state, storage, logs)
 
 
 class IscsiDeviceException(Exception):
