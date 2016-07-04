@@ -180,8 +180,8 @@ def select_netif(text, conf, offer_existing = False, default = None):
 
             snackutil.TableDialog(tui.screen, "Interface Details", *table)
         else:
-            details = map(lambda x: (x, netutil.ipaddr(x)), filter(netutil.interfaceUp, netifs))
-
+            netifs_all = netutil.getNetifList(include_vlan=True)
+            details = map(lambda x: (x, netutil.ipaddr(x)), filter(netutil.interfaceUp, netifs_all))
             snackutil.TableDialog(tui.screen, "Networking Details", *details)
         tui.screen.popHelpLine()
         return True
