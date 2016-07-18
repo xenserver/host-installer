@@ -187,7 +187,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                 if ui and results.get('ui-confirmation-prompt',False):
                     if not ui.init.confirm_proceed():
                         xelogging.log("User did not confirm installation. Reboot")
-                        return reboot
+                        return constants.EXIT_USER_CANCEL
 
                 if results.has_key('extra-repos'):
                     # load drivers now
