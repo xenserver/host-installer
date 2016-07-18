@@ -201,3 +201,12 @@ def confirm_restore(backup_partition, disk):
 
     return b in ['restore', None]
 
+def confirm_proceed():
+    b = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Confirm Local Disk Format",
+        "WARNING: proceeding with this installation will reinstall your local hard disk with %s %s" % (PRODUCT_BRAND, PRODUCT_VERSION),
+        ['Proceed', 'Cancel'], default=1, width=50
+    )
+
+    return b in ['proceed', None]

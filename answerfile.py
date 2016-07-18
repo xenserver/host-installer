@@ -84,6 +84,7 @@ class Answerfile:
         results = {}
         results.update(self.parseDriverSource())
         results.update(self.parseFCoEInterface())
+        results.update(self.parseUIConfirmationPrompt())
 
         return results
 
@@ -461,4 +462,11 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['keymap'])
         if len(nodes) > 0:
             results['keymap'] = getText(nodes[0])
+        return results
+
+    def parseUIConfirmationPrompt(self):
+        results = {}
+        nodes = getElementsByTagName(self.top_node, ['ui-confirmation-prompt'])
+        if len(nodes) > 0:
+            results['ui-confirmation-prompt'] = bool(getText(nodes[0]))
         return results
