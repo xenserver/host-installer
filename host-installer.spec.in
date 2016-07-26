@@ -154,7 +154,6 @@ rm -rf $RPM_BUILD_ROOT
 %post
 # these are started by the installer
 /usr/bin/systemctl disable multipathd
-/usr/bin/systemctl disable sshd
 
 # avoid to lock disks
 /usr/bin/systemctl disable lvm2-lvmetad
