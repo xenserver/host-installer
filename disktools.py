@@ -689,10 +689,6 @@ class PartitionToolBase:
         for number, partition in self.partitions.iteritems():
             if partition['active']:
                 self.setActiveFlag(False, number)
-    
-    def utilityPartitions(self):
-        # Return list of partition numbers for partitions we should preserve
-        return [num for num in self.partitions.keys() if self.partitions[num]['id'] == self.ID_DELL_UTILITY]
 
     def iteritems(self):
         # sorted() creates a new list, so you can delete partitions whilst iterating
@@ -906,7 +902,10 @@ class DOSPartitionTool(PartitionToolBase):
                     raise Exception(err)
             elif rc != 0:
                 raise Exception(err)
-        
+
+    def utilityPartitions(self):
+        # Return list of partition numbers for partitions we should preserve
+        return [num for num in self.partitions.keys() if self.partitions[num]['id'] == self.ID_DELL_UTILITY]
 
 
 class GPTPartitionTool(PartitionToolBase):
@@ -915,7 +914,6 @@ class GPTPartitionTool(PartitionToolBase):
     ID_LINUX_SWAP   = "0657FD6D-A4AB-43C4-84E5-0933C84B4F4F"
     ID_LINUX        = "EBD0A0A2-B9E5-4433-87C0-68B6B72699C7"
     ID_LINUX_LVM    = "E6D6D379-F507-44C2-A23C-238F2A3DF928"
-    ID_DELL_UTILITY = "TODOFIND-OUTF-ROMD-ELLW-HATTOPUTHERE"
     ID_EFI_BOOT     = "C12A7328-F81F-11D2-BA4B-00A0C93EC93B"
     ID_BIOS_BOOT    = "21686148-6449-6E6F-744E-656564454649"
     
@@ -924,8 +922,6 @@ class GPTPartitionTool(PartitionToolBase):
         ID_LINUX_SWAP:   '8200',
         ID_LINUX:        '0700',
         ID_LINUX_LVM:    '8e00',
-#       We don't have a DELL TC but we should never need to create a DELL partition
-#       ID_DELL_UTILITY: = ????
         ID_EFI_BOOT:     'ef00',
         ID_BIOS_BOOT:    'ef02',
         }
@@ -1072,6 +1068,11 @@ class GPTPartitionTool(PartitionToolBase):
             rv = createPartnodes(self.device)
             if rv:
                 raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
+
+    def utilityPartitions(self):
+        # Return list of partition numbers for partitions we should preserve
+        return [num for num in self.partitions.keys() if
+                self.partitions[num]['id'] == self.ID_EFI_BOOT and self.partitions[num]['partlabel'] == constants.UTILITY_PARTLABEL]
 
 def probePartitioningScheme(device):
     """Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt"""
