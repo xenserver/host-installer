@@ -318,12 +318,8 @@ def performInstallation(answers, ui_package, interactive):
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
                           'initial-partitions': [], 
                           'sr-at-end': True,
-                          'sr-on-primary': True })
-
-        if answers["create-new-partitions"]: # GPT - No utility partition
-            defaults.update({ 'preserve-first-partition': 'false' })
-        else: # DOS - Preserve utility if present
-            defaults.update({ 'preserve-first-partition': 'if-utility' })
+                          'sr-on-primary': True,
+                          'preserve-first-partition': constants.PRESERVE_IF_UTILITY })
 
         xelogging.log("Updating answers dictionary based on defaults")
 
@@ -605,18 +601,25 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
 
     if create_new_partitions:
 
-        # Create the new partition layout (5,2,1,4,6,3)
-        # 1 - dom0 partition
-        # 2 - backup partition
-        # 3 - LVM partition
-        # 4 - Boot partition
-        # 5 - logs partition
-        # 6 - swap partition
+        # Create the new partition layout (5,2,1,4,6,3) or (1,6,3,2,5,7,4)
+        # Normal layout                With utility partition
+        # 1 - dom0 partition           1 - utility partition
+        # 2 - backup partition         2 - dom0 partition
+        # 3 - LVM partition            3 - backup partition
+        # 4 - Boot partition           4 - LVM partition
+        # 5 - logs partition           5 - Boot partition
+        # 6 - swap partition           6 - logs partition
+        #                              7 - swap partition
 
         new_partition_layout = True
 
         # Create logs partition
-        tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2**20, number = logs_partnum, order = order)
+        # Start the first partition at 1 MiB if there are no other partitions.
+        # Otherwise start the partition following the utility partition.
+        if order == 1:
+            tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, startBytes = 2**20, number = logs_partnum, order = order)
+        else:
+            tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, number = logs_partnum, order = order)
         order += 1
     
         # Create backup partition
