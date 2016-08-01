@@ -952,6 +952,7 @@ class GPTPartitionTool(PartitionToolBase):
         matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})(\s+(.*))?$') # num start end sz typecode name
         matchActive    = re.compile('.*\(legacy BIOS bootable\)')
         matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
+        matchPartUUID  = re.compile('^Partition unique GUID: ([0-9A-F\-]+)$')
         partitions = {}
         lines = out.split('\n')
         gotHeader = False
@@ -971,9 +972,11 @@ class GPTPartitionTool(PartitionToolBase):
                 start   = int(matches.group(2))
                 _end    = int(matches.group(3))
                 size    = _end + 1 - start
+                partlabel = matches.group(7) if matches.group(7) else ''
                 partitions[number] = {
                     'start': int(matches.group(2)),
                     'size': size,
+                    'partlabel': partlabel,
                     }
         # For each partition determine the active state.
         # By active we mean "BIOS bootable"
@@ -985,6 +988,9 @@ class GPTPartitionTool(PartitionToolBase):
                 m = matchId.match(line)
                 if m:
                     partitions[number]['id'] = m.group(1)
+                m = matchPartUUID.match(line)
+                if m:
+                    partitions[number]['partuuid'] = m.group(1)
             assert partitions[number].has_key('id')
 
         # sgdisk opens the device with O_WRONLY even when not changing anything
@@ -1056,6 +1062,10 @@ class GPTPartitionTool(PartitionToolBase):
             self.cmdWrap([self.SGDISK, '--typecode=%d:%s' % (num,self.GUID_to_type_code[idt]), self.device])
             if active:
                 self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag
+            if 'partlabel' in part and part['partlabel']:
+                self.cmdWrap([self.SGDISK, '--change-name=%d:%s' % (num, part['partlabel']), self.device])
+            if 'partuuid' in part:
+                self.cmdWrap([self.SGDISK, '--partition-guid=%d:%s' % (num, part['partuuid']), self.device])
 
         if isDeviceMapperNode(self.device):
             # Create partitions using device mapper
