@@ -22,6 +22,7 @@ import ftplib
 import subprocess
 import re
 import gzip
+import shutil
 from xml.dom.minidom import parse
 
 import xelogging
@@ -205,7 +206,7 @@ class YumRepository(Repository):
         xelogging.log("URL: " + self._accessor.url())
         with open('/root/yum.conf', 'w') as yum_conf:
             yum_conf.write("""[main]
-cachedir=/var/cache/yum/$basearch/$releasever
+cachedir=/var/cache/yum/installer
 keepcache=0
 debuglevel=2
 logfile=/var/log/yum.log
@@ -276,6 +277,7 @@ baseurl=%s
             xelogging.log("Yum exited with %d" % rv)
             raise ErrorInstallingPackage("Error installing packages")
 
+        shutil.rmtree(os.path.join(mounts['root'], 'var', 'cache', 'yum', 'installer'))
         os.unlink(conffile)
 
     def getBranding(self, mounts, branding):
