@@ -42,7 +42,7 @@ TARGET_BOOT_MODE_UEFI = "uefi"
 
 # first partition preservation:
 PRESERVE_IF_UTILITY = "if-utility"
-UTILITY_PARTLABEL = "DellUtility"
+UTILITY_PARTLABEL = "DELLUTILITY"
 
 # network backend types:
 NETWORK_BACKEND_BRIDGE = "bridge"
