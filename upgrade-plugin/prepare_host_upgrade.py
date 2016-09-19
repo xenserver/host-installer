@@ -371,8 +371,14 @@ def set_boot_config(installer_dir, url):
                     return False
                 if  pif.get('DNS', '') != '':
                     config_str += ";dns=" + pif['DNS']
+
+                if config.src_fmt == 'grub2' :
+                    network_config_str = "'network_config=%s'"
+                else :
+                    network_config_str = "network_config=%s"
+
                 kernel_args.extend(['network_device='+mac,
-                                "'network_config=%s'" % (config_str,)])
+                                network_config_str % (config_str,)])
             else:
                 kernel_args.append('network_device=' + mac)
             kernel_args.append("map_netdev=%s:d:%s" % (real_iface, mac))
