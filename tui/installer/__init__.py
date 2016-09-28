@@ -28,6 +28,17 @@ import xmlrpclib
 
 from snack import *
 
+def need_networking(answers):
+    if 'source-media' in answers and \
+           answers['source-media'] in ['url', 'nfs']:
+        return True
+    if 'installation-to-overwrite' in answers:
+        settings = answers['installation-to-overwrite'].readSettings()
+        return (settings['master'] != None)
+    return False
+
+is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']
+
 def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     """ Runs the main installer sequence and updates results with a
     set of values ready for the backend. """
@@ -49,7 +60,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
     is_not_restore_fn = lambda a: a['install-type'] != constants.INSTALL_TYPE_RESTORE
-    is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']
 
     def requires_backup(answers):
         return answers.has_key("installation-to-overwrite") and \
@@ -74,15 +84,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                 return False
         return answers.has_key('source-media') and \
                answers['source-media'] == 'local' and not suppress_extra_cd_dialog
-
-    def need_networking(answers):
-        if 'source-media' in answers and \
-               answers['source-media'] in ['url', 'nfs']:
-            return True
-        if 'installation-to-overwrite' in answers:
-            settings = answers['installation-to-overwrite'].readSettings()
-            return (settings['master'] != None)
-        return False
         
     def preserve_timezone(answers):
         if not_preserve_settings(answers):
@@ -161,8 +162,6 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(tui.repo.select_repo_source,
              args=["Select Installation Source", "Please select the type of source you would like to use for this installation"],
              predicates=[is_not_restore_fn]),
-        Step(uis.use_extra_media, args=[vt_warning],
-             predicates=[local_media_predicate]),
         Step(uis.setup_runtime_networking, 
              predicates=[need_networking]),
         Step(uis.master_not_upgraded,
@@ -191,90 +190,23 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         ]
     return uicontroller.runSequence(seq, results)
 
-def more_media_sequence(installed_repos, still_need):
-    """ Displays the sequence of screens required to load additional
-    media to install from.  installed_repos is a dictionary of repository
-    IDs of repositories we already installed from, to help avoid
-    issues where multiple CD drives are present.
-
-    Returns tuple: (install more, then ask again, repo_list)"""
+def more_media_sequence(answers):
+    uis = tui.installer.screens
     Step = uicontroller.Step
-
-    def get_more_media(_):
-        """ 'Please insert disk' dialog. """
-        done = False
-        while not done:
-            text = ''
-            for need in still_need:
-                if text == '':
-                    text = "The following Supplemental Packs must be supplied to complete installation:\n\n"
-                text += " * %s\n" % need
-            text += "\nWhen there are no more Supplemental Packs to install press Skip."
-            more = ButtonChoiceWindow(tui.screen, "New Media", "Please insert your Supplemental Pack now.\n" + text,
-                                      ['Ok', 'Skip'], 40)
-            if more == "skip":
-                # they hit cancel:
-                confirm = "skip"
-                if len(still_need) > 0:
-                    # check they mean it
-                    check_text = "The following Supplemental Packs could contain packages which are essential:\n\n"
-                    for need in still_need:
-                        check_text += " * %s\n" % need
-                    check_text += "\nAre you sure you wish to skip installing them?"
-                    confirm = ButtonChoiceWindow(tui.screen, "Essential Packages", check_text,
-                                                 ['Back', 'Skip'])
-                if confirm == "skip":
-                    rv = EXIT
-                    done = True
-            else:
-                # they hit OK - check there is a disc
-                repos = repository.repositoriesFromDefinition('local', '')
-                if len(repos) == 0:
-                    ButtonChoiceWindow(
-                        tui.screen, "Error",
-                        "No installation files were found - please check your disc and try again.",
-                        ['Back'])
-                else:
-                    # found repositories - can leave this screen
-                    rv = RIGHT_FORWARDS
-                    done = True
-        return rv
-
-    def check_requires(_):
-        """ Check prerequisites and report if any are missing. """
-        missing_repos = []
-        main_repo_missing = False
-        repos = repository.repositoriesFromDefinition('local', '')
-        for r in repos:
-            missing_repos += r.check_requires(installed_repos)
-
-        if len(missing_repos) == 0:
-            return SKIP_SCREEN
-
-        text2 = ''
-        for r in missing_repos:
-            if r.startswith(constants.MAIN_REPOSITORY_NAME):
-                main_repo_missing = True
-            text2 += " * %s\n" % r
-
-        if main_repo_missing:
-            text = "This Supplemental Pack is not compatible with this version of %s." % (version.PRODUCT_BRAND or version.PLATFORM_NAME)
-        else:
-            text = "The following dependencies have not yet been installed:\n\n" + text2 + \
-                   "\nPlease install them first and try again."
-
-        ButtonChoiceWindow(
-            tui.screen, "Error",
-            text,
-            ['Back'])
-
-        return LEFT_BACKWARDS
+    more_media_fn = lambda a: 'more-media' in a and a['more-media']
 
     seq = [
-        Step(get_more_media),
-        Step(check_requires),
-        Step(tui.repo.confirm_load_repo, args = ['Supplemental Pack', installed_repos])
+        Step(uis.use_extra_media),
+        Step(tui.repo.select_repo_source,
+             args=["Select Supplemental Pack source", "Please select the type of source you would like to use for this Supplemental Pack", False],
+             predicates=[more_media_fn]),
+        Step(uis.setup_runtime_networking,
+             predicates=[more_media_fn, need_networking]),
+        Step(tui.repo.get_source_location,
+             args=[False],
+             predicates=[more_media_fn, is_using_remote_media_fn]),
+        Step(tui.repo.verify_source, args=['installation', False],
+             predicates=[more_media_fn]),
         ]
-    results = {}
-    direction = uicontroller.runSequence(seq, results)
-    return (direction == RIGHT_FORWARDS, direction != EXIT, 'repos' in results and results['repos'] or [])
+    uicontroller.runSequence(seq, answers)
+    return answers

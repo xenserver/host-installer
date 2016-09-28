@@ -490,11 +490,9 @@ def use_extra_media(answers):
         tui.screen,
         "Supplemental Packs",
         "Would you like to install any Supplemental Packs?",
-        ['Yes', 'No', 'Back'],
-        default=0, help='suppack'
+        ['Yes', 'No'],
+        default=1, help='suppack'
         )
-
-    if rc == 'back': return LEFT_BACKWARDS
 
     answers['more-media'] = (rc != 'no')
     return RIGHT_FORWARDS
