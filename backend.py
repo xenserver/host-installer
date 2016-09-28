@@ -114,7 +114,7 @@ def getPrepSequence(ans, interactive):
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum', 'create-new-partitions'), ['partition-table-type']),
         ]
     if not interactive:
-        seq.append(Task(verifyRepo, A(ans, 'source-media', 'source-address', 'ui'), []))
+        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
@@ -151,7 +151,6 @@ def getPrepSequence(ans, interactive):
 def getRepoSequence(ans, repos):
     seq = []
     for repo in repos:
-        seq.append(Task(checkRepoDeps, (lambda myr: lambda a: [myr, a['installed-repos']])(repo), []))
         seq.append(Task(repo.accessor().start, lambda x: [], []))
         seq.append(Task(repo.installPackages, A(ans, 'mounts'), [],
                      progress_scale = 100,
@@ -281,6 +280,14 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
 
     return answers
 
+def reorderRepos(repos):
+    """Place the main installation repository at the head of the list."""
+
+    for i, repo in enumerate(repos):
+        if repo.identifier() == MAIN_REPOSITORY_NAME:
+            repos[0], repos[i] = repos[i], repos[0]
+            break
+
 def performInstallation(answers, ui_package, interactive):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
@@ -354,83 +361,55 @@ def performInstallation(answers, ui_package, interactive):
         return new_ans
 
     new_ans['installed-repos'] = {}
-    master_required_list = []
-    all_repositories = repository.repositoriesFromDefinition(
-        answers['source-media'], answers['source-address']
-        )
-    if len(new_ans['installed-repos']) == 0 and len(all_repositories) == 0:
-        # CA-29016: main repository has vanished
-        raise RuntimeError, "No repository found at the specified location."
-    if constants.MAIN_REPOSITORY_NAME not in [r.identifier() for r in all_repositories]:
-        raise RuntimeError, "Main repository not found at the specified location."
+    all_repositories = []
 
-    for driver_repo_def in answers['extra-repos']:
-        rtype, rloc, required_list = driver_repo_def
-        if rtype == 'local':
-            answers['more-media'] = True
-        else:
-            all_repositories += repository.repositoriesFromDefinition(rtype, rloc)
-        master_required_list += filter(lambda r: r not in master_required_list, required_list)
+    # A list of sources coming from the answerfile
+    if 'sources' in answers:
+        for i in answers['sources']:
+            all_repositories.extend(repository.repositoriesFromDefinition(i['media'], i['address']))
 
-    os.environ['XS_INSTALLATION'] = '1'
-    if answers['preserve-settings'] and 'backup-partnum' in new_ans:
-        # mount backup and advertise mountpoint for Supplemental Packs
-        chroot_dir = 'tmp/backup'
-        backup_device = partitionDevice(new_ans['primary-disk'], new_ans['backup-partnum'])
-        backup_fs = util.TempMount(backup_device, 'backup-', options = ['ro'])
-        util.assertDir(os.path.join(new_ans['mounts']['root'], chroot_dir))
-        util.bindMount(backup_fs.mount_point, os.path.join(new_ans['mounts']['root'], chroot_dir))
-        os.environ['XS_PREVIOUS_INSTALLATION'] = '/'+chroot_dir
-        
-    repeat = True
-    while repeat:
-        # only install repositories we've not already installed:
-        repositories = filter(lambda r: str(r) not in new_ans['installed-repos'],
-                              all_repositories)
-        if len(repositories) > 0:
-            new_ans = handleRepos(repositories, new_ans)
+    # A single source coming from an interactive install
+    if 'source-media' in answers and 'source-address' in answers:
+        all_repositories.extend(repository.repositoriesFromDefinition(answers['source-media'], answers['source-address']))
 
-        # get more media?
-        repeat = answers.has_key('more-media') and answers['more-media']
-        if repeat:
-            # find repositories that we installed from removable media:
-            for r in repositories:
+    reorderRepos(all_repositories)
+
+    if all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
+        raise RuntimeError("No main repository found")
+
+    new_ans = handleRepos(all_repositories, new_ans)
+
+    # Find repositories that we installed from removable media
+    # and eject the media.
+    for r in all_repositories:
+        if r.accessor().canEject():
+            r.accessor().eject()
+
+    if interactive:
+        # Add supp packs in a loop
+        while True:
+            media_ans = dict(answers)
+            del media_ans['source-media']
+            del media_ans['source-address']
+            media_ans = ui_package.installer.more_media_sequence(media_ans)
+            if 'more-media' not in media_ans or not media_ans['more-media']:
+                break
+
+            repos = repository.repositoriesFromDefinition(media_ans['source-media'], media_ans['source-address'])
+            repos = set([repo for repo in repos if str(repo) not in new_ans['installed-repos']])
+            if len(repos) == 0:
+                continue
+            new_ans = handleRepos(repos, new_ans)
+
+            for r in repos:
                 if r.accessor().canEject():
                     r.accessor().eject()
-            still_need = filter(lambda r: str(r) not in new_ans['installed-repos'], master_required_list)
-            accept_media, ask_again, repos = ui_package.installer.more_media_sequence(new_ans['installed-repos'], still_need)
-            repeat = accept_media
-            answers['more-media'] = ask_again
-            all_repositories += repos
-
-    if answers['preserve-settings'] and 'backup-partnum' in new_ans:
-        util.umount(os.path.join(new_ans['mounts']['root'], chroot_dir))
-        os.rmdir(os.path.join(new_ans['mounts']['root'], chroot_dir))
-        backup_fs.unmount()
-
-    # pick up any scripts dropped by supplemental packs
-    for scr in os.listdir(os.path.join(new_ans['mounts']['root'], constants.EXTRA_SCRIPTS_DIR)):
-        scripts.add_script('filesystem-populated', 'file://'+os.path.join(new_ans['mounts']['root'], 
-                                                                          constants.EXTRA_SCRIPTS_DIR, scr))
 
     # complete the installation:
     fin_seq = getFinalisationSequence(new_ans)
     new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
 
-    if answers['source-media'] == 'local':
-        for r in repositories:
-            if r.accessor().canEject():
-                r.accessor().eject()
-
     return new_ans
-
-def checkRepoDeps(repo, installed_repos):
-    xelogging.log("Checking for dependencies of %s" % repo.identifier())
-    missing_repos = repo.check_requires(installed_repos)
-    if len(missing_repos) > 0:
-        text = "Repository dependency error:\n\n"
-        text += '\n'.join(missing_repos)
-        raise RuntimeError, text
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):
@@ -1607,23 +1586,25 @@ def writei18n(mounts):
     fd.write('LANG="en_US.UTF-8"\n')
     fd.close()
 
-def verifyRepo(media, address, ui):
-    """ Check repo is accessible """
-    repo_good = False
-    
-    if ui:
-        if tui.repo.check_repo_def((media, address), True) == tui.repo.REPOCHK_NO_ERRORS:
-           repo_good = True
-    else:
-        try:
-            repos = repository.repositoriesFromDefinition(media, address)
-            if len(repos) > 0:
-                repo_good = True
-        except:
-            pass
+def verifyRepos(sources, ui):
+    """ Check repos are accessible """
 
-    if not repo_good:
-        raise RuntimeError, "Unable to access repository"
+    for i in sources:
+        repo_good = False
+
+        if ui:
+            if tui.repo.check_repo_def((i['media'], i['address']), False) == tui.repo.REPOCHK_NO_ERRORS:
+               repo_good = True
+        else:
+            try:
+                repos = repository.repositoriesFromDefinition(i['media'], i['address'])
+                if len(repos) > 0:
+                    repo_good = True
+            except:
+                pass
+
+        if not repo_good:
+            raise RuntimeError("Unable to access repository (%s, %s)" % (i['media'], i['address']))
 
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
