@@ -59,9 +59,8 @@ class ErrorInstallingPackage(Exception):
 
 class Repository(object):
     """ Represents a repository containing packages and associated meta data. """
-    def __init__(self, accessor, base = ""):
+    def __init__(self, accessor):
         self._accessor = accessor
-        self._base = base
         self._product_version = None
 
     def accessor(self):
@@ -130,7 +129,7 @@ class YumRepository(Repository):
             name = name_node.getAttribute("href")
             size = size_node.getAttribute("package")
             checksum = checksum_node.childNodes[0]
-            pkg = NewRPMPackage(self, name, size, checksum.data)
+            pkg = RPMPackage(self, name, size, checksum.data)
             pkg.type = 'rpm'
             self._packages.append(pkg)
 
@@ -138,13 +137,18 @@ class YumRepository(Repository):
         return "%s@yum" % self._identifier
 
     @classmethod
-    def isRepo(cls, accessor, base):
-        """ Return whether there is a repository at base address 'base' accessible
-        using accessor."""
-        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.INFO_FILENAME, cls.REPOMD_FILENAME] ]
+    def isRepo(cls, accessor):
+        """ Return whether there is a repository accessible using accessor."""
+        return False not in [ accessor.access(f) for f in [cls.INFO_FILENAME, cls.REPOMD_FILENAME] ]
 
     def identifier(self):
         return self._identifier
+
+    def __eq__(self, other):
+        return self.identifier() == other.identifier()
+
+    def __hash__(self):
+        return hash(self.identifier())
 
     def record_install(self, answers, installed_repos):
         installed_repos[str(self)] = self
@@ -235,18 +239,8 @@ class MainYumRepository(YumRepository):
     _targets = ['@xenserver_base', '@xenserver_dom0']
     _identifier = MAIN_REPOSITORY_NAME
 
-    @classmethod
-    def findRepositories(cls, accessor):
-        accessor.start()
-        is_repo = cls.isRepo(accessor, "")
-        accessor.finish()
-        if not is_repo:
-            return []
-        xelogging.log("Repository (main yum) found")
-        return [ cls(accessor) ]
-
     def __init__(self, accessor):
-        YumRepository.__init__(self, accessor, "")
+        YumRepository.__init__(self, accessor)
 
         accessor.start()
         try:
@@ -296,18 +290,8 @@ class UpdateYumRepository(YumRepository):
     """ Represents a Yum repository containing packages and associated meta data. """
     INFO_FILENAME = "update.xml"
 
-    @classmethod
-    def findRepositories(cls, accessor):
-        accessor.start()
-        is_repo = cls.isRepo(accessor, "")
-        accessor.finish()
-        if not is_repo:
-            return []
-        xelogging.log("Repository (update yum) found")
-        return [ cls(accessor) ]
-
     def __init__(self, accessor):
-        YumRepository.__init__(self, accessor, "")
+        YumRepository.__init__(self, accessor)
 
         accessor.start()
         try:
@@ -328,588 +312,12 @@ class UpdateYumRepository(YumRepository):
     def name(self):
         return self._identifier
 
-class LegacyRepository(Repository):
-    """ Represents a XenSource repository containing packages and associated
-    meta data. """
-    REPOSITORY_FILENAME = "XS-REPOSITORY"
-    PKGDATA_FILENAME = "XS-PACKAGES"
-    REPOLIST_FILENAME = "XS-REPOSITORY-LIST"
-
-    OPER_MAP = {'eq': ' = ', 'ne': ' != ', 'lt': ' < ', 'gt': ' > ', 'le': ' <= ', 'ge': ' >= '}
-
-    def findRepositories(cls, accessor):
-        # Check known locations:
-        package_list = ['', 'packages', 'packages.main', 'packages.linux',
-                        'packages.site']
-        repos = []
-
-        accessor.start()
-        try:
-            extra = accessor.openAddress(cls.REPOLIST_FILENAME)
-            if extra:
-                for line in extra:
-                    package_list.append(line.strip())
-                extra.close()
-        except Exception, e:
-            xelogging.log("Failed to open %s: %s" % (cls.REPOLIST_FILENAME, str(e)))
-
-        for loc in package_list:
-            if LegacyRepository.isRepo(accessor, loc):
-                xelogging.log("Repository (legacy) found in /%s" % loc)
-                repos.append(LegacyRepository(accessor, loc))
-        accessor.finish()
-        return repos
-    findRepositories = classmethod(findRepositories)
-
-    def __init__(self, accessor, base = ""):
-        Repository.__init__(self, accessor, base)
-        self._product_brand = None
-        self._md5 = md5.new()
-        self.requires = []
-
-        accessor.start()
-
-        try:
-            repofile = accessor.openAddress(self.path(self.REPOSITORY_FILENAME))
-        except Exception, e:
-            accessor.finish()
-            raise NoRepository, e
-        self._parse_repofile(repofile)
-        repofile.close()
-
-        try:
-            pkgfile = accessor.openAddress(self.path(self.PKGDATA_FILENAME))
-        except Exception, e:
-            accessor.finish()
-            raise NoRepository, e
-        self._parse_packages(pkgfile)
-        pkgfile.close()
-
-        accessor.finish()
-
-    def __repr__(self):
-        return self._identifier
-
-    def isRepo(cls, accessor, base):
-        """ Return whether there is a repository at base address 'base' accessible
-        using accessor."""
-        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.REPOSITORY_FILENAME, cls.PKGDATA_FILENAME] ]
-    isRepo = classmethod(isRepo)
-
-    def _parse_repofile(self, repofile):
-        """ Parse repository data -- get repository identifier and name. """
-        
-        self._repofile_contents = repofile.read()
-        repofile.close()
-
-        # update md5sum for repo
-        self._md5.update(self._repofile_contents)
-
-        # build xml doc object
-        try:
-            xmldoc = xml.dom.minidom.parseString(self._repofile_contents)
-        except:
-            raise RepoFormatError, "%s not in XML" % self.REPOSITORY_FILENAME
-
-        try:
-            repo_node = xmldoc.getElementsByTagName('repository')[0]
-            desc_node = xmldoc.getElementsByTagName('description')[0]
-            _originator = repo_node.getAttribute("originator").encode()
-            _name = repo_node.getAttribute("name").encode()
-            _product = repo_node.getAttribute("product").encode()
-            _version = repo_node.getAttribute("version").encode()
-            _build = repo_node.getAttribute("build").encode()
-            if _build == '': _build = None
-            _description = getText(desc_node.childNodes)
-            _hidden = repo_node.getAttribute("hidden").encode()
-            if _hidden == '': _hidden='false'
-
-            for req_node in xmldoc.getElementsByTagName('requires'):
-                req = {}
-                for attr in ['originator', 'name', 'test', 'version', 'build']:
-                    req[attr] = req_node.getAttribute(attr).encode()
-                if req['build'] == '': del req['build']
-                assert req['test'] in self.OPER_MAP
-                self.requires.append(req)
-        except:
-            raise RepoFormatError, "%s format error" % self.REPOSITORY_FILENAME
-
-        # map info gleaned from XML to data expected by other Repository methods
-        self._identifier = "%s:%s" % (_originator,_name)
-        self._name = _description
-        self._product_brand = _product
-        self._hidden = _hidden
-        ver_str = _version
-        if _build: ver_str += '-'+_build
-        self._product_version = Version.from_string(ver_str)
-
-    def compatible_with(self, platform, brand):
-        return self._product_brand in [brand, platform, None]
-
-    def __str__(self):
-        return self._identifier + ' ' + str(self._product_version)
-
-    def name(self):
-        return self._name
-
-    def identifier(self):
-        return self._identifier
-
-    def path(self, name):
-        return self._accessor.pathjoin(self._base, name)
-
-    def hidden(self):
-        return self._hidden
-
-    def _parse_packages(self, pkgfile):
-        self._pkgfile_contents = pkgfile.read()
-        pkgfile.close()
-        
-        # update md5sum for repo
-        self._md5.update(self._pkgfile_contents)
-
-        # build xml doc object
-        try:
-            xmldoc = xml.dom.minidom.parseString(self._pkgfile_contents)
-        except:
-            raise RepoFormatError, "%s not in XML" % self.PKGDATA_FILENAME
-
-        self._packages = []
-        for pkg_node in xmldoc.getElementsByTagName('package'):
-            try:
-                _label = pkg_node.getAttribute("label")
-                _type = pkg_node.getAttribute("type")
-                _size = pkg_node.getAttribute("size")
-                _md5sum = pkg_node.getAttribute("md5")
-                _root = pkg_node.getAttribute("root")
-                _kernel = pkg_node.getAttribute("kernel")
-                _options = pkg_node.getAttribute("options").split()
-                if _options == []: _options = ['-U']
-                _fname = getText(pkg_node.childNodes)
-            except:
-                raise RepoFormatError, "%s format error" % self.PKGDATA_FILENAME
-
-            if (_type == 'tbz2'):
-                pkg = BzippedPackage(self, _label, _size, _md5sum, 'required', _fname, _root)
-            elif (_type == 'driver'):
-                pkg = DriverPackage(self, _label, _size, _md5sum, _fname, _root)
-            elif (_type == 'firmware'):
-                pkg = FirmwarePackage(self, _label, _size, _md5sum, _fname)
-            elif (_type == 'rpm'):
-                pkg = RPMPackage(self, _label, _size, _md5sum, _fname, _options)
-            elif (_type == 'driver-rpm'):
-                pkg = DriverRPMPackage(self, _label, _size, _md5sum, _kernel, _fname, _options)
-            else:
-                raise UnknownPackageType, _type
-            pkg.type = _type
-
-            self._packages.append(pkg)
-
-    def repo_satisfies(self, dep, want_id, want_ver):
-        return self.identifier() == want_id and eval("self._product_version.__%s__(want_ver)" % dep['test'])
-
-    def check_requires(self, installed_repos):
-        """ Return a list the prerequisites that are not yet installed. """
-        problems = []
-
-        def fmt_dep(id, d):
-            text = "%s requires %s:%s" % (id, d['originator'], d['name'])
-            if d['test'] in self.OPER_MAP:
-                text += self.OPER_MAP[d['test']]
-            else:
-                return text
-            text += 'build' in d and "%s-%s" % (d['version'], d['build']) or d['version']
-            
-            return text
-
-        for dep in self.requires:
-            want_id = "%s:%s" % (dep['originator'], dep['name'])
-            want_ver = Version.from_string('build' in dep and "%s-%s" % (dep['version'], dep['build']) or dep['version'])
-            found = False
-            for repo in installed_repos.values():
-                if repo.repo_satisfies(dep, want_id, want_ver):
-                    xelogging.log("Dependency match: %s satisfies test %s" % (str(repo), fmt_dep(self._identifier, dep)))
-                    found = True
-                    break
-            if not found:
-                xelogging.log("Dependency failure: failed test %s" % fmt_dep(self._identifier, dep))
-                problems.append(fmt_dep(self._identifier, dep))
-
-        return problems
-
-    def copyTo(self, destination):
-        util.assertDir(destination)
-
-        # write the XS-REPOSITORY file:
-        xsrep_fd = open(os.path.join(destination, self.REPOSITORY_FILENAME), 'w')
-        xsrep_fd.write(self._repofile_contents)
-        xsrep_fd.close()
-
-        # copy the packages and write an XS-PACKAGES file:
-        xspkg_fd = open(os.path.join(destination, self.PKGDATA_FILENAME), 'w')
-        xspkg_fd.write(self._pkgfile_contents)
-        xspkg_fd.close()
-
-    def record_install(self, answers, installed_repos):
-        self.copyTo(os.path.join(answers['root'], INSTALLED_REPOS_DIR, self._identifier))
-        installed_repos[str(self)] = self
-        return installed_repos
-
-    def md5sum(self):
-        return self._md5.hexdigest()
-
-    def installPackages(self, progress_callback, mounts):
-        # Squeeze the progress output into a value between 0 and 100
-        def pkg_progress(start, end, pkg_size):
-            def progress_fn(x):
-                progress_callback(int(start + (x / float(pkg_size)) * (end - start)))
-            return progress_fn
-
-        total_size = sum(package.size for package in self)
-        total_progress = 0
-
-        for package in self:
-            start = (total_progress * 100) / total_size
-            end = ((total_progress + package.size) * 100) / total_size
-            package.install(mounts['root'], pkg_progress(start, end, package.size))
-            total_progress += package.size
-
-    def getBranding(self, mounts, branding):
-        if self.identifier() == MAIN_REPOSITORY_NAME:
-            branding.update({ 'platform-name': self._product_brand,
-                              'platform-version': self._product_version.ver_as_string() })
-        elif self.identifier() == MAIN_XS_REPOSITORY_NAME:
-            branding.update({ 'product-brand': self._product_brand,
-                              'product-version': self._product_version.ver_as_string(),
-                              'product-build': self._product_version.build_as_string() })
-
-        return branding
-
-class Package:
-    def copy(self, destination):
-        """ Writes the package to destination with the same
-        name that it has in the repository.  Saves the user of the
-        class having to know about the repository_filename attribute. """
-        return self.write(os.path.join(destination, self.repository_filename))
-       
-    def write(self, destination):
-        """ Write package to 'destination'. """
-        xelogging.log("Writing %s to %s" % (str(self), destination))
-        pkgpath = self.repository.path(self.repository_filename)
-        package = self.repository.accessor().openAddress(pkgpath)
-
-        xelogging.log("mkdir -p %s" % (os.path.dirname(destination)))
-        try:
-            os.makedirs(os.path.dirname(destination))
-        except OSError, exc:
-            # Needed for python < 2.5; considered a bug and fixed in later
-            # versions: http://bugs.python.org/issue1675
-            if exc.errno == errno.EEXIST:
-                pass
-            else: raise
-        xelogging.log("Writing file %s" % destination)
-        dest_fd = open(destination, 'w')
-            
-        data = ""
-        while True:
-            data = package.read(10485760)
-            if data == '':
-                break
-            else:
-                dest_fd.write(data)
-
-        dest_fd.close()
-        package.close()
-
-    def is_compatible(self):
-        return True
-
-    def eula(self):
-        return None
-
-class DriverPackage(Package):
-    def __init__(self, repository, name, size, md5sum, src, dest):
-        (
-            self.repository,
-            self.name,
-            self.size,
-            self.md5sum,
-            self.repository_filename,
-            self.destination,
-        ) = ( repository, name, long(size), md5sum, src, dest )
-
-        self.destination = self.destination.lstrip('/')
-        self.destination = self.destination.replace("${LINUX_KABI_VERSION}", version.LINUX_KABI_VERSION)
-
-    def __repr__(self):
-        return "<DriverPackage: %s>" % self.name
-
-    def install(self, base, progress = lambda x: ()):
-        self.write(os.path.join(base, self.destination))
-
-    def check(self, fast = False, progress = lambda x: ()):
-        return self.repository.accessor().access(self.repository_filename)
-    
-    def is_loadable(self):
-        return True
-
-    def load(self):
-        # Copy driver to a temporary location:
-        util.assertDir('/tmp/drivers')
-        temploc = os.path.join('/tmp/drivers', self.repository_filename)
-        self.write(temploc)
-
-        # insmod the driver:
-        rc = hardware.modprobe_file(temploc)
-
-        # Remove the driver from the temporary location:
-        os.unlink(temploc)
-
-        return rc
-
-class FirmwarePackage(Package):
-    def __init__(self, repository, name, size, md5sum, src):
-        (
-            self.repository,
-            self.name,
-            self.size,
-            self.md5sum,
-            self.repository_filename,
-        ) = ( repository, name, long(size), md5sum, src )
-        self.destination = 'lib/firmware/%s' % os.path.basename(src)
-
-    def __repr__(self):
-        return "<FirmwarePackage: %s>" % self.name
-
-    def provision(self):
-        # write to /lib/firmware for immediate access:
-        self.write(os.path.join('/', self.destination))
-
-    def install(self, base, progress = lambda x: ()):
-        self.write(os.path.join(base, self.destination))
-
-    def check(self, fast = False, progress = lambda x: ()):
-        return self.repository.accessor().access(self.repository_filename)
-
-class BzippedPackage(Package):
-    def __init__(self, repository, name, size, md5sum, required, src, dest):
-        (
-            self.repository,
-            self.name,
-            self.size,
-            self.md5sum,
-            self.required,
-            self.repository_filename,
-            self.destination
-        ) = ( repository, name, long(size), md5sum, required == 'required', src, dest )
-
-        self.destination = self.destination.lstrip('/')
-
-    def install(self, base, progress = lambda x: ()):
-        """ Install package to base.  Progress function takes values from 0
-        to 100. """
-        pkgpath = self.repository.path(self.repository_filename)
-        package = self.repository.accessor().openAddress(pkgpath)
-
-        xelogging.log("Starting installation of package %s" % self.name)
-
-        tmpout = tempfile.TemporaryFile()
-        tmperr = tempfile.TemporaryFile()
-        
-        cmd = ['tar', '-C', os.path.join(base, self.destination), '-xj']
-        pipe = subprocess.Popen(cmd,
-                                bufsize = 1024 * 1024, stdin = subprocess.PIPE, 
-                                stdout = tmpout, stderr = tmperr,
-                                close_fds = True)
-    
-        data = ''
-        current_progress = 0
-        while True:
-            # read in 10mb chunks so as not to use so much RAM, and to
-            # allow decompression to occur in parallel (in the bzip2
-            # process).
-            data = package.read(10485760)
-            if data == '':
-                break
-
-            try:
-                pipe.stdin.write(data)
-            except IOError as e:
-                xelogging.logException(e)
-                break
-
-            current_progress += len(data)
-            progress(current_progress)
-
-        pipe.stdin.close()
-        rc = pipe.wait()
-
-        tmpout.seek(0)
-        out = tmpout.read().strip()
-        tmpout.close()
-        if out:
-            xelogging.log("'%s' stdout:\n%s" % (" ".join(cmd), out))
-
-        tmperr.seek(0)
-        err = tmperr.read().strip()
-        tmperr.close()
-        if err:
-            xelogging.log("'%s' stderr:\n%s" % (" ".join(cmd), err))
-
-        if current_progress != self.size:
-            xelogging.log("Unexpected number of bytes read: Expected %d, but got %d" % (self.size, current_progress))
-
-        if rc != 0:
-            if rc > 0:
-                desc = 'exited with %d' % rc
-            else:
-                desc = 'died with signal %d' % (-rc)
-            raise ErrorInstallingPackage, "The decompressor %s whilst processing package %s" % (desc, self.name)
-    
-        package.close()
-
-    def check(self, fast = False, progress = lambda x: ()):
-        """ Check a package against it's known checksum, or if fast is
-        specified, just check that the package exists. """
-        path = self.repository.path(self.repository_filename)
-        if fast:
-            return self.repository.accessor().access(path)
-        else:
-            try:
-                pkgfd = self.repository.accessor().openAddress(path)
-
-                xelogging.log("Validating package %s" % self.name)
-                m = md5.new()
-                data = ''
-                total_read = 0
-                while True:
-                    data = pkgfd.read(10485760)
-                    total_read += len(data)
-                    if data == '':
-                        break
-                    else:
-                        m.update(data)
-                    progress(total_read / (self.size / 100))
-                
-                pkgfd.close()
-                
-                calculated = m.hexdigest()
-                valid = (self.md5sum == calculated)
-                xelogging.log("Result: %s " % str(valid))
-                return valid
-            except Exception, e:
-                return False
-
-    def __repr__(self):
-        return "<BzippedPackage: %s>" % self.name
-
-class RPMPackage(Package):
-    def __init__(self, repository, name, size, md5sum, src, options):
-        (
-            self.repository,
-            self.name,
-            self.size,
-            self.md5sum,
-            self.repository_filename,
-            self.options,
-        ) = ( repository, name, long(size), md5sum, src, options )
-        self.destination = 'tmp/%s' % os.path.basename(src)
-
-    def __repr__(self):
-        return "<RPMPackage: %s>" % self.name
-
-    def install(self, base, progress = lambda x: ()):
-        self.write(os.path.join(base, self.destination))
-        rc, name = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-q', '--qf', '%{NAME}', 
-                                 '-p', self.destination], with_stdout = True)
-        assert rc == 0
-
-        rc, new_ver = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 
-                                    '-p', self.destination], with_stdout = True)
-        assert rc == 0
-        rc, cur_ver = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 
-                                        name], with_stdout = True)
-        if rc == 0 and new_ver == cur_ver:
-            # skip, this version is already installed
-            xelogging.log("%s-%s already installed, skipping" % (name, new_ver))
-            return
-
-        rc, msg = util.runCmd2(['/usr/sbin/chroot', base, '/bin/rpm']+self.options+[self.destination], with_stderr = True)
-        os.unlink(os.path.join(base, self.destination))
-        if rc != 0:
-            raise ErrorInstallingPackage, "Installation of %s failed.\n%s" % (self.destination, msg.rstrip())
-
-    def check(self, fast = False, progress = lambda x: ()):
-        """ Check a package against it's known checksum, or if fast is
-        specified, just check that the package exists. """
-        path = self.repository.path(self.repository_filename)
-        if fast:
-            return self.repository.accessor().access(path)
-        else:
-            try:
-                pkgfd = self.repository.accessor().openAddress(path)
-
-                xelogging.log("Validating package %s" % self.name)
-                m = md5.new()
-                data = ''
-                total_read = 0
-                while True:
-                    data = pkgfd.read(10485760)
-                    total_read += len(data)
-                    if data == '':
-                        break
-                    else:
-                        m.update(data)
-                    progress(total_read / (self.size / 100))
-                
-                pkgfd.close()
-                
-                calculated = m.hexdigest()
-                valid = (self.md5sum == calculated)
-                xelogging.log("Result: %s " % str(valid))
-                return valid
-            except Exception, e:
-                return False
-
-    def eula(self):
-        """ Extract the contents of any EULA files """
-
-        self.repository.accessor().start()
-
-        # Copy RPM to a temporary location:
-        util.assertDir('/tmp/rpm')
-        temploc = os.path.join('/tmp/rpm', self.repository_filename)
-        self.write(temploc)
-
-        tmpcpio = tempfile.mktemp(prefix="cpio-", dir="/tmp")
-        util.runCmd2("rpm2cpio %s >%s" % (temploc, tmpcpio))
-
-        data = ''
-
-        payload = cpiofile.open(tmpcpio, 'r')
-
-        for cpioinfo in payload:
-            if cpioinfo.name.endswith('EULA'):
-                data += payload.extractfile(cpioinfo).read()
-
-        payload.close()
-
-        self.repository.accessor().finish()
-    
-        # Remove the RPM from the temporary location:
-        os.unlink(tmpcpio)
-        os.unlink(temploc)
-
-        return data
-
-class NewRPMPackage(Package):
+class RPMPackage(object):
     def __init__(self, repository, name, size, sha256sum):
-        (
-            self.repository,
-            self.name,
-            self.size,
-            self.sha256sum,
-        ) = ( repository, name, long(size), sha256sum )
+        self.repository = repository
+        self.name = name
+        self.size = long(size)
+        self.sha256sum = sha256sum
 
     def check(self, fast = False, progress = lambda x : ()):
         """ Check a package against it's known checksum, or if fast is
@@ -938,70 +346,6 @@ class NewRPMPackage(Package):
             except Exception, e:
                 return False
 
-class DriverRPMPackage(RPMPackage):
-    def __init__(self, repository, name, size, md5sum, kernel, src, options):
-        (
-            self.repository,
-            self.name,
-            self.size,
-            self.md5sum,
-            self.kernel_version,
-            self.repository_filename,
-            self.options,
-        ) = ( repository, name, long(size), md5sum, kernel, src, options )
-        self.destination = 'tmp/%s' % os.path.basename(src)
-
-    def __repr__(self):
-        return "<DriverRPMPackage: %s>" % self.name
-
-    def load(self):
-        def module_present(module):
-            return hardware.module_present(os.path.splitext(os.path.basename(module))[0])
-
-        # Skip drivers for kernels other than ours:
-        if not self.is_loadable():
-            xelogging.log("Skipping driver %s, version mismatch (%s != %s)" % 
-                          (self.name, self.kernel_version, version.LINUX_KABI_VERSION))
-            return 0
-
-        self.repository.accessor().start()
-
-        # Copy driver to a temporary location:
-        util.assertDir('/tmp/drivers')
-        temploc = os.path.join('/tmp/drivers', self.repository_filename)
-        self.write(temploc)
-
-        # Install the RPM into the ramdisk:
-        rc = util.runCmd2(['/bin/rpm', '-i', '--nodeps', '--ignoresize', temploc])
-
-        if rc == 0:
-            util.runCmd2(['/sbin/depmod'])
-            modules = []
-            rc, out = util.runCmd2(['/bin/rpm', '-qlp', temploc], with_stdout = True)
-            if rc == 0:
-                modules += filter(lambda x: x.endswith('.ko') and x not in modules and not module_present(x), out.split("\n"))
-
-            # insmod the driver(s):
-            for module in modules:
-                rc = hardware.modprobe_file(module)
-                if rc != 0:
-                    xelogging.log("Failed to modprobe %s" %module)
-        else:
-            xelogging.log("Failed to install %s" % self.name)
-
-        self.repository.accessor().finish()
-
-        # Remove the driver from the temporary location:
-        os.unlink(temploc)
-
-        return rc
-
-    def is_compatible(self):
-        return self.kernel_version == 'any' or self.kernel_version == version.LINUX_KABI_VERSION
-    
-    def is_loadable(self):
-        return self.kernel_version == 'any' or self.kernel_version == version.LINUX_KABI_VERSION
-
 class Accessor:
     def pathjoin(base, name):
         return os.path.join(base, name)
@@ -1026,13 +370,22 @@ class Accessor:
 
     def finish(self):
         pass
-    
-    def findRepositories(self):
-        repos = []
-        repos += MainYumRepository.findRepositories(self)
-        repos += UpdateYumRepository.findRepositories(self)
-        repos += LegacyRepository.findRepositories(self)
-        return repos
+
+    def findRepository(self):
+        classes = [MainYumRepository, UpdateYumRepository]
+        for cls in classes:
+            if cls.isRepo(self):
+                return cls(self)
+
+    @classmethod
+    def findRepositories(cls, accessor):
+        accessor.start()
+        is_repo = cls.isRepo(accessor, "")
+        accessor.finish()
+        if not is_repo:
+            return []
+        xelogging.log("Repository (main yum) found")
+        return [ cls(accessor) ]
 
 class FilesystemAccessor(Accessor):
     def __init__(self, location):
@@ -1262,9 +615,9 @@ def repositoriesFromDefinition(media, address):
             raise RuntimeError, "Unknown repository media %s" % media
 
         accessor.start()
-        rv = accessor.findRepositories()
+        rv = accessor.findRepository()
         accessor.finish()
-        return rv
+        return [rv]
 
 def findRepositoriesOnMedia():
     """ Returns a list of repositories available on local media. """
@@ -1311,7 +664,9 @@ def findRepositoriesOnMedia():
                     da = None
                     continue
                 else:
-                    repos.extend(da.findRepositories())
+                    repo = da.findRepository()
+                    if repo:
+                        repos.append(repo)
                     da.finish()
                     da = None
     finally:
