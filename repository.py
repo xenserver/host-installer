@@ -57,7 +57,7 @@ class UnknownPackageType(Exception):
 class ErrorInstallingPackage(Exception):
     pass
 
-class Repository:
+class Repository(object):
     """ Represents a repository containing packages and associated meta data. """
     def __init__(self, accessor, base = ""):
         self._accessor = accessor
@@ -96,40 +96,8 @@ class Repository:
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
-    TREEINFO_FILENAME = ".treeinfo"
 
-    def findRepositories(cls, accessor):
-        accessor.start()
-        is_repo = cls.isRepo(accessor, "")
-        accessor.finish()
-        if not is_repo:
-            return []
-        xelogging.log("Repository (yum) found")
-        return [ YumRepository(accessor, MAIN_REPOSITORY_NAME) ]
-    findRepositories = classmethod(findRepositories)
-
-    def __init__(self, accessor, identifier):
-        Repository.__init__(self, accessor, "")
-        self._identifier = identifier
-
-        accessor.start()
-        try:
-            treeinfofp = accessor.openAddress(self.TREEINFO_FILENAME)
-            treeinfo = ConfigParser.SafeConfigParser()
-            treeinfo.readfp(treeinfofp)
-            treeinfofp.close()
-
-            if treeinfo.has_section('platform'):
-                self._platform_name = treeinfo.get('platform', 'name')
-                ver_str = treeinfo.get('platform', 'version')
-                self._platform_version = Version.from_string(ver_str)
-            if treeinfo.has_section('branding'):
-                self._product_brand = treeinfo.get('branding', 'name')
-                ver_str = treeinfo.get('branding', 'version')
-                self._product_version = Version.from_string(ver_str)
-        except Exception, e:
-            raise RepoFormatError, "Failed to read %s: %s" % (self.TREEINFO_FILENAME, str(e))
-
+    def _parse_repodata(self, accessor):
         # Read packages from xml
         repomdfp = accessor.openAddress(self.REPOMD_FILENAME)
         repomd_xml = parse(repomdfp)
@@ -166,43 +134,23 @@ class YumRepository(Repository):
             pkg.type = 'rpm'
             self._packages.append(pkg)
 
-        accessor.finish()
-
     def __repr__(self):
         return "%s@yum" % self._identifier
 
+    @classmethod
     def isRepo(cls, accessor, base):
         """ Return whether there is a repository at base address 'base' accessible
         using accessor."""
-        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.TREEINFO_FILENAME, cls.REPOMD_FILENAME] ]
-    isRepo = classmethod(isRepo)
-
-    def compatible_with(self, platform, brand):
-        return True
+        return False not in [ accessor.access(accessor.pathjoin(base, f)) for f in [cls.INFO_FILENAME, cls.REPOMD_FILENAME] ]
 
     def identifier(self):
         return self._identifier
-
-    def name(self):
-        return self._product_brand
 
     def record_install(self, answers, installed_repos):
         installed_repos[str(self)] = self
         return installed_repos
 
-    def repo_satisfies(self, dep, want_id, want_ver):
-        if want_id == MAIN_REPOSITORY_NAME:
-            return eval("self._platform_version.__%s__(want_ver)" % dep['test'])
-        if want_id == MAIN_XS_REPOSITORY_NAME:
-            return eval("self._product_version.__%s__(want_ver)" % dep['test'])
-        return False
-
-    def check_requires(self, installed_repos):
-        return []
-
     def installPackages(self, progress_callback, mounts):
-        if self._identifier != MAIN_REPOSITORY_NAME:
-            return
         xelogging.log("URL: " + self._accessor.url())
         with open('/root/yum.conf', 'w') as yum_conf:
             yum_conf.write("""[main]
@@ -224,21 +172,14 @@ name=install
 baseurl=%s
 """ % self._accessor.url())
 
-        # Speed up the install by disabling initrd creation.
-        # It is created after the yum install phase.
-        confdir = os.path.join(mounts['root'], 'etc', 'dracut.conf.d')
-        conffile = os.path.join(confdir, 'xs_disable.conf')
-        os.makedirs(confdir, 0775)
-        with open(conffile, 'w') as f:
-            print >> f, 'echo Skipping initrd creation during host installation'
-            print >> f, 'exit 0'
+        self.disableInitrdCreation(mounts['root'])
 
         # Use a temporary file to avoid deadlocking
         stderr = tempfile.TemporaryFile()
 
         yum_command = ['yum', '-c', '/root/yum.conf',
                        '--installroot', mounts['root'],
-                       'install', '-y', '@xenserver_base', '@xenserver_dom0']
+                       'install', '-y'] + self._targets
         xelogging.log("Running yum: %s" % ' '.join(yum_command))
         p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
         count = 0
@@ -278,7 +219,71 @@ baseurl=%s
             raise ErrorInstallingPackage("Error installing packages")
 
         shutil.rmtree(os.path.join(mounts['root'], 'var', 'cache', 'yum', 'installer'))
-        os.unlink(conffile)
+        self.enableInitrdCreation()
+
+    def disableInitrdCreation(self, root):
+        pass
+
+    def enableInitrdCreation(self):
+        pass
+
+    def getBranding(self, mounts, branding):
+        return branding
+
+class MainYumRepository(YumRepository):
+    INFO_FILENAME = ".treeinfo"
+    _targets = ['@xenserver_base', '@xenserver_dom0']
+    _identifier = MAIN_REPOSITORY_NAME
+
+    @classmethod
+    def findRepositories(cls, accessor):
+        accessor.start()
+        is_repo = cls.isRepo(accessor, "")
+        accessor.finish()
+        if not is_repo:
+            return []
+        xelogging.log("Repository (main yum) found")
+        return [ cls(accessor) ]
+
+    def __init__(self, accessor):
+        YumRepository.__init__(self, accessor, "")
+
+        accessor.start()
+        try:
+            treeinfofp = accessor.openAddress(self.INFO_FILENAME)
+            treeinfo = ConfigParser.SafeConfigParser()
+            treeinfo.readfp(treeinfofp)
+            treeinfofp.close()
+
+            if treeinfo.has_section('platform'):
+                self._platform_name = treeinfo.get('platform', 'name')
+                ver_str = treeinfo.get('platform', 'version')
+                self._platform_version = Version.from_string(ver_str)
+            if treeinfo.has_section('branding'):
+                self._product_brand = treeinfo.get('branding', 'name')
+                ver_str = treeinfo.get('branding', 'version')
+                self._product_version = Version.from_string(ver_str)
+        except Exception as e:
+            raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
+
+        self._parse_repodata(accessor)
+        accessor.finish()
+
+    def name(self):
+        return self._product_brand
+
+    def disableInitrdCreation(self, root):
+        # Speed up the install by disabling initrd creation.
+        # It is created after the yum install phase.
+        confdir = os.path.join(root, 'etc', 'dracut.conf.d')
+        self._conffile = os.path.join(confdir, 'xs_disable.conf')
+        os.makedirs(confdir, 0775)
+        with open(self._conffile, 'w') as f:
+            print >> f, 'echo Skipping initrd creation during host installation'
+            print >> f, 'exit 0'
+
+    def enableInitrdCreation(self):
+        os.unlink(self._conffile)
 
     def getBranding(self, mounts, branding):
         branding.update({ 'platform-name': self._platform_name,
@@ -286,6 +291,42 @@ baseurl=%s
                           'product-brand': self._product_brand,
                           'product-version': self._product_version.ver_as_string() })
         return branding
+
+class UpdateYumRepository(YumRepository):
+    """ Represents a Yum repository containing packages and associated meta data. """
+    INFO_FILENAME = "update.xml"
+
+    @classmethod
+    def findRepositories(cls, accessor):
+        accessor.start()
+        is_repo = cls.isRepo(accessor, "")
+        accessor.finish()
+        if not is_repo:
+            return []
+        xelogging.log("Repository (update yum) found")
+        return [ cls(accessor) ]
+
+    def __init__(self, accessor):
+        YumRepository.__init__(self, accessor, "")
+
+        accessor.start()
+        try:
+            updatefp = accessor.openAddress(self.INFO_FILENAME)
+            dom = xml.dom.minidom.parseString(updatefp.read())
+            updatefp.close()
+
+            assert dom.documentElement.tagName == 'update'
+            self._controlpkg = dom.documentElement.getAttribute('control')
+            self._identifier = dom.documentElement.getAttribute('name-label')
+        except Exception as e:
+            raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
+
+        self._targets = [self._controlpkg, self._identifier]
+
+        accessor.finish()
+
+    def name(self):
+        return self._identifier
 
 class LegacyRepository(Repository):
     """ Represents a XenSource repository containing packages and associated
@@ -988,8 +1029,8 @@ class Accessor:
     
     def findRepositories(self):
         repos = []
-        if YumRepository.isRepo(self, ""):
-            repos += YumRepository.findRepositories(self)
+        repos += MainYumRepository.findRepositories(self)
+        repos += UpdateYumRepository.findRepositories(self)
         repos += LegacyRepository.findRepositories(self)
         return repos
 
