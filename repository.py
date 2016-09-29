@@ -244,10 +244,14 @@ class MainYumRepository(YumRepository):
 
         accessor.start()
         try:
-            treeinfofp = accessor.openAddress(self.INFO_FILENAME)
             treeinfo = ConfigParser.SafeConfigParser()
-            treeinfo.readfp(treeinfofp)
-            treeinfofp.close()
+            treeinfofp = accessor.openAddress(self.INFO_FILENAME)
+            try:
+                treeinfo.readfp(treeinfofp)
+            except Exception as e:
+                raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
+            finally:
+                treeinfofp.close()
 
             if treeinfo.has_section('platform'):
                 self._platform_name = treeinfo.get('platform', 'name')
@@ -258,6 +262,7 @@ class MainYumRepository(YumRepository):
                 ver_str = treeinfo.get('branding', 'version')
                 self._product_version = Version.from_string(ver_str)
         except Exception as e:
+            accessor.finish()
             raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
 
         self._parse_repodata(accessor)
@@ -296,18 +301,21 @@ class UpdateYumRepository(YumRepository):
         accessor.start()
         try:
             updatefp = accessor.openAddress(self.INFO_FILENAME)
-            dom = xml.dom.minidom.parseString(updatefp.read())
-            updatefp.close()
+            try:
+                dom = xml.dom.minidom.parseString(updatefp.read())
+            except Exception as e:
+                raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
+            finally:
+                updatefp.close()
 
             assert dom.documentElement.tagName == 'update'
             self._controlpkg = dom.documentElement.getAttribute('control')
             self._identifier = dom.documentElement.getAttribute('name-label')
+            self._targets = [self._controlpkg, self._identifier]
         except Exception as e:
             raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
-
-        self._targets = [self._controlpkg, self._identifier]
-
-        accessor.finish()
+        finally:
+            accessor.finish()
 
     def name(self):
         return self._identifier
