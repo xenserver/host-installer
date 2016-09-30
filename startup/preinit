@@ -35,9 +35,9 @@ xen_commandline() {
   python -c "import xen.lowlevel.xc as xc; print xc.xc().xeninfo()['xen_commandline']"
 }
 
-# Transform cmdline into a newline-separated list of arguments using
-# bash's argument processing.
-args=$(eval 'for word in '$(cmdline)'; do echo $word; done')
+# Spaces separate arguments except for spaces enclosed by a pair of single or
+# double quotes.
+args=$(cmdline | sed -e s'/ *$//' -e "s/'\([^']*\)'/\"\1\"/g" -e 's/\("\([^"]*\)"\)* \+/\2\n/g')
 set --
 for arg in $args; do
   copy=1
