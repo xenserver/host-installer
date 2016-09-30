@@ -49,7 +49,7 @@ def test_boot_files(accessor):
             else:
                 logger.error("    failed")
         except Exception, e:
-            logger.error(str(e))
+            logger.logException(e)
             done = False
         
     accessor.finish()
@@ -67,7 +67,7 @@ def get_boot_files(accessor, dest_dir):
             outf.close()
             inf.close()
         except Exception, e:
-            logger.error(str(e))
+            logger.logException(e)
             done = False
             break
     accessor.finish()
@@ -108,7 +108,8 @@ def get_fs_labels():
                 v, _ = line.split(None, 1)
                 boot_label = v[6:]
         f.close()
-    except:
+    except Exception, e:
+        logger.logException(e)
         logger.error("Failed to read fstab")
 
     return root_label, boot_label
@@ -137,7 +138,8 @@ def gen_answerfile(accessor, installer_dir, url):
                 root_device = shell_value(line)
                 break
         f.close()
-    except:
+    except Exception, e:
+        logger.logException(e)
         logger.error("Failed to read inventory")
         return False
     if not root_device:
@@ -175,7 +177,8 @@ def gen_answerfile(accessor, installer_dir, url):
         root_partition = map_label_to_partition(root_label)
         if boot_label:
             boot_partition = map_label_to_partition(boot_label)
-    except:
+    except Exception, e:
+        logger.logException(e)
         logger.error("Failed to map label to partition")
         return False
     if not root_partition:
@@ -275,7 +278,7 @@ def resolve_bonded_iface_and_check_carrier(pif, session):
             f = open('/sys/class/net/%s/carrier' % device, 'r')
             carrier = int(f.read().strip())
             f.close()
-        except:
+        except Exception, e:
             pass
         if carrier == 1:
             m = pif.get('MAC', '').strip()
@@ -423,7 +426,8 @@ def set_boot_config(installer_dir, url):
                         logger.debug("Multipathing enabled")
                     break
             f.close()
-        except:
+        except Exception, e:
+            logger.logException(e)
             logger.error("Failed to read SR multipathing config")
 
         root_label, _ = get_fs_labels()
@@ -439,7 +443,8 @@ def set_boot_config(installer_dir, url):
         config.default = 'upgrade'
         logger.info("Writing updated bootloader config")
         config.commit()
-    except:
+    except Exception, e:
+        logger.logException(e)
         logger.error("Failed to set up bootloader")
         return False
 
@@ -475,7 +480,7 @@ def test_repo(url):
                 curr_ver = version.Version.from_string(shell_value(line))
                 break
         i.close()
-    except:
+    except Exception, e:
         pass    
     
     # verify repo version
