@@ -581,10 +581,7 @@ def safe2upgrade():
 
 # plugin url test
 def testUrl(session, args):
-    if os.path.exists('/var/tmp/plugin_debug'):
-        logger.logToSyslog(level = logging.DEBUG)
-    else:
-        logger.logToSyslog(level = logging.INFO)
+    logger.logToSyslog(level = logging.DEBUG)
 
     try:
         url = args['url']
@@ -601,10 +598,7 @@ def testUrl(session, args):
     
 # plugin entry point
 def main(session, args):
-    if os.path.exists('/var/tmp/plugin_debug'):
-        logger.logToSyslog(level = logging.DEBUG)
-    else:
-        logger.logToSyslog(level = logging.INFO)
+    logger.logToSyslog(level = logging.DEBUG)
 
     try:
         url = args['url']
