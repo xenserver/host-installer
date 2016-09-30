@@ -312,9 +312,11 @@ def get_iface_config(iface):
 def urlsplit(url):
     host = ''
     parts = accessor.compat_urlsplit(url)
-    if parts.scheme == 'nfs':
+    if parts.scheme == 'nfs' and sys.version_info < (2, 7):
+        # Python's urlsplit changed behavior when dealing with these weird
+        # NFS pseudo-URLs between 2.4 and 2.7. With 2.7, it works as expected.
         host = parts.path.split(':', 1)[0][2:]
-    elif parts.scheme in ['http', 'ftp']:
+    elif parts.scheme in ['http', 'ftp', 'nfs']:
         host = parts.hostname
     return (parts.scheme, host)
 
