@@ -474,7 +474,7 @@ def configureTimeManually(mounts, ui_package):
 def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part, create_new_partitions):
 
     uefi_installer = os.path.exists("/sys/firmware/efi")
-    xelogging.log("Installed boot with %s" % ("UEFI" if uefi_installer else "legacy"))
+    xelogging.log("Installer booted in %s mode" % ("UEFI" if uefi_installer else "legacy"))
     
     if existing:
         # upgrade, use existing partitioning scheme
@@ -492,11 +492,10 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         else:
             boot_partnum = primary_part + 3
 
-        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-            if not uefi_installer:
-                raise RuntimeError("Installer does not support upgrading UEFI install while legacy booted")
-            if constants.FORCE_LEGACY_BOOT:
-                raise RuntimeError("Installer cannot force legacy boot while upgrading UEFI install")
+        if (target_boot_mode == TARGET_BOOT_MODE_UEFI and not uefi_installer) or \
+                (target_boot_mode == TARGET_BOOT_MODE_LEGACY and uefi_installer):
+            raise RuntimeError("Installer mode (%s) is mismatched with target boot mode (%s)" %
+                               ("UEFI" if uefi_installer else "legacy", target_boot_mode))
 
         xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
         
@@ -532,7 +531,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     boot_part = max(primary_part + 1, sr_part) + 1
 
-    target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer and constants.GPT_SUPPORT and not constants.FORCE_LEGACY_BOOT else TARGET_BOOT_MODE_LEGACY
+    target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer else TARGET_BOOT_MODE_LEGACY
 
     xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 

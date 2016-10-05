@@ -140,8 +140,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             constants.GPT_SUPPORT = False
             results["create-new-partitions"] = False
             xelogging.log("Forcing old partition layout via command-line")
-        elif opt == "--disable-uefi":
-            constants.FORCE_LEGACY_BOOT = True
            
     if boot_console and not serial_console:
         serial_console = boot_console

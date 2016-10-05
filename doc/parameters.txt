@@ -181,4 +181,4 @@ Installer
 
   --disable-uefi
 
-    Install in legacy boot mode.
+    Install in legacy boot mode. Only present in 7.0.
