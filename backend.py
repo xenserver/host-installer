@@ -591,6 +591,9 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
         if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
             raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size)
 
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI and partition_table_type != constants.PARTITION_GPT:
+        raise RuntimeError("UEFI boot requires the partition type to be GPT")
+
     tool = PartitionTool(disk, partition_table_type)
     for num, part in tool.iteritems():
         if num >= primary_partnum:
