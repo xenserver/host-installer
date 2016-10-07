@@ -228,7 +228,7 @@ def confirm_load_repo(answers, label, installed_repos):
 
     try:
         tui.progress.showMessageDialog("Please wait", "Searching for repository...")
-        repos = repository.repositoriesFromDefinition(media, address)
+        repos = repository.repositoriesFromDefinition(media, address, drivers=(label == 'driver'))
         tui.progress.clearModelessDialog()
     except:
         ButtonChoiceWindow(
@@ -237,9 +237,7 @@ def confirm_load_repo(answers, label, installed_repos):
             ['Back'])
         return LEFT_BACKWARDS
 
-    if label == 'driver':
-        repos = filter(lambda r: True in map(lambda p: p.type.startswith('driver'), r), repos)
-    else:
+    if label != 'driver':
         repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
         
     if len(repos) == 0:

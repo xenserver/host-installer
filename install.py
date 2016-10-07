@@ -191,13 +191,9 @@ def go(ui, args, answerfile_address, answerfile_script):
 
                 if results.has_key('extra-repos'):
                     # load drivers now
-                    for d in results['extra-repos']:
-                        media, address, _ = d
-                        for r in repository.repositoriesFromDefinition(media, address):
-                            for p in r:
-                                if p.type.startswith('driver'):
-                                    if p.load() != 0:
-                                        raise RuntimeError, "Failed to load driver %s." % p.name
+                    for media, address in results['extra-repos']:
+                        for r in repository.repositoriesFromDefinition(media, address, drivers=True):
+                            r.installPackages(lambda x: (), {'root': '/'})
 
                 if 'fcoe-interfaces' in results:
                     fcoeutil.start_fcoe(results['fcoe-interfaces'])

@@ -50,7 +50,7 @@ def selectDefault(key, entries):
 
 # welcome screen:
 def welcome_screen(answers):
-    driver_answers = {'loaded-drivers': [], 'driver-repos': []}
+    driver_answers = {'driver-repos': []}
 
     tui.update_help_line([None, "<F9> load driver"])
 

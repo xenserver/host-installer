@@ -303,7 +303,7 @@ class Answerfile:
                 rtype = 'nfs'
                 address = address[6:]
                 
-            results['extra-repos'].append((rtype, address, []))
+            results['extra-repos'].append((rtype, address))
         return results
 
     def parseDisks(self):

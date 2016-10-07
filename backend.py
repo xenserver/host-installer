@@ -361,17 +361,24 @@ def performInstallation(answers, ui_package, interactive):
         return new_ans
 
     new_ans['installed-repos'] = {}
-    all_repositories = []
+
+    # Use a set since the same repository might exist in multiple locations
+    # or the same location might be listed multiple times.
+    all_repositories = set()
 
     # A list of sources coming from the answerfile
     if 'sources' in answers:
         for i in answers['sources']:
-            all_repositories.extend(repository.repositoriesFromDefinition(i['media'], i['address']))
+            all_repositories.update(repository.repositoriesFromDefinition(i['media'], i['address']))
 
     # A single source coming from an interactive install
     if 'source-media' in answers and 'source-address' in answers:
-        all_repositories.extend(repository.repositoriesFromDefinition(answers['source-media'], answers['source-address']))
+        all_repositories.update(repository.repositoriesFromDefinition(answers['source-media'], answers['source-address']))
 
+    for media, address in answers['extra-repos']:
+        all_repositories.update(repository.repositoriesFromDefinition(media, address))
+
+    all_repositories = list(all_repositories)
     reorderRepos(all_repositories)
 
     if all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:

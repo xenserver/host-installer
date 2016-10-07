@@ -95,6 +95,23 @@ class Repository(object):
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
+    _cachedir = "var/cache/yum/installer"
+    _yum_conf = """[main]
+cachedir=/%s
+keepcache=0
+debuglevel=2
+logfile=/var/log/yum.log
+exactarch=1
+obsoletes=1
+gpgcheck=0
+plugins=0
+installonly_limit=5
+distroverpkg=xenserver-release
+reposdir=/tmp/repos
+""" % _cachedir
+
+    def __init__(self, accessor):
+        Repository.__init__(self, accessor)
 
     def _parse_repodata(self, accessor):
         # Read packages from xml
@@ -157,19 +174,7 @@ class YumRepository(Repository):
     def installPackages(self, progress_callback, mounts):
         xelogging.log("URL: " + self._accessor.url())
         with open('/root/yum.conf', 'w') as yum_conf:
-            yum_conf.write("""[main]
-cachedir=/var/cache/yum/installer
-keepcache=0
-debuglevel=2
-logfile=/var/log/yum.log
-exactarch=1
-obsoletes=1
-gpgcheck=0
-plugins=0
-installonly_limit=5
-distroverpkg=xenserver-release
-reposdir=/tmp/repos
-""")
+            yum_conf.write(self._yum_conf)
             yum_conf.write("""
 [install]
 name=install
@@ -222,7 +227,7 @@ baseurl=%s
             xelogging.log("Yum exited with %d" % rv)
             raise ErrorInstallingPackage("Error installing packages")
 
-        shutil.rmtree(os.path.join(mounts['root'], 'var', 'cache', 'yum', 'installer'))
+        shutil.rmtree(os.path.join(mounts['root'], self._cachedir))
         self.enableInitrdCreation()
 
     def disableInitrdCreation(self, root):
@@ -235,6 +240,8 @@ baseurl=%s
         return branding
 
 class MainYumRepository(YumRepository):
+    """Represents a Yum repository containing the main XenServer installation."""
+
     INFO_FILENAME = ".treeinfo"
     _targets = ['@xenserver_base', '@xenserver_dom0']
     _identifier = MAIN_REPOSITORY_NAME
@@ -292,7 +299,8 @@ class MainYumRepository(YumRepository):
         return branding
 
 class UpdateYumRepository(YumRepository):
-    """ Represents a Yum repository containing packages and associated meta data. """
+    """Represents a Yum repository containing packages and associated meta data for an update."""
+
     INFO_FILENAME = "update.xml"
 
     def __init__(self, accessor):
@@ -319,6 +327,48 @@ class UpdateYumRepository(YumRepository):
 
     def name(self):
         return self._identifier
+
+class DriverUpdateYumRepository(UpdateYumRepository):
+    """Represents a Yum repository containing packages and associated meta data for a driver disk."""
+
+    INFO_FILENAME = "update.xml"
+    _cachedir = 'run/yuminstaller'
+    _yum_conf = """[main]
+cachedir=/%s
+keepcache=0
+debuglevel=2
+logfile=/var/log/yum.log
+exactarch=1
+obsoletes=1
+gpgcheck=0
+plugins=0
+installonly_limit=5
+distroverpkg=xenserver-release
+reposdir=/tmp/repos
+diskspacecheck=0
+""" % _cachedir
+
+    def __init__(self, accessor):
+        UpdateYumRepository.__init__(self, accessor)
+        self._targets = ['@drivers']
+
+    @classmethod
+    def isRepo(cls, accessor):
+        if UpdateYumRepository.isRepo(accessor):
+            with open('/root/yum.conf', 'w') as yum_conf:
+                yum_conf.write(cls._yum_conf)
+                yum_conf.write("""
+[driverrepo]
+name=driverrepo
+baseurl=%s
+""" % accessor.url())
+            # Check that the drivers group exists in the repo.
+            rv, out = util.runCmd2(['yum', '-c', '/root/yum.conf',
+                                    'group', 'summary', 'drivers'], with_stdout=True)
+            if rv == 0 and 'Groups: 1\n' in out.strip():
+                return True
+
+        return False
 
 class RPMPackage(object):
     def __init__(self, repository, name, size, sha256sum):
@@ -385,15 +435,9 @@ class Accessor:
             if cls.isRepo(self):
                 return cls(self)
 
-    @classmethod
-    def findRepositories(cls, accessor):
-        accessor.start()
-        is_repo = cls.isRepo(accessor, "")
-        accessor.finish()
-        if not is_repo:
-            return []
-        xelogging.log("Repository (main yum) found")
-        return [ cls(accessor) ]
+    def findDriverRepository(self):
+        if DriverUpdateYumRepository.isRepo(self):
+            return DriverUpdateYumRepository(self)
 
 class FilesystemAccessor(Accessor):
     def __init__(self, location):
@@ -609,10 +653,10 @@ class URLAccessor(Accessor):
     def url(self):
         return self.baseAddress
 
-def repositoriesFromDefinition(media, address):
+def repositoriesFromDefinition(media, address, drivers=False):
     if media == 'local':
         # this is a special case as we need to locate the media first
-        return findRepositoriesOnMedia()
+        return findRepositoriesOnMedia(drivers)
     else:
         accessors = { 'filesystem': FilesystemAccessor,
                       'url': URLAccessor,
@@ -623,11 +667,14 @@ def repositoriesFromDefinition(media, address):
             raise RuntimeError, "Unknown repository media %s" % media
 
         accessor.start()
-        rv = accessor.findRepository()
+        if drivers:
+            rv = accessor.findDriverRepository()
+        else:
+            rv = accessor.findRepository()
         accessor.finish()
-        return [rv]
+        return [rv] if rv else []
 
-def findRepositoriesOnMedia():
+def findRepositoriesOnMedia(drivers=False):
     """ Returns a list of repositories available on local media. """
     
     static_devices = [
@@ -672,7 +719,10 @@ def findRepositoriesOnMedia():
                     da = None
                     continue
                 else:
-                    repo = da.findRepository()
+                    if drivers:
+                        repo = da.findDriverRepository()
+                    else:
+                        repo = da.findRepository()
                     if repo:
                         repos.append(repo)
                     da.finish()
