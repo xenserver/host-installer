@@ -50,7 +50,7 @@ def selectDefault(key, entries):
 
 # welcome screen:
 def welcome_screen(answers):
-    driver_answers = {'loaded-drivers': [], 'driver-repos': []}
+    driver_answers = {'driver-repos': []}
 
     tui.update_help_line([None, "<F9> load driver"])
 
@@ -485,20 +485,14 @@ def confirm_erase_volume_groups(answers):
     if button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
-def use_extra_media(answers, vt_warning):
-    default = 0
-    if answers.has_key('more-media') and not answers['more-media']:
-        default = 1
-
+def use_extra_media(answers):
     rc = snackutil.ButtonChoiceWindowEx(
         tui.screen,
         "Supplemental Packs",
         "Would you like to install any Supplemental Packs?",
-        ['Yes', 'No', 'Back'],
-        default = default, help = 'suppack'
+        ['Yes', 'No'],
+        default=1, help='suppack'
         )
-
-    if rc == 'back': return LEFT_BACKWARDS
 
     answers['more-media'] = (rc != 'no')
     return RIGHT_FORWARDS

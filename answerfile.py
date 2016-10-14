@@ -266,22 +266,23 @@ class Answerfile:
         return results
     
     def parseSource(self):
-        results = {}
-        source = getElementsByTagName(self.top_node, ['source'], mandatory = True)[0]
-        rtype = getStrAttribute(source, ['type'], mandatory = True)
+        results = {'sources': []}
+        sources = getElementsByTagName(self.top_node, ['source'], mandatory = True)
 
-        if rtype == 'local':
-            address = "Install disc"
-        elif rtype in ['url', 'nfs']:
-            address = getText(source)
-        else:
-            raise AnswerfileException, "Invalid type for <source> media specified."
-        if rtype == 'url' and address.startswith('nfs://'):
-            rtype = 'nfs'
-            address = address[6:]
+        for i in sources:
+            rtype = getStrAttribute(i, ['type'], mandatory = True)
 
-        results['source-media'] = rtype
-        results['source-address'] = address
+            if rtype == 'local':
+                address = "Install disc"
+            elif rtype in ['url', 'nfs']:
+                address = getText(i)
+            else:
+                raise AnswerfileException, "Invalid type for <source> media specified."
+            if rtype == 'url' and address.startswith('nfs://'):
+                rtype = 'nfs'
+                address = address[6:]
+
+            results['sources'].append({'media': rtype, 'address': address})
 
         return results
 
@@ -302,7 +303,7 @@ class Answerfile:
                 rtype = 'nfs'
                 address = address[6:]
                 
-            results['extra-repos'].append((rtype, address, []))
+            results['extra-repos'].append((rtype, address))
         return results
 
     def parseDisks(self):

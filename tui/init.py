@@ -58,7 +58,7 @@ def choose_operation(display_restore):
     else:
         return init_constants.OPERATION_REBOOT
 
-def driver_disk_sequence(answers, driver_repos, loaded_drivers):
+def driver_disk_sequence(answers, driver_repos):
     uic = uicontroller
     seq = [
         uic.Step(tui.repo.select_repo_source, 
@@ -70,105 +70,12 @@ def driver_disk_sequence(answers, driver_repos, loaded_drivers):
                  predicates = [lambda a: a['source-media'] != 'local'],
                  args = [False]),
         uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
-        uic.Step(eula_screen),
         ]
     rc = uicontroller.runSequence(seq, answers)
 
     if rc == LEFT_BACKWARDS:
         return None
     return (answers['source-media'], answers['source-address'])
-
-def confirm_load_drivers(answers):
-    # find drivers:
-    try:
-        tui.progress.showMessageDialog("Please wait", "Searching for drivers...")
-        repos = repository.repositoriesFromDefinition(
-            answers['source-media'], answers['source-address'])
-        tui.progress.clearModelessDialog()
-    except:
-        ButtonChoiceWindow(
-            tui.screen, "Error",
-            """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
-            ['Back'])
-        return LEFT_BACKWARDS
-        
-    drivers = []
-    id_list = []
-
-    for r in repos:
-        has_drivers = False
-        for p in r:
-            if p.type.startswith("driver"):
-                if p.is_compatible():
-                    has_drivers = True
-                else:
-                    xelogging.log("Driver %s is not compatible, skipping" % p.name)
-        if has_drivers:
-           drivers.append(p)
-           id_list.append(r.identifier())
-
-    if len(drivers) == 0:
-        ButtonChoiceWindow(
-            tui.screen, "No Drivers Found",
-            """No compatible drivers were found at the location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.
-
-Note that this driver-loading mechanism is only compatible with media/locations containing %s repositories.  Check the installation guide for more information.""" % (PRODUCT_BRAND or PLATFORM_NAME),
-            ['Back'], width = 50)
-        return LEFT_BACKWARDS
-    else:
-        if len(drivers) == 1:
-            text = "The following driver was found:\n\n"
-        elif len(drivers) > 1:
-            text = "The following drivers were found:\n\n"
-        for d in drivers:
-            text += " * %s\n" % d.name
-
-        while True:
-            rc = ButtonChoiceWindow(
-                tui.screen, "Load Drivers", text, ['Load drivers', 'Info', 'Back'])
-
-            if rc == 'back': return LEFT_BACKWARDS
-            elif rc == 'info':
-                hashes = [" %s %s" % (r.md5sum(), r.name()) for r in repos]
-                text2 = "The following MD5 hashes have been calculated. Please check them against those provided by the driver supplier:\n\n"
-                text2 += "\n".join(hashes)
-                ButtonChoiceWindow(
-                    tui.screen, "Driver Repository Information", text2, ['Ok'])
-            else:
-                break
-
-    answers['repos'] = repos
-    answers['id-list'] = id_list
-    return RIGHT_FORWARDS
-
-def eula_screen(answers):
-    eula = ''
-    for r in answers['repos']:
-        for p in r:
-            if not p.is_compatible(): continue
-            e = p.eula()
-            if e:
-                eula += e + '\n'
-    if eula == '':
-        return SKIP_SCREEN
-
-    while True:
-        button = snackutil.ButtonChoiceWindowEx(
-            tui.screen,
-            "Driver License Agreement",
-            eula,
-            ['Accept EULA', 'Back'], width=60, default=1)
-
-        if button == 'accept eula':
-            return RIGHT_FORWARDS
-        elif button == 'back':
-            return LEFT_BACKWARDS
-        else:
-            ButtonChoiceWindow(
-                tui.screen,
-                "Driver License Agreement",
-                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this driver.",
-                ['Ok'])
 
 def select_backup(backups):
     entries = []

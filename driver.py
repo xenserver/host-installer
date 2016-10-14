@@ -33,52 +33,33 @@ def doInteractiveLoadDriver(ui, answers):
     required_repo_list = []
     loaded_drivers = []
 
-    rc = ui.init.driver_disk_sequence(answers, answers['driver-repos'], answers['loaded-drivers'])
+    rc = ui.init.driver_disk_sequence(answers, answers['driver-repos'])
     if rc:
         media, address = rc
         repos = answers['repos']
-        compat_driver = False
         
         # now load the drivers:
         for r in repos:
             xelogging.log("Processing repo %s" % r)
-            for p in r:
-                if p.type.startswith('driver') and p.is_loadable():
-                    compat_driver = True
-                    if p.load() == 0:
-                        loaded_drivers.append(p.name)
-                        if r not in required_repo_list:
-                            required_repo_list.append(r)
-                    else:
-                        ButtonChoiceWindow(
-                            ui.screen,
-                            "Problem Loading Driver",
-                            "Setup was unable to load the device driver %s." % p.name,
-                            ['Ok']
-                            )
+            try:
+                r.installPackages(lambda x: (), {'root': '/'})
+                answers['driver-repos'].append(str(r))
 
-        if not compat_driver:
-            ButtonChoiceWindow(
-                ui.screen,
-                "No Compatible Drivers",
-                "Setup was unable to find any drivers compatible with this version of %s." % (PRODUCT_BRAND or PLATFORM_NAME),
-                ['Ok']
-                )
-        elif len(loaded_drivers) > 0:
-            answers['loaded-drivers'] += loaded_drivers
-            answers['driver-repos'] += map(lambda r: str(r), required_repo_list)
-            text = "The following drivers were successfully loaded:\n\n"
+                ButtonChoiceWindow(
+                    ui.screen,
+                    "Drivers Loaded",
+                    "Loaded %s." % r.name(),
+                    ['Ok'])
+            except Exception as e:
+                xelogging.logException(e)
+                ButtonChoiceWindow(
+                    ui.screen,
+                    "Problem Loading Driver",
+                    "Setup was unable to load the device driver.",
+                    ['Ok']
+                    )
 
-            for dr in loaded_drivers:
-                text += " * %s\n" % dr
-
-            ButtonChoiceWindow(
-                ui.screen,
-                "Drivers Loaded",
-                text,
-                ['Ok'])
-
-    return media, address, required_repo_list
+    return media, address
 
 def main(args):
     if len(doInteractiveLoadDriver(tui, {})) > 0:
