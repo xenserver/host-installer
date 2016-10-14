@@ -319,7 +319,7 @@ class UpdateYumRepository(YumRepository):
             assert dom.documentElement.tagName == 'update'
             self._controlpkg = dom.documentElement.getAttribute('control')
             self._identifier = dom.documentElement.getAttribute('name-label')
-            self._targets = [self._controlpkg, self._identifier]
+            self._targets = [self._controlpkg, 'update-' + self._identifier]
         except Exception as e:
             raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
         finally:
