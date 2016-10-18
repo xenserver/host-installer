@@ -321,9 +321,11 @@ class UpdateYumRepository(YumRepository):
             self._identifier = dom.documentElement.getAttribute('name-label')
             self._targets = [self._controlpkg, 'update-' + self._identifier]
         except Exception as e:
-            raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
-        finally:
             accessor.finish()
+            raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
+
+        self._parse_repodata(accessor)
+        accessor.finish()
 
     def name(self):
         return self._identifier

@@ -340,7 +340,8 @@ def verify_source(answers, label, require_base_repo):
                         ['Ok'])
                 else:
                     done = interactive_source_verification(repos, label)
-            except:
+            except Exception as e:
+                xelogging.logException(e)
                 ButtonChoiceWindow(
                     tui.screen, "Error",
                     """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
