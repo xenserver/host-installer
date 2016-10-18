@@ -124,7 +124,7 @@ def get_md_uuid(dev):
 
     return None
 
-def gen_answerfile(accessor, installer_dir, url):
+def gen_answerfile(accessor, installer_dir, url, scripts):
     root_device = None
     root_partition = None
     boot_partition = None
@@ -149,6 +149,11 @@ def gen_answerfile(accessor, installer_dir, url):
     if not os.path.exists(root_device):
         logger.error("Root disk %s not found" % root_device)
         return False
+
+    for script in scripts:
+        if not os.path.exists(script['path']):
+            logger.error("Script path %s not found" % script['path'])
+            return False
 
     # Some G6/G7 controllers moved from the cciss subsystem to scsi
     repo_ver = repository.BaseRepository.getRepoVer(accessor)
@@ -245,6 +250,8 @@ def gen_answerfile(accessor, installer_dir, url):
     text += '  <existing-installation>%s</existing-installation>\n' % root_device
     text += '  <source type="url">%s</source>\n' % url
     text += '  <script stage="installation-start" type="url">file:///revert-bootloader.py</script>\n'
+    for script in scripts:
+        text += '  <script stage="%s" type="url">%s</script>\n' % (script['stage'], script['url'])
     text += ' </installation>\n'
     
     contents = StringIO.StringIO(text)
@@ -252,6 +259,17 @@ def gen_answerfile(accessor, installer_dir, url):
     f = cpiofile.CpioInfo('answerfile')
     f.size = len(contents.getvalue())
     out_arc.addfile(f, contents)
+
+    for script in scripts:
+        if script['url'].startswith("file://"):
+            logger.info("Creating %s script" % script['url'])
+            with open(script['path'], 'r') as script_file:
+                text = script_file.read()
+            contents = StringIO.StringIO(text)
+
+            f = cpiofile.CpioInfo(script['name'])
+            f.size = len(contents.getvalue())
+            out_arc.addfile(f, contents)
 
     out_arc.close()
 
@@ -499,7 +517,7 @@ def test_repo(url):
     logger.error("Repo version ERR: " + str(repo_ver))
     return TEST_VER_INVALID
 
-def prepare_host_upgrade(url):
+def prepare_host_upgrade(url, scripts):
     installer_dir = '/boot/installer'
     done = True
 
@@ -514,7 +532,7 @@ def prepare_host_upgrade(url):
     done = get_boot_files(a, installer_dir)
 
     if done:
-        done = gen_answerfile(a, installer_dir, url)
+        done = gen_answerfile(a, installer_dir, url, scripts)
         
     if done:
         # create bootloader entry
@@ -614,13 +632,33 @@ def main(session, args):
         logger.critical("Missing argument 'url'")
         raise Exception('MISSING_URL')
 
+    scripts = []
+    if 'script' in args:
+        scripts_args = args['script'].split(":")
+        if len(scripts_args) < 2 or len(scripts_args) % 2 != 0:
+            logger.critical("Value of argument 'script' must be in pairs stage1:path1[:stageN:pathN]")
+            raise Exception("INVALID_SCRIPT")
+
+        for script_args in zip(scripts_args[0::2], scripts_args[1::2]):
+            if not script_args[0] or not script_args[1]:
+                logger.critical("Missing stage or path in 'script' arguments (%s)" % (script_args,))
+                raise Exception("INVALID_SCRIPT")
+            script_stage, script_path = script_args
+            script_name = os.path.basename(script_path)
+            if "://" in script_path:
+                script_url = script_path
+            else:
+                script_url = "file:///" + script_name
+            script = { 'stage': script_stage, 'path': script_path, 'name': script_name, 'url': script_url }
+            scripts.append(script)
+
     logger.info("Verifying repo...")
     if test_repo(url) != TEST_REPO_GOOD:
         logger.error("%s is not a valid repo" % url)
         raise Exception('INVALID_URL')
 
     logger.info("Repo ok, preparing for upgrade")
-    if not prepare_host_upgrade(url):
+    if not prepare_host_upgrade(url, scripts):
         logger.error("There was an error in preparing the host for upgrade.")
         raise Exception('ERROR_PREPARING_HOST')
 
