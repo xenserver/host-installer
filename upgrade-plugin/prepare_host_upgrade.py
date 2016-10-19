@@ -263,8 +263,9 @@ def gen_answerfile(accessor, installer_dir, url, scripts):
     for script in scripts:
         if script['url'].startswith("file://"):
             logger.info("Creating %s script" % script['url'])
-            with open(script['path'], 'r') as script_file:
-                text = script_file.read()
+            f = open(script['path'], 'r')
+            text = f.read()
+            f.close()
             contents = StringIO.StringIO(text)
 
             f = cpiofile.CpioInfo(script['name'])
