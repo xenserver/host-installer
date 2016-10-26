@@ -385,6 +385,7 @@ def performInstallation(answers, ui_package, interactive):
         raise RuntimeError("No main repository found")
 
     new_ans = handleRepos(all_repositories, new_ans)
+    all_repositories[0].installKeys(new_ans['mounts']['root'])
 
     # Find repositories that we installed from removable media
     # and eject the media.

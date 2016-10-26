@@ -248,6 +248,7 @@ class MainYumRepository(YumRepository):
 
     def __init__(self, accessor):
         YumRepository.__init__(self, accessor)
+        self.keyfiles = []
 
         accessor.start()
         try:
@@ -268,6 +269,9 @@ class MainYumRepository(YumRepository):
                 self._product_brand = treeinfo.get('branding', 'name')
                 ver_str = treeinfo.get('branding', 'version')
                 self._product_version = Version.from_string(ver_str)
+            if treeinfo.has_section('keys'):
+                for _, keyfile in treeinfo.items('keys'):
+                    self.keyfiles.append(keyfile)
         except Exception as e:
             accessor.finish()
             raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
@@ -297,6 +301,26 @@ class MainYumRepository(YumRepository):
                           'product-brand': self._product_brand,
                           'product-version': self._product_version.ver_as_string() })
         return branding
+
+    def installKeys(self, root):
+        if len(self.keyfiles) == 0:
+            return
+
+        keysdir = os.path.join(root, 'etc', 'firstboot.d', 'data', 'keys')
+        os.makedirs(keysdir, 0755)
+        self._accessor.start()
+        try:
+            for keyfile in self.keyfiles:
+                infh = self._accessor.openAddress(keyfile)
+                outfh = open(os.path.join(keysdir, os.path.basename(keyfile)), "w")
+                outfh.write(infh.read())
+                outfh.close()
+                infh.close()
+        except Exception as e:
+            xelogging.log(str(e))
+            self._accessor.finish()
+            raise ErrorInstallingPackage("Error installing key files")
+        self._accessor.finish()
 
 class UpdateYumRepository(YumRepository):
     """Represents a Yum repository containing packages and associated meta data for an update."""
