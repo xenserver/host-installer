@@ -491,7 +491,7 @@ def test_repo(url):
         logger.debug("Boot files ok, testing repository...")
         repo_ver = repository.BaseRepository.getRepoVer(a)
     except Exception, e:
-        logger.error(str(e))
+        logger.logException(e)
         return TEST_URL_INVALID
     if not repo_ver:
         logger.error("Unable to determine repository version")
