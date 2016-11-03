@@ -124,7 +124,7 @@ def get_md_uuid(dev):
 
     return None
 
-def gen_answerfile(accessor, installer_dir, url, scripts):
+def gen_answerfile(accessor, installer_dir, url, scripts, backup_config):
     root_device = None
     root_partition = None
     boot_partition = None
@@ -221,6 +221,13 @@ def gen_answerfile(accessor, installer_dir, url, scripts):
     # create bootloader revert script
     config = bootloader.Bootloader.loadExisting()
 
+    # If the existing bootloader config is already set up for an RPU, look
+    # at the backup bootloader config to find the original default
+    # bootloader entry.
+    revert_to = config.default
+    if revert_to == 'upgrade' and backup_config:
+        revert_to = backup_config.default
+
     logger.info("Creating revert script")
     text = '#!/usr/bin/env python\n'
     text += '\nimport os.path\n'
@@ -230,7 +237,7 @@ def gen_answerfile(accessor, installer_dir, url, scripts):
     if boot_partition:
         text += 'mount.mount("%s", os.path.join(rootfs.mount_point, "boot/efi"), fstype = "vfat")\n' % boot_partition
     text += 'cfg = bootloader.Bootloader.loadExisting(rootfs.mount_point)\n'
-    text += 'cfg.default = "%s"\n' % config.default
+    text += 'cfg.default = "%s"\n' % revert_to
     text += 'cfg.remove("upgrade")\n'
     text += 'cfg.commit()\n'
     if boot_partition:
@@ -339,7 +346,7 @@ def urlsplit(url):
         host = parts.hostname
     return (parts.scheme, host)
 
-def set_boot_config(installer_dir, url):
+def set_boot_config(installer_dir, url, backup_config):
     try:
         config = bootloader.Bootloader.loadExisting()
         new_config = bootloader.Bootloader.readExtLinux(os.path.join(installer_dir, 'isolinux.cfg'))
@@ -348,6 +355,8 @@ def set_boot_config(installer_dir, url):
         new_default = new_config.menu[new_config.default]
         if 'upgrade' in config.menu_order:
             config.remove('upgrade')
+            if backup_config:
+                backup_config.commit(os.path.join(installer_dir, os.path.basename(backup_config.src_file)))
         else:
             if config.src_file.startswith('/boot/efi'):
                 config.commit(os.path.join(installer_dir, 'efi-%s' % os.path.basename(config.src_file)))
@@ -518,9 +527,24 @@ def test_repo(url):
     logger.error("Repo version ERR: " + str(repo_ver))
     return TEST_VER_INVALID
 
+def load_backup_config(installer_dir):
+    try:
+        if os.path.exists(os.path.join(installer_dir, 'efi-grub.cfg')):
+            return bootloader.Bootloader.readGrub2(os.path.join(installer_dir, 'efi-grub.cfg'))
+        elif os.path.exists(os.path.join(installer_dir, 'grub.cfg')):
+            return bootloader.Bootloader.readGrub2(os.path.join(installer_dir, 'grub.cfg'))
+        elif os.path.exists(os.path.join(installer_dir, 'extlinux.conf')):
+            return bootloader.Bootloader.readExtLinux(os.path.join(installer_dir, 'extlinux.conf'))
+    except Exception, e:
+        logger.logException(e)
+
+    return None
+
 def prepare_host_upgrade(url, scripts):
     installer_dir = '/boot/installer'
     done = True
+
+    backup_config = load_backup_config(installer_dir)
 
     # download the installer files
     try:
@@ -533,11 +557,11 @@ def prepare_host_upgrade(url, scripts):
     done = get_boot_files(a, installer_dir)
 
     if done:
-        done = gen_answerfile(a, installer_dir, url, scripts)
+        done = gen_answerfile(a, installer_dir, url, scripts, backup_config)
         
     if done:
         # create bootloader entry
-        done = set_boot_config(installer_dir, url)
+        done = set_boot_config(installer_dir, url, backup_config)
         
     if not done:
         try:
