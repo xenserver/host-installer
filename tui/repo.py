@@ -280,14 +280,10 @@ def confirm_load_repo(answers, label, installed_repos):
             tui.screen.popWindow()
             return LEFT_BACKWARDS
         elif rc == 'verify' and len(selected_repos) > 0:
-            hashes = [" %s %s" % (r.md5sum(), r.name()) for r in selected_repos]
-            text2 = "The following MD5 hashes have been calculated. Please check them against those provided by the supplier:\n\n"
-            text2 += "\n".join(hashes)
-
             if media == 'local':
-                text2 += "\n\nWould you like to test your media?"
+                text2 = "\n\nWould you like to test your media?"
             else:
-                text2 += "\n\nWould you like to test your %s repository?  This may cause significant network traffic." % label
+                text2 = "\n\nWould you like to test your %s repository?  This may cause significant network traffic." % label
 
             rc2 = ButtonChoiceWindow(
                 tui.screen, "Repository Information", text2, ['Ok', 'Back'], width = 60)
