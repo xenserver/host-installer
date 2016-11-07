@@ -171,7 +171,7 @@ reposdir=/tmp/repos
         installed_repos[str(self)] = self
         return installed_repos
 
-    def installPackages(self, progress_callback, mounts):
+    def _installPackages(self, progress_callback, mounts):
         xelogging.log("URL: " + self._accessor.url())
         with open('/root/yum.conf', 'w') as yum_conf:
             yum_conf.write(self._yum_conf)
@@ -229,6 +229,13 @@ baseurl=%s
 
         shutil.rmtree(os.path.join(mounts['root'], self._cachedir))
         self.enableInitrdCreation()
+
+    def installPackages(self, progress_callback, mounts):
+        self._accessor.start()
+        try:
+            self._installPackages(progress_callback, mounts)
+        finally:
+            self._accessor.finish()
 
     def disableInitrdCreation(self, root):
         pass
