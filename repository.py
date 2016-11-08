@@ -611,9 +611,11 @@ class URLAccessor(Accessor):
                 baseAddress = baseAddress.replace(path2, new_path)
             (hostname, username, password) = util.splitNetloc(netloc)
             if username != None:
-                xelogging.log("Using basic HTTP authentication: %s %s" % (username, password))
+                decoded_user = urllib.unquote(username)
+                decoded_passwd = urllib.unquote(password) if password else None
+                xelogging.log("Using basic HTTP authentication: %s %s" % (decoded_user, decoded_passwd))
                 self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-                self.passman.add_password(None, hostname, username, password)
+                self.passman.add_password(None, hostname, decoded_user, decoded_passwd)
                 self.authhandler = urllib2.HTTPBasicAuthHandler(self.passman)
                 self.opener = urllib2.build_opener(self.authhandler)
                 urllib2.install_opener(self.opener)
@@ -671,7 +673,7 @@ class URLAccessor(Accessor):
 
             # now open a connection to the server and verify that fname is in 
             ftp = ftplib.FTP(hostname)
-            ftp.login(username, password)
+            ftp.login(urllib.unquote(username), urllib.unquote(password))
             ftp.cwd(directory)
             if ftp.size(fname) is not None:
                 return True

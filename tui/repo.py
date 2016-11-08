@@ -20,6 +20,7 @@ from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STE
 import repository
 import generalui
 import urlparse
+import urllib
 import util
 import xelogging
 
@@ -143,11 +144,11 @@ def get_url_location(answers, require_base_repo):
         (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
         (hostname, username, password) = util.splitNetloc(netloc)
         if username != None:
-            user_field.set(username)
+            user_field.set(urllib.unquote(username))
             if password == None:
                 url_field.set(url.replace('%s@' % username, '', 1))
             else:
-                passwd_field.set(password)
+                passwd_field.set(urllib.unquote(password))
                 url_field.set(url.replace('%s:%s@' % (username, password), '', 1))
         else:
             url_field.set(url)
@@ -175,10 +176,12 @@ def get_url_location(answers, require_base_repo):
         if button == 'back': return LEFT_BACKWARDS
 
         if user_field.value() != '':
+            quoted_user = urllib.quote(user_field.value(), safe='')
             if passwd_field.value() != '':
-                answers['source-address'] = url_field.value().replace('//', '//%s:%s@' % (user_field.value(), passwd_field.value()), 1)
+                quoted_passwd = urllib.quote(passwd_field.value(), safe='')
+                answers['source-address'] = url_field.value().replace('//', '//%s:%s@' % (quoted_user, quoted_passwd), 1)
             else:
-                answers['source-address'] = url_field.value().replace('//', '//%s@' % user_field.value(), 1)
+                answers['source-address'] = url_field.value().replace('//', '//%s@' % quoted_user, 1)
         else:
             answers['source-address'] = url_field.value()
         if len(answers['source-address']) > 0:
