@@ -626,6 +626,8 @@ class URLAccessor(Accessor):
         else:
             self.baseAddress = baseAddress
 
+        self.fullAddress = baseAddress
+
         xelogging.log("Initializing URLRepositoryAccessor with base address %s" % self.baseAddress)
 
     def _url_concat(url1, end):
@@ -684,7 +686,7 @@ class URLAccessor(Accessor):
         return URLFileWrapper(ret_val)
 
     def url(self):
-        return self.baseAddress
+        return self.fullAddress
 
 def repositoriesFromDefinition(media, address, drivers=False):
     if media == 'local':
