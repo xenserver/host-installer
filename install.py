@@ -210,6 +210,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                 results.update(a.processAnswerfile())
                 results = fixMpathResults(results)
             except Exception, e:
+                xelogging.logException(e)
                 parsing_except = e
 
         results['extra-repos'] += extra_repo_defs
