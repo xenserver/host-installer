@@ -202,6 +202,9 @@ def get_fcoe_luns():
                 d[iface][rport]['luns'][m.group(1)] = {'device': m.group(2), 'capacity': m.group(3),
                                                        'bsize': m.group(4), 'description': m.group(5)}
             else:
+                if not line.startswith('Interface:'):
+                    # Skip LUNs which do not yet have a block device.
+                    continue
                 # New header, starts with Interface:
                 state = 'header'
                 _, v = line.split(':', 1)
