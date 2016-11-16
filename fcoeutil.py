@@ -69,12 +69,15 @@ def start_fcoe(interfaces):
 
     xelogging.log(result)
 
-    # wait for atleast on block device to appear
+    # Wait for block devices to appear.
+    # Without being able to know how long this will take and because LUNs can
+    # appear before the block devices are created, just wait a constant number
+    # of seconds for FCoE to stabilize.
+    time.sleep(30)
+    util.runCmd2(util.udevsettleCmd())
     for interface, status in result.iteritems():
         if status == 'OK':
-            wait_for_fcoe_disks(interface)
-
-    util.runCmd2(util.udevsettleCmd())
+            xelogging.log(get_luns_on_intf(interface))
 
     return result
 
@@ -124,18 +127,6 @@ def get_dcb_capable_ifaces(check_lun):
                 dcb_nics[nic] = True
 
     return dcb_nics
-
-def wait_for_fcoe_disks(interface):
-    ''' This routine will wait for atleast one device to appear in fcoeadm.
-        Retries 10 times if the disk doesn't appear.
-    '''
-
-    retry = 10
-    while retry > 0:
-        if len(get_luns_on_intf(interface)) > 0:
-            return 1
-        time.sleep(1)
-        retry -= 1
 
 def get_fcoe_vlans(interface):
     ''' This routine return fcoe vlans associated with an interface.
