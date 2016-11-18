@@ -23,7 +23,14 @@ start()
   cd /sys/class/net
   for i in eth*; do
     if ! ip link show $i | grep -q '[,<]UP[,>]'; then
-       ip link set $i name side-$RANDOM-$i
+        # len(name) cannot be greater than 15. Using a 4 digit random number
+        # allows for 100 (eth0-eth99) devices to have a temp name without going
+        # over 15 byte limit
+        name="side-$((RANDOM%9999))-$i"
+        while [ -e "/sys/class/net/$name" ]; do
+            name="side-$((RANDOM%9999))-$i"
+        done
+        ip link set $i name "$name"
     fi
   done
 
