@@ -14,9 +14,9 @@ SM_SOURCE_REPO = $(call git_loc,sm)
 REPO_NAME := host-installer
 SPEC_FILE := $(REPO_NAME).spec
 RPM_BUILD_COOKIE := $(MY_OBJ_DIR)/.rpm_build_cookie
-REPO_STAMP := $(call hg_req,$(REPO_NAME))
+REPO_STAMP := $(call git_req,$(REPO_NAME))
 
-$(eval $(shell $(call hg_cset_number,$(REPO_NAME)))) # Defines CSET_NUMBER for us
+$(eval $(shell $(call git_cset_number,$(REPO_NAME)))) # Defines CSET_NUMBER for us
 HOST_INSTALLER_VERSION := xs$(PLATFORM_VERSION).$(CSET_NUMBER)
 HOST_INSTALLER_RELEASE := 1
 HOST_INSTALLER_DIR := /opt/xensource/installer
@@ -31,11 +31,19 @@ SOURCES := $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2
 SOURCES += $(RPM_SPECSDIR)/$(SPEC_FILE)
 SOURCES += $(RPM_SOURCESDIR)/multipath.conf
 
-HOST_INSTALLER_HG_EXCLUDE := -X mk -X tests -X oem -X upgrade-plugin -X sample-version.py
+HOST_INSTALLER_TAR_EXCLUDE := \
+	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/mk' \
+	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/tests' \
+	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/oem' \
+	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/upgrade-plugin' \
+	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/sample-version.py'
+
 $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2: $(RPM_SOURCESDIRSTAMP)
 	{ set -e; set -o pipefail; \
-	hg -R "$(call hg_loc,$(REPO_NAME))" archive $(HOST_INSTALLER_HG_EXCLUDE) \
-	-p host-installer-$(HOST_INSTALLER_VERSION) -t tbz2 $@.tmp; \
+	cd $(call git_loc,$(REPO_NAME)); \
+	git archive --prefix=$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/ --format=tar HEAD | \
+		tar -f - $(HOST_INSTALLER_TAR_EXCLUDE) | \
+		bzip2 -4 > $@.tmp; \
 	mv -f $@.tmp $@; \
 	}
 
