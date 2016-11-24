@@ -320,11 +320,7 @@ class ExistingInstallation:
                             # our bonds have a key called MACADDR instead
                             hwaddr = devcfg['MACADDR']
                         else:
-                            # XXX what if it's been renamed out of existence?
-                            try:
-                                hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
-                            except:
-                                hwaddr = None
+                            hwaddr = netutil.getHWAddr(devcfg['DEVICE'])
 
                         ifcfg = NetInterface.loadFromIfcfg(self.join_state_path(constants.NET_SCR_DIR, 'ifcfg-'+devcfg['BRIDGE']))
                         if not ifcfg.hwaddr:

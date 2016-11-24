@@ -220,10 +220,7 @@ class NetInterface:
         if not hwaddr:
             hwaddr = valOrNone(conf, 'MACADDR')
         if not hwaddr:
-            try:
-                hwaddr = netutil.getHWAddr(conf['DEVICE'])
-            except:
-                pass
+            hwaddr = netutil.getHWAddr(conf['DEVICE'])
         dns = None
         n = 1
         while conf.has_key('DNS%d' % n):

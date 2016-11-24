@@ -16,6 +16,7 @@ import util
 import re
 import subprocess
 import time
+import errno
 import xelogging
 from xcp.net.biosdevname import all_devices_all_names
 from socket import inet_ntoa
@@ -199,7 +200,12 @@ def __readOneLineFile__(filename):
     return value
 
 def getHWAddr(iface):
-    return __readOneLineFile__('/sys/class/net/%s/address' % iface)
+    try:
+        return __readOneLineFile__('/sys/class/net/%s/address' % iface)
+    except IOError as e:
+        if e.errno == errno.ENOENT:
+            return None
+        raise
 
 def valid_hostname(x, emptyValid = False, fqdn = False):
     if emptyValid and x == '':
