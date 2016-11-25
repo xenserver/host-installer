@@ -35,7 +35,6 @@ HOST_INSTALLER_TAR_EXCLUDE := \
 	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/mk' \
 	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/tests' \
 	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/oem' \
-	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/upgrade-plugin' \
 	--delete '$(REPO_NAME)-$(HOST_INSTALLER_VERSION)/sample-version.py'
 
 $(RPM_SOURCESDIR)/host-installer-$(HOST_INSTALLER_VERSION).tar.bz2: $(RPM_SOURCESDIRSTAMP)

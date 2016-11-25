@@ -39,7 +39,6 @@ RPU_OUT := $(RPUS:%=$(MY_OUTPUT_DIR)/%.xsupdate)
 
 .PHONY: build
 build: $(INSTALL_IMG) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp $(RPU_OUT)
-	$(MAKE) -C $(call git_loc,host-installer)/upgrade-plugin $@
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 	rpm2cpio $(PROJECT_OUTPUTDIR)/xen/RPMS/$(DOMAIN0_ARCH_OPTIMIZED)/$(HYPERVISOR_OUTPUT_RPM) | \
