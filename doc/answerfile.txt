@@ -73,6 +73,15 @@ Common Elements
 
     Defines the bootloader variant and location.
 
+    Optional attributes:
+
+        write-boot-entry=bool
+
+            Whether to modify the EFI Boot Manager and write a boot
+            entry for a UEFI installation. (new in 7.1)
+
+            Default: True
+
 
   <network-backend>bridge|openvswitch|vswitch</network-backend>?
 

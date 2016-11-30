@@ -235,6 +235,9 @@ class Answerfile:
                                                              [('mbr', BOOT_LOCATION_MBR),
                                                               ('partition', BOOT_LOCATION_PARTITION)],
                                                              default = 'mbr')
+
+            results['write-boot-entry'] = getBoolAttribute(nodes[0], ['write-boot-entry'], default=True)
+
             bl = getText(nodes[0])
             if bl not in ['' , 'grub2']:
                 raise AnswerfileException, "Unsupported bootloader '%s'" % bl

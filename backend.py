@@ -177,8 +177,8 @@ def getFinalisationSequence(ans):
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
                                   'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
-                                  'disk-label-suffix', 'bootloader-location', 'serial-console',
-                                  'boot-serial', 'host-config', 'fcoe-interfaces'), []),
+                                  'disk-label-suffix', 'bootloader-location', 'write-boot-entry',
+                                  'serial-console', 'boot-serial', 'host-config', 'fcoe-interfaces'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -297,7 +297,7 @@ def performInstallation(answers, ui_package, interactive):
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
                             'xen-cpuid-masks': [] }
-    defaults = { 'branding': {}, 'host-config': {} }
+    defaults = { 'branding': {}, 'host-config': {}, 'write-boot-entry': True }
     
     # update the settings:
     if answers['preserve-settings'] == True:
@@ -1042,7 +1042,8 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_partnum, target_boot_mode, branding,
-                      disk_label_suffix, location, serial = None, boot_serial = None, host_config = None, fcoe_interface=None):
+                      disk_label_suffix, location, write_boot_entry, serial=None,
+                      boot_serial=None, host_config=None, fcoe_interface=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
     # prepare extra mounts for installing bootloader:
@@ -1072,7 +1073,8 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
 
         root_partition = partitionDevice(disk, primary_partnum)
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-            setEfiBootEntry(mounts, disk, boot_partnum, branding)
+            if write_boot_entry:
+                setEfiBootEntry(mounts, disk, boot_partnum, branding)
         else:
             if location == constants.BOOT_LOCATION_MBR:
                 installGrub2(mounts, disk, False)
