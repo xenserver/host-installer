@@ -314,7 +314,8 @@ class MainYumRepository(YumRepository):
             return
 
         keysdir = os.path.join(root, 'etc', 'firstboot.d', 'data', 'keys')
-        os.makedirs(keysdir, 0755)
+        if not os.path.exists(keysdir):
+            os.makedirs(keysdir, 0755)
         self._accessor.start()
         try:
             for keyfile in self.keyfiles:
