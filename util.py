@@ -14,6 +14,7 @@ import os
 import os.path
 import xelogging
 import subprocess
+import urllib
 import urllib2
 import shutil
 import re
@@ -289,9 +290,11 @@ def splitNetloc(netloc):
         userinfo = netloc.split("@", 1)[0]
         hostname = netloc.split("@", 1)[1]
         if ":" in userinfo:
-            (username, password) = userinfo.split(":")
+            info = userinfo.split(":", 1)
+            username = urllib.unquote(info[0])
+            password = urllib.unquote(info[1])
         else:
-            username = userinfo
+            username = urllib.unquote(userinfo)
     if ":" in hostname:
         hostname = hostname.split(":", 1)[0]
         
