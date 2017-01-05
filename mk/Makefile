@@ -34,11 +34,8 @@ KERNEL_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_PKG_FILE)
 KERNEL_DEBUGINFO_RPM := $(PROJECT_OUTPUTDIR)/kernel-dom0/$(KERNEL_DEBUGINFO_PKG_FILE)
 VMLINUX_PATH := /usr/lib/debug/lib/modules/$(LINUX_KABI_VERSION)/vmlinux
 
-RPUS := RPU001 RPU002 RPU003
-RPU_OUT := $(RPUS:%=$(MY_OUTPUT_DIR)/%.xsupdate)
-
 .PHONY: build
-build: $(INSTALL_IMG) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp $(RPU_OUT)
+build: $(INSTALL_IMG) $(BUILD_FI_IMAGE) $(MY_OUTPUT_DIR)/.dirstamp
 	$(call mkdir_clean,$(MY_MAIN_CDFILES))
 	cp -l $(INSTALL_IMG) $(MY_MAIN_CDFILES)
 	rpm2cpio $(PROJECT_OUTPUTDIR)/xen/RPMS/$(DOMAIN0_ARCH_OPTIMIZED)/$(HYPERVISOR_OUTPUT_RPM) | \
@@ -224,12 +221,3 @@ $(INSTALL_IMG): $(INSTALLER_INSTALLED_STAMP) $(KERNEL_CONFIGURED_STAMP) $(INIT_C
 # Dell factory installation
 $(BUILD_FI_IMAGE):
 	$(MAKE) -C $(call git_loc,host-installer)/oem install DESTDIR=$(MY_OUTPUT_DIR)
-
-$(MY_OUTPUT_DIR)/RPU001.xsupdate:
-	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/RPU001/5.0/$(@F)
-
-$(MY_OUTPUT_DIR)/RPU002.xsupdate:
-	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/RPU002/5.0/$(@F)
-
-$(MY_OUTPUT_DIR)/RPU003.xsupdate:
-	wget -P $(@D) https://repo.citrite.net/builds/xs/hotfixes/trunk/RPU003/1.0/$(@F)
