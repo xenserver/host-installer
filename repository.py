@@ -11,6 +11,8 @@
 # written by Andrew Peace
 
 import os
+import os.path
+import glob
 import errno
 import md5
 import hashlib
@@ -712,15 +714,11 @@ def repositoriesFromDefinition(media, address, drivers=False):
 
 def findRepositoriesOnMedia(drivers=False):
     """ Returns a list of repositories available on local media. """
-    
-    static_devices = [
-        'hda', 'hdb', 'hdc', 'hdd', 'hde', 'hdf',
-        'sda', 'sdb', 'sdc', 'sdd', 'sde', 'sdf',
-        'scd0', 'scd1', 'scd2', 'scd3', 'scd4',
-        'sr0', 'sr1', 'sr2', 'sr3', 'sr4', 'sr5', 'sr6', 'sr7',
-        'cciss/c0d0', 'cciss/c0d1',
-        'xvda', 'xvdb','xvdc', 'xvdd', 
-    ]
+
+    static_device_patterns = [ 'sd*', 'scd*', 'sr*', 'xvd*', 'nvme*n*' ]
+    static_devices = []
+    for pattern in static_device_patterns:
+        static_devices.extend(map(os.path.basename, glob.glob('/sys/block/' + pattern)))
 
     removable_devices = diskutil.getRemovableDeviceList()
     removable_devices = filter(lambda x: not x.startswith('fd'),
