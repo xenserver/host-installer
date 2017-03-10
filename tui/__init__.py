@@ -38,7 +38,7 @@ To advance to the next screen navigate to the Ok button and press Enter or press
 def init_ui():
     global screen
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s - Version %s (#%s)" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION or PLATFORM_VERSION, BUILD_NUMBER))
+    screen.drawRootText(0, 0, "Welcome to %s - Version %s-%s" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION or PLATFORM_VERSION, BUILD_NUMBER))
     if PRODUCT_BRAND:
         if len(COPYRIGHT_YEARS) > 0:
             screen.drawRootText(0, 1, "Copyright (c) %s %s" % (COPYRIGHT_YEARS, COMPANY_NAME_LEGAL))
