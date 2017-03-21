@@ -764,9 +764,25 @@ def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_part
     tool = PartitionTool(disk)
     logs_partition = tool.getPartition(logs_partnum)
     if logs_partition:
-        rc, err = util.runCmd2(["mkfs.%s" % logsfs_type, "-L", logsfs_label%disk_label_suffix, partitionDevice(disk, logs_partnum)], with_stderr = True)
-        if rc != 0:
-            raise RuntimeError, "Failed to create logs filesystem: %s" % err
+        # If the log partition already exists and is formatted correctly,
+        # relabel it. Otherwise create the filesystem.
+        partition = partitionDevice(disk, logs_partnum)
+        label = None
+        try:
+            label = diskutil.readExtPartitionLabel(partition)
+        except Exception as e:
+            # Ignore the exception as it just means the partition needs to be
+            # formatted.
+            pass
+        if label and label.startswith(logsfs_label_prefix):
+            if util.runCmd2(['e2label', partition, constants.logsfs_label % disk_label_suffix]) != 0:
+                raise RuntimeError('Failed to relabel logs partition')
+        else:
+            rc, err = util.runCmd2(["mkfs.%s" % logsfs_type,
+                                    "-L", logsfs_label % disk_label_suffix,
+                                    partition], with_stderr=True)
+            if rc != 0:
+                raise RuntimeError("Failed to create logs filesystem: %s" % err)
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
