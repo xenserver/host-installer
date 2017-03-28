@@ -118,8 +118,7 @@ bootfs_label = "BOOT-%s"
 rootfs_label = "root-%s"
 swap_file = '/var/swap/swap.001'
 swap_label = 'swap-%s'
-logsfs_label_prefix = 'logs-'
-logsfs_label = logsfs_label_prefix + '%s'
+logsfs_label = 'logs-%s'
 
 MIN_PASSWD_LEN=6
 
