@@ -800,7 +800,7 @@ class DOSPartitionTool(PartitionToolBase):
                     raise Exception("Expecting 'unit: sectors' but got '"+line+"'")
                 state += 1
             elif state == 1:
-                matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*(,\s*bootable)?', line)
+                matches = re.match(r'(.*?)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*(,\s*bootable)?', line)
                 if matches:
                     idt = int(matches.group(4), 16) # Base 16
                     active = (matches.group(5) is not None)
@@ -808,7 +808,7 @@ class DOSPartitionTool(PartitionToolBase):
                     # extended BSD partition?
                     idt = 0
                     active = False
-                    matches = re.match(r'([^: ]+)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+)', line)
+                    matches = re.match(r'(.*?)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+)', line)
                     if not matches:
                         raise Exception("Could not decode partition line: '"+line+"'")
                 
