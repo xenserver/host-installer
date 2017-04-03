@@ -168,23 +168,22 @@ def getPartitionList():
     disks = getDiskList()
     rv  = []
     for disk in disks:
-        if isDeviceMapperNode('/dev/' + disk):
-            name = disk.split('/',1)[1]
-            partitions = filter(lambda s: re.match(name + r'p?\d+$', s), os.listdir('/dev/mapper/'))
-            partitions = map(lambda s: "mapper/%s" % s, partitions)
-        else:
-            name = disk.replace("/", "!")
-            partitions = filter(lambda s: s.startswith(name), os.listdir('/sys/block/%s' % name))
-            partitions = map(lambda n: n.replace("!","/"), partitions)
-        rv.extend(partitions)
+        rv.extend(partitionsOnDisk(disk))
     return rv
 
-def partitionsOnDisk(dev):
-    if dev.startswith('/dev/'):
-        dev = dev[5:]
-    dev = dev.replace('/', '!')
-    return filter(lambda x: x.startswith(dev),
-                  os.listdir(os.path.join('/sys/block', dev)))
+def partitionsOnDisk(disk):
+    if disk.startswith('/dev/'):
+        disk = disk[5:]
+    if isDeviceMapperNode('/dev/' + disk):
+        name = disk.split('/',1)[1]
+        partitions = filter(lambda s: re.match(name + r'p?\d+$', s), os.listdir('/dev/mapper/'))
+        partitions = map(lambda s: "mapper/%s" % s, partitions)
+    else:
+        name = disk.replace("/", "!")
+        partitions = filter(lambda s: s.startswith(name), os.listdir('/sys/block/%s' % name))
+        partitions = map(lambda n: n.replace("!","/"), partitions)
+
+    return partitions
 
 def getQualifiedDiskList():
     return map(lambda x: getQualifiedDeviceName(x), getDiskList())
