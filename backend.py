@@ -143,7 +143,7 @@ def getPrepSequence(ans, interactive):
                         progress_scale = 100,
                         pass_progress_callback = True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix'), []),
+        Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
@@ -751,7 +751,7 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
+def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         rc, err = util.runCmd2(["mkfs.%s" % bootfs_type, "-n", bootfs_label%disk_label_suffix.upper(), partitionDevice(disk, boot_partnum)], with_stderr = True)
         if rc != 0:
@@ -764,9 +764,34 @@ def createDom0DiskFilesystems(disk, target_boot_mode, boot_partnum, primary_part
     tool = PartitionTool(disk)
     logs_partition = tool.getPartition(logs_partnum)
     if logs_partition:
-        rc, err = util.runCmd2(["mkfs.%s" % logsfs_type, "-L", logsfs_label%disk_label_suffix, partitionDevice(disk, logs_partnum)], with_stderr = True)
-        if rc != 0:
-            raise RuntimeError, "Failed to create logs filesystem: %s" % err
+        run_mkfs = True
+
+        # If the log partition already exists and is formatted correctly,
+        # relabel it. Otherwise create the filesystem.
+        partition = partitionDevice(disk, logs_partnum)
+        label = None
+        try:
+            label = diskutil.readExtPartitionLabel(partition)
+        except Exception as e:
+            # Ignore the exception as it just means the partition needs to be
+            # formatted.
+            pass
+        if install_type != INSTALL_TYPE_FRESH and label and label.startswith(logsfs_label_prefix):
+            # If a filesystem which has not been unmounted cleanly is
+            # relabelled, it will revert to the original label once it is
+            # mounted. To prevent this, fsck the filesystem before relabelling.
+            # If any unfixable errors occur or relabelling fails, just recreate
+            # the filesystem instead, rather than fail the installation.
+            if util.runCmd2(['e2fsck', '-y', partition]) in (0, 1):
+                if util.runCmd2(['e2label', partition, constants.logsfs_label % disk_label_suffix]) == 0:
+                    run_mkfs = False
+
+        if run_mkfs:
+            rc, err = util.runCmd2(["mkfs.%s" % logsfs_type,
+                                    "-L", logsfs_label % disk_label_suffix,
+                                    partition], with_stderr=True)
+            if rc != 0:
+                raise RuntimeError("Failed to create logs filesystem: %s" % err)
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
