@@ -218,8 +218,7 @@ def prettyLogAnswers(answers):
             val = answers[a]
         xelogging.log("%s := %s %s" % (a, val, type(val)))
 
-def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
-    answers = answers_pristine.copy()
+def executeSequence(sequence, seq_name, answers, ui, cleanup):
     answers['cleanup'] = []
     answers['ui'] = ui
 
@@ -275,8 +274,6 @@ def executeSequence(sequence, seq_name, answers_pristine, ui, cleanup):
         if cleanup:
             doCleanup(answers['cleanup'])
             del answers['cleanup']
-
-    return answers
 
 def reorderRepos(repos):
     """Place the main installation repository at the head of the list."""
@@ -346,7 +343,8 @@ def performInstallation(answers, ui_package, interactive):
  
     # perform installation:
     prep_seq = getPrepSequence(answers, interactive)
-    new_ans = executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
+    answers_pristine = answers.copy()
+    executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
 
     # install from main repositories:
     def handleRepos(repos, ans):
@@ -355,25 +353,24 @@ def performInstallation(answers, ui_package, interactive):
         else:
             seq_name = "Reading package information..."
         repo_seq = getRepoSequence(ans, repos)
-        new_ans = executeSequence(repo_seq, seq_name, ans, ui_package, False)
-        return new_ans
+        executeSequence(repo_seq, seq_name, ans, ui_package, False)
 
-    new_ans['installed-repos'] = {}
+    answers['installed-repos'] = {}
 
     # Use a set since the same repository might exist in multiple locations
     # or the same location might be listed multiple times.
     all_repositories = set()
 
     # A list of sources coming from the answerfile
-    if 'sources' in answers:
-        for i in answers['sources']:
+    if 'sources' in answers_pristine:
+        for i in answers_pristine['sources']:
             all_repositories.update(repository.repositoriesFromDefinition(i['media'], i['address']))
 
     # A single source coming from an interactive install
-    if 'source-media' in answers and 'source-address' in answers:
-        all_repositories.update(repository.repositoriesFromDefinition(answers['source-media'], answers['source-address']))
+    if 'source-media' in answers_pristine and 'source-address' in answers_pristine:
+        all_repositories.update(repository.repositoriesFromDefinition(answers_pristine['source-media'], answers_pristine['source-address']))
 
-    for media, address in answers['extra-repos']:
+    for media, address in answers_pristine['extra-repos']:
         all_repositories.update(repository.repositoriesFromDefinition(media, address))
 
     all_repositories = list(all_repositories)
@@ -382,8 +379,8 @@ def performInstallation(answers, ui_package, interactive):
     if all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
         raise RuntimeError("No main repository found")
 
-    new_ans = handleRepos(all_repositories, new_ans)
-    all_repositories[0].installKeys(new_ans['mounts']['root'])
+    handleRepos(all_repositories, answers)
+    all_repositories[0].installKeys(answers['mounts']['root'])
 
     # Find repositories that we installed from removable media
     # and eject the media.
@@ -394,7 +391,7 @@ def performInstallation(answers, ui_package, interactive):
     if interactive:
         # Add supp packs in a loop
         while True:
-            media_ans = dict(answers)
+            media_ans = dict(answers_pristine)
             del media_ans['source-media']
             del media_ans['source-address']
             media_ans = ui_package.installer.more_media_sequence(media_ans)
@@ -402,20 +399,18 @@ def performInstallation(answers, ui_package, interactive):
                 break
 
             repos = repository.repositoriesFromDefinition(media_ans['source-media'], media_ans['source-address'])
-            repos = set([repo for repo in repos if str(repo) not in new_ans['installed-repos']])
+            repos = set([repo for repo in repos if str(repo) not in answers['installed-repos']])
             if len(repos) == 0:
                 continue
-            new_ans = handleRepos(repos, new_ans)
+            handleRepos(repos, answers)
 
             for r in repos:
                 if r.accessor().canEject():
                     r.accessor().eject()
 
     # complete the installation:
-    fin_seq = getFinalisationSequence(new_ans)
-    new_ans = executeSequence(fin_seq, "Completing installation...", new_ans, ui_package, True)
-
-    return new_ans
+    fin_seq = getFinalisationSequence(answers)
+    executeSequence(fin_seq, "Completing installation...", answers, ui_package, True)
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):

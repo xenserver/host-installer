@@ -267,7 +267,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                     tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
             else:
                 xelogging.log("Starting actual installation")
-                results = backend.performInstallation(results, ui, interactive)
+                backend.performInstallation(results, ui, interactive)
 
                 if ui and interactive:
                     ui.installer.screens.installation_complete()
