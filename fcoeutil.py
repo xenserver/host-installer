@@ -149,8 +149,7 @@ def get_fcoe_vlans(interface):
         value = v.strip()
 
         if key == 'Interface':
-            i, v = value.split('.', 1)
-            iface = i.strip()
+            iface = value.split('.', 1)[0].strip()
 
             if iface == interface:
                 vlans.append(value)
