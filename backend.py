@@ -1523,7 +1523,9 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     if COMPANY_NAME_SHORT:
        inv.write("COMPANY_NAME_SHORT='%s'\n" % COMPANY_NAME_SHORT)
     if BRAND_CONSOLE:
-       inv.write("BRAND_CONSOLE='%s'\n" % BRAND_CONSOLE) 
+       inv.write("BRAND_CONSOLE='%s'\n" % BRAND_CONSOLE)
+    if BRAND_CONSOLE_URL:
+       inv.write("BRAND_CONSOLE_URL='%s'\n" % BRAND_CONSOLE_URL)
     inv.write("PLATFORM_NAME='%s'\n" % branding['platform-name'])
     inv.write("PLATFORM_VERSION='%s'\n" % branding['platform-version'])
 
