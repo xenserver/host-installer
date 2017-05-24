@@ -278,6 +278,10 @@ class MainYumRepository(YumRepository):
                 self._product_brand = treeinfo.get('branding', 'name')
                 ver_str = treeinfo.get('branding', 'version')
                 self._product_version = Version.from_string(ver_str)
+            if treeinfo.has_section('build'):
+                self._build_number = treeinfo.get('build', 'number')
+            else:
+                self._build_number = None
             if treeinfo.has_section('keys'):
                 for _, keyfile in treeinfo.items('keys'):
                     self.keyfiles.append(keyfile)
@@ -309,6 +313,8 @@ class MainYumRepository(YumRepository):
                           'platform-version': self._platform_version.ver_as_string(),
                           'product-brand': self._product_brand,
                           'product-version': self._product_version.ver_as_string() })
+        if self._build_number:
+            branding['product-build'] = self._build_number
         return branding
 
     def installKeys(self, root):
