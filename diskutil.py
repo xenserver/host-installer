@@ -470,8 +470,8 @@ def probeDisk(device, justInstall = False):
     
     Where:
     
-    	boot is a tuple of True or False and the partition device
-    	root is a tuple of None, INSTALL_RETAIL and the partition device
+        boot is a tuple of True or False and the partition device
+        root is a tuple of None, INSTALL_RETAIL and the partition device
         state is a tuple of True or False and the partition device
         storage is a tuple of None, STORAGE_LVM or STORAGE_EXT3 and the partition device
     """

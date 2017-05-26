@@ -828,7 +828,7 @@ class DOSPartitionTool(PartitionToolBase):
         self.settleUdev()
         self.cmdWrap([self.SFDISK, '--no-reread', '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
         self.waitForDeviceNodes()
-    	
+
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         input = 'unit: sectors\n\n'
     

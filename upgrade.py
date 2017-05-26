@@ -373,7 +373,7 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
         self.restore_list += [ 'etc/sysconfig/network', constants.DBCACHE ]
-	self.restore_list.append({'src': constants.OLD_DBCACHE, 'dst': constants.DBCACHE})
+        self.restore_list.append({'src': constants.OLD_DBCACHE, 'dst': constants.DBCACHE})
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
         self.restore_list += [constants.XAPI_DB, 'etc/xensource/license']
@@ -410,7 +410,7 @@ class ThirdGenUpgrader(Upgrader):
 
         # CA-82709: preserve networkd.db for Tampa upgrades
         self.restore_list.append({'src': constants.OLD_NETWORK_DB, 'dst': constants.NETWORK_DB})
-	self.restore_list.append(constants.NETWORK_DB)
+        self.restore_list.append(constants.NETWORK_DB)
 
         # CP-9653: preserve Oracle 5 blacklist
         self.restore_list += ['etc/pygrub/rules.d/oracle-5.6']

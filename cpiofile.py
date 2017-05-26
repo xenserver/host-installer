@@ -863,8 +863,8 @@ class CpioFile(object):
     dereference = False         # If true, add content of linked file to the
                                 # cpio file, else the link.
 
-    hardlinks = True		# If true, only add content for the first
-    				# hard link, else treat as regular file.
+    hardlinks = True            # If true, only add content for the first
+                                # hard link, else treat as regular file.
 
     errorlevel = 0              # If 0, fatal errors only appear in debug
                                 # messages (if debug >= 0). If > 0, errors
