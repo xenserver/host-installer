@@ -1,9 +1,0 @@
-<?xml version="1.0"?>
-<installation>
-<keymap>us</keymap>
-<primary-disk gueststorage="no">xvda</primary-disk>
-<root-password>Citrix</root-password>
-<source type="local"></source>
-<admin-interface name="eth0" proto="dhcp" />
-<timezone>Etc/UTC</timezone>
-</installation>
