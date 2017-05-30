@@ -89,18 +89,43 @@ class Upgrader(object):
         """ Write any data back into the new filesystem as needed to follow
         through the upgrade. """
 
+        src_uid_map = {}
+        dst_uid_map = {}
+        src_gid_map = {}
+        dst_gid_map = {}
+
+        def init_id_maps(src_root, dst_root):
+            """ Create mappings between (username and uid), and (group and
+            gid) for the source and destination roots. """
+            with open(os.path.join(src_root, 'etc/passwd'), 'r') as f:
+                for line in f:
+                    pwnam, _, uid, _ = line.split(':', 3)
+                    src_uid_map[int(uid)] = pwnam
+
+            with open(os.path.join(src_root, 'etc/group'), 'r') as f:
+                for line in f:
+                    pwnam, _, gid, _ = line.split(':', 3)
+                    src_gid_map[int(gid)] = pwnam
+
+            with open(os.path.join(dst_root, 'etc/passwd'), 'r') as f:
+                for line in f:
+                    pwnam, _, uid, _ = line.split(':', 3)
+                    dst_uid_map[pwnam] = int(uid)
+
+            with open(os.path.join(dst_root, 'etc/group'), 'r') as f:
+                for line in f:
+                    pwnam, _, gid, _ = line.split(':', 3)
+                    dst_gid_map[pwnam] = int(gid)
+
         # Copy ownership from a path in a source root to another path in a
         # destination root. The ownership is copied such that it is not
         # affected by changes in the underlying uid/gid.
         def copy_ownership(src_root, src_path, dst_root, dst_path):
-            rc, ownership = util.runCmd2(['/usr/sbin/chroot', src_root,
-                                          '/usr/bin/stat', '-c', '%U:%G', src_path],
-                                         with_stdout=True)
-            if rc == 0:
-                rc = util.runCmd2(['/usr/sbin/chroot', dst_root,
-                                   '/usr/bin/chown', '--no-dereference',
-                                   ownership.strip(), dst_path])
-                assert rc == 0
+            st = os.lstat('%s/%s' % (src_root, src_path))
+            new_uid = dst_uid_map[src_uid_map[st.st_uid]]
+            new_gid = dst_gid_map[src_gid_map[st.st_gid]]
+            if st.st_uid != new_uid or st.st_gid != new_gid:
+                os.lchown('%s/%s' % (dst_root, dst_path), new_uid, new_gid)
 
         def restore_file(src_base, f, d = None):
             if not d: d = f
@@ -129,6 +154,7 @@ class Upgrader(object):
         tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
         try:
             self.buildRestoreList()
+            init_id_maps(tds.mount_point, mounts['root'])
 
             xelogging.log("Restoring preserved files")
             for f in self.restore_list:
