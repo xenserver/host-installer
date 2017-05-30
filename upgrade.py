@@ -398,6 +398,7 @@ class ThirdGenUpgrader(Upgrader):
 
         # CP-2056: preserve RRDs etc
         self.restore_list += [{'src': 'var/xapi/blobs', 'dst': 'var/lib/xcp/blobs'}]
+        self.restore_list += [{'src': 'var/lib/xcp/blobs', 'dst': 'var/lib/xcp/blobs'}]
 
         self.restore_list.append('etc/sysconfig/mkinitrd.latches')
 
