@@ -1553,7 +1553,8 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
         layout += ',SR'
     inv.write("PARTITION_LAYOUT='%s'\n" % layout)
 
-    inv.write("BUILD_NUMBER='%s'\n" % branding.get('product-build', BUILD_NUMBER))
+    if 'product-build' in branding:
+        inv.write("BUILD_NUMBER='%s'\n" % branding['product-build'])
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
     if backup_partnum > 0:
