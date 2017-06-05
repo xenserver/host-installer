@@ -848,6 +848,14 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
         util.umount(os.path.join(mounts['root'], 'proc'))
         util.umount(os.path.join(mounts['root'], 'tmp'))
 
+def getXenVersion(rootfs_mount):
+    """ Return the xen version by interogating the package version in the chroot """
+    chroot = ['chroot', rootfs_mount, 'rpm', '-q', '--qf', '%{version}', 'xen-hypervisor']
+    rc, out = util.runCmd2(chroot, with_stdout = True)
+    if rc != 0:
+        return None
+    return out
+
 def getKernelVersion(rootfs_mount):
     """ Returns the kernel release (uname -r) of the installed kernel """
     chroot = ['chroot', rootfs_mount, 'rpm', '-q', '--provides', 'kernel']
@@ -902,6 +910,9 @@ def configureISCSITimeout(mounts, primary_disk):
         adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'], force=True)
 
 def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
+    xen_version = getXenVersion(mounts['root'])
+    if xen_version is None:
+        raise RuntimeError, "Unable to determine Xen version."
     xen_kernel_version = getKernelVersion(mounts['root'])
     if not xen_kernel_version:
         raise RuntimeError, "Unable to determine kernel version."
@@ -988,7 +999,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     if util.runCmd2(['chroot', mounts['root']] + cmd):
         raise RuntimeError, "Failed to generate fallback initrd"
 
-def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
+def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog ucode=scan dom0_max_vcpus=%d" % host_config['dom0-vcpus']
@@ -1048,7 +1059,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                              kernel = "/boot/vmlinuz-fallback",
                              kernel_args = ' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              initrd = "/boot/initrd-fallback.img",
-                             title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
+                             title = "%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
                              root = constants.rootfs_label%disk_label_suffix)
     boot_config.append("fallback", e)
     if serial:
@@ -1057,7 +1068,7 @@ def buildBootLoaderMenu(mounts, xen_kernel_version, boot_config, serial, boot_se
                                  kernel = "/boot/vmlinuz-fallback",
                                  kernel_args = ' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd = "/boot/initrd-fallback.img",
-                                 title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, version.XEN_VERSION, xen_kernel_version),
+                                 title = "%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
                                  root = constants.rootfs_label%disk_label_suffix)
         boot_config.append("fallback-serial", e)
 
@@ -1082,10 +1093,13 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
             boot_config = bootloader.Bootloader('grub2', fn,
                                                 timeout = constants.BOOT_MENU_TIMEOUT,
                                                 serial = s, location = location)
+            xen_version = getXenVersion(mounts['root'])
+            if xen_version is None:
+                raise RuntimeError, "Unable to determine Xen version."
             xen_kernel_version = getKernelVersion(mounts['root'])
             if not xen_kernel_version:
                 raise RuntimeError, "Unable to determine kernel version."
-            buildBootLoaderMenu(mounts, xen_kernel_version, boot_config,
+            buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config,
                                 serial, boot_serial, host_config, disk,
                                 disk_label_suffix, fcoe_interface)
             util.assertDir(os.path.dirname(fn))
@@ -1540,9 +1554,6 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("PARTITION_LAYOUT='%s'\n" % layout)
 
     inv.write("BUILD_NUMBER='%s'\n" % branding.get('product-build', BUILD_NUMBER))
-    inv.write("KERNEL_VERSION='%s'\n" % version.KERNEL_VERSION)
-    inv.write("LINUX_KABI_VERSION='%s'\n" % version.LINUX_KABI_VERSION)
-    inv.write("XEN_VERSION='%s'\n" % version.XEN_VERSION)
     inv.write("INSTALLATION_DATE='%s'\n" % str(datetime.datetime.now()))
     inv.write("PRIMARY_DISK='%s'\n" % (diskutil.idFromPartition(primary_disk) or primary_disk))
     if backup_partnum > 0:
