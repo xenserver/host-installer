@@ -742,7 +742,48 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
     print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
     print >>fd, "TYPE='%s'" % sr_type_string
     fd.close()
-    
+
+def make_free_space(mount, required):
+    """Make required bytes of free space available on mount by removing files,
+    oldest first."""
+
+    def getinfo(dirpath, name):
+        path = os.path.join(dirpath, name)
+        return os.stat(path).st_mtime, path
+
+    def free_space(path):
+        st = os.statvfs(path)
+        return st.f_bavail * st.f_frsize
+
+    if free_space(mount) >= required:
+        return
+
+    files = []
+    dirs = []
+
+    for dirpath, dirnames, filenames in os.walk(mount):
+        for i in dirnames:
+            dirs.append(getinfo(dirpath, i))
+        for i in filenames:
+            files.append(getinfo(dirpath, i))
+
+    files.sort()
+    dirs.sort()
+
+    for _, path in files:
+        os.unlink(path)
+        xelogging.log('Removed %s' % path)
+        if free_space(mount) >= required:
+            return
+
+    for _, path in dirs:
+        shutil.rmtree(path, ignore_errors=True)
+        xelogging.log('Removed %s' % path)
+        if free_space(mount) >= required:
+            return
+
+    raise RuntimeError("Failed to make enough space available on %s (%d, %d)" % (mount, required, free_space(mount)))
+
 ###
 # Create dom0 disk file-systems:
 
@@ -787,6 +828,13 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
                                     partition], with_stderr=True)
             if rc != 0:
                 raise RuntimeError("Failed to create logs filesystem: %s" % err)
+        else:
+            # Ensure enough free space is available
+            mount = util.TempMount(partition, 'logs-')
+            try:
+                make_free_space(mount.mount_point, constants.logs_free_space * 1024 * 1024)
+            finally:
+                mount.unmount()
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
