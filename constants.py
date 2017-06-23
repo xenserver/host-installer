@@ -107,6 +107,7 @@ backup_size = 18432
 swap_file_size = 512
 swap_size = 1024
 logs_size = 4096
+logs_free_space = 20
 
 # filesystems and partitions types:
 bootfs_type = 'vfat'
