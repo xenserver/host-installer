@@ -20,8 +20,6 @@ else
     started_by_init=1
 fi
 
-export LVM_SYSTEM_DIR=/tmp/lvm
-
 console=tty0
 term=vt102
 interactive=1
