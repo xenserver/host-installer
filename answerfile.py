@@ -200,6 +200,7 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['backup-disk'])
         if len(nodes) == 1:
             disk = normalize_disk(getText(nodes[0]))
+            disk = disktools.getMpathMasterOrDisk(disk)
             xelogging.log("Filtering backup list for disk %s" % disk)
             backups = filter(lambda x: x.root_disk == disk, backups)
             xelogging.log("Backup list filtered: %s" % ", ".join(str(b) for b in backups))

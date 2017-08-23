@@ -549,6 +549,7 @@ class XenServerBackup:
             self.root_disk = os.path.realpath(self.inventory['PRIMARY_DISK'].replace('md_', 'md/') + '_0')
         else:
             self.root_disk = diskutil.partitionFromId(self.inventory['PRIMARY_DISK'])
+            self.root_disk = getMpathMasterOrDisk(self.root_disk)
 
     def __str__(self):
         return "%s %s" % (
