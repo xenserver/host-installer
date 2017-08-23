@@ -251,10 +251,8 @@ class Answerfile:
                                     mandatory = True)
         disk = normalize_disk(getText(inst[0]))
         xelogging.log("Normalized disk: %s" % disk)
-        master = disktools.getMpathMaster(disk)
-        if master:
-            xelogging.log("Found master disk %s. Converting normalized disk to master..." % master)
-            disk = master
+        disk = disktools.getMpathMasterOrDisk(disk)
+        xelogging.log('Primary disk: ' + disk)
         results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()

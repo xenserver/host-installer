@@ -73,10 +73,7 @@ def fixMpathResults(results):
     # update primary disk
     primary_disk = None
     if 'primary-disk' in results:
-        primary_disk = results['primary-disk']
-        master = disktools.getMpathMaster(primary_disk)
-        if master:
-            primary_disk = master
+        primary_disk = disktools.getMpathMasterOrDisk(results['primary-disk'])
         results['primary-disk'] = primary_disk
 
     # update all other disks

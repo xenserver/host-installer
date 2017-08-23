@@ -1232,6 +1232,13 @@ def getMpathMaster(dev):
     except OSError:
         return None
 
+def getMpathMasterOrDisk(disk):
+    """Returns the multipath master or the original device if it is not part of
+    a multipath setup."""
+
+    master = getMpathMaster(disk)
+    return master if master else disk
+
 def getMdNodes():
     nodes = []
     try:
