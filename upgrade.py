@@ -573,6 +573,17 @@ class ThirdGenUpgrader(Upgrader):
                 util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
                               os.path.join(mounts['root'], i)])
 
+class InCloudSphereUpgrader(ThirdGenUpgrader):
+    """Upgrader which supports upgrading from releases of InCloud Sphere with
+    an incorrect product name. Workaround for CA-263669."""
+
+    @classmethod
+    def upgrades(cls, product, platform_version, variant):
+        return (version.PRODUCT_NAME == 'incloudsphere' and
+                product == 'xenenterprise' and
+                platform_version in (Version([1, 9, 0]),  # ICS 4.0
+                                     Version([2, 1, 0]))) # ICS 4.5
+
 ################################################################################
 
 # Upgraders provided here, in preference order:
@@ -589,7 +600,7 @@ class UpgraderList(list):
                 return True
         return False
     
-__upgraders__ = UpgraderList([ ThirdGenUpgrader ])
+__upgraders__ = UpgraderList([ThirdGenUpgrader, InCloudSphereUpgrader])
 
 def filter_for_upgradeable_products(installed_products):
     upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),
