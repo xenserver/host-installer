@@ -144,6 +144,7 @@ def getPrepSequence(ans, interactive):
                         pass_progress_callback = True))
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix'), []),
+        Task(updateBootLoaderLocation, A(ans, 'target-boot-mode', 'partition-table-type', 'primary-disk', 'bootloader-location'), ['bootloader-location']),
         Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
@@ -837,6 +838,22 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
                 make_free_space(mount.mount_point, constants.logs_free_space * 1024 * 1024)
             finally:
                 mount.unmount()
+
+def updateBootLoaderLocation(target_boot_mode, partition_table_type, disk, location):
+    if target_boot_mode != TARGET_BOOT_MODE_LEGACY:
+        return location
+    if partition_table_type != PARTITION_DOS:
+        return location
+    if location != BOOT_LOCATION_MBR:
+        return location
+
+    tool = PartitionTool(disk)
+    start = min(part[1]['start'] for part in tool.iteritems())
+    if start < LBA_PARTITION_MIN:
+        xelogging.log('First partition on disk starts at %d, installing bootloader to partition.' % start)
+        return BOOT_LOCATION_PARTITION
+
+    return location
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 

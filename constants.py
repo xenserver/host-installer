@@ -36,6 +36,10 @@ PARTITION_GPT = "GPT"
 BOOT_LOCATION_MBR = "mbr"
 BOOT_LOCATION_PARTITION = "partition"
 
+# The lowest LBA that a partition can start at if installing the bootloader
+# to the MBR (applies to legacy mode with DOS partition type only).
+LBA_PARTITION_MIN = 63
+
 # target boot mode:
 TARGET_BOOT_MODE_LEGACY = "legacy"
 TARGET_BOOT_MODE_UEFI = "uefi"
