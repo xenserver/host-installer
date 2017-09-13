@@ -807,3 +807,49 @@ def release_ibft_disks():
 
 def is_raid(disk):
     return disk in getMdNodes()
+
+
+def dev_from_devpath(devpath):
+    """Returns the dev number of the device as a tuple."""
+
+    devno = os.stat(devpath).st_rdev
+    return os.major(devno), os.minor(devno)
+
+
+def dev_from_sysfs(path):
+    """Returns the dev number as a tuple from a sysfs entry."""
+
+    with open('%s/dev' % path, 'r') as f:
+        return tuple(map(int, f.read().strip().split(':')))
+
+
+# The logic for this function is based on sysfs_devno_to_wholedisk in
+# util-linux. See that function for reasoning.
+def parentdev_from_devpath(devpath):
+    """Returns the dev number of the parent device, or None if there isn't
+    one."""
+
+    try:
+        devno = os.stat(devpath).st_rdev
+        major = os.major(devno)
+        minor = os.minor(devno)
+        syspath = '/sys/dev/block/%d:%d' % (major, minor)
+
+        partitionpath = syspath + '/partition'
+        if os.path.exists(partitionpath):
+            linkpath = os.path.realpath(syspath)
+            parent = os.path.dirname(linkpath)
+            return dev_from_sysfs(parent)
+        else:
+            dm_uuidpath = syspath + '/dm/uuid'
+            if os.path.exists(dm_uuidpath):
+                with open(dm_uuidpath, 'r') as f:
+                    dm_uuid = f.read().strip()
+                if re.match('part[0-9+]-', dm_uuid):
+                    parent = os.listdir(syspath + '/slaves')[0]
+                    return dev_from_sysfs('%s/slaves/%s' % (syspath, parent))
+    except Exception as e:
+        logger.logException(e)
+
+    # If there is no parent of the parent cannot be determined...
+    return None
