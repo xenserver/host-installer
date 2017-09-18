@@ -210,9 +210,9 @@ baseurl=%s
                 progress_callback(7)
             elif line == 'Running transaction':
                 progress_callback(10)
-            elif line.endswith(' will be installed'):
+            elif line.endswith(' will be installed') or line.endswith(' will be updated'):
                 total += 1
-            elif line.startswith('  Installing : '):
+            elif line.startswith('  Installing : ') or line.startswith('  Updating : '):
                 count += 1
                 if total > 0:
                     progress_callback(10 + int((count * 80.0) / total))
