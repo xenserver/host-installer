@@ -384,6 +384,7 @@ exactarch=1
 obsoletes=1
 gpgcheck=0
 plugins=0
+group_command=compat
 installonly_limit=5
 distroverpkg=xenserver-release
 reposdir=/tmp/repos
