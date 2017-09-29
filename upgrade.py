@@ -255,9 +255,7 @@ class ThirdGenUpgrader(Upgrader):
                     rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
                     vgs_list = out.strip().split('\n')
                     primary_dev = getMajMin(primary_disk)
-                    xelogging.log('vgs_list wrong b4: %s' % (repr(vgs_list),))
                     vgs_output_wrong = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == primary_dev]
-                    xelogging.log('vgs_output_wrong af: %s' % (repr(vgs_output_wrong),))
                     if vgs_output_wrong:
                         vgs_output_wrong = vgs_output_wrong[0].strip()
                         if ' ' in vgs_output_wrong:
@@ -317,9 +315,7 @@ class ThirdGenUpgrader(Upgrader):
                 rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
                 vgs_list = out.strip().split('\n')
                 target_dev = getMajMin(target_disk)
-                xelogging.log('vgs_list b4 target: %s' % (repr(vgs_list),))
                 self.vgs_output = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == target_dev]
-                xelogging.log('self.vgs_output af: %s' % (repr(self.vgs_output),))
                 if self.vgs_output:
                     self.vgs_output = self.vgs_output[0]
                     self.vgs_output = self.vgs_output.split()[1]
