@@ -253,7 +253,7 @@ class ThirdGenUpgrader(Upgrader):
                 if storage_partnum > 0 and self.vgs_output:
                     storage_part = partitionDevice(primary_disk, storage_partnum)
                     rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
-                    vgs_list = out.strip().split('\n')
+                    vgs_list = out.strip().splitlines()
                     primary_dev = getMajMin(primary_disk)
                     vgs_output_wrong = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == primary_dev]
                     if vgs_output_wrong:
@@ -313,7 +313,7 @@ class ThirdGenUpgrader(Upgrader):
             if storage_partnum > 0:
                 # Get current Volume Group
                 rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
-                vgs_list = out.strip().split('\n')
+                vgs_list = out.strip().splitlines()
                 target_dev = getMajMin(target_disk)
                 self.vgs_output = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == target_dev]
                 if self.vgs_output:
