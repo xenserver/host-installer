@@ -19,6 +19,7 @@ import util
 import netutil
 from util import dev_null
 import xelogging
+import xcp.logger as logger
 from disktools import *
 import time
 from snackutil import ButtonChoiceWindowEx
