@@ -108,14 +108,11 @@ class ExistingInstallation:
 
             # timezone:
             tz = None
-            clock_file = self.join_state_path('etc/sysconfig/clock')
-            if os.path.exists(clock_file):
-                fd = open(clock_file, 'r')
-                lines = fd.readlines()
-                fd.close()
-                for line in lines:
-                    if line.startswith("ZONE="):
-                        tz = line[5:].strip()
+            clock_file = self.join_state_path('etc/localtime')
+            if os.path.islink(clock_file):
+                tzfile = os.path.realpath(clock_file)
+                if '/usr/share/zoneinfo/' in tzfile:
+                    _, tz = tzfile.split('/usr/share/zoneinfo/', 1)
             if not tz:
                 # No timezone found: 
                 # Supply a default and for interactive installs prompt the user.
