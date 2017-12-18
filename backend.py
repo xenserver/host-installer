@@ -1324,11 +1324,6 @@ def writeKeyboardConfiguration(mounts, keymap):
         keymap = 'us'
         xelogging.log("No keymap specified, defaulting to 'us'")
 
-    kbdfile = open("%s/etc/sysconfig/keyboard" % mounts['root'], 'w')
-    kbdfile.write("KEYBOARDTYPE=pc\n")
-    kbdfile.write("KEYTABLE=%s\n" % keymap)
-    kbdfile.close()
-
     vconsole = open("%s/etc/vconsole.conf" % mounts['root'], 'w')
     vconsole.write("KEYMAP=%s\n" % keymap)
     vconsole.close()
@@ -1442,16 +1437,8 @@ def writeMachineID(mounts):
         util.umount("%s/dev" % mounts['root'])
 
 def setTimeZone(mounts, tz):
-    # write the time configuration to the /etc/sysconfig/clock
-    # file in dom0:
-    timeconfig = open("%s/etc/sysconfig/clock" % mounts['root'], 'w')
-    timeconfig.write("ZONE=%s\n" % tz)
-    timeconfig.write("UTC=true\n")
-    timeconfig.write("ARC=false\n")
-    timeconfig.close()
-
     # make the localtime link:
-    assert util.runCmd2(['ln', '-sf', '/usr/share/zoneinfo/%s' % tz, 
+    assert util.runCmd2(['ln', '-sf', '../usr/share/zoneinfo/%s' % tz, 
                          '%s/etc/localtime' % mounts['root']]) == 0
 
 def setRootPassword(mounts, root_pwd):
@@ -1688,12 +1675,6 @@ def writeLog(primary_disk, primary_partnum, logs_partnum):
             pass
 
 def writei18n(mounts):
-    path = os.path.join(mounts['root'], 'etc/sysconfig/i18n')
-    fd = open(path, 'w')
-    fd.write('LANG="en_US.UTF-8"\n')
-    fd.write('SYSFONT="drdos8x8"\n')
-    fd.close()
-
     path = os.path.join(mounts['root'], 'etc/locale.conf')
     fd = open(path, 'w')
     fd.write('LANG="en_US.UTF-8"\n')
