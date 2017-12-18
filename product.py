@@ -163,14 +163,17 @@ class ExistingInstallation:
             results['ntp-servers'] = ntps
 
             # keyboard:
+            keyboard_dict = {}
             keyboard_file = self.join_state_path('etc/sysconfig/keyboard')
             if os.path.exists(keyboard_file):
-                fd = open(keyboard_file, 'r')
-                lines = fd.readlines()
-                fd.close()
-                for line in lines:
-                    if line.startswith('KEYTABLE='):
-                        results['keymap'] = line[9:].strip()
+                keyboard_dict = util.readKeyValueFile(keyboard_file)
+            keyboard_file = self.join_state_path('etc/vconsole.conf')
+            if os.path.exists(keyboard_file):
+                keyboard_dict.update(util.readKeyValueFile(keyboard_file))
+            if 'KEYMAP' in keyboard_dict:
+                results['keymap'] = keyboard_dict['KEYMAP']
+            elif 'KEYTABLE' in keyboard_dict:
+                results['keymap'] = keyboard_dict['KEYTABLE']
             # Do not error here if no keymap configuration is found.
             # This enables upgrade to still carry state on hosts without
             # keymap configured: 
