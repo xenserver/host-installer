@@ -1407,11 +1407,13 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
             hostname = hostname[:dot]
         except:
             pass
+    else:
+        hostname = 'localhost.localdomain'
 
-        # /etc/hostname:
-        eh = open('%s/etc/hostname' % mounts['root'], 'w')
-        eh.write(hostname + "\n")
-        eh.close()
+    # /etc/hostname:
+    eh = open('%s/etc/hostname' % mounts['root'], 'w')
+    eh.write(hostname + "\n")
+    eh.close()
 
 
     if manual_nameservers:
