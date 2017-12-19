@@ -183,6 +183,7 @@ def getFinalisationSequence(ans):
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
+        Task(writei18n, A(ans, 'mounts'), []),
         ]
 
     # on fresh installs, prepare the storage repository as required:
@@ -199,8 +200,6 @@ def getFinalisationSequence(ans):
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
-    seq.append(Task(writei18n, A(ans, 'mounts'), []))
-    
     # run the users's scripts
     seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
 
