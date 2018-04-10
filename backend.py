@@ -1337,7 +1337,23 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum, disk_label_suffix):
         util.bindMount("/proc", "%s/proc" % mounts['root'])
         util.bindMount("/sys", "%s/sys" % mounts['root'])
         util.bindMount("/dev", "%s/dev" % mounts['root'])
-        util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label%disk_label_suffix, partitionDevice(primary_disk, swap_partnum)])
+        dev = partitionDevice(primary_disk, swap_partnum)
+        while True:
+            # The uuid of a swap partition overlaps the same position as the
+            # superblock magic for a MINIX filesystem (offset 0x410 or 0x418).
+            # The uuid might by coincidence match the superblock magic. The
+            # magic is only two bytes long and there are several different
+            # magic identifiers which increases the chances of matching.  If
+            # this happens, blkid marks the partition as ambivalent because it
+            # contains multiple signatures which prevents by-label symlinks
+            # from being created and the swap partition from being activated.
+            # Avoid this by running mkswap until the filesystem is no longer
+            # ambivalent.
+            util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label%disk_label_suffix, dev])
+            rc, out = util.runCmd2(['chroot', mounts['root'], 'blkid', '-o', 'udev', '-p', dev], with_stdout=True)
+            keys = [line.strip().split('=')[0] for line in out.strip().split('\n')]
+            if 'ID_FS_AMBIVALENT' not in keys:
+                break
         util.umount("%s/dev" % mounts['root'])
         util.umount("%s/proc" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
