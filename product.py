@@ -131,6 +131,13 @@ class ExistingInstallation:
             for line in lines:
                 if line.startswith('HOSTNAME='):
                     results['manual-hostname'] = (True, line[9:].strip())
+
+            if os.path.exists(self.join_state_path('etc/hostname')):
+                fd = open(self.join_state_path('etc/hostname'), 'r')
+                line = fd.readline()
+                results['manual-hostname'] = (True, line.strip())
+                fd.close()
+
             if not results.has_key('manual-hostname'):
                 results['manual-hostname'] = (False, None)
 
