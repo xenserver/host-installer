@@ -1566,10 +1566,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         nfd.write("NETWORKING_IPV6=no\n")
         netutil.disable_ipv6_module(mounts["root"])
     nfd.write("IPV6_AUTOCONF=no\n")
-    if manual_hostname:
-        nfd.write("HOSTNAME=%s\n" % hostname)
-    else:
-        nfd.write("HOSTNAME=localhost.localdomain\n")
     nfd.close()
 
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
