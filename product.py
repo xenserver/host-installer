@@ -521,8 +521,11 @@ class ExistingRetailInstallation(ExistingInstallation):
                 self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'],
                                                  self.build)
             else:
-                self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'],
-                                                 self.build)
+                if '/' in self.build:
+                    self.visual_version = self.inventory['PRODUCT_VERSION']
+                else:
+                    self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'],
+                                                     self.build)
         finally:
             self.unmount_root()
 
@@ -549,7 +552,10 @@ class XenServerBackup:
             self.oem_version = self.inventory['OEM_VERSION']
             self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.build)
         else:
-            self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.build)
+            if '/' in self.build:
+                self.visual_version = self.inventory['PRODUCT_VERSION']
+            else:
+                self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.build)
 
         if self.inventory['PRIMARY_DISK'].startswith('/dev/md_'):
             # Handle restoring an installation using a /dev/md_* path
