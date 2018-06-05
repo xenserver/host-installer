@@ -982,6 +982,7 @@ def configureISCSITimeout(mounts, primary_disk):
         adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'], force=True)
 
 def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
+    util.bindMount("/dev", "%s/dev" % mounts['root'])
     xen_version = getXenVersion(mounts['root'])
     if xen_version is None:
         raise RuntimeError, "Unable to determine Xen version."
