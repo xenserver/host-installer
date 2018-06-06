@@ -69,39 +69,20 @@ start()
 	    # unpacking each one to the ramdisk
             for isofile in /tmp/src/$xsinst/*.iso; do
               if [ -f $isofile ]; then
+                basedir=$(basename $isofile .iso)
                 mkdir -p /tmp/srciso
-                mount -oloop -t iso9660 $isofile /tmp/srciso
+                mount -oloop,ro -t iso9660 $isofile /tmp/srciso
 		if grep -q ' /tmp/srciso ' /proc/mounts; then
                   if [ -f /tmp/srciso/.treeinfo ]; then
                     # This is the main product ISO
                     if ! cp -a /tmp/srciso/* /tmp/ramdisk; then
 		      errors=$(($errors + 1))
                     fi
-                  fi
-                  if [ -f /tmp/srciso/XS-REPOSITORY-LIST ]; then
-                    # Additional repositories
-                    for repo in $(cat /tmp/srciso/XS-REPOSITORY-LIST); do
-                      if cp -a /tmp/srciso/$repo /tmp/ramdisk; then
-                        echo $repo >> /tmp/ramdisk/XS-REPOSITORY-LIST
-                      else
-			errors=$(($errors + 1))
-                      fi
-                    done
-                  fi
-                  if [ -f /tmp/srciso/XS-REPOSITORY -a -f /tmp/srciso/XS-PACKAGES ]; then
-                    # Supplemental pack
-                    orig=$(sed -ne '/<repository/ s/.*originator="\([^"]*\)".*/\1/p' /tmp/srciso/XS-REPOSITORY)
-                    name=$(sed -ne '/<repository/ s/.*name="\([^"]*\)".*/\1/p' /tmp/srciso/XS-REPOSITORY)
-		    packdir="$orig#$name"
-                    if [ -n "$packdir" ]; then
-                      mkdir -p /tmp/ramdisk/$packdir
-                      if cp -a /tmp/srciso/* /tmp/ramdisk/$packdir; then
-			echo $packdir >> /tmp/ramdisk/XS-REPOSITORY-LIST
-		      else
-                        errors=$(($errors + 1))
-		      fi
-                    else
-                      errors=$(($errors + 1))
+                  else
+                    # an update ISO
+                    mkdir -p /tmp/ramdisk/$basedir
+                    if ! cp -a /tmp/srciso/* /tmp/ramdisk/$basedir; then
+		      errors=$(($errors + 1))
                     fi
                   fi
                   umount /tmp/srciso
