@@ -57,9 +57,10 @@ for arg in $args; do
     make-ramdisk=*)
       /opt/xensource/installer/S05ramdisk start
       copy=0;;
-    mount=* | start=*)
+    mount=*)
+      /opt/xensource/installer/S06mount start
       copy=0;;
-    sshpassword=*)
+    sshpassword=* | start=*)
       copy=0;;
   esac
   [ $copy -eq 1 ] && set -- "$@" "--$arg"
