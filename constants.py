@@ -138,6 +138,7 @@ ANSWERFILE_GENERATOR_PATH = '/tmp/answerfile_generator'
 SCRIPTS_DIR = "/tmp/scripts"
 EXTRA_SCRIPTS_DIR = "/tmp/extra-scripts"
 defaults_data_file = '/opt/xensource/installer/defaults.json'
+SYSFS_IBFT_DIR = "/sys/firmware/ibft"
 
 # host filesystem - always absolute paths from root of install
 # and never start with a '/', so they can be used safely with

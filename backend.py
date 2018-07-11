@@ -173,7 +173,7 @@ def getFinalisationSequence(ans):
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
         Task(writeXencommons, A(ans, 'control-domain-uuid', 'mounts'), []),
-        Task(configureISCSITimeout, A(ans, 'mounts', 'primary-disk'), []),
+        Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
                               'fcoe-interfaces'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
@@ -958,7 +958,7 @@ def configureSRMultipathing(mounts, primary_disk):
         fd.write("MULTIPATHING_ENABLED='False'\n")
     fd.close()
 
-def adjustISCSITimeoutForFile(path, force=False):
+def adjustISCSITimeoutForFile(path):
     iscsiconf = open(path, 'r')
     lines = iscsiconf.readlines()
     iscsiconf.close()
@@ -972,15 +972,34 @@ def adjustISCSITimeoutForFile(path, force=False):
             wrote_key = True
         else:
             iscsiconf.write(line)
-    if not wrote_key and force:
+    if not wrote_key:
         iscsiconf.write("%s = %d\n" % (timeout_key, MPATH_ISCSI_TIMEOUT))
 
     iscsiconf.close()
 
-def configureISCSITimeout(mounts, primary_disk):
-    # Reduce the timeout for ISCSI when using multipath
+def configureISCSI(mounts, primary_disk):
+    if not diskutil.is_iscsi(primary_disk):
+        return
+
+    iname = diskutil.get_initiator_name()
+
+    with open(os.path.join(mounts['root'], 'etc/iscsi/initiatorname.iscsi'), 'w') as f:
+        f.write('InitiatorName=%s\n' % (iname,))
+
+    # Create IQN file for XAPI
+    with open(os.path.join(mounts['root'], 'etc/firstboot.d/data/iqn.conf'), 'w') as f:
+        f.write("IQN='%s'" % iname)
+
+    if util.runCmd2(['chroot', mounts['root'],
+                     'systemctl', 'enable', 'iscsid']):
+        raise RuntimeError("Failed to enable iscsid")
+    if util.runCmd2(['chroot', mounts['root'],
+                     'systemctl', 'enable', 'iscsi']):
+        raise RuntimeError("Failed to enable iscsi")
+
+    # Reduce the timeout when using multipath
     if isDeviceMapperNode(primary_disk):
-        adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'], force=True)
+        adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'])
 
 def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
     xen_version = getXenVersion(mounts['root'])
@@ -991,54 +1010,6 @@ def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
         raise RuntimeError, "Unable to determine kernel version."
     partition = partitionDevice(primary_disk, primary_partnum)
 
-    if diskutil.is_iscsi(primary_disk):
-
-        # Mkinitrd needs node files so it can extract 
-        # details about the iscsi root disk
-        for session in diskutil.iscsi_get_sessions():
-            src = '/var/lib/iscsi/nodes/%s/%s,%s,%s' % (
-                     session[4], session[1], session[2], session[3])
-            dst = os.path.join(mounts['root'], 'var/lib/iscsi/nodes/%s' % (session[4],))
-            util.assertDir(dst)
-            util.runCmd2(['cp','-a', src, dst])
-
-        # Reduce the timeout for logged-in ISCSI targets when using multipath
-        if isDeviceMapperNode(primary_disk):
-            for root, dirs, files in os.walk(os.path.join(dst, 'nodes')):
-                for f in files:
-                    adjustISCSITimeoutForFile(os.path.join(root, f))
-
-        src='/etc/iscsi/initiatorname.iscsi'
-        for dst in ['etc/iscsi/initiatorname.iscsi', 'var/lib/iscsi/initiatorname.iscsi']:
-            dst = os.path.join(mounts['root'], dst)
-
-            cmd = ['cp','-a', src, dst]
-            if util.runCmd2(cmd):
-                raise RuntimeError, "Failed to copy initiatorname.iscsi"
-
-        # Extract iname 
-        fd = open(src, "r")
-        iname = fd.read()
-        iname = iname[14:].rstrip()
-        fd.close()
-
-        # Create IQN file for XAPI
-        fd = open(os.path.join(mounts['root'],'etc/firstboot.d/data/iqn.conf'), "w")
-        fd.write("IQN='%s'" % iname)
-        fd.close()
-
-        if isDeviceMapperNode(primary_disk):
-
-            # Multipath failover between iSCSI disks requires iscsid
-            # to be running as it handles the error path
-            cmd = ['chroot', mounts['root'], 
-                   'systemctl', 'enable', 'iscsid']
-            if util.runCmd2(cmd):
-                raise RuntimeError, "Failed to enable iscsid"
-            cmd = ['chroot', mounts['root'],
-                   'systemctl', 'enable', 'iscsi']
-            if util.runCmd2(cmd):
-                raise RuntimeError, "Failed to enable iscsi"
 
     __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version, fcoe_interfaces)
 
