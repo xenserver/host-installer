@@ -791,13 +791,19 @@ def make_free_space(mount, required):
 
 def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        rc, err = util.runCmd2(["mkfs.%s" % bootfs_type, "-n", bootfs_label%disk_label_suffix.upper(), partitionDevice(disk, boot_partnum)], with_stderr = True)
-        if rc != 0:
-            raise RuntimeError, "Failed to create boot filesystem: %s" % err
+        partition = partitionDevice(disk, boot_partnum)
+        try:
+            util.mkfs(bootfs_type, partition,
+                      ["-n", bootfs_label%disk_label_suffix.upper()])
+        except Exception as e:
+            raise RuntimeError("Failed to create boot filesystem: %s" % e)
 
-    rc, err = util.runCmd2(["mkfs.%s" % rootfs_type, "-L", rootfs_label%disk_label_suffix, partitionDevice(disk, primary_partnum)], with_stderr = True)
-    if rc != 0:
-        raise RuntimeError, "Failed to create root filesystem: %s" % err
+    partition = partitionDevice(disk, primary_partnum)
+    try:
+        util.mkfs(rootfs_type, partition,
+                  ["-L", rootfs_label%disk_label_suffix])
+    except Exception as e:
+        raise RuntimeError("Failed to create root filesystem: %s" % e)
 
     tool = PartitionTool(disk)
     logs_partition = tool.getPartition(logs_partnum)
@@ -825,11 +831,11 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
                     run_mkfs = False
 
         if run_mkfs:
-            rc, err = util.runCmd2(["mkfs.%s" % logsfs_type,
-                                    "-L", logsfs_label % disk_label_suffix,
-                                    partition], with_stderr=True)
-            if rc != 0:
-                raise RuntimeError("Failed to create logs filesystem: %s" % err)
+            try:
+                util.mkfs(logsfs_type, partition,
+                          ["-L", logsfs_label % disk_label_suffix])
+            except Exception as e:
+                raise RuntimeError("Failed to create logs filesystem: %s" % e)
         else:
             # Ensure enough free space is available
             mount = util.TempMount(partition, 'logs-')

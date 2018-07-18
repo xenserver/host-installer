@@ -104,11 +104,16 @@ def doRestore(backup, progress, backup_partition_layout, has_logs_partition):
                 "to restore please use a version of the installer that matches the backup partition"
 
         # format the restore partition(s):
-        if util.runCmd2(['mkfs.%s' % constants.rootfs_type, restore_partition]) != 0:
-            raise RuntimeError, "Failed to create root filesystem"
+        try:
+            util.mkfs(constants.rootfs_type, restore_partition)
+        except Exception as e:
+            raise RuntimeError("Failed to create root filesystem: %s" % e)
+
         if efi_boot:
-            if util.runCmd2(['mkfs.vfat', boot_device]) != 0:
-                raise RuntimeError, "Failed to create boot filesystem"
+            try:
+                util.mkfs('vfat', boot_device)
+            except Exception as e:
+                raise RuntimeError("Failed to create boot filesystem: %s" % e)
 
         # mount restore partition:
         dest_fs = util.TempMount(restore_partition, 'restore-dest-')
@@ -279,11 +284,16 @@ def restoreWithoutRepartButUEFI(backup, progress):
                 "to restore please use a version of the installer that matches the backup partition"
 
         # format the restore partition(s):
-        if util.runCmd2(['mkfs.%s' % constants.rootfs_type, restore_partition]) != 0:
-            raise RuntimeError, "Failed to create root filesystem"
+        try:
+            util.mkfs(constants.rootfs_type, restore_partition)
+        except Exception as e:
+            raise RuntimeError("Failed to create root filesystem: %s" % e)
+
         if efi_boot:
-            if util.runCmd2(['mkfs.vfat', boot_device]) != 0:
-                raise RuntimeError, "Failed to create boot filesystem"
+            try:
+                util.mkfs('vfat', boot_device)
+            except Exception as e:
+                raise RuntimeError("Failed to create boot filesystem: %s" % e)
 
         # mount restore partition:
         dest_fs = util.TempMount(restore_partition, 'restore-dest-', boot_device = boot_device, boot_mount_point = '/boot/efi')

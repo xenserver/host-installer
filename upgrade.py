@@ -266,8 +266,10 @@ class ThirdGenUpgrader(Upgrader):
                     if self.storage_type == 'ext':
                         _, sr_uuid = self.vgs_output.split('-', 1)
                         util.runCmd2(['lvcreate', '-n', sr_uuid, '-l', '100%VG', self.vgs_output])
-                        if util.runCmd2(['mkfs.ext3', '-F', '/dev/' + self.vgs_output + '/' + sr_uuid]) != 0:
-                            raise RuntimeError, "Backup: Failed to format filesystem on %s" % storage_part
+                        try:
+                            util.mkfs('ext3', '/dev/' + self.vgs_output + '/' + sr_uuid, ['-F'])
+                        except Exception as e:
+                            raise RuntimeError("Backup: Failed to format filesystem on %s: %s" % (storage_part, e))
 
                 return new_partition_layout
 
@@ -334,8 +336,10 @@ class ThirdGenUpgrader(Upgrader):
 
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)
-        if util.runCmd2(['mkfs.ext3', backup_partition]) != 0:
-            raise RuntimeError, "Backup: Failed to format filesystem on %s" % backup_partition
+        try:
+            util.mkfs('ext3', backup_partition)
+        except Exception as e:
+            raise RuntimeError("Backup: Failed to format filesystem on %s: %s" % (backup_partition, e))
         progress_callback(10)
 
         # copy the files across:
