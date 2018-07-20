@@ -225,11 +225,12 @@ class ExistingInstallation:
                 dbcache_path = constants.OLD_DBCACHE
 
             if not mgmt_iface:
-                xelogging.log('No existing management interface configuration found.')
+                xelogging.log('No existing management interface found.')
             elif os.path.exists(self.join_state_path(networkdb_path)):
                 networkd_db = constants.NETWORKD_DB
                 if not os.path.exists(self.join_state_path(networkd_db)):
                     networkd_db = constants.OLD_NETWORKD_DB
+                xelogging.log('Checking %s for management interface configuration' % networkd_db)
 
                 args = ['chroot', self.state_fs.mount_point, '/'+networkd_db, '-bridge', mgmt_iface, '-iface', mgmt_iface]
                 rv, out = util.runCmd2(args, with_stdout = True)
@@ -269,6 +270,7 @@ class ExistingInstallation:
                     results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
                     
             elif os.path.exists(self.join_state_path(dbcache_path)):
+                xelogging.log('Checking %s for management network configuration' % dbcache_path)
                 def getText(nodelist):
                     rc = ""
                     for node in nodelist:
@@ -305,6 +307,7 @@ class ExistingInstallation:
                             results['net-admin-configuration'] = NetInterface.loadFromPif(pif)
                             break
             else:
+                xelogging.log('Checking ifcfg files for management network configuration')
                 for cfile in filter(lambda x: True in [x.startswith(y) for y in ['ifcfg-eth', 'ifcfg-bond']], \
                                    os.listdir(self.join_state_path(constants.NET_SCR_DIR))):
                     devcfg = util.readKeyValueFile(self.join_state_path(constants.NET_SCR_DIR, cfile), strip_quotes = False)
