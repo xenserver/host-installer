@@ -922,16 +922,16 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
 def getXenVersion(rootfs_mount):
     """ Return the xen version by interogating the package version in the chroot """
-    chroot = ['chroot', rootfs_mount, 'rpm', '-q', '--qf', '%{version}', 'xen-hypervisor']
-    rc, out = util.runCmd2(chroot, with_stdout = True)
+    xen_version = ['rpm', '--root', rootfs_mount, '-q', '--qf', '%{version}', 'xen-hypervisor']
+    rc, out = util.runCmd2(xen_version, with_stdout = True)
     if rc != 0:
         return None
     return out
 
 def getKernelVersion(rootfs_mount):
     """ Returns the kernel release (uname -r) of the installed kernel """
-    chroot = ['chroot', rootfs_mount, 'rpm', '-q', '--provides', 'kernel']
-    rc, out = util.runCmd2(chroot, with_stdout = True)
+    kernel_version = ['rpm', '--root', rootfs_mount, '-q', '--provides', 'kernel']
+    rc, out = util.runCmd2(kernel_version, with_stdout = True)
     if rc != 0:
         return None
 
