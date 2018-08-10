@@ -180,3 +180,6 @@ BOOT_MENU_TIMEOUT = 50
 
 # timeout used for multipath iscsi
 MPATH_ISCSI_TIMEOUT = 15
+
+# prepare configuration for common criteria security
+CC_PREPARATIONS = False

@@ -186,3 +186,8 @@ Installer
   --disable-uefi
 
     Install in legacy boot mode. Only present in 7.0.
+
+
+  --cc-preparations
+
+    Prepare configuration for common criteria security.

@@ -171,7 +171,7 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
-                               'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type'), []),
+                               'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
         Task(configureISCSITimeout, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
                               'fcoe-interfaces'), []),
@@ -722,7 +722,7 @@ def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
 
 def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disks, sr_type):
     
-    if len(guest_disks) == 0:
+    if len(guest_disks) == 0 or constants.CC_PREPARATIONS and sr_type != constants.SR_TYPE_EXT:
         xelogging.log("No storage repository requested.")
         return None
 
@@ -1595,7 +1595,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     netutil.dynamic_rules.save()
 
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, new_partition_layout, partition_table_type):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, new_partition_layout, partition_table_type, install_type):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
@@ -1644,6 +1644,8 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
         inv.write("MANAGEMENT_ADDRESS_TYPE='IPv6'\n")
     else:
         inv.write("MANAGEMENT_ADDRESS_TYPE='IPv4'\n")
+    if constants.CC_PREPARATIONS and install_type == constants.INSTALL_TYPE_FRESH:
+        inv.write("CC_PREPARATIONS='true'\n")
     inv.close()
 
 def touchSshAuthorizedKeys(mounts):

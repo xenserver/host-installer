@@ -460,6 +460,8 @@ class ThirdGenUpgrader(Upgrader):
         # CA-195388: Preserve /etc/mdadm.conf across upgrades
         self.restore_list += ['etc/mdadm.conf']
 
+        self.restore_list += ['var/lib/xcp/verify_certificates']
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
 

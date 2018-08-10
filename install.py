@@ -137,7 +137,9 @@ def go(ui, args, answerfile_address, answerfile_script):
             constants.GPT_SUPPORT = False
             results["create-new-partitions"] = False
             xelogging.log("Forcing old partition layout via command-line")
-           
+        elif opt == "--cc-preparations":
+            constants.CC_PREPARATIONS = True
+
     if boot_console and not serial_console:
         serial_console = boot_console
         boot_serial = True
