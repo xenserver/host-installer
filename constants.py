@@ -183,3 +183,7 @@ MPATH_ISCSI_TIMEOUT = 15
 
 # prepare configuration for common criteria security
 CC_PREPARATIONS = False
+
+# list of dom0 services that will be disabled for common criteria preparation,
+# and these can be overridden by answer file
+SERVICES = ["sshd"]

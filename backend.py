@@ -168,7 +168,7 @@ def getFinalisationSequence(ans):
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
         Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix'), []),
-        Task(enableAgent, A(ans, 'mounts', 'network-backend'), []),
+        Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
@@ -1404,7 +1404,7 @@ def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnu
         logrotate.write("BUDGET_MB=4000")
         logrotate.close()
 
-def enableAgent(mounts, network_backend):
+def enableAgent(mounts, network_backend, services):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
         util.runCmd2(['chroot', mounts['root'],
                       'systemctl', 'enable',
@@ -1412,6 +1412,13 @@ def enableAgent(mounts, network_backend):
                                    'openvswitch-xapi-sync.service'])
 
     util.assertDir(os.path.join(mounts['root'], constants.BLOB_DIRECTORY))
+
+    # Enable/disable miscellaneous services
+    actMap = {'enabled': 'enable', 'disabled': 'disable'}
+    for (service, state) in services.iteritems():
+        action = 'disable' if constants.CC_PREPARATIONS and state is None else actMap.get(state)
+        if action:
+            util.runCmd2(['chroot', mounts['root'], 'systemctl', action, service + '.service'])
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
