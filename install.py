@@ -109,6 +109,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'root-password': ('pwdhash', '!!'),
         'create-new-partitions': True,  # FALSE = DOS | TRUE = GPT set via command line only with --disable-gpt
         'new-partition-layout': False,  # TRUE = GPT with LOG,BACKUP,ROOT,BOOT,SWAP,SR automatically set during install/upgrade
+        'services': { s: None for s in constants.SERVICES }, # default state for services, example {'sshd': None}
         }
     suppress_extra_cd_dialog = False
     serial_console = None
