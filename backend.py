@@ -1618,6 +1618,8 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
        inv.write("COMPANY_NAME='%s'\n" % COMPANY_NAME)
     if COMPANY_NAME_SHORT:
        inv.write("COMPANY_NAME_SHORT='%s'\n" % COMPANY_NAME_SHORT)
+    if COMPANY_PRODUCT_BRAND:
+       inv.write("COMPANY_PRODUCT_BRAND='%s'\n" % COMPANY_PRODUCT_BRAND)
     if BRAND_CONSOLE:
        inv.write("BRAND_CONSOLE='%s'\n" % BRAND_CONSOLE)
     if BRAND_CONSOLE_URL:
