@@ -140,6 +140,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             xelogging.log("Forcing old partition layout via command-line")
         elif opt == "--cc-preparations":
             constants.CC_PREPARATIONS = True
+            results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
 
     if boot_console and not serial_console:
         serial_console = boot_console
