@@ -1433,7 +1433,6 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
                 dname = hostname[dot + 1:]
                 resolvconf.write("search %s\n" % dname)
                 resolvconf.close()
-            hostname = hostname[:dot]
         except:
             pass
     else:
