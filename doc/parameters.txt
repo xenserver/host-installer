@@ -3,6 +3,16 @@ Commandline Parameters
 
 All parameters are optional unless otherwise specified.
 
+When passing a script or answerfile, a URL is expected unless otherwise
+specified. For scripts available locally to the installer, use a `file://`
+prefix.
+
+Scripts are expected to begin with a shebang, with the following as accepted
+interpreters:
+  /bin/sh
+  /bin/bash
+  /usr/bin/python
+
 
 Startup
 -------
@@ -105,7 +115,7 @@ Installer
 
   --answerfile_generator=script
 
-    Run script and use the output of it as an answerfile.
+    Retrieve script, run it and use the output of it as an answerfile.
 
 
   --answerfile_device[D]=eth|mac|all | --network_device=eth|mac|all
