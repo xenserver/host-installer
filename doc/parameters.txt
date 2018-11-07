@@ -59,7 +59,8 @@ Startup
   xsinst=path
 
     When using make-ramdisk with the "xsinst" support described above, this
-    parameter can be used to override the expected directory name
+    parameter can be used to override the expected directory name. Note that
+    this parameter *must* preceed make-ramdisk on the command line.
 
 
   mount=dev[:fstype[:opt]]:mnt
