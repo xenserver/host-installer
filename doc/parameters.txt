@@ -44,9 +44,22 @@ Startup
 
   make-ramdisk=dev
 
-    Create a ramdisk of sufficient size on /tmp/ramdisk and copy the
-    contents of the device into it. Multiple instances may be given
-    but only the first to succeed will mounted.
+    Create a ramdisk of sufficient size on /tmp/ramdisk and copy the contents
+    of the device into it. Multiple instances may be given but only the first to
+    succeed will be mounted.
+
+    If the filesystem on the device contains a top level directory named
+    "xsinst" then the ramdisk will be populated with the unpacked contents of
+    any *.iso file in xsinst (into a directory named after the ISO file (e.g.
+    main.iso will be extracted to main/), as well as a recursive copy of any
+    other files/directories in xsinst. A non-ISO file/dir in xsinst gets copied
+    to the top level of the filesystem in the ramdisk
+
+
+  xsinst=path
+
+    When using make-ramdisk with the "xsinst" support described above, this
+    parameter can be used to override the expected directory name
 
 
   mount=dev[:fstype[:opt]]:mnt
