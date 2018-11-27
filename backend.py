@@ -172,6 +172,7 @@ def getFinalisationSequence(ans):
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
+        Task(writeXencommons, A(ans, 'control-domain-uuid', 'mounts'), []),
         Task(configureISCSITimeout, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
                               'fcoe-interfaces'), []),
@@ -1596,6 +1597,15 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     netutil.dynamic_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/dynamic-rules.json')
     netutil.dynamic_rules.save()
 
+def writeXencommons(controlID, mounts):
+    with open(os.path.join(mounts['root'], constants.XENCOMMONS_FILE), "r") as f:
+        contents = f.read()
+
+    dom0_uuid_str = ("XEN_DOM0_UUID=%s" % controlID)
+    contents = re.sub('.*XEN_DOM0_UUID=.*', dom0_uuid_str, contents)
+
+    with open(os.path.join(mounts['root'], constants.XENCOMMONS_FILE), "w") as f:
+        f.write(contents)
 
 def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, new_partition_layout, partition_table_type, install_type):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")

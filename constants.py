@@ -144,6 +144,7 @@ defaults_data_file = '/opt/xensource/installer/defaults.json'
 # os.path.join.
 ANSWERS_FILE = "upgrade_answers"
 INVENTORY_FILE = "etc/xensource-inventory"
+XENCOMMONS_FILE = "etc/sysconfig/xencommons"
 OLD_BLOB_DIRECTORY = "var/xapi/blobs"
 BLOB_DIRECTORY = "var/lib/xcp/blobs"
 
