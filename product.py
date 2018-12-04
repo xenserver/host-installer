@@ -34,7 +34,8 @@ class SettingsNotAvailable(Exception):
     pass
 
 THIS_PLATFORM_VERSION = Version.from_string(version.PLATFORM_VERSION)
-XENSERVER_6_0_0 = Version([1, 0, 99]) # Platform version
+XENSERVER_7_0_0 = Version([2, 1, 0]) # Platform version
+XENSERVER_MIN_VERSION = XENSERVER_7_0_0
 
 class ExistingInstallation:
     def __init__(self, primary_disk, boot_device, state_device):
