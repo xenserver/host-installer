@@ -587,7 +587,10 @@ def findXenSourceBackups():
         try:
             b = util.TempMount(p, 'backup-', ['ro'], 'ext3')
             if os.path.exists(os.path.join(b.mount_point, '.xen-backup-partition')):
-                backups.append(XenServerBackup(p, b.mount_point))
+                backup = XenServerBackup(p, b.mount_point)
+                if backup.version >= XENSERVER_MIN_VERSION and \
+                        backup.version <= product.THIS_PLATFORM_VERSION:
+                    backups.append(backup)
         except:
             pass
         if b:

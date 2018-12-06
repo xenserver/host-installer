@@ -32,8 +32,6 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     disk = backup.root_disk
     tool = PartitionTool(disk)
     _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True, True)
-    backup_version = backup.version
-    limit_version = product.THIS_PLATFORM_VERSION
     logs_partition = tool.getPartition(logs_partnum)
     boot_partition = tool.getPartition(boot_partnum)
     root_partition = partitionDevice(disk, primary_partnum)
@@ -57,11 +55,9 @@ def restoreFromBackup(backup, progress = lambda x: ()):
 def doRestore(backup, progress, backup_partition_layout, has_logs_partition):
 
     backup_partition = backup.partition
-    backup_version = backup.version
     disk = backup.root_disk
     tool = PartitionTool(disk)
     _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True, True)
-    limit_version = product.THIS_PLATFORM_VERSION
     logs_partition = tool.getPartition(logs_partnum)
     boot_partition = tool.getPartition(boot_partnum)
 
