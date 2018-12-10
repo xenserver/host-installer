@@ -589,7 +589,7 @@ def findXenSourceBackups():
             if os.path.exists(os.path.join(b.mount_point, '.xen-backup-partition')):
                 backup = XenServerBackup(p, b.mount_point)
                 if backup.version >= XENSERVER_MIN_VERSION and \
-                        backup.version <= product.THIS_PLATFORM_VERSION:
+                        backup.version <= THIS_PLATFORM_VERSION:
                     backups.append(backup)
         except:
             pass
