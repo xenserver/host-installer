@@ -137,6 +137,9 @@ def go(ui, args, answerfile_address, answerfile_script):
         elif opt == "--disable-gpt":
             constants.GPT_SUPPORT = False
             results["create-new-partitions"] = False
+            xelogging.log("Forcing DOS partition table and old partition layout via command-line")
+        elif opt == "--legacy-partitions":
+            results["create-new-partitions"] = False
             xelogging.log("Forcing old partition layout via command-line")
         elif opt == "--cc-preparations":
             constants.CC_PREPARATIONS = True

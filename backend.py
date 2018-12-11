@@ -540,10 +540,6 @@ def selectPartitionTableType(disk, install_type, primary_part, create_new_partit
     if primary_part > 1:
         return tool.partTableType
 
-    # This is a fresh install but we want to preserve old layout
-    if not create_new_partitions:
-        return constants.PARTITION_DOS
-
     # This is a fresh install and we do not need to preserve partition1
     # Use GPT because it is better.
     return constants.PARTITION_GPT

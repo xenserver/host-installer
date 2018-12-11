@@ -209,6 +209,11 @@ Installer
     Revert to DOS partitioning for clean installs.
 
 
+  --legacy-partitions
+
+    Use the old partition layout for clean installs.
+
+
   --virtual
 
     Installer is running in a VM.
