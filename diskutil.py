@@ -665,11 +665,6 @@ def process_ibft(ui, interactive):
     if rv:
         raise RuntimeError('Failed to attach iSCSI target disk(s)')
 
-    # iscsistart causes iscsid to shutdown. Restart it.
-    rv = util.runCmd2(['iscsid'])
-    if rv:
-        raise RuntimeError('Failed to start iscsid')
-
     util.runCmd2(util.udevsettleCmd())
     time.sleep(5)
 
