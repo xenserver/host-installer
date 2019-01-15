@@ -567,16 +567,16 @@ def is_iscsi(device):
     return False
 
 
-def configure_ibft_nic(iface, ip, nm, gw):
+def configure_ibft_nic(target_ip, iface, ip, nm, gw):
     prefix = sum([bin(int(i)).count('1') for i in nm.split('.')])
     rv = util.runCmd2(['ip', 'addr', 'add', '%s/%s' % (ip, prefix), 'dev', iface])
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
 
     if gw:
-        rv = util.runCmd2(['ip', 'route', 'add', ip, 'dev', iface, 'via', gw])
+        rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface, 'via', gw])
     else:
-        rv = util.runCmd2(['ip', 'route', 'add', ip, 'dev', iface])
+        rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface])
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
 
@@ -591,29 +591,35 @@ def setup_ibft_nics():
         mac_map[netdevs[name].hwaddr] = name
     xelogging.log('NET: %s %s' % (repr(netdevs), repr(mac_map)))
 
-    for d in glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'ethernet*')):
-        with open(os.path.join(d, 'mac'), 'r') as f:
+    for t in glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*')):
+        with open(os.path.join(t, 'ip-addr'), 'r') as f:
+            target_ip = f.read().strip()
+        with open(os.path.join(t, 'nic-assoc'), 'r') as f:
+            nic_assoc = f.read().strip()
+
+        e = os.path.join(constants.SYSFS_IBFT_DIR, 'ethernet' + nic_assoc)
+        with open(os.path.join(e, 'mac'), 'r') as f:
             mac = f.read().strip()
-        with open(os.path.join(d, 'ip-addr'), 'r') as f:
+        with open(os.path.join(e, 'ip-addr'), 'r') as f:
             ip = f.read().strip()
         try:
-            with open(os.path.join(d, 'gateway'), 'r') as f:
+            with open(os.path.join(e, 'gateway'), 'r') as f:
                 gw = f.read().strip()
         except IOError as e:
             if e.errno == errno.ENOENT:
                 gw = None
             else:
                 raise
-        with open(os.path.join(d, 'subnet-mask'), 'r') as f:
+        with open(os.path.join(e, 'subnet-mask'), 'r') as f:
             nm = f.read().strip()
-        with open(os.path.join(d, 'flags'), 'r') as f:
+        with open(os.path.join(e, 'flags'), 'r') as f:
             flags = int(f.read().strip())
             assert (flags & 3) == 3
 
         if mac not in mac_map:
             raise RuntimeError('Found mac %s in iBFT but cannot find matching NIC' % mac)
 
-        configure_ibft_nic(mac_map[mac], ip, nm, gw)
+        configure_ibft_nic(target_ip, mac_map[mac], ip, nm, gw)
         ibft_reserved_nics.add(mac_map[mac])
 
 
