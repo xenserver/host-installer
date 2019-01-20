@@ -225,23 +225,13 @@ class ExistingInstallation:
             # management interface.
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
 
-            networkdb_path = constants.NETWORK_DB
-            if not os.path.exists(self.join_state_path(networkdb_path)):
-                networkdb_path = constants.OLD_NETWORK_DB
-            dbcache_path = constants.DBCACHE
-            if not os.path.exists(self.join_state_path(dbcache_path)):
-                dbcache_path = constants.OLD_DBCACHE
-
             if not mgmt_iface:
                 xelogging.log('No existing management interface found.')
-            elif os.path.exists(self.join_state_path(networkdb_path)):
-                networkd_db = constants.NETWORKD_DB
-                if not os.path.exists(self.join_state_path(networkd_db)):
-                    networkd_db = constants.OLD_NETWORKD_DB
-                xelogging.log('Checking %s for management interface configuration' % networkd_db)
+            elif os.path.exists(self.join_state_path(constants.NETWORK_DB)):
+                xelogging.log('Checking %s for management interface configuration' % constants.NETWORKD_DB)
 
                 def fetchIfaceInfoFromNetworkdbAsDict(bridge, iface=None):
-                    args = ['chroot', self.state_fs.mount_point, '/'+networkd_db, '-bridge', bridge]
+                    args = ['chroot', self.state_fs.mount_point, '/'+constants.NETWORKD_DB, '-bridge', bridge]
                     if iface:
                         args.extend(['-iface', iface])
                     rv, out = util.runCmd2(args, with_stdout = True)

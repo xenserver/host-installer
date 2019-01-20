@@ -155,12 +155,8 @@ INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
-OLD_DBCACHE = "var/xapi/network.dbcache"
-DBCACHE = "var/lib/xcp/network.dbcache"
-OLD_NETWORK_DB = "var/xapi/networkd.db"
 NETWORK_DB = "var/lib/xcp/networkd.db"
 NETWORKD_DB = "usr/bin/networkd_db"
-OLD_NETWORKD_DB = "opt/xensource/libexec/networkd_db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
 OLD_XAPI_DB = 'var/xapi/state.db'
 XAPI_DB = 'var/lib/xcp/state.db'

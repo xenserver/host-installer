@@ -37,9 +37,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options = ['ro'])
     inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
-    backup_partition_layout = []
-    if 'PARTITION_LAYOUT' in inventory:  # Present from XS 7.0
-        backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
+    backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
     backup_fs.unmount()
 
     xelogging.log("BACKUP DISK PARTITION LAYOUT: %s" % backup_partition_layout)
