@@ -34,6 +34,7 @@ import xcp.bootloader as bootloader
 import netinterface
 import tui.repo
 import xcp.dom0
+from xcp.version import Version
 
 # Product version and constants:
 import version
@@ -290,7 +291,9 @@ def performInstallation(answers, ui_package, interactive):
     xelogging.log("SCRIPTS DICTIONARY:")
     prettyLogAnswers(scripts.script_dict)
 
-    dom0_mem = xcp.dom0.default_memory(hardware.getHostTotalMemoryKB()) / 1024
+    dom0_mem = xcp.dom0.default_memory_for_version(
+                    hardware.getHostTotalMemoryKB(),
+                    Version.from_string(version.PLATFORM_VERSION)) / 1024
     dom0_vcpus = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(), dom0_mem)
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
