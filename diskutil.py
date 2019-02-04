@@ -142,15 +142,15 @@ def getDiskList():
         try:
             (major, minor, size, name) = l.split(" ")
             (major, minor, size) = (int(major), int(minor) % 256, int(size))
+            if hasDeviceMapperHolder("/dev/" + name.replace("!","/")):
+                # skip device that cannot be used
+                continue
             if (major, minor) in disk_nodes:
                 if major == 202 and isRemovable("/dev/" + name): # Ignore PV CDROM devices
                     continue
-                if hasDeviceMapperHolder("/dev/" + name.replace("!","/")):
-                    # skip device that cannot be used
-                    continue
                 disks.append(name.replace("!", "/"))
-            # Handle Block Extended Major devices
-            if major == 259:
+            # Handle LOCAL/EXPERIMENTAL and Block Extended Major devices
+            if 240 <= major <= 254 or major == 259:
                 rc, out = util.runCmd2(['/bin/lsblk', '-d', '-n', '-o', 'TYPE', "/dev/" + name.replace("!","/")],
                                        with_stdout = True)
                 if rc == 0 and out.strip() not in ['part', 'md']:

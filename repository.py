@@ -722,7 +722,7 @@ def repositoriesFromDefinition(media, address, drivers=False):
 def findRepositoriesOnMedia(drivers=False):
     """ Returns a list of repositories available on local media. """
 
-    static_device_patterns = [ 'sd*', 'scd*', 'sr*', 'xvd*', 'nvme*n*' ]
+    static_device_patterns = [ 'sd*', 'scd*', 'sr*', 'xvd*', 'nvme*n*', 'vd*' ]
     static_devices = []
     for pattern in static_device_patterns:
         static_devices.extend(map(os.path.basename, glob.glob('/sys/block/' + pattern)))
