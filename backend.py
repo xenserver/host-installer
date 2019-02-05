@@ -308,9 +308,12 @@ def performInstallation(answers, ui_package, interactive):
         try:
             answers.update(answers['installation-to-overwrite'].readSettings())
 
-            # update the number of dom0 vcpus
-            # taking the amount of ram from previous installation into account
+            # Use the new default amount of RAM as long as it doesn't result in
+            # a decrease from the previous installation. Update the number of
+            # dom0 vCPUs since it depends on the amount of RAM assigned.
             if 'dom0-mem' in answers['host-config']:
+                answers['host-config']['dom0-mem'] = max(answers['host-config']['dom0-mem'],
+                                                         default_host_config['dom0-mem'])
                 default_host_config['dom0-vcpus'] = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(),
                                                                            answers['host-config']['dom0-mem'])
         except Exception, e:
