@@ -573,10 +573,14 @@ def configure_ibft_nic(target_ip, iface, ip, nm, gw):
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
 
-    if gw:
+    if netutil.network(ip, nm) == netutil.network(target_ip, nm):
+        # Same subnet, don't use the gateway
+        rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface])
+    elif gw:
         rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface, 'via', gw])
     else:
-        rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface])
+        raise RuntimeError('A gateway is needed to initialize NIC for iSCSI')
+
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
 
