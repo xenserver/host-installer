@@ -275,14 +275,6 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
             doCleanup(answers['cleanup'])
             del answers['cleanup']
 
-def reorderRepos(repos):
-    """Place the main installation repository at the head of the list."""
-
-    for i, repo in enumerate(repos):
-        if repo.identifier() == MAIN_REPOSITORY_NAME:
-            repos[0], repos[i] = repos[i], repos[0]
-            break
-
 def performInstallation(answers, ui_package, interactive):
     xelogging.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
@@ -357,24 +349,38 @@ def performInstallation(answers, ui_package, interactive):
 
     answers['installed-repos'] = {}
 
-    # Use a set since the same repository might exist in multiple locations
-    # or the same location might be listed multiple times.
-    all_repositories = set()
+    # A list needs to be used rather than a set since the order of updates is
+    # important.  However, since the same repository might exist in multiple
+    # locations or the same location might be listed multiple times, care is
+    # needed to ensure that there are no duplicates.
+    all_repositories = []
+
+    def add_repos(all_repositories, repos):
+        """Add repositories to the list, ensuring no duplicates, that the main
+        repository is at the beginning, and that the order of the rest is
+        maintained."""
+
+        for repo in repos:
+            if repo not in all_repositories:
+                if repo.identifier() == MAIN_REPOSITORY_NAME:
+                    all_repositories.insert(0, repo)
+                else:
+                    all_repositories.append(repo)
 
     # A list of sources coming from the answerfile
     if 'sources' in answers_pristine:
         for i in answers_pristine['sources']:
-            all_repositories.update(repository.repositoriesFromDefinition(i['media'], i['address']))
+            repos = repository.repositoriesFromDefinition(i['media'], i['address'])
+            add_repos(all_repositories, repos)
 
     # A single source coming from an interactive install
     if 'source-media' in answers_pristine and 'source-address' in answers_pristine:
-        all_repositories.update(repository.repositoriesFromDefinition(answers_pristine['source-media'], answers_pristine['source-address']))
+        repos = repository.repositoriesFromDefinition(answers_pristine['source-media'], answers_pristine['source-address'])
+        add_repos(all_repositories, repos)
 
     for media, address in answers_pristine['extra-repos']:
-        all_repositories.update(repository.repositoriesFromDefinition(media, address))
-
-    all_repositories = list(all_repositories)
-    reorderRepos(all_repositories)
+        repos = repository.repositoriesFromDefinition(media, address)
+        add_repos(all_repositories, repos)
 
     if all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
         raise RuntimeError("No main repository found")
