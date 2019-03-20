@@ -1193,7 +1193,7 @@ def setEfiBootEntry(mounts, disk, boot_partnum, branding):
     if rc != 0:
         raise RuntimeError, "Failed to run efibootmgr: %s" % err
     for line in out.splitlines():
-        match = re.match("Boot([0-9a-fA-F]{4})\\*? +%s$" % branding['product-brand'], line)
+        match = re.match("Boot([0-9a-fA-F]{4})\\*? +(?:XenServer|%s)$" % branding['product-brand'], line)
         if match:
             bootnum = match.group(1)
             rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr",
