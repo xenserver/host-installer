@@ -186,6 +186,7 @@ def getFinalisationSequence(ans):
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive = True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         Task(writei18n, A(ans, 'mounts'), []),
+        Task(configureMCELog, A(ans, 'mounts'), []),
         ]
 
     # on fresh installs, prepare the storage repository as required:
@@ -426,6 +427,25 @@ def performInstallation(answers, ui_package, interactive):
     # complete the installation:
     fin_seq = getFinalisationSequence(answers)
     executeSequence(fin_seq, "Completing installation...", answers, ui_package, True)
+
+def configureMCELog(mounts):
+    """Disable mcelog on unsupported processors."""
+
+    is_amd = False
+    model = 0
+
+    with open('/proc/cpuinfo', 'r') as f:
+        for line in f:
+            line = line.strip()
+            if re.match('vendor_id\s*:\s*AuthenticAMD$', line):
+                is_amd = True
+                continue
+            m = re.match('cpu family\s*:\s*(\d+)$', line)
+            if m:
+                model = int(m.group(1))
+
+    if is_amd and model >= 16:
+        util.runCmd2(['chroot', mounts['root'], 'systemctl', 'disable', 'mcelog'])
 
 # Time configuration:
 def configureNTP(mounts, ntp_servers):
