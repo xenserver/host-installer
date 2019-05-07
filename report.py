@@ -180,9 +180,9 @@ def get_ftp_dest(answers):
         url = answers['dest-address']
         (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
         (hostname, username, password) = util.splitNetloc(netloc)
-        if username != None:
+        if username is not None:
             user_field.set(username)
-            if password == None:
+            if password is None:
                 url_field.set(url.replace('%s@' % username, '', 1))
             else:
                 passwd_field.set(password)

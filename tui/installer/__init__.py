@@ -34,7 +34,7 @@ def need_networking(answers):
         return True
     if 'installation-to-overwrite' in answers:
         settings = answers['installation-to-overwrite'].readSettings()
-        return (settings['master'] != None)
+        return (settings['master'] is not None)
     return False
 
 is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']

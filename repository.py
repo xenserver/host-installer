@@ -620,14 +620,14 @@ class URLAccessor(Accessor):
                 new_path = path2.replace('#', '%23')
                 baseAddress = baseAddress.replace(path2, new_path)
             (hostname, username, password) = util.splitNetloc(netloc)
-            if username != None:
+            if username is not None:
                 xelogging.log("Using basic HTTP authentication: %s %s" % (username, password))
                 self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
                 self.passman.add_password(None, hostname, username, password)
                 self.authhandler = urllib2.HTTPBasicAuthHandler(self.passman)
                 self.opener = urllib2.build_opener(self.authhandler)
                 urllib2.install_opener(self.opener)
-                if password == None:
+                if password is None:
                     self.baseAddress = baseAddress.replace('%s@' % username, '', 1)
                 else:
                     self.baseAddress = baseAddress.replace('%s:%s@' % (username, password), '', 1)

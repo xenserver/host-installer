@@ -297,7 +297,7 @@ def get_installation_type(answers):
     if button == 'back': 
         return LEFT_BACKWARDS
 
-    if entry == None:
+    if entry is None:
         answers['install-type'] = constants.INSTALL_TYPE_FRESH
         answers['preserve-settings'] = False
 
@@ -627,7 +627,7 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
                                "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (MY_PRODUCT_BRAND, constants.max_primary_disk_size_dos),
                                ['Ok'])
 
-    if button == None: return SKIP_SCREEN
+    if button is None: return SKIP_SCREEN
     if button == 'back': return LEFT_BACKWARDS
 
     return RIGHT_FORWARDS
@@ -774,7 +774,7 @@ def confirm_installation(answers):
         [ok, 'Back'], default = 1, width = 50, help = 'confirm'
         )
 
-    if button == None or button == 'back': return LEFT_BACKWARDS
+    if button is None or button == 'back': return LEFT_BACKWARDS
     return RIGHT_FORWARDS
 
 def get_root_password(answers):
@@ -794,7 +794,7 @@ def get_root_password(answers):
         
         (pw, conf) = result
         if pw == conf:
-            if pw == None or len(pw) < constants.MIN_PASSWD_LEN:
+            if pw is None or len(pw) < constants.MIN_PASSWD_LEN:
                 ButtonChoiceWindow(tui.screen,
                                "Password Error",
                                "The password has to be %d characters or longer." % constants.MIN_PASSWD_LEN,
@@ -836,7 +836,7 @@ def get_name_service_configuration(answers):
         else:
             answers['manual-hostname'] = True, current_hn
     use_manual_hostname, manual_hostname = answers['manual-hostname']
-    if manual_hostname == None:
+    if manual_hostname is None:
         manual_hostname = ""
         
     hn_rbgroup = RadioGroup()

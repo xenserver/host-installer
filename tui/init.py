@@ -51,7 +51,7 @@ def choose_operation(display_restore):
                                           entries,
                                           ['Ok', 'Load driver', 'Exit and reboot'], width=70)
 
-    if button == 'ok' or button == None:
+    if button == 'ok' or button is None:
         return entry
     elif button == 'load driver':
         return init_constants.OPERATION_LOAD_DRIVER

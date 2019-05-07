@@ -168,7 +168,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             results.update(defaults)
 
         # loading an answerfile?
-        assert ui != None or answerfile_address != None or answerfile_script != None
+        assert ui is not None or answerfile_address is not None or answerfile_script is not None
 
         if answerfile_address and answerfile_script:
             raise RuntimeError, "Both answerfile and answerfile generator passed on command line."

@@ -32,7 +32,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
             x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
 
     gf = GridFormHelp(tui.screen, 'Networking', 'ifconfig', 1, 8)
-    if txt == None:
+    if txt is None:
         txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
     text = TextboxReflowed(45, txt)
     b = [("Ok", "ok"), ("Back", "back")]
@@ -241,11 +241,11 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         string). """
         if answers.has_key('interface'):
             default = answers['interface']
-        if msg == None:
+        if msg is None:
             msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND or version.PLATFORM_NAME, version.PRODUCT_BRAND or version.PLATFORM_NAME)
         direction, iface = select_netif(msg, nethw, True, default)
         if direction == RIGHT_FORWARDS:
-            answers['reuse-networking'] = (iface == None)
+            answers['reuse-networking'] = (iface is None)
             if iface:
                 answers['interface'] = iface
         return direction

@@ -33,7 +33,7 @@ class NetInterface:
 
     def __init__(self, mode, hwaddr, ipaddr=None, netmask=None, gateway=None,
                  dns=None, domain=None, vlan=None):
-        assert mode == None or mode == self.Static or mode == self.DHCP
+        assert mode is None or mode == self.Static or mode == self.DHCP
         if ipaddr == '':
             ipaddr = None
         if netmask == '':
@@ -107,7 +107,7 @@ class NetInterface:
         return ("%s.%d" % (iface, self.vlan)) if self.vlan else iface
 
     def addIPv6(self, modev6, ipv6addr=None, ipv6gw=None):
-        assert modev6 == None or modev6 == self.Static or modev6 == self.DHCP or modev6 == self.Autoconf
+        assert modev6 is None or modev6 == self.Static or modev6 == self.DHCP or modev6 == self.Autoconf
         if ipv6addr == '':
             ipv6addr = None
         if ipv6gw == '':
@@ -135,7 +135,7 @@ class NetInterface:
         return self.mode == self.Static
 
     def isVlan(self):
-        return self.vlan != None
+        return self.vlan is not None
 
     def getBroadcast(self):
         bcast = None
@@ -151,7 +151,7 @@ class NetInterface:
 
         # Debian style interfaces are only used for the installer; dom0 only uses CentOS style
         # IPv6 is only enabled through answerfiles and so is not supported here.
-        assert self.modev6 == None
+        assert self.modev6 is None
         assert self.mode
         iface_vlan = self.getInterfaceName(iface)
 
@@ -162,7 +162,7 @@ class NetInterface:
             bcast = self.getBroadcast()
             f.write("iface %s inet static\n" % iface_vlan)
             f.write("   address %s\n" % self.ipaddr)
-            if bcast != None:
+            if bcast is not None:
                 f.write("   broadcast %s\n" % bcast)
             f.write("   netmask %s\n" % self.netmask)
             if self.gateway:
@@ -172,7 +172,7 @@ class NetInterface:
         """ Write a RedHat-style configuration entry for this interface to
         file object f using interface name iface. """
 
-        assert self.modev6 == None
+        assert self.modev6 is None
         assert self.mode
         iface_vlan = self.getInterfaceName(iface)
 
@@ -187,7 +187,7 @@ class NetInterface:
             bcast = self.getBroadcast()
             f.write("BOOTPROTO=none\n")
             f.write("IPADDR=%s\n" % self.ipaddr)
-            if bcast != None:
+            if bcast is not None:
                 f.write("BROADCAST=%s\n" % bcast)
             f.write("NETMASK=%s\n" % self.netmask)
             if self.gateway:

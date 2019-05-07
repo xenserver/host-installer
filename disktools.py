@@ -1090,7 +1090,7 @@ def PartitionTool(device, partitionType=None):
     By default PartitionTool() will return the tool appropriate to the partitioning 
     system currently in use on device
     """
-    if partitionType == None:
+    if partitionType is None:
         partitionType = probePartitioningScheme(device)
     if partitionType == constants.PARTITION_DOS:
         return DOSPartitionTool(device)

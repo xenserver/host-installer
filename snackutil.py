@@ -38,7 +38,7 @@ def ListboxChoiceWindowEx(screen, title, text, items,
         l.append(text, key)
         count = count + 1
 
-    if (default != None):
+    if (default is not None):
         l.setCurrent(default)
 
     g = GridFormHelp(screen, title, help, 1, 3)
