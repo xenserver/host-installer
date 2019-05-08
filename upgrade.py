@@ -474,33 +474,6 @@ class ThirdGenUpgrader(Upgrader):
             nfd.close()
             netutil.disable_ipv6_module(mounts["root"])
 
-        # handle the conversion of HP Gen6 controllers from cciss to scsi
-        primary_disk = self.source.getInventoryValue("PRIMARY_DISK")
-        target_link = diskutil.idFromPartition(target_disk) or target_disk
-        if 'cciss' in primary_disk and 'scsi' in target_link:
-            util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
-                          os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf')])
-            util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
-                          os.path.join(mounts['root'], constants.XAPI_DB)])
-
-        # handle the conversion of RAID devices from /dev/md_* to /dev/disk/by-id/md-uuid-*
-        if primary_disk.startswith('/dev/md_') and target_link.startswith('/dev/disk/by-id/md-uuid-'):
-            for i in (os.path.join(constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'),
-                      constants.XAPI_DB):
-                # First convert partitions from *pN to *-partN
-                util.runCmd2(['sed', '-i', '-e', "s#\(%s\)p\([[:digit:]]\+\)#\\1-part\\2#g" % primary_disk,
-                              os.path.join(mounts['root'], i)])
-                # Then conert from /dev/md_* to /dev/disk/by-id/md-uuid-*
-                util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
-                              os.path.join(mounts['root'], i)])
-
-        # handle the conversion of devices from scsi-* links to ata-* links
-        if primary_disk.startswith('/dev/disk/by-id/scsi-') and target_link.startswith('/dev/disk/by-id/ata-'):
-            for i in (os.path.join(constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'),
-                      constants.XAPI_DB):
-                util.runCmd2(['sed', '-i', '-e', "s#%s#%s#g" % (primary_disk, target_link),
-                              os.path.join(mounts['root'], i)])
-
         # handle the conversion of devices from aacraid to smartpqi
         if primary_disk.startswith('/dev/disk/by-id/scsi-') and \
                 target_link.startswith('/dev/disk/by-id/scsi-') and \
