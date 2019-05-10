@@ -12,6 +12,7 @@
 
 import re, sys
 import os.path
+import errno
 import constants
 import CDROM
 import fcntl
@@ -609,8 +610,8 @@ def setup_ibft_nics():
         try:
             with open(os.path.join(e, 'gateway'), 'r') as f:
                 gw = f.read().strip()
-        except IOError as e:
-            if e.errno == errno.ENOENT:
+        except IOError as err:
+            if err.errno == errno.ENOENT:
                 gw = None
             else:
                 raise
