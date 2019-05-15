@@ -239,7 +239,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         """ Show the dialog for selecting an interface.  Sets
         answers['interface'] to the name of the interface selected (a
         string). """
-        if answers.has_key('interface'):
+        if 'interface' in answers:
             default = answers['interface']
         if msg is None:
             msg = "%s Setup needs network access to continue.\n\nWhich network interface would you like to configure to access your %s product repository?" % (version.PRODUCT_BRAND or version.PLATFORM_NAME, version.PRODUCT_BRAND or version.PLATFORM_NAME)
@@ -268,9 +268,9 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
     def_iface = None
     def_conf = None
     if type(defaults) == dict:
-        if defaults.has_key(interface_key):
+        if interface_key in defaults:
             def_iface = defaults[interface_key]
-        if defaults.has_key(config_key):
+        if config_key in defaults:
             def_conf = defaults[config_key]
     if len(nethw.keys()) > 1 or netutil.networkingUp():
         seq = [ uicontroller.Step(select_interface, args=[def_iface, msg]),
@@ -309,7 +309,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
                 # update cache of manual configurations
                 manual_config = {}
                 all_dhcp = False
-                if answers.has_key('runtime-iface-configuration'):
+                if 'runtime-iface-configuration' in answers:
                     manual_config = answers['runtime-iface-configuration'][1]
                 manual_config[conf_dict['interface']] = conf_dict['config']
                 answers['runtime-iface-configuration'] = (all_dhcp, manual_config)

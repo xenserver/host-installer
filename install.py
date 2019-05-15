@@ -113,7 +113,7 @@ def go(ui, args, answerfile_address, answerfile_script):
     boot_console = None
     boot_serial = False
 
-    if not xen_control_domain() or args.has_key('--virtual'):
+    if not xen_control_domain() or '--virtual' in args:
         hardware.useVMHardwareFunctions()
 
     for (opt, val) in args.items():
@@ -191,7 +191,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                         xelogging.log("User did not confirm installation. Reboot")
                         return constants.EXIT_USER_CANCEL
 
-                if results.has_key('extra-repos'):
+                if 'extra-repos' in results:
                     # load drivers now
                     for media, address in results['extra-repos']:
                         for r in repository.repositoriesFromDefinition(media, address, drivers=True):

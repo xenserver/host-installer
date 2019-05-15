@@ -76,7 +76,7 @@ def configureNetworking(ui, device, config):
     if device == 'all':
         iface_to_start.extend(netcfg.keys())
     elif device.startswith('eth'):
-        if nethw.has_key(device):
+        if device in nethw:
             iface_to_start.append(device)
     else:
         # MAC address

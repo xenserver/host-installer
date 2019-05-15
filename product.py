@@ -139,7 +139,7 @@ class ExistingInstallation:
                 results['manual-hostname'] = (True, line.strip())
                 fd.close()
 
-            if not results.has_key('manual-hostname'):
+            if 'manual-hostname' not in results:
                 results['manual-hostname'] = (False, None)
 
             # nameservers:
@@ -186,7 +186,7 @@ class ExistingInstallation:
             # This enables upgrade to still carry state on hosts without
             # keymap configured:
             # A default keymap is assigned in the backend of this installer.
-            if not results.has_key('keymap'):
+            if 'keymap' not in results:
                 xelogging.log('No existing keymap configuration found.')
 
             # root password:

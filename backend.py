@@ -124,7 +124,7 @@ def getPrepSequence(ans, interactive):
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
-        if ans.has_key('backup-existing-installation') and ans['backup-existing-installation']:
+        if 'backup-existing-installation' in ans and ans['backup-existing-installation']:
             seq.append(Task(doBackup,
                             lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].doBackupArgs ],
                             lambda progress_callback, upgrader, *a: upgrader.doBackupStateChanges,
@@ -339,7 +339,7 @@ def performInstallation(answers, ui_package, interactive):
     # haven't already recorded it as part of reading settings from an upgrade:
     if answers['install-type'] == INSTALL_TYPE_FRESH:
         answers['net-admin-bridge'] = ''
-    elif not answers.has_key('net-admin-bridge'):
+    elif 'net-admin-bridge' not in answers:
         assert answers['net-admin-interface'].startswith("eth")
         answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
 
@@ -498,7 +498,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         if existing.boot_device:
             boot_partnum = tool.partitionNumber(existing.boot_device)
             boot_part = tool.getPartition(boot_partnum)
-            if boot_part.has_key('id') and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT:
+            if 'id' in boot_part and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT:
                 target_boot_mode = TARGET_BOOT_MODE_UEFI
         else:
             boot_partnum = primary_part + 3

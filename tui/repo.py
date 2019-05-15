@@ -102,7 +102,7 @@ def select_repo_source(answers, title, text, require_base_repo = True):
         entries += [ ENTRY_URL, ENTRY_NFS ]
 
         # default selection?
-        if answers.has_key('source-media'):
+        if 'source-media' in answers:
             default = selectDefault(answers['source-media'], entries)
 
     (button, entry) = ListboxChoiceWindow(
@@ -116,7 +116,7 @@ def select_repo_source(answers, title, text, require_base_repo = True):
     if button == 'back': return LEFT_BACKWARDS
 
     # clear the source-address key?
-    if answers.has_key('source-media') and answers['source-media'] != entry:
+    if 'source-media' in answers and answers['source-media'] != entry:
         answers['source-address'] = ""
 
     # store their answer:
@@ -139,7 +139,7 @@ def get_url_location(answers, require_base_repo):
     user_text = Textbox(11, 1, "Username:")
     passwd_text = Textbox(11, 1, "Password:")
 
-    if answers.has_key('source-address'):
+    if 'source-address' in answers:
         url = answers['source-address']
         (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
         (hostname, username, password) = util.splitNetloc(netloc)
@@ -195,7 +195,7 @@ def get_nfs_location(answers, require_base_rep):
 
     done = False
     while not done:
-        if answers.has_key('source-address'):
+        if 'source-address' in answers:
             default = answers['source-address']
         else:
             default = ""

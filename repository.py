@@ -706,7 +706,7 @@ def repositoriesFromDefinition(media, address, drivers=False):
         accessors = { 'filesystem': FilesystemAccessor,
                       'url': URLAccessor,
                       'nfs': NFSAccessor }
-        if accessors.has_key(media):
+        if media in accessors:
             accessor = accessors[media](address)
         else:
             raise RuntimeError("Unknown repository media %s" % media)

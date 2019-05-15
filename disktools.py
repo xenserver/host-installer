@@ -987,7 +987,7 @@ class GPTPartitionTool(PartitionToolBase):
                 m = matchPartUUID.match(line)
                 if m:
                     partitions[number]['partuuid'] = m.group(1)
-            assert partitions[number].has_key('id')
+            assert 'id' in partitions[number]
 
         # sgdisk opens the device with O_WRONLY even when not changing anything
         # so settle udev to ensure device nodes are available for subsequent
@@ -1006,7 +1006,7 @@ class GPTPartitionTool(PartitionToolBase):
 
     def writeThisPartitionTable(self, table, dryrun = False, log = False):
         for part in table.values():
-            if not self.GUID_to_type_code.has_key(part['id']):
+            if part['id'] not in self.GUID_to_type_code:
                 raise Exception("GPT partitions with part type GUID %s unsupported" % part['id'])
 
         if isDeviceMapperNode(self.device):

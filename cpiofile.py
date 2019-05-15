@@ -1281,7 +1281,7 @@ class CpioFile(object):
         cpioinfo = copy.copy(cpioinfo)
 
         if cpioinfo.nlink > 1:
-            if self.hardlinks and self.inodes.has_key(cpioinfo.ino):
+            if self.hardlinks and cpioinfo.ino in self.inodes:
                 # this inode has already been added
                 cpioinfo.size = 0
                 self.inodes[cpioinfo.ino].append(cpioinfo.name)
@@ -1482,7 +1482,7 @@ class CpioFile(object):
         if cpioinfo.nlink == 1:
             extractinfo = cpioinfo
         else:
-            if self.inodes.has_key(cpioinfo.ino):
+            if cpioinfo.ino in self.inodes:
                 # actual file exists, create link
                 # FIXME handle platforms that don't support hardlinks
                 os.link(os.path.join(cpioinfo._link_path, self.inodes[cpioinfo.ino][0]), cpiogetpath)

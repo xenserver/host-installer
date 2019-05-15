@@ -53,7 +53,7 @@ def configureNetworking(device, config):
         for i in nethw:
             netutil.ifup(i)
     elif device.startswith('eth'):
-        if nethw.has_key(device):
+        if device in nethw:
             netutil.ifup(device)
     else:
         # MAC address

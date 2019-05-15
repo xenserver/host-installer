@@ -292,7 +292,7 @@ class Answerfile:
     def parseDriverSource(self):
         results = {}
         for source in getElementsByTagName(self.top_node, ['driver-source']):
-            if not results.has_key('extra-repos'):
+            if 'extra-repos' not in results:
                 results['extra-repos'] = []
 
             rtype = getStrAttribute(source, ['type'], mandatory = True)

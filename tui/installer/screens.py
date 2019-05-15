@@ -189,7 +189,7 @@ def overwrite_warning(answers):
 def get_admin_interface(answers):
     default = None
     try:
-        if answers.has_key('net-admin-interface'):
+        if 'net-admin-interface' in answers:
             default = answers['net-admin-interface']
     except:
         pass
@@ -209,9 +209,9 @@ def get_admin_interface_configuration(answers):
 
     defaults = None
     try:
-        if answers.has_key('net-admin-configuration'):
+        if 'net-admin-configuration' in answers:
             defaults = answers['net-admin-configuration']
-        elif answers.has_key('runtime-iface-configuration'):
+        elif 'runtime-iface-configuration' in answers:
             all_dhcp, manual_config = answers['runtime-iface-configuration']
             if not all_dhcp:
                 defaults = manual_config[answers['net-admin-interface']]
@@ -236,9 +236,9 @@ def get_installation_type(answers):
     entries.append( ("Perform clean installation", None) )
 
     # default value?
-    if answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+    if 'install-type' in answers and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         default = selectDefault(answers['installation-to-overwrite'], entries)
-    elif answers.has_key('install-type') and answers['install-type'] == constants.INSTALL_TYPE_RESTORE:
+    elif 'install-type' in answers and answers['install-type'] == constants.INSTALL_TYPE_RESTORE:
         default = selectDefault(answers['backup-to-restore'], entries)
     else:
         default = None
@@ -301,7 +301,7 @@ def get_installation_type(answers):
         answers['install-type'] = constants.INSTALL_TYPE_FRESH
         answers['preserve-settings'] = False
 
-        if answers.has_key('installation-to-overwrite'):
+        if 'installation-to-overwrite' in answers:
             del answers['installation-to-overwrite']
     elif isinstance(entry[0], product.ExistingInstallation):
         answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
@@ -311,7 +311,7 @@ def get_installation_type(answers):
             answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
 
         for k in ['guest-disks', 'default-sr-uuid']:
-            if answers.has_key(k):
+            if k in answers:
                 del answers[k]
     elif isinstance(entry[0], product.XenServerBackup):
         answers['install-type'] = constants.INSTALL_TYPE_RESTORE
@@ -420,7 +420,7 @@ def force_backup_screen(answers):
 
 def backup_existing_installation(answers):
     # default selection:
-    if answers.has_key('backup-existing-installation'):
+    if 'backup-existing-installation' in answers:
         if answers['backup-existing-installation']:
             default = 0
         else:
@@ -501,12 +501,12 @@ def use_extra_media(answers):
 def setup_runtime_networking(answers):
     defaults = None
     try:
-        if answers.has_key('net-admin-interface'):
+        if 'net-admin-interface' in answers:
             defaults = {'net-admin-interface': answers['net-admin-interface']}
-            if answers.has_key('runtime-iface-configuration') and \
-                    answers['runtime-iface-configuration'][1].has_key(answers['net-admin-interface']):
+            if 'runtime-iface-configuration' in answers and \
+                    answers['net-admin-interface'] in answers['runtime-iface-configuration'][1]:
                 defaults['net-admin-configuration'] = answers['runtime-iface-configuration'][1][answers['net-admin-interface']]
-        elif answers.has_key('installation-to-overwrite'):
+        elif 'installation-to-overwrite' in answers:
             defaults = answers['installation-to-overwrite'].readSettings()
     except:
         pass
@@ -585,7 +585,7 @@ def select_primary_disk(answers):
     else:
         # default value:
         default = None
-        if answers.has_key('primary-disk'):
+        if 'primary-disk' in answers:
             default = selectDefault(answers['primary-disk'], entries)
 
         tui.update_help_line([None, "<F5> more info"])
@@ -670,7 +670,7 @@ def select_guest_disks(answers):
         return SKIP_SCREEN
 
     # set up defaults:
-    if answers.has_key('guest-disks'):
+    if 'guest-disks' in answers:
         currently_selected = answers['guest-disks']
     else:
         currently_selected = answers['primary-disk']
@@ -827,7 +827,7 @@ def get_name_service_configuration(answers):
     hn_title = Textbox(len("Hostname Configuration"), 1, "Hostname Configuration")
 
     # the hostname radio group:
-    if not answers.has_key('manual-hostname'):
+    if 'manual-hostname' not in answers:
         # no current value set - if we currently have a useful hostname,
         # use that, else make up a random one:
         current_hn = socket.gethostname()
@@ -984,7 +984,7 @@ def get_timezone_region(answers):
 
     # default value?
     default = None
-    if answers.has_key('timezone-region'):
+    if 'timezone-region' in answers:
         default = answers['timezone-region']
 
     (button, entry) = ListboxChoiceWindow(
@@ -1004,7 +1004,7 @@ def get_timezone_city(answers):
 
     # default value?
     default = None
-    if answers.has_key('timezone-city') and answers['timezone-city'] in entries:
+    if 'timezone-city' in answers and answers['timezone-city'] in entries:
         default = answers['timezone-city'].replace('_', ' ')
 
     (button, entry) = ListboxChoiceWindow(
@@ -1027,7 +1027,7 @@ def get_time_configuration_method(answers):
 
     # default value?
     default = None
-    if answers.has_key("time-config-method"):
+    if "time-config-method" in answers:
         default = selectDefault(answers['time-config-method'], entries)
 
     (button, entry) = ListboxChoiceWindow(
@@ -1062,7 +1062,7 @@ def get_ntp_servers(answers):
     dhcp_cb.setCallback(dhcp_change, ())
 
     def ntpvalue(answers, sn):
-        if not answers.has_key('ntp-servers'):
+        if 'ntp-servers' not in answers:
             return ""
         else:
             servers = answers['ntp-servers']

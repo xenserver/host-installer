@@ -499,7 +499,7 @@ def probeDisk(device, justInstall = False):
             if label and label.startswith('root-'):
                 root = (INSTALL_RETAIL, part_device)
                 state = (True, part_device)
-                if tool.partitions.has_key(num+2):
+                if num + 2 in tool.partitions:
                     # George Retail and earlier didn't use the correct id for SRs
                     possible_srs = [num+2]
             elif label and label.startswith('logs-'):

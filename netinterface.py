@@ -220,12 +220,12 @@ class NetInterface:
     @staticmethod
     def loadFromIfcfg(filename):
         def valOrNone(d, k):
-            return d.has_key(k) and d[k] or None
+            return k in d and d[k] or None
 
         conf = util.readKeyValueFile(filename)
         mode = None
-        if conf.has_key('BOOTPROTO'):
-            if conf['BOOTPROTO'] == 'static' or conf.has_key('IPADDR'):
+        if 'BOOTPROTO' in conf:
+            if conf['BOOTPROTO'] == 'static' or 'IPADDR' in conf:
                 mode = NetInterface.Static
             elif conf['BOOTPROTO'] == 'dhcp':
                 mode = NetInterface.DHCP
@@ -237,17 +237,17 @@ class NetInterface:
             hwaddr = netutil.getHWAddr(conf['DEVICE'])
         dns = None
         n = 1
-        while conf.has_key('DNS%d' % n):
+        while 'DNS%d' % n in conf:
             if not dns: dns = []
             dns.append(conf['DNS%d' % n])
             n += 1
 
         modev6 = None
-        if conf.has_key('DHCPV6C'):
+        if 'DHCPV6C' in conf:
             modev6 = NetInterface.DHCP
-        elif conf.has_key('IPV6_AUTOCONF'):
+        elif 'IPV6_AUTOCONF' in conf:
             modev6 = NetInterface.Autoconf
-        elif conf.has_key('IPV6INIT'):
+        elif 'IPV6INIT' in conf:
             modev6 = NetInterface.Static
 
         ni = NetInterface(mode, hwaddr, valOrNone(conf, 'IPADDR'), valOrNone(conf, 'NETMASK'),

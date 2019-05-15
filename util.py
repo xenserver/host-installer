@@ -333,7 +333,7 @@ def splitArgs(argsIn, array_args = ()):
             k = arg[:eq]
             v = arg[eq+1:]
             if k in array_args:
-                if argsOut.has_key(k):
+                if k in argsOut:
                     argsOut[k].append(v)
                 else:
                     argsOut[k] = [v]

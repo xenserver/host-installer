@@ -91,7 +91,7 @@ def translateDateTime(dt, tzname):
     # TODO - tzset not compiled into Python for uclibc
 
     localtz = "utc"
-    if os.environ.has_key('TZ'):
+    if 'TZ' in os.environ:
         localtz = os.environ['TZ']
     os.environ['TZ'] = tzname
     time.tzset()
