@@ -111,10 +111,7 @@ def get_dcb_capable_ifaces(check_lun):
             outlist = output.split('\n')
             outstr = outlist[3]
             outdata = outstr.split(':')
-            if "Successful" in outdata[1]:
-                return True
-            else:
-                return False
+            return "Successful" in outdata[1]
 
     for nic, conf in nics.iteritems():
         if get_dcb_capablity(nic):

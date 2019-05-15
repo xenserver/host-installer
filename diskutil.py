@@ -33,10 +33,7 @@ def mpath_cli_is_working():
     try:
         (rc,stdout) = util.runCmd2(["multipathd","-k"], with_stdout=True, inputtext="help")
         m=regex.search(stdout)
-        if m:
-            return True
-        else:
-            return False
+        return bool(m)
     except:
         return False
 

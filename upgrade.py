@@ -190,10 +190,7 @@ class ThirdGenUpgrader(Upgrader):
         safe2upgrade_path = os.path.join(primary_fs.mount_point, constants.SAFE_2_UPGRADE)
         default_storage_conf_path = os.path.join(primary_fs.mount_point, "etc/firstboot.d/data/default-storage.conf")
 
-        if os.path.isfile(safe2upgrade_path):
-            self.safe2upgrade = True
-        else:
-            self.safe2upgrade = False
+        self.safe2upgrade = os.path.isfile(safe2upgrade_path)
         self.vgs_output = None
 
         self.storage_type = None
