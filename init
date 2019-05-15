@@ -59,7 +59,7 @@ def configureNetworking(ui, device, config):
 
     nethw = netutil.scanConfiguration()
     netcfg = {}
-    for i in nethw.keys():
+    for i in nethw:
         if (device == i or device == nethw[i].hwaddr) and mode == 'static':
             netcfg[i] = NetInterface(NetInterface.Static, nethw[i].hwaddr,
                                      config_dict['ip'], config_dict['netmask'],

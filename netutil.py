@@ -364,7 +364,7 @@ def remap_netdevs(remap_list):
     current_eths = all_devices_all_names()
     current_state = []
 
-    for nic in current_eths.keys():
+    for nic in current_eths:
         eth = current_eths[nic]
 
         if not ( "BIOS device" in eth and

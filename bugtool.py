@@ -37,7 +37,7 @@ def configureNetworking(device, config):
 
     nethw = netutil.scanConfiguration()
     netcfg = {}
-    for i in nethw.keys():
+    for i in nethw:
         if (device == i or device == nethw[i].hwaddr) and config_dict:
             netcfg[i] = NetInterface(NetInterface.Static, nethw[i].hwaddr,
                                      config_dict['ip'], config_dict['netmask'],
@@ -50,7 +50,7 @@ def configureNetworking(device, config):
     netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
     if device == 'all':
-        for i in nethw.keys():
+        for i in nethw:
             netutil.ifup(i)
     elif device.startswith('eth'):
         if nethw.has_key(device):
