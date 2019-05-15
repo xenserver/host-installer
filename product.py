@@ -89,10 +89,10 @@ class ExistingInstallation:
     def settingsAvailable(self):
         try:
             self.readSettings()
-        except SettingsNotAvailable, text:
+        except SettingsNotAvailable as text:
             xelogging.log("Settings unavailable: %s" % text)
             return False
-        except Exception, e:
+        except Exception as e:
             xelogging.log("Settings unavailable: unhandled exception")
             xelogging.log_exception(e)
             return False
@@ -295,7 +295,7 @@ class ExistingInstallation:
                             repo_name = repo.readline().strip()
                             repo.close()
                             repo_list.append((repo_id, repo_name, (repo_id != constants.MAIN_REPOSITORY_NAME)))
-                except Exception, e:
+                except Exception as e:
                     xelogging.log('Scan for driver disks failed:')
                     xelogging.log_exception(e)
 
@@ -540,7 +540,7 @@ def findXenSourceProducts():
         try:
             if root[0] == diskutil.INSTALL_RETAIL:
                 inst = ExistingRetailInstallation(disk, boot[1], root[1], state[1], storage)
-        except Exception, e:
+        except Exception as e:
             xelogging.log("A problem occurred whilst scanning for existing installations:")
             xelogging.log_exception(e)
             xelogging.log("This is not fatal.  Continuing anyway.")
@@ -557,7 +557,7 @@ def readInventoryFile(filename):
 def find_installed_products():
     try:
         installed_products = findXenSourceProducts()
-    except Exception, e:
+    except Exception as e:
         xelogging.log("A problem occurred whilst scanning for existing installations:")
         xelogging.log_exception(e)
         xelogging.log("This is not fatal.  Continuing anyway.")

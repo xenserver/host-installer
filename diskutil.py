@@ -238,7 +238,7 @@ def __readOneLineFile__(filename):
         value = f.readline()
         f.close()
         return value
-    except Exception, e:
+    except Exception as e:
         raise e
 
 def getDiskDeviceVendor(dev):

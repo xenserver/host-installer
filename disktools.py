@@ -165,7 +165,7 @@ class LVMTool:
                     # Convert integer options to integer type
                     data[name] = int(data[name])
                 retVal.append(data)
-            except Exception, e:
+            except Exception as e:
                 xelogging.log("Discarding corrupt LVM output line '"+str(line)+"'")
                 xelogging.log("  Command was '"+str(cmd)+"'")
                 xelogging.log("  Error was '"+str(e)+"'")
@@ -559,11 +559,11 @@ class PartitionToolBase:
     def writePartitionTable(self, dryrun = False, log = False):
         try:
             self.writeThisPartitionTable(self.partitions, dryrun, log)
-        except Exception, e:
+        except Exception as e:
             try:
                 # Revert to the original partition table
                 self.writeThisPartitionTable(self.origPartitions, dryrun)
-            except Exception, e2:
+            except Exception as e2:
                 raise Exception('The new partition table could not be written: '+str(e)+'\nReversion also failed: '+str(e2))
             raise Exception('The new partition table could not be written but was reverted successfully: '+str(e))
         else:

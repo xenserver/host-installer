@@ -48,7 +48,7 @@ def check_repo_def(definition, require_base_repo):
         tui.progress.showMessageDialog("Please wait", "Searching for repository...")
         repos = repository.repositoriesFromDefinition(*definition)
         tui.progress.clearModelessDialog()
-    except Exception, e:
+    except Exception as e:
         xelogging.log("Exception trying to access repository: %s" % e)
         tui.progress.clearModelessDialog()
         return REPOCHK_NO_ACCESS

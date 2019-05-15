@@ -444,7 +444,7 @@ class RPMPackage(object):
                 calculated = m.hexdigest()
                 valid = (self.sha256sum == calculated)
                 return valid
-            except Exception, e:
+            except Exception as e:
                 return False
 
 class Accessor:
@@ -518,7 +518,7 @@ class MountingAccessor(FilesystemAccessor):
                     util.mount(self.mount_source, self.location,
                                options = self.mount_options,
                                fstype = fs)
-                except util.MountFailureException, e:
+                except util.MountFailureException as e:
                     continue
                 else:
                     success = True

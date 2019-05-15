@@ -319,7 +319,7 @@ def main(args):
             fh.close()
             a.finish()
             report_saved = True
-        except Exception, e:
+        except Exception as e:
             xelogging.log("Failed: " + str(e))
             report_saved = False
 

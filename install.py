@@ -213,7 +213,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
                 results.update(a.processAnswerfile())
                 results = fixMpathResults(results)
-            except Exception, e:
+            except Exception as e:
                 xelogging.logException(e)
                 parsing_except = e
 
@@ -280,7 +280,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         else:
             xelogging.log("The user aborted the installation from within the user interface.")
             status = constants.EXIT_USER_CANCEL
-    except Exception, e:
+    except Exception as e:
         try:
             # first thing to do is to get the traceback and log it:
             ex = sys.exc_info()
@@ -309,7 +309,7 @@ def go(ui, args, answerfile_address, answerfile_script):
                 backend.writeLog(results['primary-disk'], results['primary-partnum'], None)
     
             xelogging.log(results)
-        except Exception, e:
+        except Exception as e:
             # Don't let logging exceptions prevent subsequent actions
             print 'Logging failed: '+str(e)
             

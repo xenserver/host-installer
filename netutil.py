@@ -387,7 +387,7 @@ def remap_netdevs(remap_list):
                        ppn = eth["BIOS device"]["physical"],
                        label = eth.get("SMBIOS Label", "")
                        ))
-        except Exception, e:
+        except Exception as e:
             LOG.error("Can't generate current state for interface '%s' - "
                       "%s" % (eth, e))
     current_state.sort()
@@ -410,7 +410,7 @@ def remap_netdevs(remap_list):
                               cur_state = current_state,
                               last_state = last_boot,
                               old_state = [])
-    except Exception, e:
+    except Exception as e:
         LOG.critical("Problem from rename logic: %s.  Giving up" % (e,))
         return
 

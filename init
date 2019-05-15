@@ -213,7 +213,7 @@ def main(args):
     if use_ibft:
         try:
             diskutil.process_ibft(ui, interactive)
-        except Exception, e:
+        except Exception as e:
             if ui:
                 ui.exn_error_dialog("install-log", False, interactive)
                 return reboot

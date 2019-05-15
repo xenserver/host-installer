@@ -309,7 +309,7 @@ def performInstallation(answers, ui_package, interactive):
                                                          default_host_config['dom0-mem'])
                 default_host_config['dom0-vcpus'] = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(),
                                                                            answers['host-config']['dom0-mem'])
-        except Exception, e:
+        except Exception as e:
             xelogging.logException(e)
             raise RuntimeError("Failed to get existing installation settings")
 

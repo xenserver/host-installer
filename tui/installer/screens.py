@@ -1176,7 +1176,7 @@ def set_time(answers, now, show_back_button = False):
                               int(day.value()),
                               int(hour.value()),
                               int(minute.value()))
-        except ValueError, _:
+        except ValueError:
             # the date was invalid - tell them why:
             done = False
             ButtonChoiceWindow(tui.screen, "Date error",
