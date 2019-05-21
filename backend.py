@@ -1522,8 +1522,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
             if admin_config.gateway:
                 print >>mc, "GATEWAY='%s'" % admin_config.gateway
             if manual_nameservers:
-                for i in range(len(nameservers)):
-                    print >>mc, "DNS%d='%s'" % (i+1, nameservers[i])
+                print >>mc, "DNS='%s'" % (','.join(nameservers),)
             if domain:
                 print >>mc, "DOMAIN='%s'" % domain
         print >>mc, "MODEV6='%s'" % netinterface.NetInterface.getModeStr(admin_config.modev6)
