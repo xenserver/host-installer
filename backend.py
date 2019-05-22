@@ -350,12 +350,8 @@ def performInstallation(answers, ui_package, interactive):
 
     # install from main repositories:
     def handleRepos(repos, ans):
-        if len(repos) == 0:
-            raise RuntimeError, "No repository found at the specified location."
-        else:
-            seq_name = "Reading package information..."
         repo_seq = getRepoSequence(ans, repos)
-        executeSequence(repo_seq, seq_name, ans, ui_package, False)
+        executeSequence(repo_seq, "Reading package information...", ans, ui_package, False)
 
     answers['installed-repos'] = {}
 
@@ -392,7 +388,7 @@ def performInstallation(answers, ui_package, interactive):
         repos = repository.repositoriesFromDefinition(media, address)
         add_repos(all_repositories, repos)
 
-    if all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
+    if not all_repositories or all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
         raise RuntimeError("No main repository found")
 
     handleRepos(all_repositories, answers)
@@ -416,7 +412,7 @@ def performInstallation(answers, ui_package, interactive):
 
             repos = repository.repositoriesFromDefinition(media_ans['source-media'], media_ans['source-address'])
             repos = set([repo for repo in repos if str(repo) not in answers['installed-repos']])
-            if len(repos) == 0:
+            if not repos:
                 continue
             handleRepos(repos, answers)
 
