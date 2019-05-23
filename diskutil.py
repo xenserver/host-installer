@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -94,7 +94,7 @@ ide_majors = [ 3, 22, 33, 34, 56, 57, 88, 89, 90, 91 ]
 disk_nodes  = [ (x, 0) for x in ide_majors ]
 disk_nodes += [ (x, 64) for x in ide_majors ]
 
-# sd* -> (sd-mod has majors 8, 65 ... 71, 128 ... 135: each device has eight minors, each 
+# sd* -> (sd-mod has majors 8, 65 ... 71, 128 ... 135: each device has eight minors, each
 # major has sixteen disks).
 # Extended minors are used for disk 257 and above and the major number wraps back to 8
 # thus disk 257 is major 8 minor 256, disk 258 is
@@ -278,7 +278,7 @@ def getDiskDeviceModel(dev):
         return __readOneLineFile__("/sys/block/%s/device/model" % dev).strip('  \n')
     else:
         return ""
-    
+
 def getDiskDeviceSize(dev):
 
     # For Multipath nodes return info about 1st slave
@@ -315,13 +315,13 @@ def getDiskSerialNumber(dev):
 def isRemovable(path):
 
     if path.startswith('/dev/mapper') or path.startswith('/dev/dm-') or path.startswith('dm-'):
-        return False 
+        return False
 
     if path.startswith("/dev/"):
         dev = re.match("/dev/(.*)", path).group(1)
     else:
         dev = path
-        
+
     dev = dev.replace("/", "!")
 
     if dev.startswith("xvd"):
@@ -350,7 +350,7 @@ def blockSizeToGBSize(blocks):
 
 def blockSizeToMBSize(blocks):
     return (long(blocks) * 512) / (1024 * 1024)
-    
+
 def getHumanDiskSize(blocks):
     gb = blockSizeToGBSize(blocks)
     if gb > 0:
@@ -470,9 +470,9 @@ STORAGE_EXT3 = 2
 def probeDisk(device, justInstall = False):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
     Returns a tuple (boot, state, storage)
-    
+
     Where:
-    
+
         boot is a tuple of True or False and the partition device
         root is a tuple of None, INSTALL_RETAIL and the partition device
         state is a tuple of True or False and the partition device
@@ -485,7 +485,7 @@ def probeDisk(device, justInstall = False):
     storage = (None, None)
     logs = (False, None)
     possible_srs = []
-        
+
     tool = PartitionTool(device)
     for num, part in tool.iteritems():
         label = None
@@ -527,7 +527,7 @@ def probeDisk(device, justInstall = False):
                     storage = (STORAGE_EXT3, part_device)
                 else:
                     storage = (STORAGE_LVM, part_device)
-    
+
     xelogging.log('Probe of %s found boot=%s root=%s state=%s storage=%s logs=%s' %
                   (device, str(boot), str(root), str(state), str(storage), str(logs)))
 

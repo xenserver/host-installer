@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -164,7 +164,7 @@ def linkUp(interface):
 
 def setAllLinksUp():
     subprocs = []
-    
+
     for nif in getNetifList():
         if nif not in diskutil.ibft_reserved_nics:
             subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up'], close_fds = True))

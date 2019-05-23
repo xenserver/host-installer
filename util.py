@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -43,11 +43,11 @@ def assertDir(dirname):
 def assertDirs(*dirnames):
     for d in dirnames:
         assertDir(d)
-        
+
 def copyFile(source, dest):
     assert os.path.isfile(source)
     assert os.path.isdir(dest)
-    
+
     assert runCmd2(['cp', '-f', source, '%s/' % dest]) == 0
 
 def copyFilesFromDir(sourcedir, dest):
@@ -127,7 +127,7 @@ class MountFailureException(Exception):
 
 def pidof(name):
     def is_pid(s):
-        for c in s: 
+        for c in s:
             if not c in string.digits: return False
         return True
     def has_name(pid):
@@ -161,7 +161,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
 
 def bindMount(source, mountpoint):
     xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
-    
+
     cmd = [ '/bin/mount', '--bind', source, mountpoint]
     rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
     if rc != 0:
@@ -301,7 +301,7 @@ def splitNetloc(netloc):
     hostname = netloc
     username = None
     password = None
-        
+
     if "@" in netloc:
         userinfo = netloc.split("@", 1)[0]
         hostname = netloc.split("@", 1)[1]
@@ -313,7 +313,7 @@ def splitNetloc(netloc):
             username = urllib.unquote(userinfo)
     if ":" in hostname:
         hostname = hostname.split(":", 1)[0]
-        
+
     return (hostname, username, password)
 
 def splitArgs(argsIn, array_args = ()):
@@ -340,10 +340,10 @@ def splitArgs(argsIn, array_args = ()):
             else:
                 argsOut[k] = v
 
-    return argsOut    
+    return argsOut
 
 def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):
-    """ Reads a KEY=Value style file (e.g. xensource-inventory). Returns a 
+    """ Reads a KEY=Value style file (e.g. xensource-inventory). Returns a
     dictionary of key/values in the file.  Not designed for use with large files
     as the file is read entirely into memory."""
 
@@ -355,7 +355,7 @@ def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):
     if allowed_keys:
         lines = filter(lambda x: True in [x.startswith(y) for y in allowed_keys],
                        lines)
-    
+
     defs = [ (l[:l.find("=")], l[(l.find("=") + 1):]) for l in lines ]
 
     if strip_quotes:

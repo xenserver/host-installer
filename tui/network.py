@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -146,7 +146,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
 def select_netif(text, conf, offer_existing = False, default = None):
     """ Display a screen that displays a choice of network interfaces to the
     user, with 'text' as the informative text as the data, and conf being the
-    netutil.scanConfiguration() output to be used. 
+    netutil.scanConfiguration() output to be used.
     """
 
     netifs = conf.keys()
@@ -218,8 +218,8 @@ def select_netif(text, conf, offer_existing = False, default = None):
 def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interface', 'net-admin-configuration']):
     """ Display the correct sequence of screens to get networking
     configuration.  Bring up the network according to this configuration.
-    If answers is a dictionary, set 
-      answers[keys[0]] to the interface chosen, and 
+    If answers is a dictionary, set
+      answers[keys[0]] to the interface chosen, and
       answers[keys[1]] to the interface configuration chosen, and
       answers['runtime-iface-configuration'] to current manual network config, in format (all-dhcp, manual-config).
     If defaults.has_key[keys[0]] then use defaults[keys[0]] as the default network interface.
@@ -233,7 +233,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         tui.progress.OKDialog("Networking", "No available ethernet device found")
         return REPEAT_STEP
 
-    # Display a screen asking which interface to configure, then what the 
+    # Display a screen asking which interface to configure, then what the
     # configuration for that interface should be:
     def select_interface(answers, default, msg):
         """ Show the dialog for selecting an interface.  Sets
@@ -258,7 +258,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         if 'reuse-networking' in answers and answers['reuse-networking']:
             return RIGHT_FORWARDS
 
-        direction, conf = get_iface_configuration(nethw[answers['interface']], txt, 
+        direction, conf = get_iface_configuration(nethw[answers['interface']], txt,
                                                   defaults=defaults, include_dns=True)
         if direction == RIGHT_FORWARDS:
             answers['config'] = conf
@@ -273,7 +273,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         if defaults.has_key(config_key):
             def_conf = defaults[config_key]
     if len(nethw.keys()) > 1 or netutil.networkingUp():
-        seq = [ uicontroller.Step(select_interface, args=[def_iface, msg]), 
+        seq = [ uicontroller.Step(select_interface, args=[def_iface, msg]),
                 uicontroller.Step(specify_configuration, args=[None, def_conf]) ]
     else:
         text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % (version.PRODUCT_BRAND or version.PLATFORM_NAME)
@@ -314,5 +314,5 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
                 manual_config[conf_dict['interface']] = conf_dict['config']
                 answers['runtime-iface-configuration'] = (all_dhcp, manual_config)
             tui.progress.clearModelessDialog()
-        
+
     return direction

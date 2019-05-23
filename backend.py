@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -91,7 +91,7 @@ class Task:
             ret = apply(self.returns, args)
         else:
             ret = self.returns
-            
+
         for r in range(len(ret)):
             myrv[ret[r]] = rv[r]
         return myrv
@@ -107,7 +107,7 @@ A = lambda ans, *params: ( lambda a: [a.get(param) for param in params] )
 As = lambda ans, *params: ( lambda _: [ans.get(param) for param in params] )
 
 def getPrepSequence(ans, interactive):
-    seq = [ 
+    seq = [
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
@@ -246,7 +246,7 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
     def progressCallback(x):
         if ui:
             ui.progress.displayProgressDialog(current + x, pd)
-        
+
     try:
         current = 0
         for item in sequence:
@@ -292,7 +292,7 @@ def performInstallation(answers, ui_package, interactive):
                             'dom0-vcpus': dom0_vcpus,
                             'xen-cpuid-masks': [] }
     defaults = { 'branding': {}, 'host-config': {}, 'write-boot-entry': True }
-    
+
     # update the settings:
     if answers['preserve-settings'] == True:
         defaults.update({ 'guest-disks': [] })
@@ -316,9 +316,9 @@ def performInstallation(answers, ui_package, interactive):
         prettyLogAnswers(answers)
     else:
         defaults.update({ 'master': None,
-                          'sr-type': constants.SR_TYPE_LVM, 
+                          'sr-type': constants.SR_TYPE_LVM,
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
-                          'initial-partitions': [], 
+                          'initial-partitions': [],
                           'sr-at-end': True,
                           'sr-on-primary': True,
                           'preserve-first-partition': constants.PRESERVE_IF_UTILITY })
@@ -334,7 +334,7 @@ def performInstallation(answers, ui_package, interactive):
     xelogging.log("UPDATED ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
-    # Slight hack: we need to write the bridge name to xensource-inventory 
+    # Slight hack: we need to write the bridge name to xensource-inventory
     # further down; compute it here based on the admin interface name if we
     # haven't already recorded it as part of reading settings from an upgrade:
     if answers['install-type'] == INSTALL_TYPE_FRESH:
@@ -470,12 +470,12 @@ def configureTimeManually(mounts, ui_package):
     assert rc == 0
     answers = {}
     ui_package.installer.screens.set_time(answers, util.parseTime(time))
-        
+
     newtime = answers['localtime']
     timestr = "%04d-%02d-%02d %02d:%02d:00" % \
               (newtime.year, newtime.month, newtime.day,
                newtime.hour, newtime.minute)
-        
+
     # chroot into the dom0 and set the time:
     assert util.runCmd2(['chroot', mounts['root'], '/tmp/timeutil', 'setLocalTime', '%s' % timestr]) == 0
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
@@ -486,7 +486,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     uefi_installer = os.path.exists("/sys/firmware/efi")
     xelogging.log("Installer booted in %s mode" % ("UEFI" if uefi_installer else "legacy"))
-    
+
     if existing:
         # upgrade, use existing partitioning scheme
         tool = PartitionTool(existing.primary_disk)
@@ -509,14 +509,14 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
                                ("UEFI" if uefi_installer else "legacy", target_boot_mode))
 
         xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
-        
+
         # Return install mode and numbers of boot, primary, backup, log, swap and SR partitions
         storage_partition = tool.getPartition(primary_part+2)
         if storage_partition:
             return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
         else:
             return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, 0)
-    
+
     tool = PartitionTool(disk)
 
     # If answerfile says to fake a utility partition then do it here
@@ -563,7 +563,7 @@ def selectPartitionTableType(disk, install_type, primary_part, create_new_partit
     if install_type != INSTALL_TYPE_FRESH:
         return tool.partTableType
 
-    # If we are preserving partition 1 then we need to preserve the 
+    # If we are preserving partition 1 then we need to preserve the
     # partition table type as we are probably chain booting from that.
     if primary_part > 1:
         return tool.partTableType
@@ -630,16 +630,16 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
         else:
             tool.createPartition(tool.ID_LINUX, sizeBytes = logs_size * 2**20, number = logs_partnum, order = order)
         order += 1
-    
+
         # Create backup partition
         if backup_partnum > 0:
             tool.createPartition(tool.ID_LINUX, sizeBytes = backup_size * 2**20, number = backup_partnum, order = order)
             order += 1
-    
+
         # Create dom0 partition
         tool.createPartition(tool.ID_LINUX, sizeBytes = constants.root_size * 2**20, number = primary_partnum, order = order)
         order += 1
-    
+
         # Create Boot partition
         if partition_table_type == constants.PARTITION_GPT:
             if target_boot_mode == TARGET_BOOT_MODE_UEFI:
@@ -647,11 +647,11 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
             else:
                 tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = boot_size * 2**20, number = boot_partnum, order = order)
             order += 1
-    
+
         # Create swap partition
         tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = swap_size * 2**20, number = swap_partnum, order = order)
         order += 1
-    
+
         # Create LVM partition
         if storage_partnum > 0:
             tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum, order = order)
@@ -660,7 +660,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     else:
 
         # Pre-Dundee partition layout
-        
+
         # Create Boot partition
         if partition_table_type == constants.PARTITION_GPT:
             if target_boot_mode == TARGET_BOOT_MODE_UEFI:
@@ -715,7 +715,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     return new_partition_layout
 
 def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
-    # At the moment this code uses the same partition table type for Guest Disks as it 
+    # At the moment this code uses the same partition table type for Guest Disks as it
     # does for the root disk.  But we could choose to always use 'GPT' for guest disks.
     # TODO: Decide!
     for gd in guest_disks:
@@ -746,7 +746,7 @@ def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     return [sr_partition(disk) for disk in guest_disks]
 
 def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disks, sr_type):
-    
+
     if len(guest_disks) == 0 or constants.CC_PREPARATIONS and sr_type != constants.SR_TYPE_EXT:
         xelogging.log("No storage repository requested.")
         return None
@@ -755,12 +755,12 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 
     partitions = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
 
-    sr_type_strings = { constants.SR_TYPE_EXT: 'ext', 
+    sr_type_strings = { constants.SR_TYPE_EXT: 'ext',
                         constants.SR_TYPE_LVM: 'lvm' }
     sr_type_string = sr_type_strings[sr_type]
 
     # write a config file for the prepare-storage firstboot script:
-    
+
     links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
     fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
     print >>fd, "XSPARTITIONS='%s'" % str.join(" ", links)
@@ -1104,7 +1104,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     boot_config.default = "xe"
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
-        
+
         e = bootloader.MenuEntry(hypervisor = "/boot/xen.gz",
                                  hypervisor_args = ' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel = "/boot/vmlinuz-%s-xen" % short_version,
@@ -1279,7 +1279,7 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     xelogging.log(out)
     tool = PartitionTool(primary_disk)
     logs_partition = tool.getPartition(logs_partnum)
-    
+
     util.assertDir(constants.EXTRA_SCRIPTS_DIR)
     util.mount('tmpfs', constants.EXTRA_SCRIPTS_DIR, ['size=2m'], 'tmpfs')
     util.assertDir(os.path.join(mounts['root'], 'mnt'))
@@ -1299,7 +1299,7 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
         util.mount(partitionDevice(primary_disk, logs_partnum), mounts['logs'])
         new_cleanup.append(("umount-/tmp/root/var/log", util.umount, (mounts['logs'], )))
     return mounts, new_cleanup
- 
+
 def umountVolumes(mounts, cleanup, force = False):
     def filterCleanup(tag, _, __):
         return (not tag.startswith("umount-%s" % mounts['root']) and
@@ -1318,7 +1318,7 @@ def umountVolumes(mounts, cleanup, force = False):
 
 ##########
 # second stage install helpers:
-    
+
 def writeKeyboardConfiguration(mounts, keymap):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
     if not keymap:
@@ -1459,14 +1459,14 @@ def writeMachineID(mounts):
 
 def setTimeZone(mounts, tz):
     # make the localtime link:
-    assert util.runCmd2(['ln', '-sf', '../usr/share/zoneinfo/%s' % tz, 
+    assert util.runCmd2(['ln', '-sf', '../usr/share/zoneinfo/%s' % tz,
                          '%s/etc/localtime' % mounts['root']]) == 0
 
 def setRootPassword(mounts, root_pwd):
     # avoid using shell here to get around potential security issues.  Also
     # note that chpasswd needs -m to allow longer passwords to work correctly
     # but due to a bug in the RHEL5 version of this tool it segfaults when this
-    # option is specified, so we have to use passwd instead if we need to 
+    # option is specified, so we have to use passwd instead if we need to
     # encrypt the password.  Ugh.
     (pwdtype, root_password) = root_pwd
     if pwdtype == 'pwdhash':
@@ -1476,7 +1476,7 @@ def setRootPassword(mounts, root_pwd):
                                      close_fds = True)
         pipe.communicate('root:%s\n' % root_password)
         assert pipe.wait() == 0
-    else: 
+    else:
         cmd = ["/usr/sbin/chroot", mounts['root'], "passwd", "--stdin", "root"]
         pipe = subprocess.Popen(cmd, stdin = subprocess.PIPE,
                                      stdout = subprocess.PIPE,
@@ -1539,7 +1539,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts')
 
-    # remove any files that may be present in the filesystem already, 
+    # remove any files that may be present in the filesystem already,
     # particularly those created by kudzu:
     network_scripts = os.listdir(network_scripts_dir)
     for s in filter(lambda x: x.startswith('ifcfg-'), network_scripts):
@@ -1673,7 +1673,7 @@ def writeLog(primary_disk, primary_partnum, logs_partnum):
     logs_partition = tool.getPartition(logs_partnum)
 
     if logs_partition:
-        try: 
+        try:
             bootnode = partitionDevice(primary_disk, logs_partnum)
             primary_fs = util.TempMount(bootnode, 'install-')
             try:

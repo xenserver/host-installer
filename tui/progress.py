@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -17,7 +17,7 @@ PLEASE_WAIT_STRING = "  Working: Please wait..."
 
 def initProgressDialog(title, text, total):
     form = GridFormHelp(tui.screen, title, None, 1, 3)
-    
+
     t = Textbox(60, 1, text)
     scale = Scale(60, total)
     form.add(t, 0, 0, padding = (0, 0, 0, 1))
@@ -31,7 +31,7 @@ def initProgressDialog(title, text, total):
 
 def showMessageDialog(title, text):
     form = GridFormHelp(tui.screen, title, None, 1, 1)
-    
+
     t = TextboxReflowed(60, text)
     form.add(t, 0, 0, padding = (0, 0, 0, 0))
 

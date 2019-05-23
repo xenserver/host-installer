@@ -2,7 +2,7 @@
 # copyrighted material is governed by and subject to terms and conditions
 # as licensed by Citrix Systems, Inc. All other rights reserved.
 # Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of Citrix Systems, Inc. in the United States and/or other 
+# trademarks of Citrix Systems, Inc. in the United States and/or other
 # countries.
 
 ###
@@ -98,7 +98,7 @@ def get_dcb_capable_ifaces(check_lun):
         ''' checks if a NIC is dcb capable.
             If netdev for an interface has dcbnl_ops defined
             then this interface is deemed dcb capable.
-            dcbtool gc ethX dcb will return Status = Successful if netdev 
+            dcbtool gc ethX dcb will return Status = Successful if netdev
             has dcbnl_ops defined.
         '''
 

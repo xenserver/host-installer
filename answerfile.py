@@ -50,12 +50,12 @@ class Answerfile:
             self.operation = 'restore'
         else:
             raise AnswerfileException, "Unexpected top level element"
-        
+
     @staticmethod
     def fetch(location):
         xelogging.log("Fetching answerfile from %s" % location)
         util.fetchFile(location, ANSWERFILE_PATH)
-            
+
         try:
             xmldoc = xml.dom.minidom.parse(ANSWERFILE_PATH)
         except:
@@ -104,7 +104,7 @@ class Answerfile:
             results.update(self.parseCommon())
         elif self.operation == 'restore':
             results = self.parseRestore()
-        
+
         return results
 
     def parseScripts(self):
@@ -113,7 +113,7 @@ class Answerfile:
             if stype == 'nfs' and not path.startswith('nfs://'):
                 return 'nfs://'+path
             return path
-        
+
         # new format
         script_nodes = getElementsByTagName(self.top_node, ['script'])
         for node in script_nodes:
@@ -243,7 +243,7 @@ class Answerfile:
             bl = getText(nodes[0])
             if bl not in ['' , 'grub2']:
                 raise AnswerfileException, "Unsupported bootloader '%s'" % bl
-            
+
         return results
 
     def parseExistingInstallation(self):
@@ -267,7 +267,7 @@ class Answerfile:
             xelogging.log("Warning: selecting 1st path from %s" % str(map(lambda x: x.primary_disk, installations)))
         results['installation-to-overwrite'] = installations[0]
         return results
-    
+
     def parseSource(self):
         results = {'sources': []}
         sources = getElementsByTagName(self.top_node, ['source'], mandatory = True)
@@ -305,7 +305,7 @@ class Answerfile:
             if rtype == 'url' and address.startswith('nfs://'):
                 rtype = 'nfs'
                 address = address[6:]
-                
+
             results['extra-repos'].append((rtype, address))
         return results
 

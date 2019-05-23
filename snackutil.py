@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -12,8 +12,8 @@
 
 from snack import *
 
-def ListboxChoiceWindowEx(screen, title, text, items, 
-            buttons = ('Ok', 'Cancel'), 
+def ListboxChoiceWindowEx(screen, title, text, items,
+            buttons = ('Ok', 'Cancel'),
             width = 40, scroll = 0, height = -1, default = None,
             help = None, hotkeys = {},
             timeout_ms = 0, timeout_cb = None):
@@ -61,11 +61,11 @@ def ListboxChoiceWindowEx(screen, title, text, items,
         else:
             loop = False
     screen.popWindow()
-    
+
     return (bb.buttonPressed(rc), l.current())
 
-def ButtonChoiceWindowEx(screen, title, text, 
-               buttons = [ 'Ok', 'Cancel' ], 
+def ButtonChoiceWindowEx(screen, title, text,
+               buttons = [ 'Ok', 'Cancel' ],
                width = 40, x = None, y = None, help = None,
                default = 0, hotkeys = {},
                timeout_ms = 0, timeout_cb = None):
@@ -76,9 +76,9 @@ def ButtonChoiceWindowEx(screen, title, text,
     g.add(t, 0, 0, padding = (0, 0, 0, 1))
     g.add(bb, 0, 1, growx = 1)
 
-    g.draw()                                                                   
+    g.draw()
     g.setCurrent(bb.list[default][0])
-    
+
     for k in hotkeys.keys():
         g.addHotKey(k)
     if timeout_ms > 0:
@@ -124,7 +124,7 @@ def PasswordEntryWindow(screen, title, text, prompts, allowCancel = 1, width = 4
 
     g = GridFormHelp(screen, title, help, 1, 3)
 
-    g.add(t, 0, 0, padding = (0, 0, 0, 1)) 
+    g.add(t, 0, 0, padding = (0, 0, 0, 1))
     g.add(sg, 0, 1, padding = (0, 0, 0, 1))
     g.add(bb, 0, 2, growx = 1)
 
@@ -149,7 +149,7 @@ PLEASE_WAIT_STRING = "  Working: Please wait..."
 
 def initProgressDialog(screen, title, text, total):
     form = GridFormHelp(screen, title, None, 1, 3)
-    
+
     t = Textbox(60, 1, text)
     scale = Scale(60, total)
     form.add(t, 0, 0, padding = (0, 0, 0, 1))
@@ -163,7 +163,7 @@ def initProgressDialog(screen, title, text, total):
 
 def showMessageDialog(screen, title, text):
     form = GridFormHelp(screen, title, None, 1, 1)
-    
+
     t = TextboxReflowed(60, text)
     form.add(t, 0, 0, padding = (0, 0, 0, 0))
 
@@ -212,7 +212,7 @@ def TableDialog(screen, title, *table):
             tb = Textbox(max_value+1, 1, value)
         grid.setField(tb, 1, row, anchorLeft = 1)
         row += 1
-    
+
     gf.add(grid, 0, 0, padding = (0, 0, 0, 1))
     gf.add(bb, 0, 1, growx = 1)
 

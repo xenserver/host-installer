@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -570,7 +570,7 @@ class URLFileWrapper:
     def __init__(self, delegate):
         self.delegate = delegate
         self.pos = 0
-        
+
     def __getattr__(self, name):
         return getattr(self.delegate, name)
 
@@ -588,7 +588,7 @@ class URLFileWrapper:
                 raise Exception('Backward seek not supported')
         else:
             raise Exception('Only SEEK_SET supported')
-           
+
         if consume > 0:
             step = 100000
             while consume > step:
@@ -679,7 +679,7 @@ class URLAccessor(Accessor):
             fname = os.path.basename(path)
             directory = self._url_decode(os.path.dirname(path[1:]))
 
-            # now open a connection to the server and verify that fname is in 
+            # now open a connection to the server and verify that fname is in
             ftp = ftplib.FTP(hostname)
             ftp.login(username, password)
             ftp.cwd(directory)

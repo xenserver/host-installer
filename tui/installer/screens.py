@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -195,7 +195,7 @@ def get_admin_interface(answers):
         pass
 
     net_hw = answers['network-hardware']
-    
+
     direction, iface = tui.network.select_netif("Which network interface would you like to use for connecting to the management server on your host?",
                                                 net_hw, False, default)
     if direction == RIGHT_FORWARDS:
@@ -294,7 +294,7 @@ def get_installation_type(answers):
 
     tui.screen.popHelpLine()
 
-    if button == 'back': 
+    if button == 'back':
         return LEFT_BACKWARDS
 
     if entry is None:
@@ -552,7 +552,7 @@ def select_primary_disk(answers):
 
     entries = []
     target_is_sr = {}
-    
+
     if answers['create-new-partitions']:
         min_primary_disk_size = constants.min_primary_disk_size
     else:
@@ -684,7 +684,7 @@ def select_guest_disks(answers):
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         entry = "%s - %s [%s %s]" % (diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
         entries.append((entry, de))
-        
+
     text = TextboxReflowed(54, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
     scroll, _ = snackutil.scrollHeight(3, len(entries))
@@ -695,14 +695,14 @@ def select_guest_disks(answers):
     if len(BRAND_VDI) > 0:
         txt += " (Optimized storage for %s)" % BRAND_VDI
     tb = Checkbox(txt, srtype == constants.SR_TYPE_EXT and 1 or 0)
-    
+
     gf = GridFormHelp(tui.screen, 'Virtual Machine Storage', 'guestdisk:info', 1, 4)
     gf.add(text, 0, 0, padding = (0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
     gf.add(tb, 0, 2, padding = (0, 0, 0, 1))
     gf.add(buttons, 0, 3, growx = 1)
     gf.addHotKey('F5')
-    
+
     tui.update_help_line([None, "<F5> more info"])
 
     loop = True
@@ -714,9 +714,9 @@ def select_guest_disks(answers):
             loop = False
     tui.screen.popWindow()
     tui.screen.popHelpLine()
-    
+
     button = buttons.buttonPressed(rc)
-    
+
     if button == 'back': return LEFT_BACKWARDS
 
     answers['guest-disks'] = cbt.getSelection()
@@ -781,17 +781,17 @@ def get_root_password(answers):
     done = False
 
     password_txt = "Please specify a password of at least %d characters for the root account." % (constants.MIN_PASSWD_LEN)
-    
-    if PRODUCT_BRAND:       
+
+    if PRODUCT_BRAND:
         password_txt = "Please specify a password of at least %d characters for the root account. \n\n(This is the password used when connecting to the %s from %s.)" % (constants.MIN_PASSWD_LEN, BRAND_SERVER, BRAND_CONSOLE)
- 
+
     while not done:
         (button, result) = snackutil.PasswordEntryWindow(
             tui.screen, "Set Password", password_txt,
             ['Password', 'Confirm'], buttons = ['Ok', 'Back'],
             )
         if button == 'back': return LEFT_BACKWARDS
-        
+
         (pw, conf) = result
         if pw == conf:
             if pw is None or len(pw) < constants.MIN_PASSWD_LEN:
@@ -825,7 +825,7 @@ def get_name_service_configuration(answers):
 
     # HOSTNAME:
     hn_title = Textbox(len("Hostname Configuration"), 1, "Hostname Configuration")
-    
+
     # the hostname radio group:
     if not answers.has_key('manual-hostname'):
         # no current value set - if we currently have a useful hostname,
@@ -838,7 +838,7 @@ def get_name_service_configuration(answers):
     use_manual_hostname, manual_hostname = answers['manual-hostname']
     if manual_hostname is None:
         manual_hostname = ""
-        
+
     hn_rbgroup = RadioGroup()
     hn_dhcp_rb = hn_rbgroup.add("Automatically set via DHCP", "hn_dhcp", not use_manual_hostname)
     hn_dhcp_rb.setCallback(hn_callback, data = (False,))
@@ -892,7 +892,7 @@ def get_name_service_configuration(answers):
     ns1_grid = Grid(2, 1)
     ns1_grid.setField(ns1_text, 0, 0)
     ns1_grid.setField(ns1_entry, 1, 0)
-    
+
     ns2_text = Textbox(15, 1, "DNS Server 2:")
     ns2_entry = Entry(30, nsvalue(answers, 1))
     ns2_grid = Grid(2, 1)
@@ -922,7 +922,7 @@ def get_name_service_configuration(answers):
             gf.add(hn_manual_rb, 0, 2, anchorLeft = True)
             i += 2
         gf.add(hostname_grid, 0, i, padding = (0, 0, 0, 1), anchorLeft = True)
-    
+
         gf.add(ns_title, 0, i+1, padding = (0, 0, 0, 0))
         if not hide_rb:
             gf.add(ns_dhcp_rb, 0, 5, anchorLeft = True)
@@ -931,7 +931,7 @@ def get_name_service_configuration(answers):
         gf.add(ns1_grid, 0, i+2)
         gf.add(ns2_grid, 0, i+3)
         gf.add(ns3_grid, 0, i+4, padding = (0, 0, 0, 1))
-    
+
         gf.add(buttons, 0, 10, growx = 1)
 
         button = buttons.buttonPressed(gf.runOnce())
@@ -955,7 +955,7 @@ def get_name_service_configuration(answers):
                 answers['net-admin-configuration'].dns = answers['manual-nameservers'][1]
         else:
             answers['manual-nameservers'] = (False, None)
-            
+
         # validate before allowing the user to continue:
         done = True
 
@@ -1132,31 +1132,31 @@ def set_time(answers, now, show_back_button = False):
     # loop until the form validates or they click back:
     while not done:
         gf = GridFormHelp(tui.screen, "Set local time", 'settime', 1, 4)
-        
+
         gf.add(TextboxReflowed(50, "Please set the current (local) date and time"), 0, 0, padding = (0, 0, 1, 1))
-        
+
         dategrid = Grid(7, 4)
         # TODO: switch day and month around if in appropriate timezone
         dategrid.setField(Textbox(12, 1, "Year (YYYY)"), 1, 0)
         dategrid.setField(Textbox(12, 1, "Month (MM)"), 2, 0)
         dategrid.setField(Textbox(12, 1, "Day (DD)"), 3, 0)
-        
+
         dategrid.setField(Textbox(12, 1, "Hour (HH)"), 1, 2)
         dategrid.setField(Textbox(12, 1, "Min (MM)"), 2, 2)
         dategrid.setField(Textbox(12, 1, ""), 3, 2)
-        
+
         dategrid.setField(Textbox(12, 1, ""), 0, 0)
         dategrid.setField(Textbox(12, 1, "Date:"), 0, 1)
         dategrid.setField(Textbox(12, 1, "Time (24h):"), 0, 3)
         dategrid.setField(Textbox(12, 1, ""), 0, 2)
-        
+
         dategrid.setField(year, 1, 1, padding=(0, 0, 0, 1))
         dategrid.setField(month, 2, 1, padding=(0, 0, 0, 1))
         dategrid.setField(day, 3, 1, padding=(0, 0, 0, 1))
-        
+
         dategrid.setField(hour, 1, 3)
         dategrid.setField(minute, 2, 3)
-        
+
         gf.add(dategrid, 0, 1, padding=(0, 0, 1, 1))
 
         if show_back_button:
@@ -1164,7 +1164,7 @@ def set_time(answers, now, show_back_button = False):
         else:
             buttons = ButtonBar(tui.screen, [("Ok", "ok")])
         gf.add(buttons, 0, 2, growx = 1)
-        
+
         button = buttons.buttonPressed(gf.runOnce())
 
         if button == 'back': return LEFT_BACKWARDS

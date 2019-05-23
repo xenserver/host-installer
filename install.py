@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -97,7 +97,7 @@ def fixMpathResults(results):
 def go(ui, args, answerfile_address, answerfile_script):
     extra_repo_defs = []
     results = {
-        'keymap': None, 
+        'keymap': None,
         'serial-console': None,
         'operation': init_constants.OPERATION_INSTALL,
         'boot-serial': False,
@@ -152,7 +152,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         try:
             results['serial-console'] = hardware.SerialPort.from_string(serial_console)
             results['boot-serial'] = boot_serial
-            xelogging.log("Serial console specified on command-line: %s, default boot: %s" % 
+            xelogging.log("Serial console specified on command-line: %s, default boot: %s" %
                           (serial_console, boot_serial))
         except:
             pass
@@ -275,7 +275,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
                 if ui and interactive:
                     ui.installer.screens.installation_complete()
-            
+
                 xelogging.log("The installation completed successfully.")
         else:
             xelogging.log("The user aborted the installation from within the user interface.")
@@ -291,28 +291,28 @@ def go(ui, args, answerfile_address, answerfile_script):
 
             # run the user's scripts - an arg of "1" indicates failure
             scripts.run_scripts('installation-complete', '1')
-    
+
             # collect logs where possible
             xelogging.collectLogs("/tmp")
-    
+
             # now display a friendly error dialog:
             if ui:
                 ui.exn_error_dialog("install-log", True, interactive)
             else:
                 txt = constants.error_string(str(e), 'install-log', True)
                 xelogging.log(txt)
-    
+
             # and now on the disk if possible:
             if 'primary-disk' in results and 'primary-partnum' in results and 'logs-partnum' in results:
                 backend.writeLog(results['primary-disk'], results['primary-partnum'], results['logs-partnum'])
             elif 'primary-disk' in results and 'primary-partnum' in results:
                 backend.writeLog(results['primary-disk'], results['primary-partnum'], None)
-    
+
             xelogging.log(results)
         except Exception as e:
             # Don't let logging exceptions prevent subsequent actions
             print 'Logging failed: '+str(e)
-            
+
         # exit with failure status:
         status = constants.EXIT_ERROR
 
@@ -333,7 +333,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             backend.writeLog(results['primary-disk'], results['primary-partnum'], None)
 
         assert (status == constants.EXIT_OK or status == constants.EXIT_USER_CANCEL)
-        
+
     return status
 
 if __name__ == "__main__":

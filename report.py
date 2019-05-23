@@ -89,7 +89,7 @@ def get_local_disk(answers):
 
     entries = []
     target_is_sr = {}
-    
+
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         # determine current usage
@@ -136,7 +136,7 @@ def get_local_dest(answers):
         answers['dest-address'] = '/dev/' + partitions[0]
     else:
         entries = []
-    
+
         for part in partitions:
             e = (part, '/dev/' + part)
             entries.append(e)
@@ -220,13 +220,13 @@ def get_ftp_dest(answers):
             answers['dest-address'] = url.replace('//', '//%s@' % user_field.value(), 1)
     else:
         answers['dest-address'] = url
-            
+
     return uicontroller.RIGHT_FORWARDS
 
 def get_nfs_dest(answers):
     text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
     label = "NFS Path:"
-        
+
     if 'dest-address' in answers:
         default = answers['dest-address']
     else:
@@ -237,7 +237,7 @@ def get_nfs_dest(answers):
         text,
         [(label, default)], entryWidth = 50, width = 50,
         buttons = ['Ok', 'Back'], help = 'getnfsdest')
-            
+
     if button == 'back': return uicontroller.LEFT_BACKWARDS
 
     answers['dest-address'] = result[0]
@@ -256,12 +256,12 @@ def report_complete(report_saved):
     if report_saved:
         snack.ButtonChoiceWindow(tui.screen,
                                  "Report Saved",
-                                 "Report saved successfully.", 
+                                 "Report saved successfully.",
                                  ['Ok'])
     else:
         snack.ButtonChoiceWindow(tui.screen,
                                  "Error",
-                                 "Unable to save report.", 
+                                 "Unable to save report.",
                                  ['Ok'])
 
     return uicontroller.RIGHT_FORWARDS
@@ -278,7 +278,7 @@ def main(args):
         ui = tui
     else:
         dests = args
-        
+
     if ui:
         ui.init_ui()
 

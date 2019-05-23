@@ -1,7 +1,7 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -101,7 +101,7 @@ class ExistingInstallation:
 
     def _readSettings(self):
         """ Read settings from the installation, returns a results dictionary. """
-        
+
         results = { 'host-config': {} }
 
         self.mount_state()
@@ -115,7 +115,7 @@ class ExistingInstallation:
                 if '/usr/share/zoneinfo/' in tzfile:
                     _, tz = tzfile.split('/usr/share/zoneinfo/', 1)
             if not tz:
-                # No timezone found: 
+                # No timezone found:
                 # Supply a default and for interactive installs prompt the user.
                 xelogging.log('No timezone configuration found.')
                 results['request-timezone'] = True
@@ -184,7 +184,7 @@ class ExistingInstallation:
                 results['keymap'] = keyboard_dict['KEYTABLE']
             # Do not error here if no keymap configuration is found.
             # This enables upgrade to still carry state on hosts without
-            # keymap configured: 
+            # keymap configured:
             # A default keymap is assigned in the backend of this installer.
             if not results.has_key('keymap'):
                 xelogging.log('No existing keymap configuration found.')
@@ -279,7 +279,7 @@ class ExistingInstallation:
                     results['net-admin-configuration'].addIPv6(NetInterface.DHCP)
                 elif protov6 == 'autoconf':
                     results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
-                    
+
             repo_list = []
             if os.path.exists(self.join_state_path(constants.INSTALLED_REPOS_DIR)):
                 try:
@@ -563,4 +563,4 @@ def find_installed_products():
         xelogging.log("This is not fatal.  Continuing anyway.")
         installed_products = []
     return installed_products
-            
+

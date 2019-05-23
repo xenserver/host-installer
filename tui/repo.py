@@ -1,7 +1,7 @@
-# Copyright (c) 2009 Citrix, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2009 Citrix, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of Citrix, Inc. in the United States and/or other countries.
 
 ###
@@ -186,13 +186,13 @@ def get_url_location(answers, require_base_repo):
             answers['source-address'] = url_field.value()
         if len(answers['source-address']) > 0:
             done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_repo)
-            
+
     return RIGHT_FORWARDS
 
 def get_nfs_location(answers, require_base_rep):
     text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
     label = "NFS Path:"
-        
+
     done = False
     while not done:
         if answers.has_key('source-address'):
@@ -205,13 +205,13 @@ def get_nfs_location(answers, require_base_rep):
             text,
             [(label, default)], entryWidth = 50, width = 50,
             buttons = ['Ok', 'Back'], help = 'getnfsloc')
-            
+
         answers['source-address'] = result[0]
 
         if button == 'back': return LEFT_BACKWARDS
 
         done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_rep)
-            
+
     return RIGHT_FORWARDS
 
 def get_source_location(answers, require_base_rep):
@@ -242,7 +242,7 @@ def confirm_load_repo(answers, label, installed_repos):
 
     if label != 'driver':
         repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
-        
+
     if len(repos) == 0:
         ButtonChoiceWindow(
             tui.screen, "No %s Found" % cap_label,

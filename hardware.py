@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or 
+# Xen, XenSource and XenEnterprise are either registered trademarks or
 # trademarks of XenSource Inc. in the United States and/or other countries.
 
 ###
@@ -28,7 +28,7 @@ XENINFO = XC.xeninfo()
 
 def VTSupportEnabled():
     """ Checks if VT support is present.  Uses /sys/hypervisor to do so,
-    expecting a single line in this file with a space separated list of 
+    expecting a single line in this file with a space separated list of
     capabilities. """
     f = open(constants.HYPERVISOR_CAPS_FILE, 'r')
     caps = ""

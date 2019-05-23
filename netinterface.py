@@ -1,5 +1,5 @@
-# Copyright (c) 2008 Citrix Inc. All use and distribution of this 
-# copyrighted material is governed by and subject to terms and conditions 
+# Copyright (c) 2008 Citrix Inc. All use and distribution of this
+# copyrighted material is governed by and subject to terms and conditions
 # as licensed by Citrix Inc. All other rights reserved.
 
 ###
@@ -146,7 +146,7 @@ class NetInterface:
         return bcast
 
     def writeDebStyleInterface(self, iface, f):
-        """ Write a Debian-style configuration entry for this interface to 
+        """ Write a Debian-style configuration entry for this interface to
         file object f using interface name iface. """
 
         # Debian style interfaces are only used for the installer; dom0 only uses CentOS style
@@ -303,7 +303,7 @@ class NetInterface:
                 gatewayv6 = getTextOrNone(pif.getElementsByTagName('IPv6_gateway')[0].childNodes)
             except:
                 gatewayv6 = None
-    
+
         nic = NetInterface(mode, hwaddr, ipaddr, netmask, gateway, dns, domain)
         nic.addIPv6(modev6, ipv6addr, gatewayv6)
         return nic

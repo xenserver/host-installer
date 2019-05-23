@@ -3,7 +3,7 @@
 #-------------------------------------------------------------------
 # cpiofile.py
 #-------------------------------------------------------------------
-# Copyright (C) 2008 
+# Copyright (C) 2008
 # All rights reserved.
 #
 # Permission  is  hereby granted,  free  of charge,  to  any person
@@ -1096,7 +1096,7 @@ class CpioFile(object):
             buf = trailer.tobuf()
             self.fileobj.write(buf)
             self.offset += len(buf)
-            
+
 #            blocks, remainder = divmod(self.offset, BLOCKSIZE)
 #            if remainder > 0:
 #                self.fileobj.write((BLOCKSIZE - remainder) * NUL)

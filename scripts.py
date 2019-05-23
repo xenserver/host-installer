@@ -48,7 +48,7 @@ def run_script(script, stage, *args):
             raise RuntimeError, "Invalid interpreter %s in %s." % (interp[1], script)
     elif interp[0] not in ['/bin/sh', '/bin/bash', '/usr/bin/python']:
         raise RuntimeError, "Invalid interpreter %s in %s." % (interp[0], script)
-        
+
     cmd = [local_name]
     cmd.extend(args)
     os.chmod(local_name, stat.S_IRUSR | stat.S_IXUSR)

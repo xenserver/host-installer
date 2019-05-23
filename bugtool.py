@@ -99,7 +99,7 @@ def main(args):
     answer_config = 'dhcp'
     init_network = False
     reboot = False
-    
+
     xelogging.log("Command line args: %s" % str(args))
 
     for (opt, val) in args.items():

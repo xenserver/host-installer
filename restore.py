@@ -26,7 +26,7 @@ import xcp.bootloader as bootloader
 
 def restoreFromBackup(backup, progress = lambda x: ()):
     """ Restore files from backup_partition to the root partition on disk.
-    Call progress with a value between 0 and 100.  Re-install bootloader.  Fails if 
+    Call progress with a value between 0 and 100.  Re-install bootloader.  Fails if
     backup is not same version as the CD in use."""
 
     label = None
