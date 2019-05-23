@@ -10,7 +10,7 @@
 #
 # written by Andrew Peace
 
-import xelogging
+from xcp import logger
 
 SKIP_SCREEN = -100
 EXIT = -101
@@ -29,10 +29,10 @@ class Step:
         assert False not in [callable(x) for x in self.predicates]
         assert callable(self.fn)
         if False not in [x(answers) for x in self.predicates]:
-            xelogging.log("Displaying screen %s" % self.fn)
+            logger.log("Displaying screen %s" % self.fn)
             return self.fn(answers, *self.args)
         else:
-            xelogging.log("Not displaying screen %s due to predicate return false." % self.fn)
+            logger.log("Not displaying screen %s due to predicate return false." % self.fn)
             return SKIP_SCREEN
 
 def runSequence(seq, answers, previous_delta = 1):

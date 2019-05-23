@@ -9,12 +9,11 @@ import os.path
 import sys
 
 import xcp.accessor
-import xcp.logger
+from xcp import logger
 
 import netutil
 import product
 import util
-import xelogging
 from netinterface import *
 
 
@@ -78,7 +77,7 @@ def bugtool(inst, dest_url):
         util.umount(os.path.join(inst.root_fs.mount_point, 'proc'))
         util.umount(os.path.join(inst.root_fs.mount_point, 'dev'))
 
-        xcp.logger.log("Saving to " + dest_url)
+        logger.log("Saving to " + dest_url)
         a = xcp.accessor.createAccessor(dest_url, False)
         a.start()
         inh = open(out_fname)
@@ -91,8 +90,7 @@ def bugtool(inst, dest_url):
         inst.unmount_root()
 
 def main(args):
-    xcp.logger.openLog(sys.stdout)
-    xelogging.openLog(sys.stdout)
+    logger.openLog(sys.stdout)
 
     dest_url = None
     answer_device = 'all'
@@ -100,7 +98,7 @@ def main(args):
     init_network = False
     reboot = False
 
-    xelogging.log("Command line args: %s" % str(args))
+    logger.log("Command line args: %s" % str(args))
 
     for (opt, val) in args.items():
         if opt in ['--answerfile_device', '--network_device']:
@@ -119,15 +117,15 @@ def main(args):
     # probe for XS installations
     insts = product.findXenSourceProducts()
     if len(insts) == 0:
-        xcp.logger.log("No installations found.")
+        logger.log("No installations found.")
         return
 
     if not dest_url:
-        xcp.logger.log("Destination directory not specified.")
+        logger.log("Destination directory not specified.")
         return
 
     for inst in insts:
-        xcp.logger.log(str(inst))
+        logger.log(str(inst))
         bugtool(inst, dest_url)
 
     return reboot

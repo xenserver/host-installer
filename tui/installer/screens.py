@@ -20,8 +20,8 @@ from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPE
 import constants
 import diskutil
 from disktools import *
-import xelogging
 from version import *
+from xcp import logger
 import snackutil
 import util
 import socket
@@ -58,8 +58,8 @@ def welcome_screen(answers):
         tui.screen.popHelpLine()
         tui.update_help_line([None, ' '])
         drivers = driver.doInteractiveLoadDriver(tui, driver_answers)
-        xelogging.log(drivers)
-        xelogging.log(driver_answers)
+        logger.log(drivers)
+        logger.log(driver_answers)
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
@@ -111,7 +111,7 @@ To setup advanced storage classes press <F10>.
     if button == 'reboot':
         return EXIT
 
-    xelogging.log("Waiting for partitions to appear...")
+    logger.log("Waiting for partitions to appear...")
     util.runCmd2(util.udevsettleCmd())
     time.sleep(1)
     diskutil.mpath_part_scan()
@@ -471,7 +471,7 @@ def confirm_erase_volume_groups(answers):
         return SKIP_SCREEN
 
     if len(problems) == 1:
-        xelogging.log("Problematic VGs: %s" % problems)
+        logger.log("Problematic VGs: %s" % problems)
         affected = "The volume group affected is %s.  Are you sure you wish to continue?" % problems[0]
     elif len(problems) > 1:
         affected = "The volume groups affected are %s.  Are you sure you wish to continue?" % generalui.makeHumanList(problems)

@@ -20,13 +20,13 @@ import constants
 import version
 import re
 import stat
-import xelogging
 import repository
 from disktools import *
 import hardware
 import xcp
 import xcp.bootloader as bootloader
 from xcp.version import *
+from xcp import logger
 import xml.dom.minidom
 import simplejson as json
 
@@ -79,9 +79,9 @@ class ExistingInstallation:
 
             result = (len(missing_state_files) == 0)
             if not result:
-                xelogging.log('Upgradeability test failed:')
-                xelogging.log('  Firstboot:     '+', '.join(firstboot_files))
-                xelogging.log('  Missing state: '+', '.join(missing_state_files))
+                logger.log('Upgradeability test failed:')
+                logger.log('  Firstboot:     '+', '.join(firstboot_files))
+                logger.log('  Missing state: '+', '.join(missing_state_files))
         finally:
             self.unmount_state()
         return result
@@ -90,11 +90,11 @@ class ExistingInstallation:
         try:
             self.readSettings()
         except SettingsNotAvailable as text:
-            xelogging.log("Settings unavailable: %s" % text)
+            logger.log("Settings unavailable: %s" % text)
             return False
         except Exception as e:
-            xelogging.log("Settings unavailable: unhandled exception")
-            xelogging.log_exception(e)
+            logger.log("Settings unavailable: unhandled exception")
+            logger.logException(e)
             return False
         else:
             return True
@@ -117,7 +117,7 @@ class ExistingInstallation:
             if not tz:
                 # No timezone found:
                 # Supply a default and for interactive installs prompt the user.
-                xelogging.log('No timezone configuration found.')
+                logger.log('No timezone configuration found.')
                 results['request-timezone'] = True
                 tz = "Europe/London"
             results['timezone'] = tz
@@ -187,7 +187,7 @@ class ExistingInstallation:
             # keymap configured:
             # A default keymap is assigned in the backend of this installer.
             if 'keymap' not in results:
-                xelogging.log('No existing keymap configuration found.')
+                logger.log('No existing keymap configuration found.')
 
             # root password:
             fd = open(self.join_state_path('etc/passwd'), 'r')
@@ -226,9 +226,9 @@ class ExistingInstallation:
             mgmt_iface = self.getInventoryValue('MANAGEMENT_INTERFACE')
 
             if not mgmt_iface:
-                xelogging.log('No existing management interface found.')
+                logger.log('No existing management interface found.')
             elif os.path.exists(self.join_state_path(constants.NETWORK_DB)):
-                xelogging.log('Checking %s for management interface configuration' % constants.NETWORKD_DB)
+                logger.log('Checking %s for management interface configuration' % constants.NETWORKD_DB)
 
                 def fetchIfaceInfoFromNetworkdbAsDict(bridge, iface=None):
                     args = ['chroot', self.state_fs.mount_point, '/'+constants.NETWORKD_DB, '-bridge', bridge]
@@ -296,8 +296,8 @@ class ExistingInstallation:
                             repo.close()
                             repo_list.append((repo_id, repo_name, (repo_id != constants.MAIN_REPOSITORY_NAME)))
                 except Exception as e:
-                    xelogging.log('Scan for driver disks failed:')
-                    xelogging.log_exception(e)
+                    logger.log('Scan for driver disks failed:')
+                    logger.logException(e)
 
             results['repo-list'] = repo_list
 
@@ -541,12 +541,12 @@ def findXenSourceProducts():
             if root[0] == diskutil.INSTALL_RETAIL:
                 inst = ExistingRetailInstallation(disk, boot[1], root[1], state[1], storage)
         except Exception as e:
-            xelogging.log("A problem occurred whilst scanning for existing installations:")
-            xelogging.log_exception(e)
-            xelogging.log("This is not fatal.  Continuing anyway.")
+            logger.log("A problem occurred whilst scanning for existing installations:")
+            logger.logException(e)
+            logger.log("This is not fatal.  Continuing anyway.")
 
         if inst:
-            xelogging.log("Found an installation: %s on %s" % (str(inst), disk))
+            logger.log("Found an installation: %s on %s" % (str(inst), disk))
             installs.append(inst)
 
     return installs
@@ -558,9 +558,9 @@ def find_installed_products():
     try:
         installed_products = findXenSourceProducts()
     except Exception as e:
-        xelogging.log("A problem occurred whilst scanning for existing installations:")
-        xelogging.log_exception(e)
-        xelogging.log("This is not fatal.  Continuing anyway.")
+        logger.log("A problem occurred whilst scanning for existing installations:")
+        logger.logException(e)
+        logger.log("This is not fatal.  Continuing anyway.")
         installed_products = []
     return installed_products
 

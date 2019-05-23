@@ -22,7 +22,7 @@ import generalui
 import urlparse
 import urllib
 import util
-import xelogging
+from xcp import logger
 
 def selectDefault(key, entries):
     """ Given a list of (text, key) and a key to select, returns the appropriate
@@ -49,7 +49,7 @@ def check_repo_def(definition, require_base_repo):
         repos = repository.repositoriesFromDefinition(*definition)
         tui.progress.clearModelessDialog()
     except Exception as e:
-        xelogging.log("Exception trying to access repository: %s" % e)
+        logger.log("Exception trying to access repository: %s" % e)
         tui.progress.clearModelessDialog()
         return REPOCHK_NO_ACCESS
     else:
@@ -340,7 +340,7 @@ def verify_source(answers, label, require_base_repo):
                 else:
                     done = interactive_source_verification(repos, label)
             except Exception as e:
-                xelogging.logException(e)
+                logger.logException(e)
                 ButtonChoiceWindow(
                     tui.screen, "Error",
                     """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",

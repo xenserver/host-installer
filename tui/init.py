@@ -23,7 +23,6 @@ import tui.progress
 import tui.repo
 import repository
 import snackutil
-import xelogging
 
 def get_keymap():
     entries = generalui.getKeymaps()

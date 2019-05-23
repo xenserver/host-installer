@@ -27,13 +27,13 @@ import gzip
 import shutil
 from xml.dom.minidom import parse
 
-import xelogging
 import diskutil
 import hardware
 import version
 import util
 from util import dev_null
 from xcp.version import *
+from xcp import logger
 import cpiofile
 from constants import *
 import xml.dom.minidom
@@ -174,7 +174,7 @@ reposdir=/tmp/repos
         return installed_repos
 
     def _installPackages(self, progress_callback, mounts):
-        xelogging.log("URL: " + self._accessor.url())
+        logger.log("URL: " + self._accessor.url())
         with open('/root/yum.conf', 'w') as yum_conf:
             yum_conf.write(self._yum_conf)
             yum_conf.write("""
@@ -191,7 +191,7 @@ baseurl=%s
         yum_command = ['yum', '-c', '/root/yum.conf',
                        '--installroot', mounts['root'],
                        'install', '-y'] + self._targets
-        xelogging.log("Running yum: %s" % ' '.join(yum_command))
+        logger.log("Running yum: %s" % ' '.join(yum_command))
         p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
         count = 0
         total = 0
@@ -201,7 +201,7 @@ baseurl=%s
             if not line:
                 break
             line = line.rstrip()
-            xelogging.log("YUM: %s" % line)
+            logger.log("YUM: %s" % line)
             if line == 'Resolving Dependencies':
                 progress_callback(1)
             elif line == 'Dependencies Resolved':
@@ -223,10 +223,10 @@ baseurl=%s
         stderr.seek(0)
         stderr = stderr.read()
         if stderr:
-            xelogging.log("YUM stderr: %s" % stderr.strip())
+            logger.log("YUM stderr: %s" % stderr.strip())
 
         if rv:
-            xelogging.log("Yum exited with %d" % rv)
+            logger.log("Yum exited with %d" % rv)
             raise ErrorInstallingPackage("Error installing packages")
 
         shutil.rmtree(os.path.join(mounts['root'], self._cachedir))
@@ -333,7 +333,7 @@ class MainYumRepository(YumRepository):
                 outfh.close()
                 infh.close()
         except Exception as e:
-            xelogging.log(str(e))
+            logger.log(str(e))
             self._accessor.finish()
             raise ErrorInstallingPackage("Error installing key files")
         self._accessor.finish()
@@ -427,7 +427,7 @@ class RPMPackage(object):
             return self.repository.accessor().access(self.name)
         else:
             try:
-                xelogging.log("Validating package %s" % self.name)
+                logger.log("Validating package %s" % self.name)
                 namefp = self.repository.accessor().openAddress(self.name)
                 m = hashlib.sha256()
                 data = ''
@@ -603,10 +603,10 @@ class URLAccessor(Accessor):
 
     def __init__(self, baseAddress):
         if not True in [ baseAddress.startswith(prefix) for prefix in self.url_prefixes ] :
-            xelogging.log("Base address: no known protocol specified, prefixing http://")
+            logger.log("Base address: no known protocol specified, prefixing http://")
             baseAddress = "http://" + baseAddress
         if not baseAddress.endswith('/'):
-            xelogging.log("Base address: did not end with '/' but should be a directory so adding it.")
+            logger.log("Base address: did not end with '/' but should be a directory so adding it.")
             baseAddress += '/'
 
         if baseAddress.startswith('http://'):
@@ -621,7 +621,7 @@ class URLAccessor(Accessor):
                 baseAddress = baseAddress.replace(path2, new_path)
             (hostname, username, password) = util.splitNetloc(netloc)
             if username is not None:
-                xelogging.log("Using basic HTTP authentication: %s %s" % (username, password))
+                logger.log("Using basic HTTP authentication: %s %s" % (username, password))
                 self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
                 self.passman.add_password(None, hostname, username, password)
                 self.authhandler = urllib2.HTTPBasicAuthHandler(self.passman)
@@ -638,7 +638,7 @@ class URLAccessor(Accessor):
 
         self.fullAddress = baseAddress
 
-        xelogging.log("Initializing URLRepositoryAccessor with base address %s" % self.baseAddress)
+        logger.log("Initializing URLRepositoryAccessor with base address %s" % self.baseAddress)
 
     def _url_concat(url1, end):
         assert url1.endswith('/')
@@ -751,7 +751,7 @@ def findRepositoriesOnMedia(drivers=False):
     try:
         for check in parent_devices + partitions:
             device_path = "/dev/%s" % check
-            xelogging.log("Looking for repositories: %s" % device_path)
+            logger.log("Looking for repositories: %s" % device_path)
             if os.path.exists(device_path):
                 da = DeviceAccessor(device_path)
                 try:

@@ -20,12 +20,12 @@ import util
 import netutil
 from util import dev_null
 import tui
-import xelogging
 from disktools import *
 import time
 import snackutil
 from snack import *
 import fcoeutil
+from xcp import logger
 
 def select_fcoe_ifaces(answers):
     """ Display a screen that displays all network interfaces that are
@@ -116,14 +116,14 @@ def select_fcoe_ifaces(answers):
 
     r = dict(map(lambda (k): (k, entries[k].endswith('[soft]')), cbt.getSelection()))
     answers['fcoe-interfaces'] = r
-    xelogging.log("Selected fcoe interfaces %s" % str(r))
+    logger.log("Selected fcoe interfaces %s" % str(r))
 
     tui.update_help_line([' ', ' '])
 
     # Bring up FCoE devices
     tui.progress.showMessageDialog("Please wait", "Discovering devices...")
     result = fcoeutil.start_fcoe(answers['fcoe-interfaces'])
-    xelogging.log("fcoe result %s" % str(result))
+    logger.log("fcoe result %s" % str(result))
     tui.progress.clearModelessDialog()
 
     fail = {k: v for k, v in result.iteritems() if v != 'OK'}
@@ -151,7 +151,7 @@ def select_fcoe_ifaces(answers):
                 luns[os.path.basename(lun['device'])] = {'Capacity': lun['capacity'], 'Description': lun['description'],
                                                          'Port': v2['Port Name'], 'VLAN': k}
 
-    xelogging.log("fcoe luns discovered %s" % str(luns))
+    logger.log("fcoe luns discovered %s" % str(luns))
     def disk_details(context):
         tui.update_help_line([' ', ' '])
         table = [("Name:", context)]

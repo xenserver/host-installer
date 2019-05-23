@@ -17,7 +17,7 @@ import constants
 import util
 import netutil
 from util import dev_null
-import xelogging
+from xcp import logger
 from disktools import *
 import time
 
@@ -58,7 +58,7 @@ def start_fcoe(interfaces):
                           'adminStatus=disabled'])
 
     for interface in interfaces:
-        xelogging.log("Starting fipvlan on %s"% interface)
+        logger.log("Starting fipvlan on %s"% interface)
 
         rc, out, err = util.runCmd2(['/usr/sbin/fipvlan',
                                      '-s', '-c', interface], True, True)
@@ -67,7 +67,7 @@ def start_fcoe(interfaces):
         else:
             result[interface] = "OK"
 
-    xelogging.log(result)
+    logger.log(result)
 
     # Wait for block devices to appear.
     # Without being able to know how long this will take and because LUNs can
@@ -77,7 +77,7 @@ def start_fcoe(interfaces):
     util.runCmd2(util.udevsettleCmd())
     for interface, status in result.iteritems():
         if status == 'OK':
-            xelogging.log(get_luns_on_intf(interface))
+            logger.log(get_luns_on_intf(interface))
 
     return result
 

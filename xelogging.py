@@ -19,21 +19,6 @@ import datetime
 import traceback
 import constants
 
-import xcp.logger as logger
-
-
-# These hacks^H fixes are to allow the installer to use the new logging
-# facilities in xcp.logger without makeing sweaping changes to the source
-# code.  Newer functionality should reference xcp.logger directly
-THIS = sys.modules[__name__]
-
-_this_keys = frozenset(THIS.__dict__.keys())
-THIS.__dict__.update(
-    dict( (k, v) for (k, v) in logger.__dict__.iteritems()
-          if k not in _this_keys ))
-
-THIS.__dict__["log_exception"] = THIS.__dict__["logException"]
-
 
 def collectLogs(dst, tarball_dir = None):
     """ Make a support tarball including all logs (and some more) from 'dst'."""

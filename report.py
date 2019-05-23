@@ -20,7 +20,7 @@ from version import *
 from xelogging import collectLogs
 
 import xcp.accessor
-import xcp.logger as xelogging
+from xcp import logger
 
 
 def selectDefault(key, entries):
@@ -272,7 +272,7 @@ def main(args):
     dests = []
     ui = None
 
-    xelogging.openLog('/dev/tty3')
+    logger.openLog('/dev/tty3')
 
     if len(args) == 0:
         ui = tui
@@ -295,8 +295,8 @@ def main(args):
             ]
         rc = uicontroller.runSequence(seq, results)
         if rc == uicontroller.RIGHT_FORWARDS:
-            xelogging.log("ANSWERS DICTIONARY:")
-            xelogging.log(str(results))
+            logger.log("ANSWERS DICTIONARY:")
+            logger.log(str(results))
 
             if results['dest-media'] == 'local':
                 dests.append("dev://" + results['dest-address'])
@@ -310,7 +310,7 @@ def main(args):
 
     report_saved = False
     for dest in dests:
-        xelogging.log("Saving report to: " + dest)
+        logger.log("Saving report to: " + dest)
         try:
             a = xcp.accessor.createAccessor(dest, False)
             a.start()
@@ -320,7 +320,7 @@ def main(args):
             a.finish()
             report_saved = True
         except Exception as e:
-            xelogging.log("Failed: " + str(e))
+            logger.log("Failed: " + str(e))
             report_saved = False
 
     if ui:

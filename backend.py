@@ -34,6 +34,7 @@ import xcp.bootloader as bootloader
 import netinterface
 import tui.repo
 import xcp.dom0
+from xcp import logger
 from xcp.version import Version
 
 # Product version and constants:
@@ -75,9 +76,9 @@ class Task:
         assert type(args) == list
 
         if not self.args_sensitive:
-            xelogging.log("TASK: Evaluating %s%s" % (self.fn, args))
+            logger.log("TASK: Evaluating %s%s" % (self.fn, args))
         else:
-            xelogging.log("TASK: Evaluating %s (sensitive data in arguments: not logging)" % self.fn)
+            logger.log("TASK: Evaluating %s (sensitive data in arguments: not logging)" % self.fn)
 
         if self.pass_progress_callback:
             args.insert(0, progress_callback)
@@ -219,7 +220,7 @@ def prettyLogAnswers(answers):
             val = (answers[a][0], '< not printed >')
         else:
             val = answers[a]
-        xelogging.log("%s := %s %s" % (a, val, type(val)))
+        logger.log("%s := %s %s" % (a, val, type(val)))
 
 def executeSequence(sequence, seq_name, answers, ui, cleanup):
     answers['cleanup'] = []
@@ -234,14 +235,14 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
             "Installing %s" % MY_PRODUCT_BRAND,
             seq_name, progress_total
             )
-    xelogging.log("DISPATCH: NEW PHASE: %s" % seq_name)
+    logger.log("DISPATCH: NEW PHASE: %s" % seq_name)
 
     def doCleanup(actions):
         for tag, f, a in actions:
             try:
                 apply(f, a)
             except:
-                xelogging.log("FAILED to perform cleanup action %s" % tag)
+                logger.log("FAILED to perform cleanup action %s" % tag)
 
     def progressCallback(x):
         if ui:
@@ -259,7 +260,7 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
                 ui.progress.displayProgressDialog(current, pd, updated_text = text)
             updated_state = item.execute(answers, progressCallback)
             if len(updated_state) > 0:
-                xelogging.log(
+                logger.log(
                     "DISPATCH: Updated state: %s" %
                     str.join("; ", ["%s -> %s" % (v, updated_state[v]) for v in updated_state.keys()])
                     )
@@ -279,9 +280,9 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
             del answers['cleanup']
 
 def performInstallation(answers, ui_package, interactive):
-    xelogging.log("INPUT ANSWERS DICTIONARY:")
+    logger.log("INPUT ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
-    xelogging.log("SCRIPTS DICTIONARY:")
+    logger.log("SCRIPTS DICTIONARY:")
     prettyLogAnswers(scripts.script_dict)
 
     dom0_mem = xcp.dom0.default_memory_for_version(
@@ -297,7 +298,7 @@ def performInstallation(answers, ui_package, interactive):
     if answers['preserve-settings'] == True:
         defaults.update({ 'guest-disks': [] })
 
-        xelogging.log("Updating answers dictionary based on existing installation")
+        logger.log("Updating answers dictionary based on existing installation")
         try:
             answers.update(answers['installation-to-overwrite'].readSettings())
 
@@ -310,7 +311,7 @@ def performInstallation(answers, ui_package, interactive):
                 default_host_config['dom0-vcpus'] = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(),
                                                                            answers['host-config']['dom0-mem'])
         except Exception as e:
-            xelogging.logException(e)
+            logger.logException(e)
             raise RuntimeError("Failed to get existing installation settings")
 
         prettyLogAnswers(answers)
@@ -323,7 +324,7 @@ def performInstallation(answers, ui_package, interactive):
                           'sr-on-primary': True,
                           'preserve-first-partition': constants.PRESERVE_IF_UTILITY })
 
-        xelogging.log("Updating answers dictionary based on defaults")
+        logger.log("Updating answers dictionary based on defaults")
 
     for k, v in defaults.items():
         if k not in answers:
@@ -331,7 +332,7 @@ def performInstallation(answers, ui_package, interactive):
     for k, v in default_host_config.items():
         if k not in answers['host-config']:
             answers['host-config'][k] = v
-    xelogging.log("UPDATED ANSWERS DICTIONARY:")
+    logger.log("UPDATED ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
     # Slight hack: we need to write the bridge name to xensource-inventory
@@ -485,7 +486,7 @@ def configureTimeManually(mounts, ui_package):
 def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part, create_new_partitions):
 
     uefi_installer = os.path.exists("/sys/firmware/efi")
-    xelogging.log("Installer booted in %s mode" % ("UEFI" if uefi_installer else "legacy"))
+    logger.log("Installer booted in %s mode" % ("UEFI" if uefi_installer else "legacy"))
 
     if existing:
         # upgrade, use existing partitioning scheme
@@ -508,7 +509,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
             raise RuntimeError("Installer mode (%s) is mismatched with target boot mode (%s)" %
                                ("UEFI" if uefi_installer else "legacy", target_boot_mode))
 
-        xelogging.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
+        logger.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
 
         # Return install mode and numbers of boot, primary, backup, log, swap and SR partitions
         storage_partition = tool.getPartition(primary_part+2)
@@ -544,7 +545,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     target_boot_mode = TARGET_BOOT_MODE_UEFI if uefi_installer else TARGET_BOOT_MODE_LEGACY
 
-    xelogging.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
+    logger.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
     # Return install mode and numbers of boot, primary, backup, logs, swap and SR partitions
     if create_new_partitions:
@@ -748,10 +749,10 @@ def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
 def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disks, sr_type):
 
     if len(guest_disks) == 0 or constants.CC_PREPARATIONS and sr_type != constants.SR_TYPE_EXT:
-        xelogging.log("No storage repository requested.")
+        logger.log("No storage repository requested.")
         return None
 
-    xelogging.log("Arranging for storage repositories to be created at first boot...")
+    logger.log("Arranging for storage repositories to be created at first boot...")
 
     partitions = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
 
@@ -799,13 +800,13 @@ def make_free_space(mount, required):
 
     for _, path in files:
         os.unlink(path)
-        xelogging.log('Removed %s' % path)
+        logger.log('Removed %s' % path)
         if free_space(mount) >= required:
             return
 
     for _, path in dirs:
         shutil.rmtree(path, ignore_errors=True)
-        xelogging.log('Removed %s' % path)
+        logger.log('Removed %s' % path)
         if free_space(mount) >= required:
             return
 
@@ -880,7 +881,7 @@ def updateBootLoaderLocation(target_boot_mode, partition_table_type, disk, locat
     tool = PartitionTool(disk)
     start = min(part[1]['start'] for part in tool.iteritems())
     if start < LBA_PARTITION_MIN:
-        xelogging.log('First partition on disk starts at %d, installing bootloader to partition.' % start)
+        logger.log('First partition on disk starts at %d, installing bootloader to partition.' % start)
         return BOOT_LOCATION_PARTITION
 
     return location
@@ -1261,7 +1262,7 @@ def installExtLinux(mounts, disk, partition_table_type, location = constants.BOO
             raise Exception("Only DOS and GPT partition tables supported")
 
         # Write image to MBR
-        xelogging.log("Installing %s to %s" % (mbr, disk))
+        logger.log("Installing %s to %s" % (mbr, disk))
         assert os.path.exists(mbr)
         assert util.runCmd2(["dd", "if=%s" % mbr, "of=%s" % disk]) == 0
 
@@ -1276,7 +1277,7 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     util.assertDir('/tmp/root')
     util.mount(rootp, mounts['root'])
     rc, out = util.runCmd2(['cat', '/proc/mounts'], with_stdout = True)
-    xelogging.log(out)
+    logger.log(out)
     tool = PartitionTool(primary_disk)
     logs_partition = tool.getPartition(logs_partnum)
 
@@ -1323,7 +1324,7 @@ def writeKeyboardConfiguration(mounts, keymap):
     util.assertDir("%s/etc/sysconfig/" % mounts['root'])
     if not keymap:
         keymap = 'us'
-        xelogging.log("No keymap specified, defaulting to 'us'")
+        logger.log("No keymap specified, defaulting to 'us'")
 
     vconsole = open("%s/etc/vconsole.conf" % mounts['root'], 'w')
     vconsole.write("KEYMAP=%s\n" % keymap)
@@ -1504,7 +1505,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     util.assertDir(os.path.join(mounts['root'], 'etc/xensource'))
     nwconf = open("%s/etc/xensource/network.conf" % mounts["root"], "w")
     nwconf.write("%s\n" % network_backend)
-    xelogging.log("Writing %s to /etc/xensource/network.conf" % network_backend)
+    logger.log("Writing %s to /etc/xensource/network.conf" % network_backend)
     nwconf.close()
 
     mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')

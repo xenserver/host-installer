@@ -21,9 +21,9 @@ import netutil
 import product
 import scripts
 import util
-import xelogging
 import xml.dom.minidom
 
+from xcp import logger
 from xcp.xmlunwrap import *
 
 def normalize_disk(disk):
@@ -53,7 +53,7 @@ class Answerfile:
 
     @staticmethod
     def fetch(location):
-        xelogging.log("Fetching answerfile from %s" % location)
+        logger.log("Fetching answerfile from %s" % location)
         util.fetchFile(location, ANSWERFILE_PATH)
 
         try:
@@ -80,7 +80,7 @@ class Answerfile:
         """Process enough of the answerfile so that disks can be made available
         for inspection."""
 
-        xelogging.log("Processing XML answerfile setup.")
+        logger.log("Processing XML answerfile setup.")
         results = {}
         results.update(self.parseDriverSource())
         results.update(self.parseFCoEInterface())
@@ -89,7 +89,7 @@ class Answerfile:
         return results
 
     def processAnswerfile(self):
-        xelogging.log("Processing XML answerfile for %s." % self.operation)
+        logger.log("Processing XML answerfile for %s." % self.operation)
         if self.operation == 'installation':
             install_type = getStrAttribute(self.top_node, ['mode'], default = 'fresh')
             if install_type == "fresh":
@@ -197,23 +197,23 @@ class Answerfile:
             raise AnswerfileException("Could not locate exsisting backup.")
 
         results['backups'] = backups
-        xelogging.log("Backup list: %s" % ", ".join(str(b) for b in backups))
+        logger.log("Backup list: %s" % ", ".join(str(b) for b in backups))
         nodes = getElementsByTagName(self.top_node, ['backup-disk'])
         if len(nodes) == 1:
             disk = normalize_disk(getText(nodes[0]))
             disk = disktools.getMpathMasterOrDisk(disk)
-            xelogging.log("Filtering backup list for disk %s" % disk)
+            logger.log("Filtering backup list for disk %s" % disk)
             backups = filter(lambda x: x.root_disk == disk, backups)
-            xelogging.log("Backup list filtered: %s" % ", ".join(str(b) for b in backups))
+            logger.log("Backup list filtered: %s" % ", ".join(str(b) for b in backups))
 
         if len(backups) > 1:
-            xelogging.log("Multiple backups found. Aborting...")
+            logger.log("Multiple backups found. Aborting...")
             raise AnswerfileException("Multiple backups were found. Unable to deduce which backup to restore from.")
         elif len(backups) == 0:
-            xelogging.log("Unable to find a backup to restore. Aborting...")
+            logger.log("Unable to find a backup to restore. Aborting...")
             raise AnswerfileException("Unable to find a backup to restore.")
 
-        xelogging.log("Restoring backup %s." % str(backups[0]))
+        logger.log("Restoring backup %s." % str(backups[0]))
         results['backup-to-restore'] = backups[0]
 
         return results
@@ -252,9 +252,9 @@ class Answerfile:
         inst = getElementsByTagName(self.top_node, ['existing-installation'],
                                     mandatory = True)
         disk = normalize_disk(getText(inst[0]))
-        xelogging.log("Normalized disk: %s" % disk)
+        logger.log("Normalized disk: %s" % disk)
         disk = disktools.getMpathMasterOrDisk(disk)
-        xelogging.log('Primary disk: ' + disk)
+        logger.log('Primary disk: ' + disk)
         results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
@@ -263,8 +263,8 @@ class Answerfile:
             raise AnswerfileException("Could not locate the installation specified to be reinstalled.")
         elif len(installations) > 1:
             # FIXME non-multipath case?
-            xelogging.log("Warning: multiple paths detected - recommend use of --device_mapper_multipath=yes")
-            xelogging.log("Warning: selecting 1st path from %s" % str(map(lambda x: x.primary_disk, installations)))
+            logger.log("Warning: multiple paths detected - recommend use of --device_mapper_multipath=yes")
+            logger.log("Warning: selecting 1st path from %s" % str(map(lambda x: x.primary_disk, installations)))
         results['installation-to-overwrite'] = installations[0]
         return results
 

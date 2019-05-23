@@ -13,7 +13,6 @@
 import backend
 import product
 from disktools import *
-import xelogging
 import diskutil
 import util
 import os
@@ -23,6 +22,7 @@ import re
 import tempfile
 import shutil
 import xcp.bootloader as bootloader
+from xcp import logger
 
 def restoreFromBackup(backup, progress = lambda x: ()):
     """ Restore files from backup_partition to the root partition on disk.
@@ -40,7 +40,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
     backup_fs.unmount()
 
-    xelogging.log("BACKUP DISK PARTITION LAYOUT: %s" % backup_partition_layout)
+    logger.log("BACKUP DISK PARTITION LAYOUT: %s" % backup_partition_layout)
 
     backup_partition = backup.partition
 
@@ -48,7 +48,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     assert disk.startswith('/dev/')
 
     restore_partition = partitionDevice(disk, primary_partnum)
-    xelogging.log("Restoring to partition %s." % restore_partition)
+    logger.log("Restoring to partition %s." % restore_partition)
 
     boot_part = tool.getPartition(boot_partnum)
     boot_device = partitionDevice(disk, boot_partnum) if boot_part else None
@@ -61,7 +61,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
         try:
             boot_config = bootloader.Bootloader.loadExisting(root_fs.mount_point)
             current_location = boot_config.location
-            xelogging.log("Bootloader currently in %s" % current_location)
+            logger.log("Bootloader currently in %s" % current_location)
         finally:
             root_fs.unmount()
     except:
@@ -97,7 +97,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
                           os.listdir(backup_fs.mount_point))
             for i in range(len(objs)):
                 obj = objs[i]
-                xelogging.log("Restoring subtree %s..." % obj)
+                logger.log("Restoring subtree %s..." % obj)
                 progress((i * 100) / len(objs))
 
                 # Use 'cp' here because Python's copying tools are useless and
@@ -106,7 +106,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
                                  dest_fs.mount_point]) != 0:
                     raise RuntimeError("Failed to restore %s directory" % obj)
 
-            xelogging.log("Data restoration complete.  About to re-install bootloader.")
+            logger.log("Data restoration complete.  About to re-install bootloader.")
 
             location = boot_config.location
             m = re.search(r'root=LABEL=(\S+)', boot_config.menu[boot_config.default].kernel_args)
@@ -115,7 +115,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
             if location == constants.BOOT_LOCATION_PARTITION and current_location == constants.BOOT_LOCATION_MBR:
                 # if bootloader in the MBR it's probably not safe to restore with it
                 # on the partition
-                xelogging.log("Bootloader is currently installed to MBR, restoring to MBR instead of partition")
+                logger.log("Bootloader is currently installed to MBR, restoring to MBR instead of partition")
                 location = constants.BOOT_LOCATION_MBR
 
             with open(os.path.join(backup_fs.mount_point, 'etc', 'fstab'), 'r') as fstab:

@@ -8,7 +8,8 @@ import constants
 import re, subprocess, types, os, time
 from pprint import pprint
 from copy import copy, deepcopy
-import util, xelogging
+import util
+from xcp import logger
 
 class Segment:
     """Segments are areas, e.g. disk partitions or LVM segments, defined by start address and size"""
@@ -166,9 +167,9 @@ class LVMTool:
                     data[name] = int(data[name])
                 retVal.append(data)
             except Exception as e:
-                xelogging.log("Discarding corrupt LVM output line '"+str(line)+"'")
-                xelogging.log("  Command was '"+str(cmd)+"'")
-                xelogging.log("  Error was '"+str(e)+"'")
+                logger.log("Discarding corrupt LVM output line '"+str(line)+"'")
+                logger.log("  Command was '"+str(cmd)+"'")
+                logger.log("  Error was '"+str(e)+"'")
 
         return retVal
 
@@ -547,7 +548,7 @@ class PartitionToolBase:
         try:
             self.cmdWrap(util.udevsettleCmd() + ['--timeout=%d' % timeout ])
         except:
-            xelogging.log('udevsettle with %d second timeout failed' % timeout)
+            logger.log('udevsettle with %d second timeout failed' % timeout)
 
     def waitForDeviceNodes(self):
         # Ensure new device nodes are available before we continue.
@@ -717,7 +718,7 @@ class PartitionToolBase:
             for k, v in sorted(partition.iteritems()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
-        xelogging.log(output)
+        logger.log(output)
 
 
 class DOSPartitionTool(PartitionToolBase):
@@ -763,7 +764,7 @@ class DOSPartitionTool(PartitionToolBase):
 
         if self.sectorSize is None:
             self.sectorSize = self.DEFAULT_SECTOR_SIZE
-            xelogging.log("Couldn't determine sector size from sfdisk output - no partition table?\n"+
+            logger.log("Couldn't determine sector size from sfdisk output - no partition table?\n"+
                 "Using default value: "+str(self.sectorSize)+"\nsfdisk output:"+out)
 
     def __readDeviceMapperDiskDetails(self):
@@ -849,7 +850,7 @@ class DOSPartitionTool(PartitionToolBase):
 
             input += line+'\n'
         if log:
-            xelogging.log('Input to sfdisk:\n'+input)
+            logger.log('Input to sfdisk:\n'+input)
 
         if isDeviceMapperNode(self.device):
             # Destroy device mapper partitions before re-writing partition table on mpath device
@@ -862,7 +863,7 @@ class DOSPartitionTool(PartitionToolBase):
             cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '--no-reread', '-f', '-C%d' % cylinders, '-H%d' % heads, '-S%d' % sectors, self.device]
         else:
             cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '--no-reread', '-f', self.device]
-        xelogging.log('sfdisk command: %s' % ' '.join(cmd))
+        logger.log('sfdisk command: %s' % ' '.join(cmd))
         self.settleUdev()
         process = subprocess.Popen(
             cmd,
@@ -873,7 +874,7 @@ class DOSPartitionTool(PartitionToolBase):
             )
         output = process.communicate(input)
         if log:
-            xelogging.log('Output from sfdisk:\n'+output[0])
+            logger.log('Output from sfdisk:\n'+output[0])
 
         if isDeviceMapperNode(self.device):
             # Create partitions using device mapper
@@ -939,7 +940,7 @@ class GPTPartitionTool(PartitionToolBase):
         cmd = [self.SGDISK, '--print', self.device]
         rv, out, err = util.runCmd2(cmd, True, True)
         if rv != 0:
-            xelogging.log('Invalid or corrupt partition table found on disk %s. Skipping...' % self.device)
+            logger.log('Invalid or corrupt partition table found on disk %s. Skipping...' % self.device)
             self.waitForDeviceNodes()
             return {}
 
@@ -957,7 +958,7 @@ class GPTPartitionTool(PartitionToolBase):
                 continue
             if not gotHeader:
                 if matchWarning.match(line):
-                    xelogging.log("Warning: GPTPartitionTool found DOS partition table on device %s" % self.device)
+                    logger.log("Warning: GPTPartitionTool found DOS partition table on device %s" % self.device)
                 elif matchHeader.match(line):
                     gotHeader = True
             else:
@@ -1124,7 +1125,7 @@ def createMpathPartnodes():
 def getMpathNodes():
     nodes = []
     rv, out = util.runCmd2(['dmsetup', 'ls', '--target', 'multipath', '--exec', 'ls'], with_stdout=True)
-    xelogging.log("multipath devs: %s" % out)
+    logger.log("multipath devs: %s" % out)
     lines = out.strip().split('\n')
     for line in lines:
         if line.startswith('/dev/'):
@@ -1216,7 +1217,7 @@ def getMpathMaster(dev):
         else:
             holders = os.listdir('%s/holders' % d)
             if len(holders) != 1 or (not holders[0].startswith('dm-')):
-                xelogging.log('getMpathMaster: contents of %s/holders/ is %s' % (d,str(holders)))
+                logger.log('getMpathMaster: contents of %s/holders/ is %s' % (d,str(holders)))
                 return None
             else:
                 holder = holders[0]
@@ -1225,9 +1226,9 @@ def getMpathMaster(dev):
         for i in os.listdir('/dev/mapper'):
             dmdev = '/dev/mapper/%s' % i
             if getMajMin(dmdev) == (major,minor):
-                xelogging.log('getMpathMaster: %s has master %s' % (dev,dmdev))
+                logger.log('getMpathMaster: %s has master %s' % (dev,dmdev))
                 return dmdev
-        xelogging.log('getMpathMaster: could not find master %d:%d of %s in /dev/mapper/' % (major,minor,dev))
+        logger.log('getMpathMaster: could not find master %d:%d of %s in /dev/mapper/' % (major,minor,dev))
 
     except OSError:
         return None

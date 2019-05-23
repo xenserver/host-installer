@@ -20,7 +20,6 @@ import glob
 import util
 import netutil
 from util import dev_null
-import xelogging
 import xcp.logger as logger
 from disktools import *
 import time
@@ -43,7 +42,7 @@ def wait_for_multipathd():
             return
         time.sleep(1)
     msg = "Unable to contact Multipathd daemon"
-    xelogging.log(msg)
+    logger.log(msg)
     raise Exception(msg)
 
 def mpath_part_scan(force = False):
@@ -76,7 +75,7 @@ def mpath_enable():
 
     # Tell DM to create partition nodes for newly created mpath devices
     assert 0 == mpath_part_scan(True)
-    xelogging.log("created multipath device(s)");
+    logger.log("created multipath device(s)");
     use_mpath = True
 
 def mpath_disable():
@@ -442,23 +441,23 @@ def log_available_disks():
     # make sure we have discovered at least one disk and
     # at least one network interface:
     if len(disks) == 0:
-        xelogging.log("No disks found on this host.")
+        logger.log("No disks found on this host.")
     else:
         # make sure that we have enough disk space:
-        xelogging.log("Found disks: %s" % str(disks))
+        logger.log("Found disks: %s" % str(disks))
         diskSizes = [getDiskDeviceSize(x) for x in disks]
         diskSizesGB = [blockSizeToGBSize(x) for x in diskSizes]
-        xelogging.log("Disk sizes: %s" % str(diskSizesGB))
+        logger.log("Disk sizes: %s" % str(diskSizesGB))
 
         old_dom0disks = filter(lambda x: constants.min_primary_disk_size_old <= x,
                            diskSizesGB)
         if len(old_dom0disks) == 0:
-            xelogging.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size_old)
+            logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size_old)
 
         dom0disks = filter(lambda x: constants.min_primary_disk_size <= x,
                            diskSizesGB)
         if len(dom0disks) == 0:
-            xelogging.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
+            logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
 INSTALL_RETAIL = 1
 STORAGE_LVM = 1
@@ -525,7 +524,7 @@ def probeDisk(device, justInstall = False):
                 else:
                     storage = (STORAGE_LVM, part_device)
 
-    xelogging.log('Probe of %s found boot=%s root=%s state=%s storage=%s logs=%s' %
+    logger.log('Probe of %s found boot=%s root=%s state=%s storage=%s logs=%s' %
                   (device, str(boot), str(root), str(state), str(storage), str(logs)))
 
     return (boot, root, state, storage, logs)
@@ -591,7 +590,7 @@ def setup_ibft_nics():
     netdevs = netutil.scanConfiguration()
     for name in netdevs:
         mac_map[netdevs[name].hwaddr] = name
-    xelogging.log('NET: %s %s' % (repr(netdevs), repr(mac_map)))
+    logger.log('NET: %s %s' % (repr(netdevs), repr(mac_map)))
 
     for t in glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*')):
         with open(os.path.join(t, 'ip-addr'), 'r') as f:
@@ -641,7 +640,7 @@ def process_ibft(ui, interactive):
     targets = 0
     rv, out = util.runCmd2(['iscsistart', '-f'], with_stdout=True)
     if rv:
-        xelogging.log("process_ibft: No valid iBFT found.")
+        logger.log("process_ibft: No valid iBFT found.")
         return
     for line in out.split('\n'):
         m = re.match('iface.net_ifacename = (.*)$', line.strip())
@@ -653,7 +652,7 @@ def process_ibft(ui, interactive):
 
     # Do nothing if the iBFT contains no valid targets
     if targets == 0:
-        xelogging.log("process_ibft: No valid target configs found in iBFT")
+        logger.log("process_ibft: No valid target configs found in iBFT")
         return
 
     # If interactive, ask user if he wants to proceed
@@ -685,8 +684,8 @@ def process_ibft(ui, interactive):
         if m:
             iscsi_disks.append('/dev/' + m.group(1))
 
-    xelogging.log('process_ibft: iSCSI Disks: %s' % (str(iscsi_disks),))
-    xelogging.log('process_ibft: Reserved NICs: %s' % (str(list(ibft_reserved_nics)),))
+    logger.log('process_ibft: iSCSI Disks: %s' % (str(iscsi_disks),))
+    logger.log('process_ibft: Reserved NICs: %s' % (str(list(ibft_reserved_nics)),))
 
 
 def release_ibft_disks():

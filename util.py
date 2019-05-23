@@ -12,7 +12,6 @@
 
 import os
 import os.path
-import xelogging
 import subprocess
 import urllib
 import urllib2
@@ -24,6 +23,7 @@ import string
 import tempfile
 import errno
 from version import *
+from xcp import logger
 
 random.seed()
 
@@ -93,7 +93,7 @@ def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None)
         l += "\nSTANDARD OUT:\n" + out
     if err != "":
         l += "\nSTANDARD ERROR:\n" + err
-    xelogging.log(l)
+    logger.log(l)
 
     if with_stdout and with_stderr:
         return rv, out, err
@@ -140,7 +140,7 @@ def pidof(name):
     return pids
 
 def mount(dev, mountpoint, options = None, fstype = None):
-    xelogging.log("Mounting %s to %s, options = %s, fstype = %s" % (dev, mountpoint, options, fstype))
+    logger.log("Mounting %s to %s, options = %s, fstype = %s" % (dev, mountpoint, options, fstype))
 
     cmd = ['/bin/mount']
     if options:
@@ -160,7 +160,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
         raise MountFailureException("out: '%s' err: '%s'" % (out, err))
 
 def bindMount(source, mountpoint):
-    xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
+    logger.log("Bind mounting %s to %s" % (source, mountpoint))
 
     cmd = [ '/bin/mount', '--bind', source, mountpoint]
     rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
@@ -168,7 +168,7 @@ def bindMount(source, mountpoint):
         raise MountFailureException("out: '%s' err: '%s'" % (out, err))
 
 def umount(mountpoint, force = False):
-    xelogging.log("Unmounting %s (force = %s)" % (mountpoint, force))
+    logger.log("Unmounting %s (force = %s)" % (mountpoint, force))
 
     cmd = ['/bin/umount', '-d'] # -d option also removes the loop device (if present)
     if force:
@@ -260,7 +260,7 @@ def fetchFile(source, dest):
             if dirpart[0] != '/':
                 raise InvalidSource("Directory part of NFS path was not an absolute path.")
             filepart = os.path.basename(path)
-            xelogging.log("Split nfs path into server: %s, directory: %s, file: %s." % (server, dirpart, filepart))
+            logger.log("Split nfs path into server: %s, directory: %s, file: %s." % (server, dirpart, filepart))
 
             # make a mountpoint:
             mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'fetchfile-nfs-')

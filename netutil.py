@@ -17,7 +17,7 @@ import re
 import subprocess
 import time
 import errno
-import xelogging
+from xcp import logger
 from xcp.net.biosdevname import all_devices_all_names
 from socket import inet_ntoa
 from struct import pack

@@ -25,7 +25,7 @@ import repository
 
 # general
 from version import *
-import xelogging
+from xcp import logger
 
 def doInteractiveLoadDriver(ui, answers):
     media = None
@@ -40,7 +40,7 @@ def doInteractiveLoadDriver(ui, answers):
 
         # now load the drivers:
         for r in repos:
-            xelogging.log("Processing repo %s" % r)
+            logger.log("Processing repo %s" % r)
             try:
                 r.installPackages(lambda x: (), {'root': '/'})
                 answers['driver-repos'].append(str(r))
@@ -51,7 +51,7 @@ def doInteractiveLoadDriver(ui, answers):
                     "Loaded %s." % r.name(),
                     ['Ok'])
             except Exception as e:
-                xelogging.logException(e)
+                logger.logException(e)
                 ButtonChoiceWindow(
                     ui.screen,
                     "Problem Loading Driver",

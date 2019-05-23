@@ -12,10 +12,10 @@
 # written by Andrew Peace
 
 import constants
-import xelogging
 import util
 import re
 import os.path
+from xcp import logger
 
 import xen.lowlevel.xc as xc
 XC = xc.xc()

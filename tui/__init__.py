@@ -15,9 +15,9 @@ from version import *
 import snackutil
 import pdb
 import traceback
-import xelogging
 import constants
 import sys
+from xcp import logger
 
 screen = None
 help_pad = [33, 17, 16]
@@ -87,7 +87,7 @@ def exn_error_dialog(logname, with_hd, interactive = True):
         if result == "F2":
             traceback_dialog()
     else:
-        xelogging.log("A text UI error dialog was requested, but the UI has not been initialized yet.")
+        logger.log("A text UI error dialog was requested, but the UI has not been initialized yet.")
 
 def traceback_dialog():
     exn_type, exn, tb = sys.exc_info()

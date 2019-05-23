@@ -20,11 +20,11 @@ import shutil
 import diskutil
 import product
 from xcp.version import *
+from xcp import logger
 from disktools import *
 from netinterface import *
 import util
 import constants
-import xelogging
 import version
 import netutil
 
@@ -132,7 +132,7 @@ class Upgrader(object):
             src = os.path.join(src_base, f)
             dst = os.path.join(mounts['root'], d)
             if os.path.exists(src):
-                xelogging.log("Restoring /%s" % f)
+                logger.log("Restoring /%s" % f)
                 util.assertDir(os.path.dirname(dst))
                 if os.path.isdir(src):
                     util.runCmd2(['cp', '-a', src, os.path.dirname(dst)])
@@ -148,7 +148,7 @@ class Upgrader(object):
                         dst_path = os.path.join(abs_d, src_path[len(abs_f) + 1:])
                         copy_ownership(src_base, src_path, mounts['root'], dst_path)
             else:
-                xelogging.log("WARNING: /%s did not exist in the backup image." % f)
+                logger.log("WARNING: /%s did not exist in the backup image." % f)
 
         backup_volume = partitionDevice(target_disk, backup_partnum)
         tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
@@ -156,7 +156,7 @@ class Upgrader(object):
             self.buildRestoreList()
             init_id_maps(tds.mount_point, mounts['root'])
 
-            xelogging.log("Restoring preserved files")
+            logger.log("Restoring preserved files")
             for f in self.restore_list:
                 if isinstance(f, str):
                     restore_file(tds.mount_point, f)
