@@ -32,7 +32,7 @@ def get_keymap():
         "Select Keymap",
         "Please select the keymap you would like to use:",
         entries,
-        ['Ok'], height = 8, scroll = 1, help = "keymap", timeout_ms = 500)
+        ['Ok'], height=8, scroll=1, help="keymap", timeout_ms=500)
 
     return entry
 
@@ -61,13 +61,13 @@ def driver_disk_sequence(answers, driver_repos):
     uic = uicontroller
     seq = [
         uic.Step(tui.repo.select_repo_source,
-                 args = ["Select Driver Source", "Please select where you would like to load the Supplemental Pack containing the driver from:",
+                 args=["Select Driver Source", "Please select where you would like to load the Supplemental Pack containing the driver from:",
                          False]),
         uic.Step(tui.network.requireNetworking,
-                 predicates = [lambda a: a['source-media'] != 'local']),
+                 predicates=[lambda a: a['source-media'] != 'local']),
         uic.Step(tui.repo.get_source_location,
-                 predicates = [lambda a: a['source-media'] != 'local'],
-                 args = [False]),
+                 predicates=[lambda a: a['source-media'] != 'local'],
+                 args=[False]),
         uic.Step(tui.repo.confirm_load_repo, args=['driver', driver_repos]),
         ]
     rc = uicontroller.runSequence(seq, answers)

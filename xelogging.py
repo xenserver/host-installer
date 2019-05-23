@@ -20,7 +20,7 @@ import traceback
 import constants
 
 
-def collectLogs(dst, tarball_dir = None):
+def collectLogs(dst, tarball_dir=None):
     """ Make a support tarball including all logs (and some more) from 'dst'."""
     os.system("cat /proc/bus/pci/devices >%s/pci-log 2>&1" % dst)
     os.system("lspci -i /usr/share/misc/pci.ids -vv >%s/lspci-log 2>&1" % dst)

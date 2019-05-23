@@ -24,7 +24,7 @@ import shutil
 import xcp.bootloader as bootloader
 from xcp import logger
 
-def restoreFromBackup(backup, progress = lambda x: ()):
+def restoreFromBackup(backup, progress=lambda x: ()):
     """ Restore files from backup_partition to the root partition on disk.
     Call progress with a value between 0 and 100.  Re-install bootloader.  Fails if
     backup is not same version as the CD in use."""
@@ -35,8 +35,8 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     tool = PartitionTool(disk)
     _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, True, True)
 
-    backup_fs = util.TempMount(backup.partition, 'backup-', options = ['ro'])
-    inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes = True)
+    backup_fs = util.TempMount(backup.partition, 'backup-', options=['ro'])
+    inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes=True)
     backup_partition_layout = inventory['PARTITION_LAYOUT'].split(',')
     backup_fs.unmount()
 
@@ -57,7 +57,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
     # determine current location of bootloader
     current_location = 'unknown'
     try:
-        root_fs = util.TempMount(restore_partition, 'root-', options = ['ro'], boot_device = boot_device)
+        root_fs = util.TempMount(restore_partition, 'root-', options=['ro'], boot_device=boot_device)
         try:
             boot_config = bootloader.Bootloader.loadExisting(root_fs.mount_point)
             current_location = boot_config.location
@@ -68,7 +68,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
         pass
 
     # mount the backup fs
-    backup_fs = util.TempMount(backup_partition, 'restore-backup-', options = ['ro'])
+    backup_fs = util.TempMount(backup_partition, 'restore-backup-', options=['ro'])
     try:
         # extract the bootloader config
         boot_config = bootloader.Bootloader.loadExisting(backup_fs.mount_point)

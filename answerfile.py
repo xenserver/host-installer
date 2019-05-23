@@ -91,7 +91,7 @@ class Answerfile:
     def processAnswerfile(self):
         logger.log("Processing XML answerfile for %s." % self.operation)
         if self.operation == 'installation':
-            install_type = getStrAttribute(self.top_node, ['mode'], default = 'fresh')
+            install_type = getStrAttribute(self.top_node, ['mode'], default='fresh')
             if install_type == "fresh":
                 results = self.parseFreshInstall()
             elif install_type == "reinstall":
@@ -117,20 +117,20 @@ class Answerfile:
         # new format
         script_nodes = getElementsByTagName(self.top_node, ['script'])
         for node in script_nodes:
-            stage = getStrAttribute(node, ['stage'], mandatory = True).lower()
-            stype = getStrAttribute(node, ['type'], mandatory = True).lower()
+            stage = getStrAttribute(node, ['stage'], mandatory=True).lower()
+            stype = getStrAttribute(node, ['type'], mandatory=True).lower()
             script = buildURL(stype, getText(node))
             scripts.add_script(stage, script)
 
         # depreciated formats
         nodes = getElementsByTagName(self.top_node, ['post-install-script'])
         if len(nodes) == 1:
-            stype = getStrAttribute(nodes[0], ['type'], mandatory = False).lower()
+            stype = getStrAttribute(nodes[0], ['type'], mandatory=False).lower()
             script = buildURL(stype, getText(nodes[0]))
             scripts.add_script('filesystem-populated', script)
         nodes = getElementsByTagName(self.top_node, ['install-failed-script'])
         if len(nodes) == 1:
-            stype = getStrAttribute(nodes[0], ['type'], mandatory = False).lower()
+            stype = getStrAttribute(nodes[0], ['type'], mandatory=False).lower()
             script = buildURL(stype, getText(nodes[0]))
             scripts.add_script('installation-complete', script)
         return {}
@@ -150,7 +150,7 @@ class Answerfile:
                 try:
                     part = {}
                     for k in ('number', 'size', 'id'):
-                        part[k] = getIntAttribute(node, [k], mandatory = True)
+                        part[k] = getIntAttribute(node, [k], mandatory=True)
                     results['initial-partitions'].append(part)
                 except:
                     pass
@@ -236,7 +236,7 @@ class Answerfile:
             results['bootloader-location'] = getMapAttribute(nodes[0], ['location'],
                                                              [('mbr', BOOT_LOCATION_MBR),
                                                               ('partition', BOOT_LOCATION_PARTITION)],
-                                                             default = 'mbr')
+                                                             default='mbr')
 
             results['write-boot-entry'] = getBoolAttribute(nodes[0], ['write-boot-entry'], default=True)
 
@@ -250,7 +250,7 @@ class Answerfile:
         results = {}
 
         inst = getElementsByTagName(self.top_node, ['existing-installation'],
-                                    mandatory = True)
+                                    mandatory=True)
         disk = normalize_disk(getText(inst[0]))
         logger.log("Normalized disk: %s" % disk)
         disk = disktools.getMpathMasterOrDisk(disk)
@@ -270,10 +270,10 @@ class Answerfile:
 
     def parseSource(self):
         results = {'sources': []}
-        sources = getElementsByTagName(self.top_node, ['source'], mandatory = True)
+        sources = getElementsByTagName(self.top_node, ['source'], mandatory=True)
 
         for i in sources:
-            rtype = getStrAttribute(i, ['type'], mandatory = True)
+            rtype = getStrAttribute(i, ['type'], mandatory=True)
 
             if rtype == 'local':
                 address = "Install disc"
@@ -295,7 +295,7 @@ class Answerfile:
             if 'extra-repos' not in results:
                 results['extra-repos'] = []
 
-            rtype = getStrAttribute(source, ['type'], mandatory = True)
+            rtype = getStrAttribute(source, ['type'], mandatory=True)
             if rtype == 'local':
                 address = "Install disc"
             elif rtype in ['url', 'nfs']:
@@ -313,7 +313,7 @@ class Answerfile:
         results = {}
 
         # Primary disk (installation)
-        node = getElementsByTagName(self.top_node, ['primary-disk'], mandatory = True)[0]
+        node = getElementsByTagName(self.top_node, ['primary-disk'], mandatory=True)[0]
         results['preserve-first-partition'] = \
                                             getMapAttribute(node, ['preserve-first-partition'],
                                                             [('true', 'true'),
@@ -321,15 +321,15 @@ class Answerfile:
                                                              ('false', 'false'),
                                                              ('no', 'false'),
                                                              ('if-utility', PRESERVE_IF_UTILITY)],
-                                                            default = 'if-utility')
+                                                            default='if-utility')
         if len(getElementsByTagName(self.top_node, ['zap-utility-partitions'])) > 0:
             results['preserve-first-partition'] = 'false'
         primary_disk = normalize_disk(getText(node))
         results['primary-disk'] = primary_disk
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
-                                       default = True)
-        results['sr-at-end'] = getBoolAttribute(node, ['sr-at-end'], default = True)
+                                       default=True)
+        results['sr-at-end'] = getBoolAttribute(node, ['sr-at-end'], default=True)
 
         # Guest disk(s) (Local SR)
         guest_disks = set()
@@ -342,7 +342,7 @@ class Answerfile:
 
         results['sr-type'] = getMapAttribute(self.top_node, ['sr-type', 'srtype'],
                                              [('lvm', SR_TYPE_LVM),
-                                              ('ext', SR_TYPE_EXT)], default = 'lvm')
+                                              ('ext', SR_TYPE_EXT)], default='lvm')
         return results
 
     def parseFCoEInterface(self):
@@ -381,7 +381,7 @@ class Answerfile:
 
     def parseInterface(self):
         results = {}
-        node = getElementsByTagName(self.top_node, ['admin-interface'], mandatory = True)[0]
+        node = getElementsByTagName(self.top_node, ['admin-interface'], mandatory=True)[0]
         nethw = netutil.scanConfiguration()
         if_hwaddr = None
 
@@ -399,11 +399,11 @@ class Answerfile:
 
         results['net-admin-interface'] = if_name
 
-        proto = getStrAttribute(node, ['proto'], mandatory = True)
+        proto = getStrAttribute(node, ['proto'], mandatory=True)
         if proto == 'static':
-            ip = getText(getElementsByTagName(node, ['ip', 'ipaddr'], mandatory = True)[0])
-            subnet = getText(getElementsByTagName(node, ['subnet-mask', 'subnet'], mandatory = True)[0])
-            gateway = getText(getElementsByTagName(node, ['gateway'], mandatory = True)[0])
+            ip = getText(getElementsByTagName(node, ['ip', 'ipaddr'], mandatory=True)[0])
+            subnet = getText(getElementsByTagName(node, ['subnet-mask', 'subnet'], mandatory=True)[0])
+            gateway = getText(getElementsByTagName(node, ['gateway'], mandatory=True)[0])
             results['net-admin-configuration'] = NetInterface(NetInterface.Static, if_hwaddr, ip, subnet, gateway, dns=None)
         elif proto == 'dhcp':
             results['net-admin-configuration'] = NetInterface(NetInterface.DHCP, if_hwaddr)
@@ -412,8 +412,8 @@ class Answerfile:
 
         protov6 = getStrAttribute(node, ['protov6'])
         if protov6 == 'static':
-            ipv6 = getText(getElementsByTagName(node, ['ipv6'], mandatory = True)[0])
-            gatewayv6 = getText(getElementsByTagName(node, ['gatewayv6'], mandatory = True)[0])
+            ipv6 = getText(getElementsByTagName(node, ['ipv6'], mandatory=True)[0])
+            gatewayv6 = getText(getElementsByTagName(node, ['gatewayv6'], mandatory=True)[0])
             results['net-admin-configuration'].addIPv6(NetInterface.Static, ipv6, gatewayv6)
         elif protov6 == 'dhcp':
             results['net-admin-configuration'].addIPv6(NetInterface.DHCP)
@@ -436,7 +436,7 @@ class Answerfile:
         if len(nodes) > 0:
             pw_type = getMapAttribute(nodes[0], ['type'], [('plaintext', 'plaintext'),
                                                            ('hash', 'pwdhash')],
-                                      default = 'plaintext')
+                                      default='plaintext')
             results['root-password'] = (pw_type, getText(nodes[0]))
         return results
 
@@ -487,11 +487,11 @@ class Answerfile:
         serviceNodes = getElementsByTagName(self.top_node, ['service'])
         servicesSeen = set()
         for sn in serviceNodes:
-            service = getStrAttribute(sn, ['name'], mandatory = True)
+            service = getStrAttribute(sn, ['name'], mandatory=True)
             if service in servicesSeen:
                 raise AnswerfileException("Multiple entries for service %s" % service)
             servicesSeen.add(service)
-            state = getStrAttribute(sn, ['state'], mandatory = True)
+            state = getStrAttribute(sn, ['state'], mandatory=True)
             if not state in ('enabled', 'disabled'):
                 raise AnswerfileException("Invalid state for service %s: %s" % (service, state))
             services[service] = state

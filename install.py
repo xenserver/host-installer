@@ -338,4 +338,4 @@ def go(ui, args, answerfile_address, answerfile_script):
     return status
 
 if __name__ == "__main__":
-    sys.exit(main(util.splitArgs(sys.argv[1:], array_args = ('--extrarepo'))))
+    sys.exit(main(util.splitArgs(sys.argv[1:], array_args=('--extrarepo'))))

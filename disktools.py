@@ -38,7 +38,7 @@ class MoveChunk:
 class FreePool:
     """FreePool manages the allotment of segments a pool of free segments, and
     divides segments as necessary to fill the requested size exactly"""
-    def __init__(self, freeSegments, usedThreshold = 0):
+    def __init__(self, freeSegments, usedThreshold=0):
         self.freeSegments = freeSegments
         # Instead of altering the free segment list as free space is consumed by takeSegments,
         # this class maintains a usedThreshold address.  Addresses lower than the threshold
@@ -427,7 +427,7 @@ class LVMTool:
                 offset += chunkSize
                 extentsSoFar += chunkSize
 
-    def commit(self, progress_callback = lambda _ : ()):
+    def commit(self, progress_callback=lambda _ : ()):
         """Commit the changes queued up by issuing LVM commands, delete our queues as they
         succeed, and then reread the new configuration from LVM"""
         progress_callback(0)
@@ -557,7 +557,7 @@ class PartitionToolBase:
         time.sleep(1)
         self.settleUdev()
 
-    def writePartitionTable(self, dryrun = False, log = False):
+    def writePartitionTable(self, dryrun=False, log=False):
         try:
             self.writeThisPartitionTable(self.partitions, dryrun, log)
         except Exception as e:
@@ -571,10 +571,10 @@ class PartitionToolBase:
             self.waitForDeviceNodes()
 
     # Public methods from here onward:
-    def getPartition(self, number, default = None):
+    def getPartition(self, number, default=None):
         return deepcopy(self.partitions.get(number, default))
 
-    def createPartition(self, id, sizeBytes = None, number = None, order = None, startBytes = None, active = False):
+    def createPartition(self, id, sizeBytes=None, number=None, order=None, startBytes=None, active=False):
         if number is None:
             if len(self.partitions) == 0:
                 newNumber = 1
@@ -644,7 +644,7 @@ class PartitionToolBase:
         for number in numbers:
             self.deletePartition(number)
 
-    def renamePartition(self, srcNumber, destNumber, overwrite = False):
+    def renamePartition(self, srcNumber, destNumber, overwrite=False):
         if srcNumber not in self.partitions:
             raise Exception('Source partition '+str(srcNumber)+' does not exist')
         if srcNumber != destNumber:
@@ -696,7 +696,7 @@ class PartitionToolBase:
         for number, partition in sorted(self.partitions.iteritems()):
             yield number, partition
 
-    def commit(self, dryrun = False, log = False):
+    def commit(self, dryrun=False, log=False):
         self.writePartitionTable(dryrun, log)
         if not dryrun:
             # Update the revert point so this tool can be used repeatedly
@@ -830,7 +830,7 @@ class DOSPartitionTool(PartitionToolBase):
         self.cmdWrap([self.SFDISK, '--no-reread', '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
         self.waitForDeviceNodes()
 
-    def writeThisPartitionTable(self, table, dryrun = False, log = False):
+    def writeThisPartitionTable(self, table, dryrun=False, log=False):
         input = 'unit: sectors\n\n'
 
         # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
@@ -870,7 +870,7 @@ class DOSPartitionTool(PartitionToolBase):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            close_fds = True,
+            close_fds=True,
             )
         output = process.communicate(input)
         if log:
@@ -896,7 +896,7 @@ class DOSPartitionTool(PartitionToolBase):
 
             # Verify the table
             # Ignore warnings about partitions apparently with ends beyond the end of the disk
-            rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr = True)
+            rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr=True)
             if rc == 1:
                 lines = err.split('\n')
                 if len(filter(lambda x : x != '' and not x.endswith('extends past end of disk'), lines)) != 0:
@@ -1005,7 +1005,7 @@ class GPTPartitionTool(PartitionToolBase):
 
         self.waitForDeviceNodes()
 
-    def writeThisPartitionTable(self, table, dryrun = False, log = False):
+    def writeThisPartitionTable(self, table, dryrun=False, log=False):
         for part in table.values():
             if part['id'] not in self.GUID_to_type_code:
                 raise Exception("GPT partitions with part type GUID %s unsupported" % part['id'])

@@ -92,7 +92,7 @@ def is_serialConsole(console):
     return console.startswith('hvc') or console.startswith('ttyS')
 
 class SerialPort:
-    def __init__(self, idv, dev = None, port = None, baud = '9600', data = '8', parity = 'n', stop = '1', term = 'vt102'):
+    def __init__(self, idv, dev=None, port=None, baud='9600', data='8', parity='n', stop='1', term='vt102'):
         if not dev:
             dev = "hvc0"
         if not port:

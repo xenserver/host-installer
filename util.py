@@ -61,14 +61,14 @@ def copyFilesFromDir(sourcedir, dest):
 ###
 # shell
 
-def runCmd2(command, with_stdout = False, with_stderr = False, inputtext = None):
+def runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
 
-    cmd = subprocess.Popen(command, bufsize = 1,
-                           stdin = (inputtext and subprocess.PIPE or None),
-                           stdout = subprocess.PIPE,
-                           stderr = subprocess.PIPE,
-                           shell = isinstance(command, str),
-                           close_fds = True)
+    cmd = subprocess.Popen(command, bufsize=1,
+                           stdin=(inputtext and subprocess.PIPE or None),
+                           stdout=subprocess.PIPE,
+                           stderr=subprocess.PIPE,
+                           shell=isinstance(command, str),
+                           close_fds=True)
 
 #     if inputtext:
 #      (out, err) = cmd.communicate(inputtext)
@@ -139,7 +139,7 @@ def pidof(name):
     pids = filter(has_name, pids)
     return pids
 
-def mount(dev, mountpoint, options = None, fstype = None):
+def mount(dev, mountpoint, options=None, fstype=None):
     logger.log("Mounting %s to %s, options = %s, fstype = %s" % (dev, mountpoint, options, fstype))
 
     cmd = ['/bin/mount']
@@ -167,7 +167,7 @@ def bindMount(source, mountpoint):
     if rc != 0:
         raise MountFailureException("out: '%s' err: '%s'" % (out, err))
 
-def umount(mountpoint, force = False):
+def umount(mountpoint, force=False):
     logger.log("Unmounting %s (force = %s)" % (mountpoint, force))
 
     cmd = ['/bin/umount', '-d'] # -d option also removes the loop device (if present)
@@ -179,9 +179,9 @@ def umount(mountpoint, force = False):
     return rc
 
 class TempMount:
-    def __init__(self, device, tmp_prefix, options = None, fstype = None, boot_device = None, boot_mount_point = None):
+    def __init__(self, device, tmp_prefix, options=None, fstype=None, boot_device=None, boot_mount_point=None):
         self.mounted = False
-        self.mount_point = tempfile.mkdtemp(dir = "/tmp", prefix = tmp_prefix)
+        self.mount_point = tempfile.mkdtemp(dir="/tmp", prefix=tmp_prefix)
         self.boot_mount_point = None
         self.boot_mounted = False
         try:
@@ -263,8 +263,8 @@ def fetchFile(source, dest):
             logger.log("Split nfs path into server: %s, directory: %s, file: %s." % (server, dirpart, filepart))
 
             # make a mountpoint:
-            mntpoint = tempfile.mkdtemp(dir = '/tmp', prefix = 'fetchfile-nfs-')
-            mount('%s:%s' % (server, dirpart), mntpoint, fstype = "nfs", options = ['ro'])
+            mntpoint = tempfile.mkdtemp(dir='/tmp', prefix='fetchfile-nfs-')
+            mount('%s:%s' % (server, dirpart), mntpoint, fstype="nfs", options=['ro'])
             cleanup_dirs.append(mntpoint)
             source = 'file://%s/%s' % (mntpoint, filepart)
 
@@ -287,7 +287,7 @@ def fetchFile(source, dest):
             os.rmdir(d)
 
 def getUUID():
-    rc, out = runCmd2(['uuidgen'], with_stdout = True)
+    rc, out = runCmd2(['uuidgen'], with_stdout=True)
     assert rc == 0
 
     return out.strip()
@@ -316,7 +316,7 @@ def splitNetloc(netloc):
 
     return (hostname, username, password)
 
-def splitArgs(argsIn, array_args = ()):
+def splitArgs(argsIn, array_args=()):
     """ Split argument array into dictionary
 
     [ '--alpha', '--beta=42' ]
@@ -342,7 +342,7 @@ def splitArgs(argsIn, array_args = ()):
 
     return argsOut
 
-def readKeyValueFile(filename, allowed_keys = None, strip_quotes = True):
+def readKeyValueFile(filename, allowed_keys=None, strip_quotes=True):
     """ Reads a KEY=Value style file (e.g. xensource-inventory). Returns a
     dictionary of key/values in the file.  Not designed for use with large files
     as the file is read entirely into memory."""

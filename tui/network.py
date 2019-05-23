@@ -22,7 +22,7 @@ import os
 
 from snack import *
 
-def get_iface_configuration(nic, txt = None, defaults = None, include_dns = False):
+def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
 
     def use_vlan_cb_change():
         vlan_field.setFlags(FLAG_DISABLED, vlan_cb.value())
@@ -96,13 +96,13 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
     vlan_grid.setField(vlan_text, 0, 0)
     vlan_grid.setField(vlan_field, 1, 0)
 
-    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
-    gf.add(dhcp_rb, 0, 2, anchorLeft = True)
-    gf.add(static_rb, 0, 3, anchorLeft = True)
-    gf.add(entry_grid, 0, 4, padding = (0, 0, 0, 1))
-    gf.add(vlan_cb, 0, 5, anchorLeft = True)
-    gf.add(vlan_grid, 0, 6, padding = (0, 0, 0, 1))
-    gf.add(buttons, 0, 7, growx = 1)
+    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(dhcp_rb, 0, 2, anchorLeft=True)
+    gf.add(static_rb, 0, 3, anchorLeft=True)
+    gf.add(entry_grid, 0, 4, padding=(0, 0, 0, 1))
+    gf.add(vlan_cb, 0, 5, anchorLeft=True)
+    gf.add(vlan_grid, 0, 6, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 7, growx=1)
 
     loop = True
     while loop:
@@ -143,7 +143,7 @@ def get_iface_configuration(nic, txt = None, defaults = None, include_dns = Fals
                                dns_field.value(), vlan=vlan_value)
     return RIGHT_FORWARDS, answers
 
-def select_netif(text, conf, offer_existing = False, default = None):
+def select_netif(text, conf, offer_existing=False, default=None):
     """ Display a screen that displays a choice of network interfaces to the
     user, with 'text' as the informative text as the data, and conf being the
     netutil.scanConfiguration() output to be used.
@@ -207,7 +207,7 @@ def select_netif(text, conf, offer_existing = False, default = None):
     netif_list += [lentry(x) for x in netifs]
     scroll, height = snackutil.scrollHeight(6, len(netif_list))
     rc, entry = snackutil.ListboxChoiceWindowEx(tui.screen, "Networking", text, netif_list,
-                                        ['Ok', 'Back'], 45, scroll, height, def_iface, help = 'selif:info',
+                                        ['Ok', 'Back'], 45, scroll, height, def_iface, help='selif:info',
                                         hotkeys={'F5': iface_details}, timeout_ms=5000, timeout_cb=update)
 
     tui.screen.popHelpLine()

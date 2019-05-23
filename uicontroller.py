@@ -19,7 +19,7 @@ RIGHT_FORWARDS =  1
 REPEAT_STEP =  0
 
 class Step:
-    def __init__(self, fn, args = [], predicates = []):
+    def __init__(self, fn, args=[], predicates=[]):
         self.fn = fn
         self.args = args
         self.predicates = predicates
@@ -35,7 +35,7 @@ class Step:
             logger.log("Not displaying screen %s due to predicate return false." % self.fn)
             return SKIP_SCREEN
 
-def runSequence(seq, answers, previous_delta = 1):
+def runSequence(seq, answers, previous_delta=1):
     assert type(seq) == list
     assert type(answers) == dict
     assert len(seq) > 0

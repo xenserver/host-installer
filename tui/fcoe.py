@@ -87,9 +87,9 @@ def select_fcoe_ifaces(answers):
         cbt.append(entries[iface], iface, iface in answers['fcoe-interfaces'])
 
     gf = GridFormHelp(tui.screen, 'FCoE Interfaces', 'fcoeiface:info', 1, 3)
-    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
-    gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(buttons, 0, 2, growx = 1)
+    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 2, growx=1)
     gf.addHotKey('F5')
 
     tui.update_help_line([None, "<F5> more info"])
@@ -131,13 +131,13 @@ def select_fcoe_ifaces(answers):
         # Report any errors
         err_text = '\n'.join(map(lambda (x, y): "%s %s" % (x, y), fail.iteritems()))
         text = TextboxReflowed(60, "The following errors occured while discovering FCoE disks.")
-        errs = Textbox(30, 6, err_text, scroll = len(fail.keys()) > 6)
+        errs = Textbox(30, 6, err_text, scroll=len(fail.keys()) > 6)
         buttons = ButtonBar(tui.screen, [('Ok', 'ok')])
 
         gf = GridFormHelp(tui.screen, 'Discovery Failure', 'fipvlanfail', 1, 3)
-        gf.add(text, 0, 0, padding = (0, 0, 0, 1))
-        gf.add(errs, 0, 1, padding = (0, 0, 0, 1))
-        gf.add(buttons, 0, 2, growx = 1)
+        gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+        gf.add(errs, 0, 1, padding=(0, 0, 0, 1))
+        gf.add(buttons, 0, 2, growx=1)
         gf.run()
         tui.screen.popWindow()
 

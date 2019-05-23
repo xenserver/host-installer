@@ -131,7 +131,7 @@ def ifdown(interface):
     return util.runCmd2(['ifdown', interface])
 
 def ipaddr(interface):
-    rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout = True)
+    rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return None
     inets = filter(lambda x: 'inet ' in x, out.split("\n"))
@@ -143,7 +143,7 @@ def ipaddr(interface):
 
 # work out if an interface is up:
 def interfaceUp(interface):
-    rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout = True)
+    rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return False
     inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
@@ -167,13 +167,13 @@ def setAllLinksUp():
 
     for nif in getNetifList():
         if nif not in diskutil.ibft_reserved_nics:
-            subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up'], close_fds = True))
+            subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up'], close_fds=True))
 
     while None in map(lambda x: x.poll(), subprocs):
         time.sleep(1)
 
 def networkingUp():
-    rc, out = util.runCmd2(['ip', 'route'], with_stdout = True)
+    rc, out = util.runCmd2(['ip', 'route'], with_stdout=True)
     if rc == 0 and len(out.split('\n')) > 2:
         return True
     return False
@@ -191,7 +191,7 @@ def getPCIInfo(interface):
         info = output.strip('\n')
 
     cur_if = None
-    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize = 1, stdout = subprocess.PIPE)
+    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE)
     for line in pipe.stdout:
         l = line.strip('\n')
         if l.startswith('Kernel name'):
@@ -220,7 +220,7 @@ def getHWAddr(iface):
             return None
         raise
 
-def valid_hostname(x, emptyValid = False, fqdn = False):
+def valid_hostname(x, emptyValid=False, fqdn=False):
     if emptyValid and x == '':
         return True
     if fqdn:
@@ -263,7 +263,7 @@ class NetDevices:
         self.netdev = []
         details = {}
 
-        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize = 1, stdout = subprocess.PIPE)
+        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE)
         for line in pipe.stdout:
             l = line.strip('\n')
             if len(l) == 0:
@@ -382,10 +382,10 @@ def remap_netdevs(remap_list):
             current_state.append(
                 MACPCI(eth["Assigned MAC"],
                        eth["Bus Info"],
-                       kname = eth["Kernel name"],
-                       order = int(eth["BIOS device"]["all_ethN"][3:]),
-                       ppn = eth["BIOS device"]["physical"],
-                       label = eth.get("SMBIOS Label", "")
+                       kname=eth["Kernel name"],
+                       order=int(eth["BIOS device"]["all_ethN"][3:]),
+                       ppn=eth["BIOS device"]["physical"],
+                       label=eth.get("SMBIOS Label", "")
                        ))
         except Exception as e:
             LOG.error("Can't generate current state for interface '%s' - "
@@ -406,10 +406,10 @@ def remap_netdevs(remap_list):
 
     # Invoke the renaming logic
     try:
-        transactions = rename(static_rules = static_rules.rules,
-                              cur_state = current_state,
-                              last_state = last_boot,
-                              old_state = [])
+        transactions = rename(static_rules=static_rules.rules,
+                              cur_state=current_state,
+                              last_state=last_boot,
+                              old_state=[])
     except Exception as e:
         LOG.critical("Problem from rename logic: %s.  Giving up" % (e,))
         return

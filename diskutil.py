@@ -45,7 +45,7 @@ def wait_for_multipathd():
     logger.log(msg)
     raise Exception(msg)
 
-def mpath_part_scan(force = False):
+def mpath_part_scan(force=False):
     global use_mpath
 
     if not force and not use_mpath:
@@ -149,7 +149,7 @@ def getDiskList():
             # Handle LOCAL/EXPERIMENTAL and Block Extended Major devices
             if 240 <= major <= 254 or major == 259:
                 rc, out = util.runCmd2(['/bin/lsblk', '-d', '-n', '-o', 'TYPE', "/dev/" + name.replace("!","/")],
-                                       with_stdout = True)
+                                       with_stdout=True)
                 if rc == 0 and out.strip() not in ['part', 'md']:
                     disks.append(name.replace("!", "/"))
 
@@ -215,7 +215,7 @@ def getQualifiedDeviceName(disk):
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
     symlink = None
-    v, out = util.runCmd2(util.udevinfoCmd() + ['-q', 'symlink', '-n', partition], with_stdout = True)
+    v, out = util.runCmd2(util.udevinfoCmd() + ['-q', 'symlink', '-n', partition], with_stdout=True)
     prefixes = ['disk/by-id/edd', 'disk/by-id/dm-name-', 'disk/by-id/dm-uuid-', 'disk/by-id/lvm-pv-uuid-', 'disk/by-id/cciss-']
     if v == 0:
         for link in out.split():
@@ -301,7 +301,7 @@ def getDiskSerialNumber(dev):
         serials = set(map(getDiskSerialNumber, getDeviceSlaves(dev)))
         return '/'.join(serials)
 
-    rc, out = util.runCmd2(['/bin/sdparm', '-q', '-i', '-p', 'sn', dev], with_stdout = True)
+    rc, out = util.runCmd2(['/bin/sdparm', '-q', '-i', '-p', 'sn', dev], with_stdout=True)
     if rc == 0:
         lines = out.split('\n')
         if len(lines) >= 2:
@@ -354,14 +354,14 @@ def getHumanDiskSize(blocks):
     else:
         return "%d MB" % blockSizeToMBSize(blocks)
 
-def getExtendedDiskInfo(disk, inMb = 0):
+def getExtendedDiskInfo(disk, inMb=0):
     return (getDiskDeviceVendor(disk), getDiskDeviceModel(disk),
             inMb and (getDiskDeviceSize(disk)/2048) or getDiskDeviceSize(disk))
 
 
 def readExtPartitionLabel(partition):
     """Read the ext partition label."""
-    rc, out = util.runCmd2(['/sbin/e2label', partition], with_stdout = True)
+    rc, out = util.runCmd2(['/sbin/e2label', partition], with_stdout=True)
     if rc == 0:
         label = out.strip()
     else:
@@ -463,7 +463,7 @@ INSTALL_RETAIL = 1
 STORAGE_LVM = 1
 STORAGE_EXT3 = 2
 
-def probeDisk(device, justInstall = False):
+def probeDisk(device, justInstall=False):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
     Returns a tuple (boot, state, storage)
 

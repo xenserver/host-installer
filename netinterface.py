@@ -95,7 +95,7 @@ class NetInterface:
 
         return "<NetInterface: %s%s ipv4:%s ipv6:%s>" % (hw, vlan, ipv4, ipv6)
 
-    def get(self, name, default = None):
+    def get(self, name, default=None):
         retval = default
         if hasattr(self, name):
             attr = getattr(self, name)

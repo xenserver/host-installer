@@ -91,7 +91,7 @@ def interactive_check_repo_def(definition, require_base_repo):
     else:
         return True
 
-def select_repo_source(answers, title, text, require_base_repo = True):
+def select_repo_source(answers, title, text, require_base_repo=True):
     ENTRY_LOCAL = 'Local media', 'local'
     ENTRY_URL = 'HTTP or FTP', 'url'
     ENTRY_NFS = 'NFS', 'nfs'
@@ -110,7 +110,7 @@ def select_repo_source(answers, title, text, require_base_repo = True):
         title,
         text,
         entries,
-        ['Ok', 'Back'], default=default, help = 'selreposrc'
+        ['Ok', 'Back'], default=default, help='selreposrc'
         )
 
     if button == 'back': return LEFT_BACKWARDS
@@ -134,7 +134,7 @@ def get_url_location(answers, require_base_repo):
     text = "Please enter the URL for your HTTP or FTP repository and, optionally, a username and password"
     url_field = Entry(50)
     user_field = Entry(16)
-    passwd_field = Entry(16, password = 1)
+    passwd_field = Entry(16, password=1)
     url_text = Textbox(11, 1, "URL:")
     user_text = Textbox(11, 1, "Username:")
     passwd_text = Textbox(11, 1, "Password:")
@@ -163,13 +163,13 @@ def get_url_location(answers, require_base_repo):
         entry_grid.setField(url_text, 0, 0)
         entry_grid.setField(url_field, 1, 0)
         entry_grid.setField(user_text, 0, 1)
-        entry_grid.setField(user_field, 1, 1, anchorLeft = 1)
+        entry_grid.setField(user_field, 1, 1, anchorLeft=1)
         entry_grid.setField(passwd_text, 0, 2)
-        entry_grid.setField(passwd_field, 1, 2, anchorLeft = 1)
+        entry_grid.setField(passwd_field, 1, 2, anchorLeft=1)
 
-        gf.add(t, 0, 0, padding = (0, 0, 0, 1))
-        gf.add(entry_grid, 0, 1, padding = (0, 0, 0, 1))
-        gf.add(bb, 0, 2, growx = 1)
+        gf.add(t, 0, 0, padding=(0, 0, 0, 1))
+        gf.add(entry_grid, 0, 1, padding=(0, 0, 0, 1))
+        gf.add(bb, 0, 2, growx=1)
 
         button = bb.buttonPressed(gf.runOnce())
 
@@ -203,8 +203,8 @@ def get_nfs_location(answers, require_base_rep):
             tui.screen,
             "Specify Repository",
             text,
-            [(label, default)], entryWidth = 50, width = 50,
-            buttons = ['Ok', 'Back'], help = 'getnfsloc')
+            [(label, default)], entryWidth=50, width=50,
+            buttons=['Ok', 'Back'], help='getnfsloc')
 
         answers['source-address'] = result[0]
 
@@ -257,7 +257,7 @@ def confirm_load_repo(answers, label, installed_repos):
     else:
         text = TextboxReflowed(54, "The following %ss were found:\n\n" % label)
     buttons = ButtonBar(tui.screen, [('Use', 'use'), ('Verify', 'verify'), ('Back', 'back')])
-    cbt = CheckboxTree(4, scroll = 1)
+    cbt = CheckboxTree(4, scroll=1)
     for r in repos:
         if str(r) in installed_repos:
             cbt.append("%s (already installed)" % r.name(), r, False)
@@ -266,9 +266,9 @@ def confirm_load_repo(answers, label, installed_repos):
             default_button = VERIFY
 
     gf = GridFormHelp(tui.screen, 'Load Repository', 'loadrepo', 1, 3)
-    gf.add(text, 0, 0, padding = (0, 0, 0, 1))
-    gf.add(cbt, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(buttons, 0, 2, growx = 1)
+    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 2, growx=1)
     gf.draw()
 
     done = False
@@ -289,7 +289,7 @@ def confirm_load_repo(answers, label, installed_repos):
                 text2 = "\n\nWould you like to test your %s repository?  This may cause significant network traffic." % label
 
             rc2 = ButtonChoiceWindow(
-                tui.screen, "Repository Information", text2, ['Ok', 'Back'], width = 60)
+                tui.screen, "Repository Information", text2, ['Ok', 'Back'], width=60)
             if rc2 == 'ok' and interactive_source_verification(selected_repos, label):
                 default_button = USE
 
@@ -321,7 +321,7 @@ def verify_source(answers, label, require_base_repo):
     while not done:
         (button, entry) = ListboxChoiceWindow(
             tui.screen, "Verify %s Source" % cap_label, text,
-            entries, ['Ok', 'Back'], default = default, help = 'vfyrepo')
+            entries, ['Ok', 'Back'], default=default, help='vfyrepo')
 
         if button == 'back': return LEFT_BACKWARDS
 

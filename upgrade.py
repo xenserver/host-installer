@@ -127,7 +127,7 @@ class Upgrader(object):
             if st.st_uid != new_uid or st.st_gid != new_gid:
                 os.lchown('%s/%s' % (dst_root, dst_path), new_uid, new_gid)
 
-        def restore_file(src_base, f, d = None):
+        def restore_file(src_base, f, d=None):
             if not d: d = f
             src = os.path.join(src_base, f)
             dst = os.path.join(mounts['root'], d)
@@ -151,7 +151,7 @@ class Upgrader(object):
                 logger.log("WARNING: /%s did not exist in the backup image." % f)
 
         backup_volume = partitionDevice(target_disk, backup_partnum)
-        tds = util.TempMount(backup_volume, 'upgrade-src-', options = ['ro'])
+        tds = util.TempMount(backup_volume, 'upgrade-src-', options=['ro'])
         try:
             self.buildRestoreList()
             init_id_maps(tds.mount_point, mounts['root'])
@@ -186,7 +186,7 @@ class ThirdGenUpgrader(Upgrader):
 
     def __init__(self, source):
         Upgrader.__init__(self, source)
-        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'])
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options=['ro'])
         safe2upgrade_path = os.path.join(primary_fs.mount_point, constants.SAFE_2_UPGRADE)
         default_storage_conf_path = os.path.join(primary_fs.mount_point, "etc/firstboot.d/data/default-storage.conf")
 
@@ -223,33 +223,33 @@ class ThirdGenUpgrader(Upgrader):
 
                 # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
                 # dom0 and Boot partitions using the same numbers)
-                tool.renamePartition(srcNumber = primary_partnum, destNumber = 10, overwrite = False)
+                tool.renamePartition(srcNumber=primary_partnum, destNumber=10, overwrite=False)
                 boot_part = tool.getPartition(boot_partnum)
                 if boot_part:
-                    tool.renamePartition(srcNumber = boot_partnum, destNumber = 11, overwrite = False)
+                    tool.renamePartition(srcNumber=boot_partnum, destNumber=11, overwrite=False)
                 # Create new bigger dom0 partition
-                tool.createPartition(tool.ID_LINUX, sizeBytes = constants.root_size * 2**20, number = primary_partnum)
+                tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum)
                 # Create Boot partition
                 if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
-                    tool.createPartition(tool.ID_EFI_BOOT, sizeBytes = constants.boot_size * 2**20, number = boot_partnum)
+                    tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
                 else:
-                    tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes = constants.boot_size * 2**20, number = boot_partnum)
+                    tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
                 # Create swap partition
-                tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes = constants.swap_size * 2**20, number = swap_partnum)
+                tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum)
                 # Create storage LVM partition
                 if storage_partnum > 0 and self.vgs_output:
-                    tool.createPartition(tool.ID_LINUX_LVM, number = storage_partnum)
+                    tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum)
                 # Create logs partition using the old dom0 + Boot (if any) partitions
                 tool.deletePartition(10)
                 if boot_part:
                     tool.deletePartition(11)
-                tool.createPartition(tool.ID_LINUX, sizeBytes = constants.logs_size * 2**20, startBytes = 1024*1024, number = logs_partnum)
+                tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, startBytes=1024*1024, number=logs_partnum)
 
-                tool.commit(log = True)
+                tool.commit(log=True)
 
                 if storage_partnum > 0 and self.vgs_output:
                     storage_part = partitionDevice(primary_disk, storage_partnum)
-                    rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
+                    rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout=True)
                     vgs_list = out.strip().splitlines()
                     primary_dev = getMajMin(primary_disk)
                     vgs_output_wrong = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == primary_dev]
@@ -295,7 +295,7 @@ class ThirdGenUpgrader(Upgrader):
         if self.safe2upgrade and logs_partition is None and partition_table_type == constants.PARTITION_GPT:
             if storage_partnum > 0:
                 # Get current Volume Group
-                rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout = True)
+                rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout=True)
                 vgs_list = out.strip().splitlines()
                 target_dev = getMajMin(target_disk)
                 self.vgs_output = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == target_dev]
@@ -311,9 +311,9 @@ class ThirdGenUpgrader(Upgrader):
                 # Delete LVM partition
                 tool.deletePartition(storage_partnum)
             # Resize backup partition
-            tool.resizePartition(number = backup_partnum, sizeBytes = constants.backup_size * 2**20)
+            tool.resizePartition(number=backup_partnum, sizeBytes=constants.backup_size * 2**20)
             # Write partition table
-            tool.commit(log = True)
+            tool.commit(log=True)
 
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)
@@ -324,7 +324,7 @@ class ThirdGenUpgrader(Upgrader):
         progress_callback(10)
 
         # copy the files across:
-        primary_fs = util.TempMount(self.source.root_device, 'primary-', options = ['ro'], boot_device = boot_device)
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options=['ro'], boot_device=boot_device)
         try:
             backup_fs = util.TempMount(backup_partition, 'backup-')
             try:
@@ -347,7 +347,7 @@ class ThirdGenUpgrader(Upgrader):
 
                 if partition_table_type == constants.PARTITION_GPT:
                     # save the GPT table
-                    rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr = True)
+                    rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr=True)
                     if rc != 0:
                         raise RuntimeError("Failed to save partition layout: %s" % err)
             finally:

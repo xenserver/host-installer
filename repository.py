@@ -68,7 +68,7 @@ class Repository(object):
     def accessor(self):
         return self._accessor
 
-    def check(self, progress = lambda x: ()):
+    def check(self, progress=lambda x: ()):
         """ Return a list of problematic packages. """
         def pkg_progress(start, end):
             def progress_fn(x):
@@ -420,7 +420,7 @@ class RPMPackage(object):
         self.size = long(size)
         self.sha256sum = sha256sum
 
-    def check(self, fast = False, progress = lambda x : ()):
+    def check(self, fast=False, progress=lambda x : ()):
         """ Check a package against it's known checksum, or if fast is
         specified, just check that the package exists. """
         if fast:
@@ -499,7 +499,7 @@ class FilesystemAccessor(Accessor):
         return "file://%s" % self.location
 
 class MountingAccessor(FilesystemAccessor):
-    def __init__(self, mount_types, mount_source, mount_options = ['ro']):
+    def __init__(self, mount_types, mount_source, mount_options=['ro']):
         (
             self.mount_types,
             self.mount_source,
@@ -516,8 +516,8 @@ class MountingAccessor(FilesystemAccessor):
             for fs in self.mount_types:
                 try:
                     util.mount(self.mount_source, self.location,
-                               options = self.mount_options,
-                               fstype = fs)
+                               options=self.mount_options,
+                               fstype=fs)
                 except util.MountFailureException as e:
                     continue
                 else:
@@ -542,7 +542,7 @@ class MountingAccessor(FilesystemAccessor):
             self.finish()
 
 class DeviceAccessor(MountingAccessor):
-    def __init__(self, device, fs = ['iso9660', 'vfat', 'ext3']):
+    def __init__(self, device, fs=['iso9660', 'vfat', 'ext3']):
         """ Return a MountingAccessor for a device 'device', which should
         be a fully qualified path to a device node. """
         MountingAccessor.__init__(self, fs, device)
@@ -579,7 +579,7 @@ class URLFileWrapper:
         self.pos += len(ret_val)
         return ret_val
 
-    def seek(self, offset, whence = 0):
+    def seek(self, offset, whence=0):
         consume = 0
         if whence == self.SEEK_SET:
             if offset >= self.pos:

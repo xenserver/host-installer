@@ -51,7 +51,7 @@ def select_report_media(answers):
         "Save Report",
         "Select where to store report.",
         entries,
-        ['Ok', 'Back'], default=default, help = 'selrepdst'
+        ['Ok', 'Back'], default=default, help='selrepdst'
         )
 
     if button == 'back': return uicontroller.LEFT_BACKWARDS
@@ -115,8 +115,8 @@ def get_local_disk(answers):
         "Select Device",
         "Please select the device to store the report on.",
         entries,
-        ['Ok', 'Back'], 55, scroll, height, default, help = 'getlocaldisk:info',
-        hotkeys = {'F5': disk_more_info})
+        ['Ok', 'Back'], 55, scroll, height, default, help='getlocaldisk:info',
+        hotkeys={'F5': disk_more_info})
 
     tui.screen.popHelpLine()
 
@@ -154,8 +154,8 @@ def get_local_dest(answers):
             "Select Device",
             "Please select the partition to store the report on.",
             entries,
-            ['Ok', 'Back'], 55, scroll, height, default, help = 'getlocaldest:info',
-            hotkeys = {'F5': disk_more_info})
+            ['Ok', 'Back'], 55, scroll, height, default, help='getlocaldest:info',
+            hotkeys={'F5': disk_more_info})
 
         tui.screen.popHelpLine()
 
@@ -171,7 +171,7 @@ def get_ftp_dest(answers):
     text = "Please enter the URL for your FTP directory and, optionally, a username and password"
     url_field = snack.Entry(50)
     user_field = snack.Entry(16)
-    passwd_field = snack.Entry(16, password = 1)
+    passwd_field = snack.Entry(16, password=1)
     url_text = snack.Textbox(11, 1, "URL:")
     user_text = snack.Textbox(11, 1, "Username:")
     passwd_text = snack.Textbox(11, 1, "Password:")
@@ -198,13 +198,13 @@ def get_ftp_dest(answers):
     entry_grid.setField(url_text, 0, 0)
     entry_grid.setField(url_field, 1, 0)
     entry_grid.setField(user_text, 0, 1)
-    entry_grid.setField(user_field, 1, 1, anchorLeft = 1)
+    entry_grid.setField(user_field, 1, 1, anchorLeft=1)
     entry_grid.setField(passwd_text, 0, 2)
-    entry_grid.setField(passwd_field, 1, 2, anchorLeft = 1)
+    entry_grid.setField(passwd_field, 1, 2, anchorLeft=1)
 
-    gf.add(t, 0, 0, padding = (0, 0, 0, 1))
-    gf.add(entry_grid, 0, 1, padding = (0, 0, 0, 1))
-    gf.add(bb, 0, 2, growx = 1)
+    gf.add(t, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(entry_grid, 0, 1, padding=(0, 0, 0, 1))
+    gf.add(bb, 0, 2, growx=1)
 
     button = bb.buttonPressed(gf.runOnce())
 
@@ -235,8 +235,8 @@ def get_nfs_dest(answers):
         tui.screen,
         "Specify Path",
         text,
-        [(label, default)], entryWidth = 50, width = 50,
-        buttons = ['Ok', 'Back'], help = 'getnfsdest')
+        [(label, default)], entryWidth=50, width=50,
+        buttons=['Ok', 'Back'], help='getnfsdest')
 
     if button == 'back': return uicontroller.LEFT_BACKWARDS
 
@@ -289,8 +289,8 @@ def main(args):
 
         seq = [
             uicontroller.Step(select_report_media),
-            uicontroller.Step(tui.network.requireNetworking, predicates = [remote_dest]),
-            uicontroller.Step(get_local_disk, predicates = [local_dest]),
+            uicontroller.Step(tui.network.requireNetworking, predicates=[remote_dest]),
+            uicontroller.Step(get_local_disk, predicates=[local_dest]),
             uicontroller.Step(select_report_dest),
             ]
         rc = uicontroller.runSequence(seq, results)

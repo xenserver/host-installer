@@ -62,7 +62,7 @@ def configureNetworking(device, config):
 
 def bugtool(inst, dest_url):
     try:
-        inst.mount_root(ro = False)
+        inst.mount_root(ro=False)
 
         util.bindMount('/dev', os.path.join(inst.root_fs.mount_point, 'dev'))
         util.bindMount('/proc', os.path.join(inst.root_fs.mount_point, 'proc'))

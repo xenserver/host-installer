@@ -234,7 +234,7 @@ class ExistingInstallation:
                     args = ['chroot', self.state_fs.mount_point, '/'+constants.NETWORKD_DB, '-bridge', bridge]
                     if iface:
                         args.extend(['-iface', iface])
-                    rv, out = util.runCmd2(args, with_stdout = True)
+                    rv, out = util.runCmd2(args, with_stdout=True)
                     d = {}
                     for line in (x.strip() for x in out.split('\n') if len(x.strip())):
                         for key_value in line.split(" "):
@@ -352,7 +352,7 @@ class ExistingInstallation:
             # Serial console
             if boot_config.serial:
                 results['serial-console'] = hardware.SerialPort(boot_config.serial['port'],
-                                                                baud = str(boot_config.serial['baud']))
+                                                                baud=str(boot_config.serial['baud']))
             results['bootloader-location'] = boot_config.location
             if boot_config.default != 'upgrade':
                 results['boot-serial'] = (boot_config.default == 'xe-serial')
@@ -374,7 +374,7 @@ class ExistingInstallation:
 
         return results
 
-    def mount_boot(self, ro = True):
+    def mount_boot(self, ro=True):
         opts = None
         if ro:
             opts = ['ro']
@@ -404,11 +404,11 @@ class ExistingRetailInstallation(ExistingInstallation):
     def __repr__(self):
         return "<ExistingRetailInstallation: %s on %s>" % (str(self), self.root_device)
 
-    def mount_root(self, ro = True, boot_device = None):
+    def mount_root(self, ro=True, boot_device=None):
         opts = None
         if ro:
             opts = ['ro']
-        self.root_fs = util.TempMount(self.root_device, 'root', opts, 'ext3', boot_device = boot_device)
+        self.root_fs = util.TempMount(self.root_device, 'root', opts, 'ext3', boot_device=boot_device)
 
     def unmount_root(self):
         if self.root_fs:
@@ -417,8 +417,8 @@ class ExistingRetailInstallation(ExistingInstallation):
 
     # Because EFI boot stores the bootloader configuration on the ESP, mount
     # it at its usual location if necessary so that the configuration is found.
-    def mount_boot(self, ro = True):
-        self.mount_root(ro = ro, boot_device = self.boot_device)
+    def mount_boot(self, ro=True):
+        self.mount_root(ro=ro, boot_device=self.boot_device)
         self.boot_fs_mount = self.root_fs.mount_point
 
     def unmount_boot(self):
@@ -430,7 +430,7 @@ class ExistingRetailInstallation(ExistingInstallation):
         try:
             self.inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point,
                                                                 constants.INVENTORY_FILE),
-                                                   strip_quotes = True)
+                                                   strip_quotes=True)
             self.build = self.inventory['BUILD_NUMBER']
             self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
                                                           self.build))
@@ -462,7 +462,7 @@ class ExistingRetailInstallation(ExistingInstallation):
 class XenServerBackup:
     def __init__(self, part, mnt):
         self.partition = part
-        self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes = True)
+        self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes=True)
         self.build = self.inventory['BUILD_NUMBER']
         self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
                                                       self.build))
@@ -552,7 +552,7 @@ def findXenSourceProducts():
     return installs
 
 def readInventoryFile(filename):
-    return util.readKeyValueFile(filename, strip_quotes = True)
+    return util.readKeyValueFile(filename, strip_quotes=True)
 
 def find_installed_products():
     try:
