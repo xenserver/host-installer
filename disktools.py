@@ -1170,7 +1170,7 @@ def getSysfsDir(dev):
                return '/sys/block/%s' % name
         except:
             pass
-    raise RuntimeError, "Couldn't find sysfs dir for device %s" % dev
+    raise RuntimeError("Couldn't find sysfs dir for device %s" % dev)
 
 def hasDeviceMapperHolder(dev):
     sysfs = getSysfsDir(dev)

@@ -157,7 +157,7 @@ def mount(dev, mountpoint, options = None, fstype = None):
 
     rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
     if rc != 0:
-        raise MountFailureException, "out: '%s' err: '%s'" % (out, err)
+        raise MountFailureException("out: '%s' err: '%s'" % (out, err))
 
 def bindMount(source, mountpoint):
     xelogging.log("Bind mounting %s to %s" % (source, mountpoint))
@@ -165,7 +165,7 @@ def bindMount(source, mountpoint):
     cmd = [ '/bin/mount', '--bind', source, mountpoint]
     rc, out, err = runCmd2(cmd, with_stdout=True, with_stderr=True)
     if rc != 0:
-        raise MountFailureException, "out: '%s' err: '%s'" % (out, err)
+        raise MountFailureException("out: '%s' err: '%s'" % (out, err))
 
 def umount(mountpoint, force = False):
     xelogging.log("Unmounting %s (force = %s)" % (mountpoint, force))

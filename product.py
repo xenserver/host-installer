@@ -212,7 +212,7 @@ class ExistingInstallation:
                     pass
 
             if not root_pwd:
-                raise SettingsNotAvailable, "no root password found"
+                raise SettingsNotAvailable("no root password found")
             results['root-password'] = ('pwdhash', root_pwd)
 
             # don't care about this too much.
@@ -323,7 +323,7 @@ class ExistingInstallation:
                 elif network_backend in [constants.NETWORK_BACKEND_VSWITCH, constants.NETWORK_BACKEND_VSWITCH_ALT]:
                     results['network-backend'] = constants.NETWORK_BACKEND_VSWITCH
                 else:
-                    raise SettingsNotAvailable, "unknown network backend %s" % network_backend
+                    raise SettingsNotAvailable("unknown network backend %s" % network_backend)
             except:
                 pass
 

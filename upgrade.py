@@ -344,7 +344,7 @@ class ThirdGenUpgrader(Upgrader):
                               [ os.path.join(primary_fs.mount_point, x) ] + \
                               ['%s/' % backup_fs.mount_point]
                         if util.runCmd2(cmd) != 0:
-                            raise RuntimeError, "Backup of %s directory failed" % x
+                            raise RuntimeError("Backup of %s directory failed" % x)
                     val += 90 / len(top_dirs)
                     progress_callback(val)
 
@@ -352,7 +352,7 @@ class ThirdGenUpgrader(Upgrader):
                     # save the GPT table
                     rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr = True)
                     if rc != 0:
-                        raise RuntimeError, "Failed to save partition layout: %s" % err
+                        raise RuntimeError("Failed to save partition layout: %s" % err)
             finally:
                 # replace rolling pool upgrade bootloader config
                 def replace_config(config_file, destination):
@@ -379,7 +379,7 @@ class ThirdGenUpgrader(Upgrader):
             installID = self.source.getInventoryValue("INSTALLATION_UUID")
             controlID = self.source.getInventoryValue("CONTROL_DOMAIN_UUID")
         except KeyError:
-            raise RuntimeError, "Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-inventory file.  Aborting installation; please replace these keys and try again."
+            raise RuntimeError("Required information (INSTALLATION_UUID, CONTROL_DOMAIN_UUID) was missing from your xensource-inventory file.  Aborting installation; please replace these keys and try again.")
 
         return installID, controlID
 
@@ -502,7 +502,7 @@ class UpgraderList(list):
         for x in self:
             if x.upgrades(product, version, variant):
                 return x
-        raise KeyError, "No upgrader found for %s" % version
+        raise KeyError("No upgrader found for %s" % version)
 
     def hasUpgrader(self, product, version, variant):
         for x in self:

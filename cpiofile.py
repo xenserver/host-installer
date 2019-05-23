@@ -53,7 +53,7 @@ if sys.platform == 'mac':
     # handling. In many places it is assumed a simple substitution of / by the
     # local os.path.sep is good enough to convert pathnames, but this does not
     # work with the mac rooted:path:name versus :nonrooted:path:name syntax
-    raise ImportError, "cpiofile does not work for platform==mac"
+    raise ImportError("cpiofile does not work for platform==mac")
 
 try:
     import grp, pwd

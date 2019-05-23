@@ -73,8 +73,8 @@ def restoreFromBackup(backup, progress = lambda x: ()):
         # extract the bootloader config
         boot_config = bootloader.Bootloader.loadExisting(backup_fs.mount_point)
         if boot_config.src_fmt == 'grub':
-            raise RuntimeError, "Backup uses grub bootloader which is no longer supported - " + \
-                "to restore please use a version of the installer that matches the backup partition"
+            raise RuntimeError("Backup uses grub bootloader which is no longer supported - " + \
+                "to restore please use a version of the installer that matches the backup partition")
 
         # format the restore partition(s):
         try:
@@ -104,7 +104,7 @@ def restoreFromBackup(backup, progress = lambda x: ()):
                 # get stuck in an infinite loop when copying e.g. /dev/null.
                 if util.runCmd2(['cp', '-a', os.path.join(backup_fs.mount_point, obj),
                                  dest_fs.mount_point]) != 0:
-                    raise RuntimeError, "Failed to restore %s directory" % obj
+                    raise RuntimeError("Failed to restore %s directory" % obj)
 
             xelogging.log("Data restoration complete.  About to re-install bootloader.")
 
@@ -156,16 +156,16 @@ def restoreFromBackup(backup, progress = lambda x: ()):
         backup_fs.unmount()
 
     if not label:
-        raise RuntimeError, "Failed to find label required for root filesystem."
+        raise RuntimeError("Failed to find label required for root filesystem.")
     if efi_boot and not bootlabel:
         raise RuntimeError("Failed to find label required for boot filesystem.")
 
     if util.runCmd2(['e2label', restore_partition, label]) != 0:
-        raise RuntimeError, "Failed to label root partition"
+        raise RuntimeError("Failed to label root partition")
 
     if bootlabel:
         if util.runCmd2(['fatlabel', boot_device, bootlabel]) != 0:
-            raise RuntimeError, "Failed to label boot partition"
+            raise RuntimeError("Failed to label boot partition")
 
     if 'LOG' in backup_partition_layout: # From 7.x (new layout) to 7.x (new layout)
         tool.commitActivePartitiontoDisk(boot_partnum)
@@ -173,6 +173,6 @@ def restoreFromBackup(backup, progress = lambda x: ()):
         logs_part = partitionDevice(disk, logs_partnum)
         swap_part = partitionDevice(disk, swap_partnum)
         if util.runCmd2(['e2label', logs_part, constants.logsfs_label%rdm_label]) != 0:
-            raise RuntimeError, "Failed to label logs partition"
+            raise RuntimeError("Failed to label logs partition")
         if util.runCmd2(['swaplabel', '-L', constants.swap_label%rdm_label, swap_part]) != 0:
-            raise RuntimeError, "Failed to label swap partition"
+            raise RuntimeError("Failed to label swap partition")

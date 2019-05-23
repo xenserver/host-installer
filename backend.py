@@ -534,7 +534,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
         utilparts = tool.utilityPartitions()
         primary_part += max(utilparts+[0])
         if primary_part > 2:
-            raise RuntimeError, "Installer only supports a single Utility Partition at partition 1, but found Utility Partitions at %s" % str(utilparts)
+            raise RuntimeError("Installer only supports a single Utility Partition at partition 1, but found Utility Partitions at %s" % str(utilparts))
 
     sr_part = -1
     if create_sr_part:
@@ -588,15 +588,15 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     assert disk[:5] == '/dev/'
 
     if not os.path.exists(disk):
-        raise RuntimeError, "The disk %s could not be found." % disk
+        raise RuntimeError("The disk %s could not be found." % disk)
 
     # Exit if disk is not big enough even for the pre-Dundee partition layout
     if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size_old:
-        raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size_old)
+        raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size_old))
     # If new partition layout requested: exit if disk is not big enough, otherwise implement it
     elif create_new_partitions:
         if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
-            raise RuntimeError, "The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size)
+            raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size))
 
     if target_boot_mode == TARGET_BOOT_MODE_UEFI and partition_table_type != constants.PARTITION_GPT:
         raise RuntimeError("UEFI boot requires the partition type to be GPT")
@@ -926,7 +926,7 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
             cmd = ['mkinitrd', '--latch']
             cmd.extend( args )
             if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
-                raise RuntimeError, "Failed to latch arguments for initrd."
+                raise RuntimeError("Failed to latch arguments for initrd.")
 
         cmd = ['new-kernel-pkg', '--install', '--mkinitrd']
 
@@ -937,7 +937,7 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
         cmd_fh.close()
 
         if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd']) != 0:
-            raise RuntimeError, "Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND)
+            raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
 
     finally:
         util.umount(os.path.join(mounts['root'], 'sys'))
@@ -1028,10 +1028,10 @@ def configureISCSI(mounts, primary_disk):
 def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
     xen_version = getXenVersion(mounts['root'])
     if xen_version is None:
-        raise RuntimeError, "Unable to determine Xen version."
+        raise RuntimeError("Unable to determine Xen version.")
     xen_kernel_version = getKernelVersion(mounts['root'])
     if not xen_kernel_version:
-        raise RuntimeError, "Unable to determine kernel version."
+        raise RuntimeError("Unable to determine kernel version.")
     partition = partitionDevice(primary_disk, primary_partnum)
 
 
@@ -1065,7 +1065,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
         cmd.append('--with=%s' % mod)
     cmd += ['/boot/initrd-fallback.img', kernel_version]
     if util.runCmd2(['chroot', mounts['root']] + cmd):
-        raise RuntimeError, "Failed to generate fallback initrd"
+        raise RuntimeError("Failed to generate fallback initrd")
 
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
     short_version = kernelShortVersion(xen_kernel_version)
@@ -1163,10 +1163,10 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
                                                 serial = s, location = location)
             xen_version = getXenVersion(mounts['root'])
             if xen_version is None:
-                raise RuntimeError, "Unable to determine Xen version."
+                raise RuntimeError("Unable to determine Xen version.")
             xen_kernel_version = getKernelVersion(mounts['root'])
             if not xen_kernel_version:
-                raise RuntimeError, "Unable to determine kernel version."
+                raise RuntimeError("Unable to determine kernel version.")
             buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config,
                                 serial, boot_serial, host_config, disk,
                                 disk_label_suffix, fcoe_interface)
@@ -1207,7 +1207,7 @@ def setEfiBootEntry(mounts, disk, boot_partnum, branding):
     # First remove existing entries
     rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
     if rc != 0:
-        raise RuntimeError, "Failed to run efibootmgr: %s" % err
+        raise RuntimeError("Failed to run efibootmgr: %s" % err)
     for line in out.splitlines():
         match = re.match("Boot([0-9a-fA-F]{4})\\*? +(?:XenServer|%s)$" % branding['product-brand'], line)
         if match:
@@ -1215,14 +1215,14 @@ def setEfiBootEntry(mounts, disk, boot_partnum, branding):
             rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr",
                                     "--delete-bootnum", "--bootnum", bootnum], with_stderr = True)
             if rc != 0:
-                raise RuntimeError, "Failed to remove efi boot entry: %s" % err
+                raise RuntimeError("Failed to remove efi boot entry: %s" % err)
 
     # Then add a new one
     rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
                             "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/grubx64.efi".replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr = True)
     if rc != 0:
-        raise RuntimeError, "Failed to run efibootmgr: %s" % err
+        raise RuntimeError("Failed to run efibootmgr: %s" % err)
 
 def installGrub2(mounts, disk, force):
     if force:
@@ -1230,7 +1230,7 @@ def installGrub2(mounts, disk, force):
     else:
         rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", disk], with_stderr = True)
     if rc != 0:
-        raise RuntimeError, "Failed to install bootloader: %s" % err
+        raise RuntimeError("Failed to install bootloader: %s" % err)
 
 def installExtLinux(mounts, disk, partition_table_type, location = constants.BOOT_LOCATION_MBR):
 
@@ -1242,7 +1242,7 @@ def installExtLinux(mounts, disk, partition_table_type, location = constants.BOO
 
     rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr = True)
     if rc != 0:
-        raise RuntimeError, "Failed to install bootloader: %s" % err
+        raise RuntimeError("Failed to install bootloader: %s" % err)
 
     for m in ["mboot", "menu", "chain"]:
         if not os.path.exists("%s/%s.c32" % (mounts['boot'], m)):

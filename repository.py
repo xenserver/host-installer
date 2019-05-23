@@ -709,7 +709,7 @@ def repositoriesFromDefinition(media, address, drivers=False):
         if accessors.has_key(media):
             accessor = accessors[media](address)
         else:
-            raise RuntimeError, "Unknown repository media %s" % media
+            raise RuntimeError("Unknown repository media %s" % media)
 
         accessor.start()
         if drivers:

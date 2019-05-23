@@ -87,7 +87,7 @@ def fixMpathResults(results):
                 # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
                 # in the "Local" SR.
                 if master != primary_disk:
-                    raise Exception, "Non-local disk %s specified to be added to Local SR" % disk
+                    raise Exception("Non-local disk %s specified to be added to Local SR" % disk)
                 disk = master
             disks.append(disk)
         results['guest-disks'] = disks
@@ -171,7 +171,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         assert ui is not None or answerfile_address is not None or answerfile_script is not None
 
         if answerfile_address and answerfile_script:
-            raise RuntimeError, "Both answerfile and answerfile generator passed on command line."
+            raise RuntimeError("Both answerfile and answerfile generator passed on command line.")
 
         a = None
         parsing_except = None

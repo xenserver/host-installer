@@ -49,7 +49,7 @@ class Answerfile:
         elif self.top_node.nodeName == 'restore':
             self.operation = 'restore'
         else:
-            raise AnswerfileException, "Unexpected top level element"
+            raise AnswerfileException("Unexpected top level element")
 
     @staticmethod
     def fetch(location):
@@ -59,7 +59,7 @@ class Answerfile:
         try:
             xmldoc = xml.dom.minidom.parse(ANSWERFILE_PATH)
         except:
-            raise AnswerfileException, "Answerfile is incorrectly formatted."
+            raise AnswerfileException("Answerfile is incorrectly formatted.")
 
         return Answerfile(xmldoc)
 
@@ -67,12 +67,12 @@ class Answerfile:
     def generate(location):
         ret, out, err = scripts.run_script(location, 'answerfile')
         if ret != 0:
-            raise AnswerfileException, "Generator script failed:\n\n%s" % err
+            raise AnswerfileException("Generator script failed:\n\n%s" % err)
 
         try:
             xmldoc = xml.dom.minidom.parseString(out)
         except:
-            raise AnswerfileException, "Generator script returned incorrectly formatted output."
+            raise AnswerfileException("Generator script returned incorrectly formatted output.")
 
         return Answerfile(xmldoc)
 
@@ -99,7 +99,7 @@ class Answerfile:
             elif install_type == "upgrade":
                 results = self.parseUpgrade()
             else:
-                raise AnswerfileException, "Unknown mode, %s" % install_type
+                raise AnswerfileException("Unknown mode, %s" % install_type)
 
             results.update(self.parseCommon())
         elif self.operation == 'restore':
@@ -194,7 +194,7 @@ class Answerfile:
 
         backups = product.findXenSourceBackups()
         if len(backups) == 0:
-            raise AnswerfileException, "Could not locate exsisting backup."
+            raise AnswerfileException("Could not locate exsisting backup.")
 
         results['backups'] = backups
         xelogging.log("Backup list: %s" % ", ".join(str(b) for b in backups))
@@ -208,10 +208,10 @@ class Answerfile:
 
         if len(backups) > 1:
             xelogging.log("Multiple backups found. Aborting...")
-            raise AnswerfileException, "Multiple backups were found. Unable to deduce which backup to restore from."
+            raise AnswerfileException("Multiple backups were found. Unable to deduce which backup to restore from.")
         elif len(backups) == 0:
             xelogging.log("Unable to find a backup to restore. Aborting...")
-            raise AnswerfileException, "Unable to find a backup to restore."
+            raise AnswerfileException("Unable to find a backup to restore.")
 
         xelogging.log("Restoring backup %s." % str(backups[0]))
         results['backup-to-restore'] = backups[0]
@@ -242,7 +242,7 @@ class Answerfile:
 
             bl = getText(nodes[0])
             if bl not in ['' , 'grub2']:
-                raise AnswerfileException, "Unsupported bootloader '%s'" % bl
+                raise AnswerfileException("Unsupported bootloader '%s'" % bl)
 
         return results
 
@@ -260,7 +260,7 @@ class Answerfile:
         installations = product.findXenSourceProducts()
         installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
         if len(installations) == 0:
-            raise AnswerfileException, "Could not locate the installation specified to be reinstalled."
+            raise AnswerfileException("Could not locate the installation specified to be reinstalled.")
         elif len(installations) > 1:
             # FIXME non-multipath case?
             xelogging.log("Warning: multiple paths detected - recommend use of --device_mapper_multipath=yes")
@@ -280,7 +280,7 @@ class Answerfile:
             elif rtype in ['url', 'nfs']:
                 address = getText(i)
             else:
-                raise AnswerfileException, "Invalid type for <source> media specified."
+                raise AnswerfileException("Invalid type for <source> media specified.")
             if rtype == 'url' and address.startswith('nfs://'):
                 rtype = 'nfs'
                 address = address[6:]
@@ -301,7 +301,7 @@ class Answerfile:
             elif rtype in ['url', 'nfs']:
                 address = getText(source)
             else:
-                raise AnswerfileException, "Invalid type for <driver-source> media specified."
+                raise AnswerfileException("Invalid type for <driver-source> media specified.")
             if rtype == 'url' and address.startswith('nfs://'):
                 rtype = 'nfs'
                 address = address[6:]
@@ -395,7 +395,7 @@ class Answerfile:
                 if len(matching_list) == 1:
                     if_name = matching_list[0].name
         if not if_name and not if_hwaddr:
-             raise AnswerfileException, "<admin-interface> tag must have one of 'name' or 'hwaddr'"
+             raise AnswerfileException("<admin-interface> tag must have one of 'name' or 'hwaddr'")
 
         results['net-admin-interface'] = if_name
 
@@ -423,11 +423,11 @@ class Answerfile:
         vlan = getStrAttribute(node, ['vlan'])
         if vlan:
             if not netutil.valid_vlan(vlan):
-                raise AnswerfileException, "Invalid value for vlan attribute specified."
+                raise AnswerfileException("Invalid value for vlan attribute specified.")
             results['net-admin-configuration'].vlan = int(vlan)
 
         if not results['net-admin-configuration'].valid():
-            raise AnswerfileException, "<admin-interface> tag must have IPv4 or IPv6 defined."
+            raise AnswerfileException("<admin-interface> tag must have IPv4 or IPv6 defined.")
         return results
 
     def parseRootPassword(self):
@@ -489,11 +489,11 @@ class Answerfile:
         for sn in serviceNodes:
             service = getStrAttribute(sn, ['name'], mandatory = True)
             if service in servicesSeen:
-                raise AnswerfileException, "Multiple entries for service %s" % service
+                raise AnswerfileException("Multiple entries for service %s" % service)
             servicesSeen.add(service)
             state = getStrAttribute(sn, ['state'], mandatory = True)
             if not state in ('enabled', 'disabled'):
-                raise AnswerfileException, "Invalid state for service %s: %s" % (service, state)
+                raise AnswerfileException("Invalid state for service %s: %s" % (service, state))
             services[service] = state
         if services:
              # replace the default value
