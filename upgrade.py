@@ -472,6 +472,8 @@ class ThirdGenUpgrader(Upgrader):
             netutil.disable_ipv6_module(mounts["root"])
 
         # handle the conversion of devices from aacraid to smartpqi
+        primary_disk = self.source.getInventoryValue("PRIMARY_DISK")
+        target_link = diskutil.idFromPartition(target_disk) or target_disk
         if primary_disk.startswith('/dev/disk/by-id/scsi-') and \
                 target_link.startswith('/dev/disk/by-id/scsi-') and \
                 primary_disk != target_link:
