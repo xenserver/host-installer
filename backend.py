@@ -157,7 +157,7 @@ def getRepoSequence(ans, repos):
         seq.append(Task(repo.installPackages, A(ans, 'mounts'), [],
                      progress_scale=100,
                      pass_progress_callback=True,
-                     progress_text="Installing from %s..." % repo.name()))
+                     progress_text="Installing %s..." % repo.name()))
         seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
         seq.append(Task(repo.getBranding, A(ans, 'mounts', 'branding'), ['branding']))
     return seq
