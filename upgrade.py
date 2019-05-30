@@ -398,7 +398,7 @@ class ThirdGenUpgrader(Upgrader):
         self.restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
 
         # CP-1508: preserve AD config
-        self.restore_list += [ 'etc/resolv.conf', 'etc/nsswitch.conf', 'etc/krb5.conf', 'etc/krb5.keytab', 'etc/pam.d/sshd' ]
+        self.restore_list += ['etc/resolv.conf', 'etc/krb5.conf', 'etc/krb5.keytab']
         self.restore_list.append({'dir': 'var/lib/likewise'})
 
         # CP-12576: Integrate automatic upgrade tool from Likewise 5.4 to PBIS 8
