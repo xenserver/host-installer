@@ -624,6 +624,19 @@ def setup_ibft_nics():
         ibft_reserved_nics.add(mac_map[mac])
 
 
+def dump_ibft():
+    logger.log("Dump iBFT:")
+    for path, dirs, files in os.walk('/sys/firmware/ibft'):
+        for item in dirs:
+            logger.log(os.path.join(path, item) + '/')
+        for item in files:
+            item =  os.path.join(path, item)
+            with open(item, 'r') as f:
+                data = f.read()
+            logger.log('%s %s' % (item, repr(data)))
+    logger.log("End of iBFT dump")
+
+
 def process_ibft(ui, interactive):
     """Process the iBFT.
 
@@ -641,6 +654,10 @@ def process_ibft(ui, interactive):
     rv, out = util.runCmd2(['iscsistart', '-f'], with_stdout=True)
     if rv:
         logger.log("process_ibft: No valid iBFT found.")
+
+        # Dump iBFT state for debugging
+        dump_ibft()
+
         return
     for line in out.split('\n'):
         m = re.match('iface.net_ifacename = (.*)$', line.strip())
