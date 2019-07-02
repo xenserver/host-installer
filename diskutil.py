@@ -640,6 +640,53 @@ def dump_ibft():
     logger.log("End of iBFT dump")
 
 
+def write_iscsi_records(mounts, primary_disk):
+    record = []
+    node_name = node_address = node_port = None
+
+    rv, out = util.runCmd2(['iscsistart', '-f'], with_stdout=True)
+    if rv:
+        raise Exception('Invalid iSCSI record')
+
+    for line in out.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+
+        if line.startswith('node.name = '):
+            node_name = line.split()[2]
+        if line.startswith('node.conn[0].address = '):
+            node_address = line.split()[2]
+        if line.startswith('node.conn[0].port = '):
+            node_port = line.split()[2]
+        if line == '# END RECORD':
+            if node_name is None or node_address is None or node_port is None:
+                raise Exception('Invalid iSCSI record')
+
+            # Ensure that the session does not get logged out during shutdown
+            record.append('node.startup = onboot')
+            # iscsistart hardcodes the target portal group tag to 1
+            record.append('node.tpgt = 1')
+            if isDeviceMapperNode(primary_disk):
+                record.append('%s = %d\n' % ('node.session.timeo.replacement_timeout',
+                                             constants.MPATH_ISCSI_TIMEOUT))
+            record.append(line)
+
+            path = os.path.join(mounts['root'], constants.ISCSI_NODES,
+                                node_name, '%s,%s,1' % (node_address, node_port))
+            os.makedirs(path)
+            with open(os.path.join(path, 'default'), 'w') as f:
+                f.write('\n'.join(record) + '\n')
+            record = []
+            node_name = node_address = node_port = None
+            continue
+
+        record.append(line)
+
+    if record:
+        raise Exception('Invalid iSCSI record')
+
+
 def process_ibft(ui, interactive):
     """Process the iBFT.
 

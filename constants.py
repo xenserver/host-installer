@@ -179,6 +179,8 @@ BOOT_MENU_TIMEOUT = 50
 # timeout used for multipath iscsi
 MPATH_ISCSI_TIMEOUT = 15
 
+ISCSI_NODES = 'var/lib/iscsi/nodes'
+
 # prepare configuration for common criteria security
 CC_PREPARATIONS = False
 

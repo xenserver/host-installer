@@ -1022,6 +1022,8 @@ def configureISCSI(mounts, primary_disk):
                      'systemctl', 'enable', 'iscsi']):
         raise RuntimeError("Failed to enable iscsi")
 
+    diskutil.write_iscsi_records(mounts, primary_disk)
+
     # Reduce the timeout when using multipath
     if isDeviceMapperNode(primary_disk):
         adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'])
