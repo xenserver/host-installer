@@ -142,6 +142,9 @@ def getDiskList():
             if hasDeviceMapperHolder("/dev/" + name.replace("!","/")):
                 # skip device that cannot be used
                 continue
+            if isDeviceMapperNode("/dev/" + name.replace("!","/")):
+                # dm-* devices get added later as mapper/* devices
+                continue
             if (major, minor) in disk_nodes:
                 if major == 202 and isRemovable("/dev/" + name): # Ignore PV CDROM devices
                     continue
