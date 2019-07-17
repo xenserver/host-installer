@@ -98,7 +98,7 @@ if [ $started_by_systemd -eq 1 ]; then
             hvc*|ttyS*)
             xencon=`expr "$(xen_commandline)" : '.*\(com.=[^ ]*\)'`
             co=`expr "$c" : '\(ttyS.*\),'`
-            br=`expr "$xencon" : 'com.*=\([0-9]*\)'`
+            br=`expr "$xencon" : 'com[0-9]*=\([0-9]*\)'`
             [ -n "$co" ] && c=$co
             [ -n "$br" ] && b=$br
             t=$term;;

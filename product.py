@@ -350,9 +350,16 @@ class ExistingInstallation:
             boot_config = bootloader.Bootloader.loadExisting(self.boot_fs_mount)
 
             # Serial console
-            if boot_config.serial:
-                results['serial-console'] = hardware.SerialPort(boot_config.serial['port'],
-                                                                baud=str(boot_config.serial['baud']))
+            try:
+                xen_args = boot_config.menu['xe-serial'].getHypervisorArgs()
+                com = [i for i in xen_args if re.match('com[0-9]+=.*', i)]
+                results['serial-console'] = hardware.SerialPort.from_string(com[0])
+            except Exception:
+                logger.log("Could not parse serial settings")
+
+                if boot_config.serial:
+                    results['serial-console'] = hardware.SerialPort(boot_config.serial['port'],
+                                                                    baud=str(boot_config.serial['baud']))
             results['bootloader-location'] = boot_config.location
             if boot_config.default != 'upgrade':
                 results['boot-serial'] = (boot_config.default == 'xe-serial')

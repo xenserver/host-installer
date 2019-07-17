@@ -92,7 +92,8 @@ def is_serialConsole(console):
     return console.startswith('hvc') or console.startswith('ttyS')
 
 class SerialPort:
-    def __init__(self, idv, dev=None, port=None, baud='9600', data='8', parity='n', stop='1', term='vt102'):
+    def __init__(self, idv, dev=None, port=None, baud='9600', data='8',
+                 parity='n', stop='1', term='vt102', extra=''):
         if not dev:
             dev = "hvc0"
         if not port:
@@ -106,6 +107,7 @@ class SerialPort:
         self.parity = parity
         self.stop = stop
         self.term = term
+        self.extra = extra
 
     @classmethod
     def from_string(cls, console):
@@ -115,16 +117,22 @@ class SerialPort:
         data = '8'
         parity = 'n'
         stop = '1'
+        extra = ''
 
-        m = re.match(r'(com\d+)=(\d+)(?:/\d+)?(?:,(\d)(.)?(\d)?)?', console)
+        m = re.match(r'(com\d+)=(\d+)(?:/\d+)?(?:,(\d)(.)?(\d)?)?((?:,.*)*)$', console)
         if m:
             port = m.group(1)
             baud = m.group(2)
-            if m.group(3): data = m.group(3)
-            if m.group(4): parity = m.group(4)
-            if m.group(5): stop = m.group(5)
+            if m.group(3):
+                data = m.group(3)
+            if m.group(4):
+                parity = m.group(4)
+            if m.group(5):
+                stop = m.group(5)
+            if m.group(6):
+                extra = m.group(6)
 
-        return cls(0, None, port, baud, data, parity, stop)
+        return cls(0, None, port, baud, data, parity, stop, extra=extra)
 
     def __repr__(self):
         return "<SerialPort: %s>" % self.xenFmt()
@@ -133,4 +141,5 @@ class SerialPort:
         return self.dev
 
     def xenFmt(self):
-        return "%s=%s,%s%s%s" % (self.port, self.baud, self.data, self.parity, self.stop)
+        return "%s=%s,%s%s%s%s" % (self.port, self.baud, self.data,
+                                   self.parity, self.stop, self.extra)
