@@ -1085,7 +1085,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         common_xen_params += " ioapic_ack=old"
 
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
-    kernel_console_params = "xencons=hvc console=hvc0"
+    kernel_console_params = "console=hvc0"
 
     if diskutil.is_iscsi(primary_disk):
         common_kernel_params += " rd.iscsi.ibft=1 rd.iscsi.firmware=1"
