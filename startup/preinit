@@ -103,7 +103,7 @@ if [ $started_by_systemd -eq 1 ]; then
             [ -n "$br" ] && b=$br
             t=$term;;
           esac
-          /sbin/agetty -n -l $0 $c $b $t &
+          setsid /sbin/agetty -n -l $0 $c $b $t &
         fi
     esac
   done
