@@ -62,6 +62,11 @@ def ListboxChoiceWindowEx(screen, title, text, items,
             loop = False
     screen.popWindow()
 
+    # Handle when a listbox item is selected with returnExit
+    # rather than scrolling to 'Ok' button
+    if bb.buttonPressed(rc) is None and l.current() is not None:
+        return ('Ok', l.current())
+
     return (bb.buttonPressed(rc), l.current())
 
 def ButtonChoiceWindowEx(screen, title, text,
