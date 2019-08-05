@@ -399,7 +399,10 @@ class LVMTool:
         """Makes sure that LVM has unmounted everything so that, e.g. sfdisk can succeed"""
         for vg in self.vgs:
             # Passing VG names to LVchange is intentional
-            self.cmdWrap(self.LVCHANGE + ['-an', vg['vg_name']])
+            try:
+                self.cmdWrap(self.LVCHANGE + ['-an', vg['vg_name']])
+            except Exception as e:
+                logger.logException(e)
 
     @classmethod
     def executeMoves(cls, progress_callback, device, moveList):
