@@ -23,6 +23,7 @@ import xelogging
 import util
 import diskutil
 from disktools import *
+import fcoeutil
 import netutil
 import shutil
 import constants
@@ -1094,8 +1095,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         common_kernel_params += " rd.auto"
 
     if fcoe_interfaces:
-        for interface, dcb in fcoe_interfaces.items():
-            common_kernel_params += " fcoe=%s:%s" % (netutil.getHWAddr(interface), dcb and "dcb" or "nodcb")
+        for interface in fcoe_interfaces:
+            common_kernel_params += " fcoe=%s:%s" % (netutil.getHWAddr(interface), 'nodcb' if fcoeutil.hw_lldp_capable(interface) else 'dcb')
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen.gz",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
