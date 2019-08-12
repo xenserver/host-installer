@@ -449,21 +449,22 @@ def configureMCELog(mounts):
 def configureNTP(mounts, ntp_servers):
     # If NTP servers were specified, update the NTP config file:
     if len(ntp_servers) > 0:
-        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'r')
+        ntpsconf = open("%s/etc/chrony.conf" % mounts['root'], 'r')
         lines = ntpsconf.readlines()
         ntpsconf.close()
 
         lines = filter(lambda x: not x.startswith('server '), lines)
 
-        ntpsconf = open("%s/etc/ntp.conf" % mounts['root'], 'w')
+        ntpsconf = open("%s/etc/chrony.conf" % mounts['root'], 'w')
         for line in lines:
             ntpsconf.write(line)
         for server in ntp_servers:
-            ntpsconf.write("server %s\n" % server)
+            ntpsconf.write("server %s iburst\n" % server)
         ntpsconf.close()
 
     # now turn on the ntp service:
-    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'ntpd'])
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
 def configureTimeManually(mounts, ui_package):
     # display the Set Time dialog in the chosen UI:
