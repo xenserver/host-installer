@@ -1033,7 +1033,7 @@ def get_time_configuration_method(answers):
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
         "System Time",
-        "How should the local time be determined?\n\n(Note that if you choose to enter it manually, you will need to respond to a prompt at the end of the installation.)",
+        "How should the local time be determined?",
         entries, ['Ok', 'Back'], default=default, help='timemeth')
 
     if button == 'back': return LEFT_BACKWARDS
@@ -1117,9 +1117,12 @@ def get_ntp_servers(answers):
         answers['ntp-servers'] = []
     return RIGHT_FORWARDS
 
-# this is used directly by backend.py - 'now' is localtime
-def set_time(answers, now, show_back_button=False):
+def set_time(answers):
+    if answers['time-config-method'] != 'manual':
+        return SKIP_SCREEN
+
     done = False
+    now = util.getLocalTime(timezone=answers['timezone'])
 
     # set these outside the loop so we don't overwrite them in the
     # case that the user enters a bad value.
@@ -1159,10 +1162,7 @@ def set_time(answers, now, show_back_button=False):
 
         gf.add(dategrid, 0, 1, padding=(0, 0, 1, 1))
 
-        if show_back_button:
-            buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])
-        else:
-            buttons = ButtonBar(tui.screen, [("Ok", "ok")])
+        buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])
         gf.add(buttons, 0, 2, growx=1)
 
         button = buttons.buttonPressed(gf.runOnce())
@@ -1187,7 +1187,6 @@ def set_time(answers, now, show_back_button=False):
 
     # we're done:
     assert button == 'ok'
-    answers['set-time'] = True
     answers['set-time-dialog-dismissed'] = datetime.datetime.now()
     answers['localtime'] = datetime.datetime(int(year.value()),
                                              int(month.value()),

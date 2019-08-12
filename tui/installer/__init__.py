@@ -179,6 +179,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_ntp_servers,
              predicates=[is_not_restore_fn, not_preserve_settings]),
+        Step(uis.set_time,
+             predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.confirm_installation),
         ]
     return uicontroller.runSequence(seq, results)

@@ -227,13 +227,6 @@ class TempMount:
         if os.path.isdir(self.mount_point):
             os.rmdir(self.mount_point)
 
-def parseTime(timestr):
-    match = re.match('(\d+)-(\d+)-(\d+) (\d+):(\d+):(\d+)', timestr)
-    (year, month, day, hour, minute, second) = map(lambda x: int(x), match.groups())
-    time = datetime.datetime(year, month, day, hour, minute, second)
-
-    return time
-
 ###
 # fetching of remote files
 
@@ -394,17 +387,7 @@ def getLocalTime(timezone=None):
         os.environ['TZ'] = timezone
         time.tzset()
 
-    now = datetime.datetime.now()
-
-    second = now.second
-    minute = now.minute
-    hour = now.hour
-    day = now.day
-    month = now.month
-    year = now.year
-
-    return "%04d-%02d-%02d %02d:%02d:%02d" % \
-                 (year, month, day, hour, minute, second)
+    return datetime.datetime.now()
 
 def setLocalTime(timestring, timezone=None):
     if timezone:

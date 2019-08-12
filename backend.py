@@ -116,6 +116,12 @@ def getPrepSequence(ans, interactive):
         Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary', 'create-new-partitions'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum', 'create-new-partitions'), ['partition-table-type']),
         ]
+
+    if ans['time-config-method'] == 'ntp':
+        seq.append(Task(setTimeNTP, A(ans, 'ntp-servers'), []))
+    elif ans['time-config-method'] == 'manual':
+        seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
+
     if not interactive:
         seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
@@ -198,9 +204,7 @@ def getFinalisationSequence(ans):
             Task(configureSRMultipathing, A(ans, 'mounts', 'primary-disk'), []),
             ]
     if ans['time-config-method'] == 'ntp':
-        seq.append( Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []) )
-    elif ans['time-config-method'] == 'manual':
-        seq.append( Task(configureTimeManually, A(ans, 'mounts', 'ui'), []) )
+        seq.append(Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []))
     # complete upgrade if appropriate:
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
@@ -445,41 +449,46 @@ def configureMCELog(mounts):
     if is_amd and model >= 16:
         util.runCmd2(['chroot', mounts['root'], 'systemctl', 'disable', 'mcelog'])
 
-# Time configuration:
-def configureNTP(mounts, ntp_servers):
-    # If NTP servers were specified, update the NTP config file:
+def rewriteNTPConf(root, ntp_servers):
+    ntpsconf = open("%s/etc/chrony.conf" % root, 'r')
+    lines = ntpsconf.readlines()
+    ntpsconf.close()
+
+    lines = filter(lambda x: not x.startswith('server '), lines)
+
+    ntpsconf = open("%s/etc/chrony.conf" % root, 'w')
+    for line in lines:
+        ntpsconf.write(line)
+    for server in ntp_servers:
+        ntpsconf.write("server %s iburst\n" % server)
+    ntpsconf.close()
+
+def setTimeNTP(ntp_servers):
     if len(ntp_servers) > 0:
-        ntpsconf = open("%s/etc/chrony.conf" % mounts['root'], 'r')
-        lines = ntpsconf.readlines()
-        ntpsconf.close()
+        rewriteNTPConf('', ntp_servers)
 
-        lines = filter(lambda x: not x.startswith('server '), lines)
+    # This might fail or stall if the network is not set up correctly so set a
+    # time limit and don't expect it to succeed.
+    if util.runCmd2(['timeout', '15', 'chronyd', '-q']) == 0:
+        assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
-        ntpsconf = open("%s/etc/chrony.conf" % mounts['root'], 'w')
-        for line in lines:
-            ntpsconf.write(line)
-        for server in ntp_servers:
-            ntpsconf.write("server %s iburst\n" % server)
-        ntpsconf.close()
-
-    # now turn on the ntp service:
-    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
-    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
-
-def configureTimeManually(mounts, ui_package):
-    # display the Set Time dialog in the chosen UI:
-    time = util.getLocalTime()
-    answers = {}
-    ui_package.installer.screens.set_time(answers, util.parseTime(time))
-
-    newtime = answers['localtime']
+def setTimeManually(localtime, set_time_dialog_dismissed, timezone):
+    newtime = localtime + (datetime.datetime.now() - set_time_dialog_dismissed)
     timestr = "%04d-%02d-%02d %02d:%02d:00" % \
               (newtime.year, newtime.month, newtime.day,
                newtime.hour, newtime.minute)
 
-    util.setLocalTime(timestr)
+    util.setLocalTime(timestr, timezone=timezone)
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
+def configureNTP(mounts, ntp_servers):
+    # If NTP servers were specified, update the NTP config file:
+    if len(ntp_servers) > 0:
+        rewriteNTPConf(mounts['root'], ntp_servers)
+
+    # now turn on the ntp service:
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
 def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part, create_new_partitions):
 
