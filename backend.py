@@ -468,9 +468,7 @@ def configureNTP(mounts, ntp_servers):
 
 def configureTimeManually(mounts, ui_package):
     # display the Set Time dialog in the chosen UI:
-    shutil.copy('/usr/bin/timeutil', "%s/tmp/timeutil" % mounts['root'])
-    rc, time = util.runCmd2(['chroot', mounts['root'], '/tmp/timeutil', 'getLocalTime'], with_stdout=True)
-    assert rc == 0
+    time = util.getLocalTime()
     answers = {}
     ui_package.installer.screens.set_time(answers, util.parseTime(time))
 
@@ -479,10 +477,8 @@ def configureTimeManually(mounts, ui_package):
               (newtime.year, newtime.month, newtime.day,
                newtime.hour, newtime.minute)
 
-    # chroot into the dom0 and set the time:
-    assert util.runCmd2(['chroot', mounts['root'], '/tmp/timeutil', 'setLocalTime', '%s' % timestr]) == 0
+    util.setLocalTime(timestr)
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
-    os.unlink("%s/tmp/timeutil" % mounts['root'])
 
 
 def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part, create_new_partitions):

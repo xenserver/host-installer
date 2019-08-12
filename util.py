@@ -18,6 +18,7 @@ import urllib2
 import shutil
 import re
 import datetime
+import time
 import random
 import string
 import tempfile
@@ -387,3 +388,27 @@ def udevinfoCmd():
 
 def randomLabelStr():
     return "".join([random.choice(string.ascii_lowercase) for x in range(6)])
+
+def getLocalTime(timezone=None):
+    if timezone:
+        os.environ['TZ'] = timezone
+        time.tzset()
+
+    now = datetime.datetime.now()
+
+    second = now.second
+    minute = now.minute
+    hour = now.hour
+    day = now.day
+    month = now.month
+    year = now.year
+
+    return "%04d-%02d-%02d %02d:%02d:%02d" % \
+                 (year, month, day, hour, minute, second)
+
+def setLocalTime(timestring, timezone=None):
+    if timezone:
+        os.environ['TZ'] = timezone
+        time.tzset()
+
+    assert runCmd2("date --set='%s'" % timestring) == 0
