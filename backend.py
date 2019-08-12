@@ -1579,6 +1579,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
         nfd.write("NETWORKING_IPV6=no\n")
         netutil.disable_ipv6_module(mounts["root"])
     nfd.write("IPV6_AUTOCONF=no\n")
+    nfd.write('NTPSERVERARGS="iburst prefer"\n')
     nfd.close()
 
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
