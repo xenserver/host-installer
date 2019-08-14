@@ -161,13 +161,16 @@ class ExistingInstallation:
                 results['manual-nameservers'] = (True, ns)
 
             # ntp servers:
-            fd = open(self.join_state_path('etc/ntp.conf'), 'r')
+            if os.path.exists(self.join_state_path('etc/chrony.conf')):
+                fd = open(self.join_state_path('etc/chrony.conf'), 'r')
+            else:
+                fd = open(self.join_state_path('etc/ntp.conf'), 'r')
             lines = fd.readlines()
             fd.close()
             ntps = []
             for line in lines:
                 if line.startswith("server "):
-                    ntps.append(line[7:].strip())
+                    ntps.append(line[7:].split()[0].strip())
             results['ntp-servers'] = ntps
 
             # keyboard:
