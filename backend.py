@@ -1406,13 +1406,6 @@ def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnu
     if logs_partition:
         fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, logsfs_type))
 
-    # This should be removed when the packaging CARs are done
-    if logs_partition:
-        # partition therefore daily rotate
-        logrotate = open(os.path.join(mounts['root'], 'etc/sysconfig/logrotate'), "w")
-        logrotate.write("BUDGET_MB=4000")
-        logrotate.close()
-
 def enableAgent(mounts, network_backend, services):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
         util.runCmd2(['chroot', mounts['root'],
