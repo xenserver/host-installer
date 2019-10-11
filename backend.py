@@ -179,6 +179,7 @@ def getFinalisationSequence(ans):
         Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
         Task(configureCC, A(ans, 'mounts'), []),
+        Task(configureLogrotate, A(ans, 'mounts', 'primary-disk', 'logs-partnum'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
@@ -1441,6 +1442,33 @@ def configureCC(mounts):
         rules = conf.read()
     with open(os.path.join(mounts['root'], 'etc', 'sysconfig', 'iptables'), 'wb') as out:
         out.write(rules.replace('@SSH_RULE@', ssh_rule))
+
+def configureLogrotate(mounts, primary_disk, logs_partnum):
+    '''Reconfigure logrotate if there is no logs partition.'''
+
+    def disable_job(path):
+        if os.path.exists(path):
+            os.rename(path, path + '~')
+
+    tool = PartitionTool(primary_disk)
+    logs_partition = tool.getPartition(logs_partnum)
+
+    if not logs_partition:
+        if os.path.exists(os.path.join(mounts['root'], 'etc/cron.d/logrotate.cron.rpmsave')):
+            os.rename(os.path.join(mounts['root'], 'etc/cron.d/logrotate.cron.rpmsave'),
+                      os.path.join(mounts['root'], 'etc/cron.d/logrotate.cron'))
+            disable_job(os.path.join(mounts['root'], 'etc/cron.daily/logrotate'))
+            disable_job(os.path.join(mounts['root'], 'etc/cron.d/xapi-logrotate.cron'))
+
+            with open(os.path.join(mounts['root'], 'etc/xensource/xapi-logrotate.conf'), 'rb') as in_conf:
+                with open(os.path.join(mounts['root'], 'etc/logrotate.d/xapi'), 'wb') as out_conf:
+                    match = False
+                    for line in in_conf:
+                        if line.startswith('/var/log/xensource.log {\n'):
+                            match = True
+                        if match:
+                            out_conf.write(line)
+            assert match
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf

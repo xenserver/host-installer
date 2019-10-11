@@ -441,8 +441,8 @@ class ThirdGenUpgrader(Upgrader):
 
         self.restore_list += ['var/lib/xcp/verify_certificates']
 
-    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
-    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, admin_iface, admin_bridge, admin_config):
+    completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'logs-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
+    def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, logs_partnum, admin_iface, admin_bridge, admin_config):
 
         util.assertDir(os.path.join(mounts['root'], "var/lib/xcp"))
         util.assertDir(os.path.join(mounts['root'], "etc/xensource"))
