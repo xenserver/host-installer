@@ -178,6 +178,7 @@ def getFinalisationSequence(ans):
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
         Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
+        Task(configureCC, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
@@ -1427,6 +1428,26 @@ def enableAgent(mounts, network_backend, services):
         action = 'disable' if constants.CC_PREPARATIONS and state is None else actMap.get(state)
         if action:
             util.runCmd2(['chroot', mounts['root'], 'systemctl', action, service + '.service'])
+
+def configureCC(mounts):
+    '''Tailor the installation for Common Criteria mode.'''
+
+    if not constants.CC_PREPARATIONS:
+        return
+
+    # Turn on SSL certificate verification.
+    open(os.path.join(mounts['root'], 'var/lib/xcp/verify_certificates'), 'wb').close()
+
+    if util.runCmd2(['chroot', mounts['root'],
+                     'systemctl', 'is-enabled', 'sshd.service']) == 'enabled':
+        ssh_rule = '-A INPUT -i xenbr0 -p tcp -m tcp --dport 22 -m state --state NEW -j ACCEPT'
+    else:
+        ssh_rule = ''
+
+    with open(CC_FIREWALL_CONF, 'rb') as conf:
+        rules = conf.read()
+    with open(os.path.join(mounts['root'], 'etc', 'sysconfig', 'iptables'), 'wb') as out:
+        out.write(rules.replace('@SSH_RULE@', ssh_rule))
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf

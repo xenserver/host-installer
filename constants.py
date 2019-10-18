@@ -183,6 +183,7 @@ ISCSI_NODES = 'var/lib/iscsi/nodes'
 
 # prepare configuration for common criteria security
 CC_PREPARATIONS = False
+CC_FIREWALL_CONF = '/opt/xensource/installer/common_criteria_firewall_rules'
 
 # list of dom0 services that will be disabled for common criteria preparation,
 # and these can be overridden by answer file
