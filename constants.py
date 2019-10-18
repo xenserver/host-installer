@@ -188,3 +188,11 @@ CC_FIREWALL_CONF = '/opt/xensource/installer/common_criteria_firewall_rules'
 # list of dom0 services that will be disabled for common criteria preparation,
 # and these can be overridden by answer file
 SERVICES = ["sshd"]
+
+# List of services which must have run before allowing an upgrade.
+# These services need to have been run because they are only run after an
+# install, not an upgrade so if they don't run before upgrading they will never
+# be run.
+INIT_SERVICE_FILES = [
+    'var/lib/misc/ran-storage-init',
+]
