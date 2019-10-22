@@ -15,6 +15,7 @@ import os.path
 import subprocess
 import urllib
 import urllib2
+import urlparse
 import shutil
 import re
 import datetime
@@ -395,3 +396,61 @@ def setLocalTime(timestring, timezone=None):
         time.tzset()
 
     assert runCmd2("date --set='%s'" % timestring) == 0
+
+class URL(object):
+    """A wrapper around a URL string.
+
+    This is a wrapper around a URL string to avoid inadvertently logging
+    the username/password of a URL string."""
+
+    def __init__(self, url):
+        self.url = url
+        (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
+        self.scheme = scheme
+        self.hostname, self.username, self.password = splitNetloc(netloc)
+
+    def __str__(self):
+        """Returns the URL with username/password replaced with asterisks."""
+
+        if self.username is not None and self.password is not None:
+            return self.url.replace('%s:%s@' % (self.username, self.password), '***:***@', 1)
+        elif self.username is not None:
+            return self.url.replace('%s@' % self.username, '***@', 1)
+        else:
+            # Cannot have a password without a username
+            assert self.password is None
+
+            return self.url
+
+    def getScheme(self):
+        return self.scheme
+
+    def getHostname(self):
+        return self.hostname
+
+    def getUsername(self):
+        return self.username
+
+    def getPassword(self):
+        return self.password
+
+    def getURL(self):
+        """Get the full URL with username/password.
+
+        The usage of this should be carefully audited to ensure it is not
+        inadvertently logged (even as part of an exception)."""
+
+        return self.url
+
+    def getPlainURL(self):
+        """Get the URL without username/password."""
+
+        if self.username is not None and self.password is not None:
+            return self.url.replace('%s:%s@' % (self.username, self.password), '', 1)
+        elif self.username is not None:
+            return self.url.replace('%s@' % self.username, '', 1)
+        else:
+            # Cannot have a password without a username
+            assert self.password is None
+
+            return self.url

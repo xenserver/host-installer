@@ -285,6 +285,9 @@ class Answerfile:
                 rtype = 'nfs'
                 address = address[6:]
 
+            if rtype == 'url':
+                address = util.URL(address)
+
             results['sources'].append({'media': rtype, 'address': address})
 
         return results
@@ -305,6 +308,9 @@ class Answerfile:
             if rtype == 'url' and address.startswith('nfs://'):
                 rtype = 'nfs'
                 address = address[6:]
+
+            if rtype == 'url':
+                address = util.URL(address)
 
             results['extra-repos'].append((rtype, address))
         return results

@@ -110,6 +110,7 @@ plugins=0
 installonlypkgs=
 distroverpkg=xenserver-release
 reposdir=/tmp/repos
+history_record=false
 """ % _cachedir
 
     def __init__(self, accessor):
@@ -174,14 +175,21 @@ reposdir=/tmp/repos
         return installed_repos
 
     def _installPackages(self, progress_callback, mounts):
-        logger.log("URL: " + self._accessor.url())
+        url = self._accessor.url()
+        logger.log("URL: " + str(url))
         with open('/root/yum.conf', 'w') as yum_conf:
             yum_conf.write(self._yum_conf)
             yum_conf.write("""
 [install]
 name=install
 baseurl=%s
-""" % self._accessor.url())
+""" % url.getPlainURL())
+            username = url.getUsername()
+            if username is not None:
+                yum_conf.write("username=%s\n" % (url.getUsername(),))
+            password = url.getPassword()
+            if password is not None:
+                yum_conf.write("password=%s\n" % (url.getPassword(),))
 
         self.disableInitrdCreation(mounts['root'])
 
@@ -287,6 +295,7 @@ class MainYumRepository(YumRepository):
                     self.keyfiles.append(keyfile)
         except Exception as e:
             accessor.finish()
+            logger.logException(e)
             raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
 
         self._parse_repodata(accessor)
@@ -352,6 +361,7 @@ class UpdateYumRepository(YumRepository):
             try:
                 dom = xml.dom.minidom.parseString(updatefp.read())
             except Exception as e:
+                logger.logException(e)
                 raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
             finally:
                 updatefp.close()
@@ -362,6 +372,7 @@ class UpdateYumRepository(YumRepository):
             self._targets = [self._controlpkg, 'update-' + self._identifier]
         except Exception as e:
             accessor.finish()
+            logger.logException(e)
             raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
 
         self._parse_repodata(accessor)
@@ -389,6 +400,7 @@ installonlypkgs=
 distroverpkg=xenserver-release
 reposdir=/tmp/repos
 diskspacecheck=0
+history_record=false
 """ % _cachedir
 
     def __init__(self, accessor):
@@ -398,13 +410,21 @@ diskspacecheck=0
     @classmethod
     def isRepo(cls, accessor):
         if UpdateYumRepository.isRepo(accessor):
+            url = accessor.url()
             with open('/root/yum.conf', 'w') as yum_conf:
                 yum_conf.write(cls._yum_conf)
                 yum_conf.write("""
 [driverrepo]
 name=driverrepo
 baseurl=%s
-""" % accessor.url())
+""" % url.getPlainURL())
+                username = url.getUsername()
+                if username is not None:
+                    yum_conf.write("username=%s\n" % (url.getUsername(),))
+                password = url.getPassword()
+                if password is not None:
+                    yum_conf.write("password=%s\n" % (url.getPassword(),))
+
             # Check that the drivers group exists in the repo.
             rv, out = util.runCmd2(['yum', '-c', '/root/yum.conf',
                                     'group', 'summary', 'drivers'], with_stdout=True)
@@ -496,7 +516,7 @@ class FilesystemAccessor(Accessor):
         return open(os.path.join(self.location, addr), 'r')
 
     def url(self):
-        return "file://%s" % self.location
+        return util.URL("file://%s" % self.location)
 
 class MountingAccessor(FilesystemAccessor):
     def __init__(self, mount_types, mount_source, mount_options=['ro']):
@@ -599,51 +619,30 @@ class URLFileWrapper:
                 raise IOError('Seek beyond end of file')
 
 class URLAccessor(Accessor):
-    url_prefixes = ['http://', 'https://', 'ftp://', 'file://']
+    def __init__(self, url):
+        self._url = url
 
-    def __init__(self, baseAddress):
-        if not True in [ baseAddress.startswith(prefix) for prefix in self.url_prefixes ] :
-            logger.log("Base address: no known protocol specified, prefixing http://")
-            baseAddress = "http://" + baseAddress
-        if not baseAddress.endswith('/'):
-            logger.log("Base address: did not end with '/' but should be a directory so adding it.")
-            baseAddress += '/'
+        if self._url.getScheme() not in ['http', 'https', 'ftp', 'file']:
+            raise Exception('Unsupported URL scheme')
 
-        if baseAddress.startswith('http://'):
-            (scheme, netloc, path, params, query) = urlparse.urlsplit(baseAddress)
-            if netloc.endswith(':'):
-                baseAddress = baseAddress.replace(netloc, netloc[:-1])
-                netloc = netloc[:-1]
-            pos = baseAddress[7:].index('/')+7
-            path2 = baseAddress[pos:]
-            if '#' in path2:
-                new_path = path2.replace('#', '%23')
-                baseAddress = baseAddress.replace(path2, new_path)
-            (hostname, username, password) = util.splitNetloc(netloc)
+        if self._url.getScheme() in ['http', 'https']:
+            username = self._url.getUsername()
             if username is not None:
-                logger.log("Using basic HTTP authentication: %s %s" % (username, password))
+                logger.log("Using basic HTTP authentication")
+                hostname = self._url.getHostname()
+                password = self._url.getPassword()
                 self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
                 self.passman.add_password(None, hostname, username, password)
                 self.authhandler = urllib2.HTTPBasicAuthHandler(self.passman)
                 self.opener = urllib2.build_opener(self.authhandler)
                 urllib2.install_opener(self.opener)
-                if password is None:
-                    self.baseAddress = baseAddress.replace('%s@' % username, '', 1)
-                else:
-                    self.baseAddress = baseAddress.replace('%s:%s@' % (username, password), '', 1)
-            else:
-                self.baseAddress = baseAddress
-        else:
-            self.baseAddress = baseAddress
 
-        self.fullAddress = baseAddress
-
-        logger.log("Initializing URLRepositoryAccessor with base address %s" % self.baseAddress)
+        logger.log("Initializing URLRepositoryAccessor with base address %s" % str(self._url))
 
     def _url_concat(url1, end):
-        assert url1.endswith('/')
+        url1 = url1.rstrip('/')
         end = end.lstrip('/')
-        return url1 + urllib.quote(end)
+        return url1 + '/' + urllib.quote(end)
     _url_concat = staticmethod(_url_concat)
 
     def _url_decode(url):
@@ -666,18 +665,20 @@ class URLAccessor(Accessor):
         pass
 
     def access(self, path):
-        if not self._url_concat(self.baseAddress, path).startswith('ftp://'):
+        if not self._url.getScheme == 'ftp':
             return Accessor.access(self, path)
 
-        url = self._url_concat(self.baseAddress, path)
+        url = self._url_concat(self._url.getPlainURL(), path)
 
         # if FTP, override by actually checking the file exists because urllib2 seems
         # to be not so good at this.
         try:
             (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
-            (hostname, username, password) = util.splitNetloc(netloc)
             fname = os.path.basename(path)
             directory = self._url_decode(os.path.dirname(path[1:]))
+            hostname = self._url.getHostname()
+            username = self._url.getUsername()
+            password = self._url.getPassword()
 
             # now open a connection to the server and verify that fname is in
             ftp = ftplib.FTP(hostname)
@@ -692,11 +693,14 @@ class URLAccessor(Accessor):
             return False
 
     def openAddress(self, address):
-        ret_val = urllib2.urlopen(self._url_concat(self.baseAddress, address))
+        if self._url.getScheme() in ['http', 'https']:
+            ret_val = urllib2.urlopen(self._url_concat(self._url.getPlainURL(), address))
+        else:
+            ret_val = urllib2.urlopen(self._url_concat(self._url.getURL(), address))
         return URLFileWrapper(ret_val)
 
     def url(self):
-        return self.fullAddress
+        return self._url
 
 def repositoriesFromDefinition(media, address, drivers=False):
     if media == 'local':

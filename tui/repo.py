@@ -50,6 +50,7 @@ def check_repo_def(definition, require_base_repo):
         tui.progress.clearModelessDialog()
     except Exception as e:
         logger.log("Exception trying to access repository: %s" % e)
+        logger.logException(e)
         tui.progress.clearModelessDialog()
         return REPOCHK_NO_ACCESS
     else:
@@ -139,19 +140,8 @@ def get_url_location(answers, require_base_repo):
     user_text = Textbox(11, 1, "Username:")
     passwd_text = Textbox(11, 1, "Password:")
 
-    if 'source-address' in answers:
-        url = answers['source-address']
-        (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
-        (hostname, username, password) = util.splitNetloc(netloc)
-        if username is not None:
-            user_field.set(urllib.unquote(username))
-            if password is None:
-                url_field.set(url.replace('%s@' % username, '', 1))
-            else:
-                passwd_field.set(urllib.unquote(password))
-                url_field.set(url.replace('%s:%s@' % (username, password), '', 1))
-        else:
-            url_field.set(url)
+    if 'source-address' in answers and answers['source-address'] != '':
+        url_field.set(answers['source-address'].getPlainURL())
 
     done = False
     while not done:
@@ -179,12 +169,13 @@ def get_url_location(answers, require_base_repo):
             quoted_user = urllib.quote(user_field.value(), safe='')
             if passwd_field.value() != '':
                 quoted_passwd = urllib.quote(passwd_field.value(), safe='')
-                answers['source-address'] = url_field.value().replace('//', '//%s:%s@' % (quoted_user, quoted_passwd), 1)
+                urlstr = url_field.value().replace('//', '//%s:%s@' % (quoted_user, quoted_passwd), 1)
             else:
-                answers['source-address'] = url_field.value().replace('//', '//%s@' % quoted_user, 1)
+                urlstr = url_field.value().replace('//', '//%s@' % quoted_user, 1)
         else:
-            answers['source-address'] = url_field.value()
-        if len(answers['source-address']) > 0:
+            urlstr = url_field.value()
+        if len(urlstr) > 0:
+            answers['source-address'] = util.URL(urlstr)
             done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_repo)
 
     return RIGHT_FORWARDS
@@ -233,7 +224,8 @@ def confirm_load_repo(answers, label, installed_repos):
         tui.progress.showMessageDialog("Please wait", "Searching for repository...")
         repos = repository.repositoriesFromDefinition(media, address, drivers=(label == 'driver'))
         tui.progress.clearModelessDialog()
-    except:
+    except Exception as e:
+        logger.logException(e)
         ButtonChoiceWindow(
             tui.screen, "Error",
             """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
