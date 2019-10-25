@@ -188,7 +188,7 @@ def getFinalisationSequence(ans):
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
                                   'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
-                                  'disk-label-suffix', 'bootloader-location', 'write-boot-entry',
+                                  'disk-label-suffix', 'bootloader-location', 'write-boot-entry', 'install-type',
                                   'serial-console', 'boot-serial', 'host-config', 'fcoe-interfaces'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive=True),
@@ -1153,7 +1153,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_partnum, target_boot_mode, branding,
-                      disk_label_suffix, location, write_boot_entry, serial=None,
+                      disk_label_suffix, location, write_boot_entry, install_type, serial=None,
                       boot_serial=None, host_config=None, fcoe_interface=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
@@ -1188,7 +1188,7 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
         root_partition = partitionDevice(disk, primary_partnum)
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
             if write_boot_entry:
-                setEfiBootEntry(mounts, disk, boot_partnum, branding)
+                setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
         else:
             if location == constants.BOOT_LOCATION_MBR:
                 installGrub2(mounts, disk, False)
@@ -1215,26 +1215,30 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
-def setEfiBootEntry(mounts, disk, boot_partnum, branding):
+def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
+    def check_efibootmgr_err(rc, err, install_type, err_type):
+        if rc != 0:
+            if install_type == INSTALL_TYPE_REINSTALL:
+                logger.error("%s: %s" % (err_type, err))
+            else:
+                raise RuntimeError("%s: %s" % (err_type, err))
+
     # First remove existing entries
     rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
-    if rc != 0:
-        raise RuntimeError("Failed to run efibootmgr: %s" % err)
+    check_efibootmgr_err(rc, err, install_type, "Failed to run efibootmgr")
     for line in out.splitlines():
         match = re.match("Boot([0-9a-fA-F]{4})\\*? +(?:XenServer|%s)$" % branding['product-brand'], line)
         if match:
             bootnum = match.group(1)
             rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr",
                                     "--delete-bootnum", "--bootnum", bootnum], with_stderr=True)
-            if rc != 0:
-                raise RuntimeError("Failed to remove efi boot entry: %s" % err)
+            check_efibootmgr_err(rc, err, install_type, "Failed to remove efi boot entry")
 
     # Then add a new one
     rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
                             "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/grubx64.efi".replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
-    if rc != 0:
-        raise RuntimeError("Failed to run efibootmgr: %s" % err)
+    check_efibootmgr_err(rc, err, install_type, "Failed to run efibootmgr")
 
 def installGrub2(mounts, disk, force):
     if force:
