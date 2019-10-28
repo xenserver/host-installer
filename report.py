@@ -295,8 +295,9 @@ def main(args):
             ]
         rc = uicontroller.runSequence(seq, results)
         if rc == uicontroller.RIGHT_FORWARDS:
-            logger.log("ANSWERS DICTIONARY:")
-            logger.log(str(results))
+            logger.log('Destination media: ' + results['dest-media'])
+            logger.log('Destination address: ' +
+                ('(hidden)' if results['dest-media'] == 'ftp' else results['dest-address']))
 
             if results['dest-media'] == 'local':
                 dests.append("dev://" + results['dest-address'])
@@ -310,9 +311,9 @@ def main(args):
 
     report_saved = False
     for dest in dests:
-        logger.log("Saving report to: " + dest)
         try:
             a = xcp.accessor.createAccessor(dest, False)
+            logger.log("Saving report to: " + str(a))
             a.start()
             fh = open('/tmp/support.tar.bz2')
             a.writeFile(fh, 'support.tar.bz2')
