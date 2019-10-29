@@ -14,6 +14,7 @@ import snack
 import snackutil
 import sys
 import uicontroller
+import urllib
 import urlparse
 import util
 from version import *
@@ -214,10 +215,12 @@ def get_ftp_dest(answers):
     if not url.startswith('ftp://'):
         url = 'ftp://' + url
     if user_field.value() != '':
+        quoted_user = urllib.quote(user_field.value(), safe='')
         if passwd_field.value() != '':
-            answers['dest-address'] = url.replace('//', '//%s:%s@' % (user_field.value(), passwd_field.value()), 1)
+            quoted_passwd = urllib.quote(passwd_field.value(), safe='')
+            answers['dest-address'] = url.replace('//', '//%s:%s@' % (quoted_user, quoted_passwd), 1)
         else:
-            answers['dest-address'] = url.replace('//', '//%s@' % user_field.value(), 1)
+            answers['dest-address'] = url.replace('//', '//%s@' % quoted_user, 1)
     else:
         answers['dest-address'] = url
 
