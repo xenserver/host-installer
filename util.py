@@ -405,9 +405,11 @@ class URL(object):
 
     def __init__(self, url):
         self.url = url
-        (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
-        self.scheme = scheme
-        self.hostname, self.username, self.password = splitNetloc(netloc)
+        parts = urlparse.urlsplit(url)
+        self.scheme = parts.scheme
+        self.hostname = parts.hostname
+        self.username = parts.username
+        self.password = parts.password
 
     def __str__(self):
         """Returns the URL with username/password replaced with asterisks."""
@@ -429,10 +431,14 @@ class URL(object):
         return self.hostname
 
     def getUsername(self):
-        return self.username
+        if self.username is None:
+            return None
+        return urllib.unquote(self.username)
 
     def getPassword(self):
-        return self.password
+        if self.password is None:
+            return None
+        return urllib.unquote(self.password)
 
     def getURL(self):
         """Get the full URL with username/password.
