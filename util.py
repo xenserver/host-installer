@@ -398,7 +398,7 @@ class URL(object):
         if self.username is not None and self.password is not None:
             return self.url.replace('%s:%s@' % (self.username, self.password), '***:***@', 1)
         elif self.username is not None:
-            return self.url.replace('%s@' % self.username, '***@', 1)
+            return self.url.replace('%s@' % self.username, '***:***@', 1)
         else:
             # Cannot have a password without a username
             assert self.password is None
