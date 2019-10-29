@@ -292,25 +292,6 @@ def mkRandomHostname():
     s = "".join([random.choice(string.ascii_lowercase) for x in range(8)])
     return "%s-%s" % (BRAND_SERVER.split()[0].lower(),s)
 
-def splitNetloc(netloc):
-    hostname = netloc
-    username = None
-    password = None
-
-    if "@" in netloc:
-        userinfo = netloc.split("@", 1)[0]
-        hostname = netloc.split("@", 1)[1]
-        if ":" in userinfo:
-            info = userinfo.split(":", 1)
-            username = urllib.unquote(info[0])
-            password = urllib.unquote(info[1])
-        else:
-            username = urllib.unquote(userinfo)
-    if ":" in hostname:
-        hostname = hostname.split(":", 1)[0]
-
-    return (hostname, username, password)
-
 def splitArgs(argsIn, array_args=()):
     """ Split argument array into dictionary
 
