@@ -142,6 +142,10 @@ def get_url_location(answers, require_base_repo):
 
     if 'source-address' in answers and answers['source-address'] != '':
         url_field.set(answers['source-address'].getPlainURL())
+        if answers['source-address'].getUsername() is not None:
+            user_field.set(answers['source-address'].getUsername())
+        if answers['source-address'].getPassword() is not None:
+            passwd_field.set(answers['source-address'].getPassword())
 
     done = False
     while not done:
