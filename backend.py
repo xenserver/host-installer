@@ -223,6 +223,8 @@ def prettyLogAnswers(answers):
     for a in answers:
         if a == 'root-password':
             val = (answers[a][0], '< not printed >')
+        elif a == 'pool-token':
+            val = '< not printed >'
         else:
             val = answers[a]
         logger.log("%s := %s %s" % (a, val, type(val)))
