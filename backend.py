@@ -1084,7 +1084,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog ucode=scan dom0_max_vcpus=1-%d" % host_config['dom0-vcpus']
     safe_xen_params = ("nosmp noreboot noirqbalance no-mce no-bootscrub "
-                       "no-numa no-hap no-mmcfg iommu=off max_cstate=0 "
+                       "no-numa no-hap no-mmcfg max_cstate=0 "
                        "nmi=ignore allow_unsafe")
     xen_mem_params = "crashkernel=256M,below=4G"
 
