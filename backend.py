@@ -1433,7 +1433,7 @@ def configureCC(mounts):
     open(os.path.join(mounts['root'], 'var/lib/xcp/verify_certificates'), 'wb').close()
 
     if util.runCmd2(['chroot', mounts['root'],
-                     'systemctl', 'is-enabled', 'sshd.service']) == 'enabled':
+                     'systemctl', 'is-enabled', 'sshd.service']) == 0:
         ssh_rule = '-A INPUT -i xenbr0 -p tcp -m tcp --dport 22 -m state --state NEW -j ACCEPT'
     else:
         ssh_rule = ''
