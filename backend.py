@@ -1443,6 +1443,9 @@ def configureCC(mounts):
     with open(os.path.join(mounts['root'], 'etc', 'sysconfig', 'iptables'), 'wb') as out:
         out.write(rules.replace('@SSH_RULE@', ssh_rule))
 
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'disable', 'genptoken.service'])
+    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'genptoken-cc.service'])
+
 def configureLogrotate(mounts, primary_disk, logs_partnum):
     '''Reconfigure logrotate if there is no logs partition.'''
 
