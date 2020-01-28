@@ -194,5 +194,6 @@ SERVICES = ["sshd"]
 # install, not an upgrade so if they don't run before upgrading they will never
 # be run.
 INIT_SERVICE_FILES = [
+    'var/lib/misc/ran-network-init',
     'var/lib/misc/ran-storage-init',
 ]
