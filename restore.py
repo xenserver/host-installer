@@ -134,7 +134,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                 if efi_boot:
                     branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
                     branding['product-brand'] = branding['PRODUCT_BRAND']
-                    backend.setEfiBootEntry(mounts, disk, boot_partnum, branding)
+                    backend.setEfiBootEntry(mounts, disk, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
                 else:
                     if location == constants.BOOT_LOCATION_MBR:
                         backend.installGrub2(mounts, disk, False)

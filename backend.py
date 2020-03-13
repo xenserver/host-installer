@@ -1220,7 +1220,7 @@ def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_
 def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     def check_efibootmgr_err(rc, err, install_type, err_type):
         if rc != 0:
-            if install_type == INSTALL_TYPE_REINSTALL:
+            if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
                 logger.error("%s: %s" % (err_type, err))
             else:
                 raise RuntimeError("%s: %s" % (err_type, err))
