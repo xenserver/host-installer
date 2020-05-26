@@ -13,6 +13,7 @@
 import version
 import string
 import random
+import os.path
 
 # exit status
 EXIT_OK = 0
@@ -47,6 +48,8 @@ TARGET_BOOT_MODE_UEFI = "uefi"
 # first partition preservation:
 PRESERVE_IF_UTILITY = "if-utility"
 UTILITY_PARTLABEL = "DELLUTILITY"
+
+UEFI_INSTALLER = os.path.exists("/sys/firmware/efi")
 
 # network backend types:
 NETWORK_BACKEND_BRIDGE = "bridge"
