@@ -443,9 +443,12 @@ class Answerfile:
         results['manual-nameservers'] = (len(nodes) > 0, map(lambda x: getText(x), nodes))
         nodes = getElementsByTagName(self.top_node, ['hostname'])
         if len(nodes) > 0:
-            results['manual-hostname'] = (True, getText(nodes[0]))
+            current_hn = getText(nodes[0])
+            if not netutil.valid_hostname(current_hn, fqdn=True):
+                raise AnswerfileException("Invalid value for hostname specified: %s."%(current_hn))
+            results['manual-hostname'] = (True, current_hn)
         else:
-            results['manual-hostname'] = (False, None)
+            results['manual-hostname'] = (True, util.mkRandomHostname())
         return results
 
     def parseTimeConfig(self):

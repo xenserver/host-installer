@@ -842,7 +842,7 @@ def get_name_service_configuration(answers):
         # no current value set - if we currently have a useful hostname,
         # use that, else make up a random one:
         current_hn = socket.gethostname()
-        if current_hn in [None, '', '(none)', 'localhost', 'localhost.localdomain']:
+        if not netutil.valid_hostname(current_hn, fqdn=True):
             answers['manual-hostname'] = True, util.mkRandomHostname()
         else:
             answers['manual-hostname'] = True, current_hn
