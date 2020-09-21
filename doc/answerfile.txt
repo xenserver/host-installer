@@ -248,20 +248,8 @@ Common Elements
 
     Specifies the hostname.
 
-    The following hostnames are invalid: 
+    Default: localhost.localdomain
 
-        ''
-        '(none)', 
-        'localhost', 
-        'localhost.localdomain'
-
-    For clean installations invalid hostnames
-    are auto regenerated.
-    
-    In an upgrade scenario the invalid hostnames
-    are preserved. In order to activate TLS
-    certificate checking the user will be prompted
-    to set a valid hostname.
 
   <timezone>tz</timezone>?
 

@@ -221,8 +221,8 @@ def getHWAddr(iface):
         raise
 
 def valid_hostname(x, emptyValid=False, fqdn=False):
-    if x in [None, '', '(none)', 'localhost', 'localhost.localdomain']:
-        return emptyValid
+    if emptyValid and x == '':
+        return True
     if fqdn:
         return re.match('^[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([-a-zA-Z0-9]{0,61}[a-zA-Z0-9])?)*$', x) is not None
     else:
