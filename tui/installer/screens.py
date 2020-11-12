@@ -276,11 +276,12 @@ def get_installation_type(answers):
                                diskutil.getHumanDiskName(pd))
 
         tui.update_help_line([' ', ' '])
-        snackutil.TableDialog(tui.screen, "Details", ("Use:", use),
-                              ("Version:", str(obj.visual_version)),
-                              ("Build:", str(obj.build)),
-                              ("Installed:", date),
-                              ("Disk:", dev))
+        args = ([("Use:", use),
+                 ("Version:", str(obj.visual_version))] +
+                ([("Build:", str(obj.build))] if obj.build is not None else []) +
+                [("Installed:", date),
+                 ("Disk:", dev)])
+        snackutil.TableDialog(tui.screen, "Details", *args)
         tui.screen.popHelpLine()
         return True
 

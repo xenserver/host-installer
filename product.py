@@ -448,9 +448,10 @@ class ExistingRetailInstallation(ExistingInstallation):
             self.inventory = util.readKeyValueFile(os.path.join(self.root_fs.mount_point,
                                                                 constants.INVENTORY_FILE),
                                                    strip_quotes=True)
-            self.build = self.inventory['BUILD_NUMBER']
-            self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
-                                                          self.build))
+            self.build = self.inventory.get('BUILD_NUMBER', None)
+            build_suffix = ('-' + self.build) if self.build is not None else ''
+            self.version = Version.from_string(self.inventory['PLATFORM_VERSION'] +
+                                               build_suffix)
             if 'PRODUCT_NAME' in self.inventory:
                 self.name = self.inventory['PRODUCT_NAME']
                 self.brand = self.inventory['PRODUCT_BRAND']
@@ -465,14 +466,12 @@ class ExistingRetailInstallation(ExistingInstallation):
                 self.visual_brand = self.brand
             if 'OEM_VERSION' in self.inventory:
                 self.oem_version = self.inventory['OEM_VERSION']
-                self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'],
-                                                 self.build)
+                self.visual_version = self.inventory['OEM_VERSION'] + build_suffix
             else:
-                if '/' in self.build:
+                if self.build is not None and '/' in self.build:
                     self.visual_version = self.inventory['PRODUCT_VERSION']
                 else:
-                    self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'],
-                                                     self.build)
+                    self.visual_version = self.inventory['PRODUCT_VERSION'] + build_suffix
         finally:
             self.unmount_root()
 
@@ -480,9 +479,10 @@ class XenServerBackup:
     def __init__(self, part, mnt):
         self.partition = part
         self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes=True)
-        self.build = self.inventory['BUILD_NUMBER']
-        self.version = Version.from_string("%s-%s" % (self.inventory['PLATFORM_VERSION'],
-                                                      self.build))
+        self.build = self.inventory.get('BUILD_NUMBER', None)
+        build_suffix = ('-' + self.build) if self.build is not None else ''
+        self.version = Version.from_string(self.inventory['PLATFORM_VERSION'] +
+                                           build_suffix)
         if 'PRODUCT_NAME' in self.inventory:
             self.name = self.inventory['PRODUCT_NAME']
             self.brand = self.inventory['PRODUCT_BRAND']
@@ -497,12 +497,12 @@ class XenServerBackup:
             self.visual_brand = self.brand
         if 'OEM_VERSION' in self.inventory:
             self.oem_version = self.inventory['OEM_VERSION']
-            self.visual_version = "%s-%s" % (self.inventory['OEM_VERSION'], self.build)
+            self.visual_version = self.inventory['OEM_VERSION'] + build_suffix
         else:
-            if '/' in self.build:
+            if self.build is not None and '/' in self.build:
                 self.visual_version = self.inventory['PRODUCT_VERSION']
             else:
-                self.visual_version = "%s-%s" % (self.inventory['PRODUCT_VERSION'], self.build)
+                self.visual_version = self.inventory['PRODUCT_VERSION'] + build_suffix
 
         if self.inventory['PRIMARY_DISK'].startswith('/dev/md_'):
             # Handle restoring an installation using a /dev/md_* path
