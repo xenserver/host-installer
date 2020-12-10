@@ -292,13 +292,12 @@ class ThirdGenUpgrader(Upgrader):
                 return new_partition_layout
 
             else:
-
                 # If the boot partition already, exists, no partition updates are
                 # necessary.
                 part = tool.getPartition(boot_partnum)
                 if part:
                     if logs_partition is None:
-                        return new_partition_layout #FALSE
+                        raise RuntimeError("Old partition layout is unsupported.")
                     else:
                         new_partition_layout = True
                         return new_partition_layout
