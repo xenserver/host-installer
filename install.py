@@ -105,8 +105,6 @@ def go(ui, args, answerfile_address, answerfile_script):
         'extra-repos': [],
         'network-backend': constants.NETWORK_BACKEND_DEFAULT,
         'root-password': ('pwdhash', '!!'),
-        'create-new-partitions': True,
-        'new-partition-layout': False,
         'services': { s: None for s in constants.SERVICES }, # default state for services, example {'sshd': None}
         }
     suppress_extra_cd_dialog = False

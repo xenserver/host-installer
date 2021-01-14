@@ -452,11 +452,6 @@ def log_available_disks():
         diskSizesGB = [blockSizeToGBSize(x) for x in diskSizes]
         logger.log("Disk sizes: %s" % str(diskSizesGB))
 
-        old_dom0disks = filter(lambda x: constants.min_primary_disk_size_old <= x,
-                           diskSizesGB)
-        if len(old_dom0disks) == 0:
-            logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size_old)
-
         dom0disks = filter(lambda x: constants.min_primary_disk_size <= x,
                            diskSizesGB)
         if len(dom0disks) == 0:

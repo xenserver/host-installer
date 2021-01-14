@@ -82,7 +82,6 @@ Common Elements
 
             Default: True
 
-
   <network-backend>bridge|openvswitch|vswitch</network-backend>?
 
     Default: bridge (5.6 FP1 and earlier), vswitch (6.0 and later)
@@ -133,20 +132,6 @@ Common Elements
 (Re)Install Elements
 --------------------
 
-  <initial-partitions>
-    <partition number="n" size="sz" id="id"/>*
-  </initial-partitions>?
-
-    Create primary partitions before installation. Used by XenRT to
-    test preservation of Dell utility partitions.
-
-
-  <zap-utility-partitions/>?[D]
-
-    Used by Dell factory install to destroy utility partitions to
-    allow GPT to be used.
-
-
   <primary-disk>dev</primary-disk>
 
     Specifies the target disk for installation.
@@ -176,8 +161,7 @@ Common Elements
 
 	  false|no - Unconditionally destroy
 
-          if-utility - Preserve if ID == 0xDE (MBR) or
-                       GUID == C12A7328-F81F-11D2-BA4B-00A0C93EC93B and
+          if-utility - GUID == C12A7328-F81F-11D2-BA4B-00A0C93EC93B and
                            partition label == 'DELLUTILITY' (GPT)
 
         Default: if-utility

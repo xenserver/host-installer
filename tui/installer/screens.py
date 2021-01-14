@@ -553,11 +553,7 @@ def select_primary_disk(answers):
 
     entries = []
     target_is_sr = {}
-
-    if answers['create-new-partitions']:
-        min_primary_disk_size = constants.min_primary_disk_size
-    else:
-        min_primary_disk_size = constants.min_primary_disk_size_old
+    min_primary_disk_size = constants.min_primary_disk_size
 
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
@@ -612,33 +608,19 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
 
     if button == 'back': return LEFT_BACKWARDS
 
-    # Warn if not all of the disk is usable.
-    # This can happen if we are unable to use GPT because we are currently
-    # using DOS and need to preserve some utility partitions.
-    blocks = diskutil.getDiskDeviceSize(answers['primary-disk'])
+    # Warn the user if a utility partition is detected. Give them option to
+    # cancel the install.
     tool = PartitionTool(answers['primary-disk'])
-    if diskutil.blockSizeToGBSize(blocks) > constants.max_primary_disk_size_dos and tool.partTableType == 'DOS':
+    if tool.partTableType != constants.PARTITION_GPT:
         if constants.GPT_SUPPORT and tool.utilityPartitions():
             val = snackutil.ButtonChoiceWindowEx(tui.screen,
-                               "Large Disk Detected",
-                               "The disk selected is larger than the %d GB limit imposed by the DOS partitioning scheme.  Would you like to remove the OEM partitions that require the DOS partitioning scheme, so that the whole disk can be used?" % constants.max_primary_disk_size_dos,
+                               "Preexisting utility partition detected on dos partition.",
+                               "this will be overwritten do you wish to continue?",
                                ['Yes', 'No'], default=1)
-            answers['zap-utility-partitions'] = (val == 'yes')
-        elif not constants.GPT_SUPPORT:
-            ButtonChoiceWindow(tui.screen,
-                               "Large Disk Detected",
-                               "The disk selected to install %s to is greater than %d GB.  The partitioning scheme is limited to this value and therefore the remainder of this disk will be unavailable." % (MY_PRODUCT_BRAND, constants.max_primary_disk_size_dos),
-                               ['Ok'])
-
-    if constants.GPT_SUPPORT and constants.UEFI_INSTALLER and tool.partTableType != constants.PARTITION_GPT:
-        val = snackutil.ButtonChoiceWindowEx(tui.screen,
-                           "Invalid Partition Table",
-                           "UEFI boot requires the partition type to be GPT.  Would you like to re-initialize the disk?",
-                           ['Yes', 'No'], default=1)
-        if val == 'yes':
-            answers['preserve-first-partition'] = 'false'
-        else:
-            return LEFT_BACKWARDS if len(entries) == 1 else REPEAT_STEP
+            if val == 'no':
+                return EXIT
+            else:
+                answers["preserve-first-partition"] = 'false'
 
     if button is None: return SKIP_SCREEN
 
@@ -652,10 +634,7 @@ def check_sr_space(answers):
 # NB. there's some stuff here that's not really consistent with XCP
 # but that's ok, since it's never called on an XCP host
 
-    if answers['create-new-partitions']:
-        root_size = constants.root_size
-    else:
-        root_size = constants.root_size_old
+    root_size = constants.root_size
 
     button = ButtonChoiceWindow(tui.screen,
                                 "Insufficient Space",

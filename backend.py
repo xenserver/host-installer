@@ -113,8 +113,7 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'initial-partitions', 'preserve-first-partition', 'sr-on-primary', 'create-new-partitions'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
-        Task(selectPartitionTableType, A(ans, 'primary-disk', 'install-type', 'primary-partnum', 'create-new-partitions'), ['partition-table-type']),
+        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         ]
 
     if ans['time-config-method'] == 'ntp':
@@ -127,9 +126,9 @@ def getPrepSequence(ans, interactive):
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
             Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
-            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end', 'partition-table-type', 'create-new-partitions', 'new-partition-layout'), ['new-partition-layout']),
+            Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end'),[]),
             ]
-        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks', 'partition-table-type'), []))
+        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if 'backup-existing-installation' in ans and ans['backup-existing-installation']:
@@ -153,7 +152,6 @@ def getPrepSequence(ans, interactive):
                         pass_progress_callback=True))
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix'), []),
-        Task(updateBootLoaderLocation, A(ans, 'target-boot-mode', 'partition-table-type', 'primary-disk', 'bootloader-location'), ['bootloader-location']),
         Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
@@ -182,13 +180,13 @@ def getFinalisationSequence(ans):
         Task(configureLogrotate, A(ans, 'mounts', 'primary-disk', 'logs-partnum'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
-                               'branding', 'net-admin-configuration', 'host-config', 'new-partition-layout', 'partition-table-type', 'install-type'), []),
+                               'branding', 'net-admin-configuration', 'host-config', 'install-type'), []),
         Task(writeXencommons, A(ans, 'control-domain-uuid', 'mounts'), []),
         Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
                               'fcoe-interfaces'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'partition-table-type',
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk',
                                   'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
                                   'disk-label-suffix', 'bootloader-location', 'write-boot-entry', 'install-type',
                                   'serial-console', 'boot-serial', 'host-config', 'fcoe-interfaces'), []),
@@ -216,7 +214,7 @@ def getFinalisationSequence(ans):
 
     seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
     if ans['target-boot-mode'] == TARGET_BOOT_MODE_LEGACY:
-        seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'partition-table-type'), []))
+        seq.append(Task(setActiveDiskPartition, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum'), []))
     seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum', 'logs-partnum'), []))
 
     return seq
@@ -328,10 +326,8 @@ def performInstallation(answers, ui_package, interactive):
         defaults.update({ 'master': None,
                           'sr-type': constants.SR_TYPE_LVM,
                           'bootloader-location': constants.BOOT_LOCATION_MBR,
-                          'initial-partitions': [],
                           'sr-at-end': True,
-                          'sr-on-primary': True,
-                          'preserve-first-partition': constants.PRESERVE_IF_UTILITY })
+                          'sr-on-primary': True})
 
         logger.log("Updating answers dictionary based on defaults")
 
@@ -494,9 +490,10 @@ def configureNTP(mounts, ntp_servers):
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
-def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partition, create_sr_part, create_new_partitions):
+def inspectTargetDisk(disk, existing, create_sr_part, preserve_first_partition):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
+    primary_part = 1
     if existing:
         # upgrade, use existing partitioning scheme
         tool = PartitionTool(existing.primary_disk)
@@ -529,12 +526,10 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     tool = PartitionTool(disk)
 
-    # If answerfile says to fake a utility partition then do it here
-    if len(initial_partitions) > 0:
-        for part in initial_partitions:
-            tool.deletePartition(part['number'])
-            tool.createPartition(part['id'], part['size'], part['number'])
-        tool.commit(log=True)
+    # Cannot preserve partition for legacy DOS partition table.
+    if tool.partTableType == constants.PARTITION_DOS :
+        if preserve_first_partition != 'false':
+            raise RuntimeError("Preserving initial parition on DOS unsupported ")
 
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
@@ -556,31 +551,7 @@ def inspectTargetDisk(disk, existing, initial_partitions, preserve_first_partiti
 
     logger.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
-    # Return install mode and numbers of boot, primary, backup, logs, swap and SR partitions
-    if create_new_partitions:
-        return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
-    else:
-        return (target_boot_mode, boot_part, primary_part, primary_part + 1, 0, 0, sr_part)
-
-# Determine which partition table type to use
-def selectPartitionTableType(disk, install_type, primary_part, create_new_partitions):
-    if not constants.GPT_SUPPORT:
-        return constants.PARTITION_DOS
-
-    tool = PartitionTool(disk)
-
-    # If not a fresh install then use same partition table as before
-    if install_type != INSTALL_TYPE_FRESH:
-        return tool.partTableType
-
-    # If we are preserving partition 1 then we need to preserve the
-    # partition table type as we are probably chain booting from that.
-    if primary_part > 1:
-        return tool.partTableType
-
-    # This is a fresh install and we do not need to preserve partition1
-    # Use GPT because it is better.
-    return constants.PARTITION_GPT
+    return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
 
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
@@ -590,8 +561,7 @@ def removeBlockingVGs(disks):
 
 ###
 # Functions to write partition tables to disk
-
-def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end, partition_table_type, create_new_partitions, new_partition_layout):
+def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, storage_partnum, sr_at_end):
 
     # we really don't want to screw this up...
     assert type(disk) == str
@@ -600,100 +570,61 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     if not os.path.exists(disk):
         raise RuntimeError("The disk %s could not be found." % disk)
 
-    # Exit if disk is not big enough even for the pre-Dundee partition layout
-    if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size_old:
-        raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size_old))
     # If new partition layout requested: exit if disk is not big enough, otherwise implement it
-    elif create_new_partitions:
-        if diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
-            raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size))
+    elif diskutil.blockSizeToGBSize(diskutil.getDiskDeviceSize(disk)) < constants.min_primary_disk_size:
+        raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size))
 
-    if target_boot_mode == TARGET_BOOT_MODE_UEFI and partition_table_type != constants.PARTITION_GPT:
-        raise RuntimeError("UEFI boot requires the partition type to be GPT")
-
-    tool = PartitionTool(disk, partition_table_type)
+    tool = PartitionTool(disk, constants.PARTITION_GPT)
     for num, part in tool.iteritems():
         if num >= primary_partnum:
             tool.deletePartition(num)
 
     order = primary_partnum
 
-    if create_new_partitions:
 
-        # Create the new partition layout (5,2,1,4,6,3) or (1,6,3,2,5,7,4)
-        # Normal layout                With utility partition
-        # 1 - dom0 partition           1 - utility partition
-        # 2 - backup partition         2 - dom0 partition
-        # 3 - LVM partition            3 - backup partition
-        # 4 - Boot partition           4 - LVM partition
-        # 5 - logs partition           5 - Boot partition
-        # 6 - swap partition           6 - logs partition
-        #                              7 - swap partition
+    # Create the new partition layout (5,2,1,4,6,3)
+    # Normal layout       
+    # 1 - dom0 partition  
+    # 2 - backup partition
+    # 3 - LVM partition   
+    # 4 - Boot partition  
+    # 5 - logs partition  
+    # 6 - swap partition  
+    #                     
 
-        new_partition_layout = True
-
-        # Create logs partition
-        # Start the first partition at 1 MiB if there are no other partitions.
-        # Otherwise start the partition following the utility partition.
-        if order == 1:
-            tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
-        else:
-            tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order)
-        order += 1
-
-        # Create backup partition
-        if backup_partnum > 0:
-            tool.createPartition(tool.ID_LINUX, sizeBytes=backup_size * 2**20, number=backup_partnum, order=order)
-            order += 1
-
-        # Create dom0 partition
-        tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum, order=order)
-        order += 1
-
-        # Create Boot partition
-        if partition_table_type == constants.PARTITION_GPT:
-            if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
-            else:
-                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
-            order += 1
-
-        # Create swap partition
-        tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order)
-        order += 1
-
-        # Create LVM partition
-        if storage_partnum > 0:
-            tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum, order=order)
-            order += 1
-
+    # Create logs partition
+    # Start the first partition at 1 MiB if there are no other partitions.
+    # Otherwise start the partition following the utility partition.
+    if order == 1:
+        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
     else:
+        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order)
+    order += 1
 
-        # Pre-Dundee partition layout
-
-        # Create Boot partition
-        if partition_table_type == constants.PARTITION_GPT:
-            if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
-            else:
-                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
-            order += 1
-
-        # Create dom0 partition
-        root_size = root_gpt_size_old if partition_table_type == constants.PARTITION_GPT else root_mbr_size_old
-        tool.createPartition(tool.ID_LINUX, sizeBytes=root_size * 2**20, number=primary_partnum, order=order)
+    # Create backup partition
+    if backup_partnum > 0:
+        tool.createPartition(tool.ID_LINUX, sizeBytes=backup_size * 2**20, number=backup_partnum, order=order)
         order += 1
 
-        # Create backup partition
-        if backup_partnum > 0:
-            tool.createPartition(tool.ID_LINUX, sizeBytes=backup_size_old * 2**20, number=backup_partnum, order=order)
-            order += 1
+    # Create dom0 partition
+    tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum, order=order)
+    order += 1
 
-        # Create LVM partition
-        if storage_partnum > 0:
-            tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum, order=order)
-            order += 1
+    # Create Boot partition
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+        tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
+    else:
+        tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
+    order += 1
 
+    # Create swap partition
+    tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order)
+    order += 1
+
+    # Create LVM partition
+    if storage_partnum > 0:
+        tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum, order=order)
+        order += 1
 
     if not sr_at_end:
         # For upgrade testing, out-of-order partition layout
@@ -722,9 +653,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
 
     tool.commit(log=True)
 
-    return new_partition_layout
-
-def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
+def writeGuestDiskPartitions(primary_disk, guest_disks):
     # At the moment this code uses the same partition table type for Guest Disks as it
     # does for the root disk.  But we could choose to always use 'GPT' for guest disks.
     # TODO: Decide!
@@ -734,17 +663,14 @@ def writeGuestDiskPartitions(primary_disk, guest_disks, partition_table_type):
             assert type(gd) == str
             assert gd[:5] == '/dev/'
 
-            tool = PartitionTool(gd, partition_table_type)
+            tool = PartitionTool(gd, constants.PARTITION_GPT)
             tool.deletePartitions(tool.partitions.keys())
             tool.commit(log=True)
 
 
-def setActiveDiskPartition(disk, boot_partnum, primary_partnum, partition_table_type):
-    tool = PartitionTool(disk, partition_table_type)
-    if partition_table_type == PARTITION_GPT:
-        tool.commitActivePartitiontoDisk(boot_partnum)
-    else:
-        tool.commitActivePartitiontoDisk(primary_partnum)
+def setActiveDiskPartition(disk, boot_partnum, primary_partnum):
+    tool = PartitionTool(disk, constants.PARTITION_GPT)
+    tool.commitActivePartitiontoDisk(boot_partnum)
 
 def getSRPhysDevs(primary_disk, storage_partnum, guest_disks):
     def sr_partition(disk):
@@ -878,22 +804,6 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
                 make_free_space(mount.mount_point, constants.logs_free_space * 1024 * 1024)
             finally:
                 mount.unmount()
-
-def updateBootLoaderLocation(target_boot_mode, partition_table_type, disk, location):
-    if target_boot_mode != TARGET_BOOT_MODE_LEGACY:
-        return location
-    if partition_table_type != PARTITION_DOS:
-        return location
-    if location != BOOT_LOCATION_MBR:
-        return location
-
-    tool = PartitionTool(disk)
-    start = min(part[1]['start'] for part in tool.iteritems())
-    if start < LBA_PARTITION_MIN:
-        logger.log('First partition on disk starts at %d, installing bootloader to partition.' % start)
-        return BOOT_LOCATION_PARTITION
-
-    return location
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
@@ -1152,7 +1062,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  root=constants.rootfs_label%disk_label_suffix)
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, partition_table_type, boot_partnum, primary_partnum, target_boot_mode, branding,
+def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_mode, branding,
                       disk_label_suffix, location, write_boot_entry, install_type, serial=None,
                       boot_serial=None, host_config=None, fcoe_interface=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
@@ -1248,7 +1158,7 @@ def installGrub2(mounts, disk, force):
     if rc != 0:
         raise RuntimeError("Failed to install bootloader: %s" % err)
 
-def installExtLinux(mounts, disk, partition_table_type, location=constants.BOOT_LOCATION_MBR):
+def installExtLinux(mounts, disk, location=constants.BOOT_LOCATION_MBR):
 
     # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
     # However we continue to copy the ones we need to /boot so we can write the config file there.
@@ -1269,12 +1179,7 @@ def installExtLinux(mounts, disk, partition_table_type, location=constants.BOOT_
     if not os.path.exists(base_dir):
         base_dir = mounts['root']+"/usr/lib/syslinux"
     if location == constants.BOOT_LOCATION_MBR:
-        if partition_table_type == constants.PARTITION_DOS:
-            mbr = base_dir + "/mbr.bin"
-        elif partition_table_type == constants.PARTITION_GPT:
-            mbr = base_dir + "/gptmbr.bin"
-        else:
-            raise Exception("Only DOS and GPT partition tables supported")
+        mbr = base_dir + "/mbr.bin"
 
         # Write image to MBR
         logger.log("Installing %s to %s" % (mbr, disk))
@@ -1658,7 +1563,7 @@ def writeXencommons(controlID, mounts):
     with open(os.path.join(mounts['root'], constants.XENCOMMONS_FILE), "w") as f:
         f.write(contents)
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, new_partition_layout, partition_table_type, install_type):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, install_type):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
@@ -1683,12 +1588,7 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("PLATFORM_NAME='%s'\n" % branding['platform-name'])
     inv.write("PLATFORM_VERSION='%s'\n" % branding['platform-version'])
 
-    layout = 'ROOT,BACKUP'
-    if partition_table_type == constants.PARTITION_GPT:
-        if new_partition_layout:
-            layout += ',LOG,BOOT,SWAP'
-        else:
-            layout += ',BOOT'
+    layout = 'ROOT,BACKUP,LOG,BOOT,SWAP'
     if storage_partnum > 0:
         layout += ',SR'
     inv.write("PARTITION_LAYOUT='%s'\n" % layout)

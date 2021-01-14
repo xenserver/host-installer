@@ -221,90 +221,81 @@ class ThirdGenUpgrader(Upgrader):
 
         primary_fs.unmount()
 
-    prepTargetStateChanges = ['new-partition-layout']
-    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'partition-table-type', 'new-partition-layout']
-    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, partition_table_type, new_partition_layout):
+    prepTargetStateChanges = []
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum):
         """ Modify partition layout prior to installation. """
 
-        if partition_table_type == constants.PARTITION_GPT:
-            tool = PartitionTool(primary_disk, partition_table_type)
-            logs_partition = tool.getPartition(logs_partnum)
+        tool = PartitionTool(primary_disk, constants.PARTITION_GPT)
+        logs_partition = tool.getPartition(logs_partnum)
 
-            # Create the new partition layout (5,2,1,4,6,3) after the backup
-            # 1 - dom0 partition
-            # 2 - backup partition
-            # 3 - LVM partition
-            # 4 - Boot partition
-            # 5 - logs partition
-            # 6 - swap partition
+        # Create the new partition layout (5,2,1,4,6,3) after the backup
+        # 1 - dom0 partition
+        # 2 - backup partition
+        # 3 - LVM partition
+        # 4 - Boot partition
+        # 5 - logs partition
+        # 6 - swap partition
 
-            if self.safe2upgrade and logs_partition is None:
-
-                new_partition_layout = True
-
-                # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
-                # dom0 and Boot partitions using the same numbers)
-                tool.renamePartition(srcNumber=primary_partnum, destNumber=10, overwrite=False)
-                boot_part = tool.getPartition(boot_partnum)
-                if boot_part:
-                    tool.renamePartition(srcNumber=boot_partnum, destNumber=11, overwrite=False)
-                # Create new bigger dom0 partition
-                tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum)
-                # Create Boot partition
-                if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
-                    tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
-                else:
-                    tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
-                # Create swap partition
-                tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum)
-                # Create storage LVM partition
-                if storage_partnum > 0 and self.vgs_output:
-                    tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum)
-                # Create logs partition using the old dom0 + Boot (if any) partitions
-                tool.deletePartition(10)
-                if boot_part:
-                    tool.deletePartition(11)
-                tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, startBytes=1024*1024, number=logs_partnum)
-
-                tool.commit(log=True)
-
-                if storage_partnum > 0 and self.vgs_output:
-                    storage_part = partitionDevice(primary_disk, storage_partnum)
-                    rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout=True)
-                    vgs_list = out.strip().splitlines()
-                    primary_dev = getMajMin(primary_disk)
-                    vgs_output_wrong = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == primary_dev]
-                    if vgs_output_wrong:
-                        vgs_output_wrong = vgs_output_wrong[0].strip()
-                        if ' ' in vgs_output_wrong:
-                            _, vgs_label = vgs_output_wrong.split(None, 1)
-                            util.runCmd2(['vgremove', '-f', vgs_label])
-                    util.runCmd2(['vgcreate', self.vgs_output, storage_part])
-
-                    if self.storage_type == 'ext':
-                        _, sr_uuid = self.vgs_output.split('-', 1)
-                        util.runCmd2(['lvcreate', '-n', sr_uuid, '-l', '100%VG', self.vgs_output])
-                        try:
-                            util.mkfs('ext3', '/dev/' + self.vgs_output + '/' + sr_uuid, ['-F'])
-                        except Exception as e:
-                            raise RuntimeError("Backup: Failed to format filesystem on %s: %s" % (storage_part, e))
-
-                return new_partition_layout
-
+        if self.safe2upgrade and logs_partition is None:
+            # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
+            # dom0 and Boot partitions using the same numbers)
+            tool.renamePartition(srcNumber=primary_partnum, destNumber=10, overwrite=False)
+            boot_part = tool.getPartition(boot_partnum)
+            if boot_part:
+                tool.renamePartition(srcNumber=boot_partnum, destNumber=11, overwrite=False)
+            # Create new bigger dom0 partition
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum)
+            # Create Boot partition
+            if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
             else:
-                # If the boot partition already, exists, no partition updates are
-                # necessary.
-                part = tool.getPartition(boot_partnum)
-                if part:
-                    if logs_partition is None:
-                        raise RuntimeError("Old partition layout is unsupported.")
-                    else:
-                        new_partition_layout = True
-                        return new_partition_layout
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
+            # Create swap partition
+            tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum)
+            # Create storage LVM partition
+            if storage_partnum > 0 and self.vgs_output:
+                tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum)
+            # Create logs partition using the old dom0 + Boot (if any) partitions
+            tool.deletePartition(10)
+            if boot_part:
+                tool.deletePartition(11)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, startBytes=1024*1024, number=logs_partnum)
 
-    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum', 'partition-table-type']
+            tool.commit(log=True)
+
+            if storage_partnum > 0 and self.vgs_output:
+                storage_part = partitionDevice(primary_disk, storage_partnum)
+                rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout=True)
+                vgs_list = out.strip().splitlines()
+                primary_dev = getMajMin(primary_disk)
+                vgs_output_wrong = [i for i in vgs_list if diskutil.parentdev_from_devpath(i.strip().split()[0]) == primary_dev]
+                if vgs_output_wrong:
+                    vgs_output_wrong = vgs_output_wrong[0].strip()
+                    if ' ' in vgs_output_wrong:
+                        _, vgs_label = vgs_output_wrong.split(None, 1)
+                        util.runCmd2(['vgremove', '-f', vgs_label])
+                util.runCmd2(['vgcreate', self.vgs_output, storage_part])
+
+                if self.storage_type == 'ext':
+                    _, sr_uuid = self.vgs_output.split('-', 1)
+                    util.runCmd2(['lvcreate', '-n', sr_uuid, '-l', '100%VG', self.vgs_output])
+                    try:
+                        util.mkfs('ext3', '/dev/' + self.vgs_output + '/' + sr_uuid, ['-F'])
+                    except Exception as e:
+                        raise RuntimeError("Backup: Failed to format filesystem on %s: %s" % (storage_part, e))
+        else:
+            # If the boot partition already, exists, no partition updates are
+            # necessary.
+            part = tool.getPartition(boot_partnum)
+            if part:
+                if logs_partition is not None:
+                    return
+            raise RuntimeError("Old partition layout is unsupported, run prepare_host_upgrade plugin and try again")
+
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum, partition_table_type):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum):
 
         tool = PartitionTool(target_disk)
         boot_part = tool.getPartition(boot_partnum)
@@ -312,7 +303,7 @@ class ThirdGenUpgrader(Upgrader):
         logs_partition = tool.getPartition(logs_partnum)
 
         # Check if possible to create new partition layout, increasing the size, using plugin result
-        if self.safe2upgrade and logs_partition is None and partition_table_type == constants.PARTITION_GPT:
+        if self.safe2upgrade and logs_partition is None: 
             if storage_partnum > 0:
                 # Get current Volume Group
                 rc, out = util.runCmd2(['pvs', '-o', 'pv_name,vg_name', '--noheadings'], with_stdout=True)
@@ -365,11 +356,10 @@ class ThirdGenUpgrader(Upgrader):
                     val += 90 / len(top_dirs)
                     progress_callback(val)
 
-                if partition_table_type == constants.PARTITION_GPT:
-                    # save the GPT table
-                    rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr=True)
-                    if rc != 0:
-                        raise RuntimeError("Failed to save partition layout: %s" % err)
+                # save the GPT table
+                rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_fs.mount_point, '.xen-gpt.bin'), target_disk], with_stderr=True)
+                if rc != 0:
+                    raise RuntimeError("Failed to save partition layout: %s" % err)
             finally:
                 # replace rolling pool upgrade bootloader config
                 def replace_config(config_file, destination):

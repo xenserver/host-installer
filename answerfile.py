@@ -142,19 +142,6 @@ class Answerfile:
         results['preserve-settings'] = False
         results['backup-existing-installation'] = False
 
-        # initial-partitions:
-        nodes = getElementsByTagName(self.top_node, ['initial-partitions'])
-        if len(nodes) > 0:
-            results['initial-partitions'] = []
-            for node in getElementsByTagName(nodes[0], ['partition']):
-                try:
-                    part = {}
-                    for k in ('number', 'size', 'id'):
-                        part[k] = getIntAttribute(node, [k], mandatory=True)
-                    results['initial-partitions'].append(part)
-                except:
-                    pass
-
         results.update(self.parseDisks())
         results.update(self.parseInterface())
         results.update(self.parseRootPassword())
@@ -328,8 +315,6 @@ class Answerfile:
                                                              ('no', 'false'),
                                                              ('if-utility', PRESERVE_IF_UTILITY)],
                                                             default='if-utility')
-        if len(getElementsByTagName(self.top_node, ['zap-utility-partitions'])) > 0:
-            results['preserve-first-partition'] = 'false'
         primary_disk = normalize_disk(getText(node))
         results['primary-disk'] = primary_disk
 
