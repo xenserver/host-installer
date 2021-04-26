@@ -221,6 +221,11 @@ class ThirdGenUpgrader(Upgrader):
 
         primary_fs.unmount()
 
+    def testUpgradeForbidden(self, tool):
+        utilparts = tool.utilityPartitions()
+        if tool.partTableType == constants.PARTITION_DOS and utilparts is not None:
+            raise RuntimeError("Util partition detected on DOS partition type, upgrade forbidden.")
+
     prepTargetStateChanges = []
     prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']
     def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum):
@@ -236,6 +241,8 @@ class ThirdGenUpgrader(Upgrader):
         # 4 - Boot partition
         # 5 - logs partition
         # 6 - swap partition
+
+        self.testUpgradeForbidden(tool)
 
         if self.safe2upgrade and logs_partition is None:
             # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
@@ -301,6 +308,8 @@ class ThirdGenUpgrader(Upgrader):
         boot_part = tool.getPartition(boot_partnum)
         boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
         logs_partition = tool.getPartition(logs_partnum)
+
+        self.testUpgradeForbidden(tool)
 
         # Check if possible to create new partition layout, increasing the size, using plugin result
         if self.safe2upgrade and logs_partition is None: 
