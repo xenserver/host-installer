@@ -528,8 +528,9 @@ def inspectTargetDisk(disk, existing, create_sr_part, preserve_first_partition):
 
     # Cannot preserve partition for legacy DOS partition table.
     if tool.partTableType == constants.PARTITION_DOS :
-        if preserve_first_partition != 'false':
-            raise RuntimeError("Preserving initial parition on DOS unsupported ")
+        if preserve_first_partition == 'true' or (
+                preserve_first_partition == constants.PRESERVE_IF_UTILITY and tool.utilityPartitions()):
+            raise RuntimeError("Preserving initial partition on DOS unsupported")
 
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
