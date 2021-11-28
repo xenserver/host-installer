@@ -267,6 +267,14 @@ class MainYumRepository(YumRepository):
         YumRepository.__init__(self, accessor)
         self.keyfiles = []
 
+        def get_name_version(config_parser, section, name_key, vesion_key):
+            name, version = None, None
+            if config_parser.has_section(section):
+                name = config_parser.get(section, name_key)
+                ver_str = config_parser.get(section, vesion_key)
+                version = Version.from_string(ver_str)
+            return name, version
+
         accessor.start()
         try:
             treeinfo = ConfigParser.SafeConfigParser()
@@ -278,14 +286,17 @@ class MainYumRepository(YumRepository):
             finally:
                 treeinfofp.close()
 
-            if treeinfo.has_section('platform'):
-                self._platform_name = treeinfo.get('platform', 'name')
-                ver_str = treeinfo.get('platform', 'version')
-                self._platform_version = Version.from_string(ver_str)
-            if treeinfo.has_section('branding'):
-                self._product_brand = treeinfo.get('branding', 'name')
-                ver_str = treeinfo.get('branding', 'version')
-                self._product_version = Version.from_string(ver_str)
+            self._platform_name, self._platform_version = get_name_version(
+                treeinfo, 'system-v1', 'platform_name', 'platform_version')
+            self._product_brand, self._product_version = get_name_version(
+                treeinfo, 'system-v1', 'product_name', 'product_version')
+            if self._platform_name is None:
+                self._platform_name, self._platform_version = get_name_version(
+                    treeinfo, 'platform', 'name', 'version')
+            if self._product_brand is None:
+                self._product_brand, self._product_version = get_name_version(
+                    treeinfo, 'branding', 'name', 'version')
+
             if treeinfo.has_section('build'):
                 self._build_number = treeinfo.get('build', 'number')
             else:
