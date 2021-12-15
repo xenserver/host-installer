@@ -158,7 +158,20 @@ def getPrepSequence(ans, interactive):
 
 def getRepoSequence(ans, repos):
     seq = []
-    for repo in repos:
+    # Separate update repos from main repos, as update repos are applied as a separate step
+    updateRepos = [repo for repo in repos if isinstance(repo, repository.UpdateYumRepository)]
+    mainRepos = list(set(repos) - set(updateRepos))
+
+    seq.append(Task(repository.installFromRepos, lambda a: [mainRepos] + [a.get('mounts')], [],
+                progress_scale=100,
+                pass_progress_callback=True,
+                progress_text="Installing %s..." % (", ".join([repo.name() for repo in mainRepos]))))
+    for repo in mainRepos:
+        seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
+        seq.append(Task(repo.getBranding, A(ans, 'mounts', 'branding'), ['branding']))
+
+
+    for repo in updateRepos:
         seq.append(Task(repo.installPackages, A(ans, 'mounts'), [],
                      progress_scale=100,
                      pass_progress_callback=True,

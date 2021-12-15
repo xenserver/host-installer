@@ -94,11 +94,8 @@ class Repository(object):
     def __iter__(self):
         return self._packages.__iter__()
 
-class YumRepository(Repository):
-    """ Represents a Yum repository containing packages and associated meta data. """
-    REPOMD_FILENAME = "repodata/repomd.xml"
-    _cachedir = "var/cache/yum/installer"
-    _yum_conf = """[main]
+def _generateYumConf(cachedir):
+    return """[main]
 cachedir=/%s
 keepcache=0
 debuglevel=2
@@ -111,10 +108,21 @@ installonlypkgs=
 distroverpkg=xenserver-release
 reposdir=/tmp/repos
 history_record=false
-""" % _cachedir
+""" % cachedir
+
+_yumRepositoryId = 1
+class YumRepository(Repository):
+    """ Represents a Yum repository containing packages and associated meta data. """
+    REPOMD_FILENAME = "repodata/repomd.xml"
+    _cachedir = "var/cache/yum/installer"
+    _yum_conf = _generateYumConf(_cachedir)
+    _targets = None
 
     def __init__(self, accessor):
-        Repository.__init__(self, accessor)
+        super(YumRepository, self).__init__(accessor)
+        global _yumRepositoryId
+        self._identifier = "repo%d" % _yumRepositoryId
+        _yumRepositoryId += 1
 
     def _parse_repodata(self, accessor):
         # Read packages from xml
@@ -159,9 +167,12 @@ history_record=false
     @classmethod
     def isRepo(cls, accessor):
         """ Return whether there is a repository accessible using accessor."""
-        return False not in [ accessor.access(f) for f in [cls.INFO_FILENAME, cls.REPOMD_FILENAME] ]
+        return False not in [ accessor.access(f) for f in [cls.REPOMD_FILENAME] ]
 
     def identifier(self):
+        return self._identifier
+
+    def name(self):
         return self._identifier
 
     def __eq__(self, other):
@@ -175,6 +186,7 @@ history_record=false
         return installed_repos
 
     def _installPackages(self, progress_callback, mounts):
+        assert self._targets is not None
         url = self._accessor.url()
         logger.log("URL: " + str(url))
         with open('/root/yum.conf', 'w') as yum_conf:
@@ -192,52 +204,7 @@ baseurl=%s
                 yum_conf.write("password=%s\n" % (url.getPassword(),))
 
         self.disableInitrdCreation(mounts['root'])
-
-        # Use a temporary file to avoid deadlocking
-        stderr = tempfile.TemporaryFile()
-
-        yum_command = ['yum', '-c', '/root/yum.conf',
-                       '--installroot', mounts['root'],
-                       'install', '-y'] + self._targets
-        logger.log("Running yum: %s" % ' '.join(yum_command))
-        p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
-        count = 0
-        total = 0
-        verify_count = 0
-        while True:
-            line = p.stdout.readline()
-            if not line:
-                break
-            line = line.rstrip()
-            logger.log("YUM: %s" % line)
-            if line == 'Resolving Dependencies':
-                progress_callback(1)
-            elif line == 'Dependencies Resolved':
-                progress_callback(3)
-            elif line.startswith('-----------------------------------------'):
-                progress_callback(7)
-            elif line == 'Running transaction':
-                progress_callback(10)
-            elif line.endswith(' will be installed') or line.endswith(' will be updated'):
-                total += 1
-            elif line.startswith('  Installing : ') or line.startswith('  Updating : '):
-                count += 1
-                if total > 0:
-                    progress_callback(10 + int((count * 80.0) / total))
-            elif line.startswith('  Verifying  : '):
-                verify_count += 1
-                progress_callback(90 + int((verify_count * 10.0) / total))
-        rv = p.wait()
-        stderr.seek(0)
-        stderr = stderr.read()
-        if stderr:
-            logger.log("YUM stderr: %s" % stderr.strip())
-
-        if rv:
-            logger.log("Yum exited with %d" % rv)
-            raise ErrorInstallingPackage("Error installing packages")
-
-        shutil.rmtree(os.path.join(mounts['root'], self._cachedir))
+        installFromYum(self._targets, mounts, progress_callback, self._cachedir)
         self.enableInitrdCreation()
 
     def installPackages(self, progress_callback, mounts):
@@ -256,15 +223,25 @@ baseurl=%s
     def getBranding(self, mounts, branding):
         return branding
 
-class MainYumRepository(YumRepository):
+class YumRepositoryWithInfo(YumRepository):
+    """Represents a Yum repository which has an information file present."""
+    INFO_FILENAME = None
+
+    @classmethod
+    def isRepo(cls, accessor):
+        """ Return whether there is a repository accessible using accessor."""
+        assert cls.INFO_FILENAME is not None
+        return False not in [ accessor.access(f) for f in [cls.INFO_FILENAME, cls.REPOMD_FILENAME] ]
+
+class MainYumRepository(YumRepositoryWithInfo):
     """Represents a Yum repository containing the main XenServer installation."""
 
     INFO_FILENAME = ".treeinfo"
     _targets = ['@xenserver_base', '@xenserver_dom0']
-    _identifier = MAIN_REPOSITORY_NAME
 
     def __init__(self, accessor):
-        YumRepository.__init__(self, accessor)
+        super(MainYumRepository, self).__init__(accessor)
+        self._identifier = MAIN_REPOSITORY_NAME
         self.keyfiles = []
 
         def get_name_version(config_parser, section, name_key, vesion_key):
@@ -286,16 +263,28 @@ class MainYumRepository(YumRepository):
             finally:
                 treeinfofp.close()
 
-            self._platform_name, self._platform_version = get_name_version(
+            self._platform_data = {}
+            self._product_data = {}
+            platform_name, platform_version = get_name_version(
                 treeinfo, 'system-v1', 'platform_name', 'platform_version')
-            self._product_brand, self._product_version = get_name_version(
+            product_brand, product_version = get_name_version(
                 treeinfo, 'system-v1', 'product_name', 'product_version')
-            if self._platform_name is None:
-                self._platform_name, self._platform_version = get_name_version(
+            if platform_name is None:
+                platform_name, platform_version = get_name_version(
                     treeinfo, 'platform', 'name', 'version')
-            if self._product_brand is None:
-                self._product_brand, self._product_version = get_name_version(
+            if product_brand is None:
+                product_brand, product_version = get_name_version(
                     treeinfo, 'branding', 'name', 'version')
+            if platform_name:
+                self._platform_data = {
+                    'name': platform_name,
+                    'version': platform_version
+                }
+            if product_brand:
+                self._product_data = {
+                    'brand': product_brand,
+                    'version': product_version
+                }
 
             if treeinfo.has_section('build'):
                 self._build_number = treeinfo.get('build', 'number')
@@ -313,7 +302,7 @@ class MainYumRepository(YumRepository):
         accessor.finish()
 
     def name(self):
-        return self._product_brand
+        return self._product_data.get('brand', self._identifier)
 
     def disableInitrdCreation(self, root):
         # Speed up the install by disabling initrd creation.
@@ -329,10 +318,13 @@ class MainYumRepository(YumRepository):
         os.unlink(self._conffile)
 
     def getBranding(self, mounts, branding):
-        branding.update({ 'platform-name': self._platform_name,
-                          'platform-version': self._platform_version.ver_as_string(),
-                          'product-brand': self._product_brand,
-                          'product-version': self._product_version.ver_as_string() })
+        if self._platform_data:
+            branding.update({'platform-name': self._platform_data['name'],
+                             'platform-version': self._platform_data['version'].ver_as_string() })
+        if self._product_data:
+            branding.update({'product-brand': self._product_data['brand'],
+                             'product-version': self._product_data['version'].ver_as_string() })
+
         if self._build_number:
             branding['product-build'] = self._build_number
         return branding
@@ -358,13 +350,13 @@ class MainYumRepository(YumRepository):
             raise ErrorInstallingPackage("Error installing key files")
         self._accessor.finish()
 
-class UpdateYumRepository(YumRepository):
+class UpdateYumRepository(YumRepositoryWithInfo):
     """Represents a Yum repository containing packages and associated meta data for an update."""
 
     INFO_FILENAME = "update.xml"
 
     def __init__(self, accessor):
-        YumRepository.__init__(self, accessor)
+        super(UpdateYumRepository, self).__init__(accessor)
 
         accessor.start()
         try:
@@ -415,7 +407,7 @@ history_record=false
 """ % _cachedir
 
     def __init__(self, accessor):
-        UpdateYumRepository.__init__(self, accessor)
+        super(DriverUpdateYumRepository, self).__init__(accessor)
         self._targets = ['@drivers']
 
     @classmethod
@@ -504,7 +496,7 @@ class Accessor:
         pass
 
     def findRepository(self):
-        classes = [MainYumRepository, UpdateYumRepository]
+        classes = [MainYumRepository, UpdateYumRepository, YumRepository]
         for cls in classes:
             if cls.isRepo(self):
                 return cls(self)
@@ -788,3 +780,88 @@ def findRepositoriesOnMedia(drivers=False):
             da.finish()
 
     return repos
+
+def installFromYum(targets, mounts, progress_callback, cachedir):
+        # Use a temporary file to avoid deadlocking
+        stderr = tempfile.TemporaryFile()
+
+        yum_command = ['yum', '-c', '/root/yum.conf',
+                       '--installroot', mounts['root'],
+                       'install', '-y'] + targets
+        logger.log("Running yum: %s" % ' '.join(yum_command))
+        p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
+        count = 0
+        total = 0
+        verify_count = 0
+        while True:
+            line = p.stdout.readline()
+            if not line:
+                break
+            line = line.rstrip()
+            logger.log("YUM: %s" % line)
+            if line == 'Resolving Dependencies':
+                progress_callback(1)
+            elif line == 'Dependencies Resolved':
+                progress_callback(3)
+            elif line.startswith('-----------------------------------------'):
+                progress_callback(7)
+            elif line == 'Running transaction':
+                progress_callback(10)
+            elif line.endswith(' will be installed') or line.endswith(' will be updated'):
+                total += 1
+            elif line.startswith('  Installing : ') or line.startswith('  Updating : '):
+                count += 1
+                if total > 0:
+                    progress_callback(10 + int((count * 80.0) / total))
+            elif line.startswith('  Verifying  : '):
+                verify_count += 1
+                progress_callback(90 + int((verify_count * 10.0) / total))
+        rv = p.wait()
+        stderr.seek(0)
+        stderr = stderr.read()
+        if stderr:
+            logger.log("YUM stderr: %s" % stderr.strip())
+
+        if rv:
+            logger.log("Yum exited with %d" % rv)
+            raise ErrorInstallingPackage("Error installing packages")
+
+        shutil.rmtree(os.path.join(mounts['root'], cachedir))
+
+def installFromRepos(progress_callback, repos, mounts):
+    """Install from a stacked set of repositories"""
+
+    cachedir = "var/cache/yum/installer"
+    for repo in repos:
+        repo._accessor.start()
+
+    try:
+        # Build a yum config
+        with open('/root/yum.conf', 'w') as yum_conf:
+            yum_conf.write(_generateYumConf(cachedir))
+            for repo in repos:
+                url = repo._accessor.url()
+                yum_conf.write("""
+[%s]
+name=%s
+baseurl=%s
+""" % (repo.identifier(), repo.identifier(), url.getPlainURL()))
+                username = url.getUsername()
+                if username is not None:
+                    yum_conf.write("username=%s\n" % (url.getUsername(),))
+                password = url.getPassword()
+                if password is not None:
+                    yum_conf.write("password=%s\n" % (url.getPassword(),))
+
+        repos[0].disableInitrdCreation(mounts['root'])
+        targets = []
+        for repo in repos:
+            if repo._targets:
+                targets += repo._targets
+        targets = list(set(targets))
+
+        installFromYum(targets, mounts, progress_callback, cachedir)
+        repos[0].enableInitrdCreation()
+    finally:
+        for repo in repos:
+            repo._accessor.finish()
