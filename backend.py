@@ -156,22 +156,20 @@ def getPrepSequence(ans, interactive):
         ]
     return seq
 
-def getRepoSequence(ans, repos):
+def getMainRepoSequence(ans, repos):
     seq = []
-    # Separate update repos from main repos, as update repos are applied as a separate step
-    updateRepos = [repo for repo in repos if isinstance(repo, repository.UpdateYumRepository)]
-    mainRepos = list(set(repos) - set(updateRepos))
-
-    seq.append(Task(repository.installFromRepos, lambda a: [mainRepos] + [a.get('mounts')], [],
+    seq.append(Task(repository.installFromRepos, lambda a: [repos] + [a.get('mounts')], [],
                 progress_scale=100,
                 pass_progress_callback=True,
-                progress_text="Installing %s..." % (", ".join([repo.name() for repo in mainRepos]))))
-    for repo in mainRepos:
+                progress_text="Installing %s..." % (", ".join([repo.name() for repo in repos]))))
+    for repo in repos:
         seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
         seq.append(Task(repo.getBranding, A(ans, 'mounts', 'branding'), ['branding']))
+    return seq
 
-
-    for repo in updateRepos:
+def getRepoSequence(ans, repos):
+    seq = []
+    for repo in repos:
         seq.append(Task(repo.installPackages, A(ans, 'mounts'), [],
                      progress_scale=100,
                      pass_progress_callback=True,
@@ -368,6 +366,10 @@ def performInstallation(answers, ui_package, interactive):
     executeSequence(prep_seq, "Preparing for installation...", answers, ui_package, False)
 
     # install from main repositories:
+    def handleMainRepos(main_repositories, ans):
+        repo_seq = getMainRepoSequence(ans, main_repositories)
+        executeSequence(repo_seq, "Reading package information...", ans, ui_package, False)
+
     def handleRepos(repos, ans):
         repo_seq = getRepoSequence(ans, repos)
         executeSequence(repo_seq, "Reading package information...", ans, ui_package, False)
@@ -378,44 +380,52 @@ def performInstallation(answers, ui_package, interactive):
     # important.  However, since the same repository might exist in multiple
     # locations or the same location might be listed multiple times, care is
     # needed to ensure that there are no duplicates.
-    all_repositories = []
+    main_repositories = []
+    update_repositories = []
 
-    def add_repos(all_repositories, repos):
-        """Add repositories to the list, ensuring no duplicates, that the main
-        repository is at the beginning, and that the order of the rest is
-        maintained."""
+    def add_repos(main_repositories, update_repositories, repos):
+        """Add repositories to the appropriate list, ensuring no duplicates,
+        that the main repository is at the beginning, and that the order of the
+        rest is maintained."""
 
         for repo in repos:
-            if repo not in all_repositories:
+            if isinstance(repo, repository.UpdateYumRepository):
+                repo_list = update_repositories
+            else:
+                repo_list = main_repositories
+
+            if repo not in repo_list:
                 if repo.identifier() == MAIN_REPOSITORY_NAME:
-                    all_repositories.insert(0, repo)
+                    repo_list.insert(0, repo)
                 else:
-                    all_repositories.append(repo)
+                    repo_list.append(repo)
 
     # A list of sources coming from the answerfile
     if 'sources' in answers_pristine:
         for i in answers_pristine['sources']:
             repos = repository.repositoriesFromDefinition(i['media'], i['address'])
-            add_repos(all_repositories, repos)
+            add_repos(main_repositories, update_repositories, repos)
 
     # A single source coming from an interactive install
     if 'source-media' in answers_pristine and 'source-address' in answers_pristine:
         repos = repository.repositoriesFromDefinition(answers_pristine['source-media'], answers_pristine['source-address'])
-        add_repos(all_repositories, repos)
+        add_repos(main_repositories, update_repositories, repos)
 
     for media, address in answers_pristine['extra-repos']:
         repos = repository.repositoriesFromDefinition(media, address)
-        add_repos(all_repositories, repos)
+        add_repos(main_repositories, update_repositories, repos)
 
-    if not all_repositories or all_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
+    if not main_repositories or main_repositories[0].identifier() != MAIN_REPOSITORY_NAME:
         raise RuntimeError("No main repository found")
 
-    handleRepos(all_repositories, answers)
-    all_repositories[0].installKeys(answers['mounts']['root'])
+    handleMainRepos(main_repositories, answers)
+    main_repositories[0].installKeys(answers['mounts']['root'])
+    if update_repositories:
+        handleRepos(update_repositories, answers)
 
     # Find repositories that we installed from removable media
     # and eject the media.
-    for r in all_repositories:
+    for r in main_repositories + update_repositories:
         if r.accessor().canEject():
             r.accessor().eject()
 
