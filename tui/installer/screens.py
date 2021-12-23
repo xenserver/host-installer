@@ -1177,7 +1177,7 @@ def set_time(answers):
             done = True
 
     # we're done:
-    assert button == 'ok'
+    assert button in ['ok', None]
     answers['set-time-dialog-dismissed'] = datetime.datetime.now()
     answers['localtime'] = datetime.datetime(int(year.value()),
                                              int(month.value()),
