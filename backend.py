@@ -1492,6 +1492,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     logger.log("Writing %s to /etc/xensource/network.conf" % network_backend)
     nwconf.close()
 
+    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
     mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')
     if not os.path.exists(mgmt_conf_file):
         mc = open(mgmt_conf_file, 'w')
@@ -1526,7 +1527,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     # Clean install only below this point
 
-    util.assertDir(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR))
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts')
 
