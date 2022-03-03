@@ -242,7 +242,6 @@ class MainYumRepository(YumRepositoryWithInfo):
     def __init__(self, accessor):
         super(MainYumRepository, self).__init__(accessor)
         self._identifier = MAIN_REPOSITORY_NAME
-        self.keyfiles = []
 
         def get_name_version(config_parser, section, name_key, vesion_key):
             name, version = None, None
@@ -290,9 +289,6 @@ class MainYumRepository(YumRepositoryWithInfo):
                 self._build_number = treeinfo.get('build', 'number')
             else:
                 self._build_number = None
-            if treeinfo.has_section('keys'):
-                for _, keyfile in treeinfo.items('keys'):
-                    self.keyfiles.append(keyfile)
         except Exception as e:
             accessor.finish()
             logger.logException(e)
@@ -329,26 +325,6 @@ class MainYumRepository(YumRepositoryWithInfo):
             branding['product-build'] = self._build_number
         return branding
 
-    def installKeys(self, root):
-        if len(self.keyfiles) == 0:
-            return
-
-        keysdir = os.path.join(root, 'etc', 'firstboot.d', 'data', 'keys')
-        if not os.path.exists(keysdir):
-            os.makedirs(keysdir, 0755)
-        self._accessor.start()
-        try:
-            for keyfile in self.keyfiles:
-                infh = self._accessor.openAddress(keyfile)
-                outfh = open(os.path.join(keysdir, os.path.basename(keyfile)), "w")
-                outfh.write(infh.read())
-                outfh.close()
-                infh.close()
-        except Exception as e:
-            logger.log(str(e))
-            self._accessor.finish()
-            raise ErrorInstallingPackage("Error installing key files")
-        self._accessor.finish()
 
 class UpdateYumRepository(YumRepositoryWithInfo):
     """Represents a Yum repository containing packages and associated meta data for an update."""

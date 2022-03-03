@@ -419,7 +419,6 @@ def performInstallation(answers, ui_package, interactive):
         raise RuntimeError("No main repository found")
 
     handleMainRepos(main_repositories, answers)
-    main_repositories[0].installKeys(answers['mounts']['root'])
     if update_repositories:
         handleRepos(update_repositories, answers)
 
