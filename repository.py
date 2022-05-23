@@ -115,7 +115,6 @@ class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
     _cachedir = "var/cache/yum/installer"
-    _yum_conf = _generateYumConf(_cachedir)
     _targets = None
 
     def __init__(self, accessor):
@@ -123,6 +122,13 @@ class YumRepository(Repository):
         global _yumRepositoryId
         self._identifier = "repo%d" % _yumRepositoryId
         _yumRepositoryId += 1
+
+    @property
+    def _yum_conf(self):
+        return _generateYumConf(self._cachedir)
+
+    def _repo_config(self):
+        return None
 
     def _parse_repodata(self, accessor):
         # Read packages from xml
@@ -202,6 +208,9 @@ baseurl=%s
             password = url.getPassword()
             if password is not None:
                 yum_conf.write("password=%s\n" % (url.getPassword(),))
+            repo_config = self._repo_config()
+            if repo_config is not None:
+                yum_conf.write(repo_config)
 
         self.disableInitrdCreation(mounts['root'])
         installFromYum(self._targets, mounts, progress_callback, self._cachedir)
@@ -242,6 +251,7 @@ class MainYumRepository(YumRepositoryWithInfo):
     def __init__(self, accessor):
         super(MainYumRepository, self).__init__(accessor)
         self._identifier = MAIN_REPOSITORY_NAME
+        self.keyfiles = []
 
         def get_name_version(config_parser, section, name_key, vesion_key):
             name, version = None, None
@@ -289,6 +299,9 @@ class MainYumRepository(YumRepositoryWithInfo):
                 self._build_number = treeinfo.get('build', 'number')
             else:
                 self._build_number = None
+            if treeinfo.has_section('keys'):
+                for _, keyfile in treeinfo.items('keys'):
+                    self.keyfiles.append(keyfile)
         except Exception as e:
             accessor.finish()
             logger.logException(e)
@@ -296,6 +309,29 @@ class MainYumRepository(YumRepositoryWithInfo):
 
         self._parse_repodata(accessor)
         accessor.finish()
+
+    def _repo_config(self):
+        if len(self.keyfiles) > 0:
+            # Only deal with a single key for the repo
+            keyfile = self.keyfiles[0]
+            infh = None
+            outfh = None
+            try:
+                infh = self._accessor.openAddress(keyfile)
+                key_path = os.path.join('/root', os.path.basename(keyfile))
+                outfh = open(key_path, "w")
+                outfh.write(infh.read())
+                return """
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file://%s
+""" % (key_path)
+            finally:
+                if infh:
+                    infh.close()
+                if outfh:
+                    outfh.close()
+        return None
 
     def name(self):
         return self._product_data.get('brand', self._identifier)
@@ -828,6 +864,10 @@ baseurl=%s
                 password = url.getPassword()
                 if password is not None:
                     yum_conf.write("password=%s\n" % (url.getPassword(),))
+                repo_config = repo._repo_config()
+                if repo_config is not None:
+                    yum_conf.write(repo_config)
+
 
         repos[0].disableInitrdCreation(mounts['root'])
         targets = []
