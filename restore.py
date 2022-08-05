@@ -35,7 +35,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
     tool = PartitionTool(disk)
     _, _, _, storage, _ = diskutil.probeDisk(disk)
     create_sr_part = storage[0] is not None
-    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, create_sr_part, True)
+    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, constants.PRESERVE_IF_UTILITY, create_sr_part)
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options=['ro'])
     inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes=True)
