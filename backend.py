@@ -512,7 +512,7 @@ def configureNTP(mounts, ntp_servers):
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
-def inspectTargetDisk(disk, existing, create_sr_part, preserve_first_partition):
+def inspectTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
     primary_part = 1
