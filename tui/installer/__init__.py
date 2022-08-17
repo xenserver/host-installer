@@ -24,6 +24,7 @@ import product
 import diskutil
 from disktools import *
 import version
+import ssl
 import xmlrpclib
 
 from snack import *
@@ -101,10 +102,13 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         settings = answers['installation-to-overwrite'].readSettings()
         if settings['master']:
             if not netutil.networkingUp():
-                pass
+                return ret
 
             try:
-                s = xmlrpclib.Server("http://"+settings['master'])
+                context = ssl.create_default_context()
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
+                s = xmlrpclib.Server("https://"+settings['master'], context=context)
                 session = s.session.slave_login("", settings['pool-token'])["Value"]
                 pool = s.pool.get_all(session)["Value"][0]
                 master = s.pool.get_master(session, pool)["Value"]
@@ -112,11 +116,11 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                 s.session.logout(session)
 
                 # compare versions
-                master_ver = product.Version.from_string(software_version['product_version'])
-                if master_ver < product.THIS_PRODUCT_VERSION:
+                master_ver = product.Version.from_string(software_version['platform_version'])
+                if master_ver < product.THIS_PLATFORM_VERSION:
                     ret = True
-            except:
-                pass
+            except Exception as e:
+                logger.logException(e)
 
         return ret
 
