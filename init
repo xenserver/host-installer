@@ -125,7 +125,7 @@ def main(args):
     use_ibft = False
     netdev_map = []
 
-    logger.log("%s Setup - Version %s" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION or PLATFORM_VERSION))
+    logger.log("%s Setup - Version %s" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION_TEXT))
     logger.log("Command line args: %s" % str(args))
     for (opt, val) in args.items():
         if opt == "--install":

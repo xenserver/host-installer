@@ -111,7 +111,7 @@ def confirm_proceed():
     b = snackutil.ButtonChoiceWindowEx(
         tui.screen,
         "Confirm Local Disk Format",
-        "WARNING: proceeding with this installation will reinstall your local hard disk with %s %s" % (PRODUCT_BRAND, PRODUCT_VERSION),
+        "WARNING: proceeding with this installation will reinstall your local hard disk with %s %s" % (PRODUCT_BRAND, PRODUCT_VERSION_TEXT),
         ['Proceed', 'Cancel'], default=1, width=50
     )
 
