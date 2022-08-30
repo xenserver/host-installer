@@ -1,17 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Upgrade paths
-#
-# written by Andrew Peace
-
-# This stuff exists to hide ugliness and hacks that are required for upgrades
-# from the rest of the installer.
+# SPDX-License-Identifier: GPL-2.0-only
 
 import os
 import re
