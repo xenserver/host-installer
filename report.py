@@ -1,8 +1,6 @@
 #!/usr/bin/env python
-# Copyright (c) Citrix Systems 2010.  All rights reserved.
-# Xen, the Xen logo, XenCenter, XenMotion are trademarks or registered
-# trademarks of Citrix Systems, Inc., in the United States and other
-# countries.
+
+# SPDX-License-Identifier: GPL-2.0-only
 
 import diskutil
 import ftplib
