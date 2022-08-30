@@ -1,5 +1,4 @@
 #! /usr/bin/python
-# -*- coding: iso-8859-1 -*-
 #-------------------------------------------------------------------
 # cpiofile.py
 #-------------------------------------------------------------------
@@ -29,12 +28,12 @@
 #
 """Read from and write to cpio format archives.
 
-   Derived from Lars Gust‰bel's tarfile.py
+   Derived from Lars Gust√§bel's tarfile.py
 """
 
 version     = "0.1"
 __author__  = "Simon Rowe"
-__credits__ = "Lars Gust‰bel"
+__credits__ = "Lars Gust√§bel"
 
 #---------
 # Imports
