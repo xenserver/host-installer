@@ -111,14 +111,14 @@ Common Elements
 
       installation-complete - 0 | 1 (success or failure)
 
-  <post-install-script type="type">url</post-install-script>[D]
+  <post-install-script type="type">url</post-install-script>?[D]
 
     If 'type' is 'nfs' then 'url' is taken to be an nfs location,
     else 'url' is treated as a url determined by its protocol.
 
     Replaced by <script stage="filesystem-populated">
 
-  <install-failed-script>url</install-failed-script>[D]
+  <install-failed-script>url</install-failed-script>?[D]
 
     Replaced by <script stage="installation-complete">
 
