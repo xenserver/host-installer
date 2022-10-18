@@ -117,11 +117,6 @@ Startup
 Installer
 ---------
 
-  --install
-
-    Proceed with installation/upgrade.
-
-
   --answerfile=ans
 
     Read answerfile and perform a non-interactive installation
