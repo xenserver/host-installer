@@ -3,6 +3,7 @@ Answerfile Schema
 
 Optional features are marked '?'
 Features that can appear zero or more times are marked '*'
+Features that can appear one or more times are marked '+'
 Deprecated features are marked '[D]'
 
 
@@ -88,7 +89,7 @@ Elements common to all answerfiles, both 'installation' and 'restore'
 Elements for 'installation' modes
 ---------------------------------
 
-  <source type="type">repo</source>
+  <source type="type">repo</source>+
 
     The location of the installation repository or a Supplemental
     Pack. There may be multiple 'source' elements.
