@@ -1,6 +1,19 @@
 Commandline Parameters
 ======================
 
+In what follows, "Startup" parameters are parameters that are passed to the
+Linux kernel, which will pass those it did not consume to the script starting
+the installer (`preinit`). They must be directly specified on the boot command
+line.
+
+"Installer" parameters are the parameters that the installer itself accepts.
+To pass such parameters from the boot command line, remove the prefixing dashes.
+Example: to pass the `--extrarepo=repo*` parameter to the installer, add it as
+the following kernel command line parameter: `extrarepo=repo*`.
+Any parameter that is neither consumed by the Linux kernel nor by the `preinit`
+script (that is, any parameter that is not a "Startup" parameter) will be
+automatically prefixed with `--` then passed to the installer itself.
+
 All parameters are optional unless otherwise specified.
 
 When passing a script or answerfile, a URL is expected unless otherwise
