@@ -1,12 +1,4 @@
-# Copyright (c) 2008 Citrix Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by Citrix Inc. All other rights reserved.
-
-###
-# XEN HOST INSTALLER
-# Wrapper for network interfaces
-#
-# written by Simon Rowe
+# SPDX-License-Identifier: GPL-2.0-only
 
 import util
 import netutil

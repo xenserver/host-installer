@@ -1,9 +1,10 @@
 #! /usr/bin/python
-# -*- coding: iso-8859-1 -*-
-#-------------------------------------------------------------------
-# cpiofile.py
-#-------------------------------------------------------------------
-# Copyright (C) 2008
+# -*- coding: utf-8 -*-
+
+# SPDX-License-Identifier: MIT
+#
+# Copyright (C) 2002 Lars Gustaebel <lars@gustaebel.de>
+# Copyright (c) 2008-2019 Citrix Systems, Inc
 # All rights reserved.
 #
 # Permission  is  hereby granted,  free  of charge,  to  any person
@@ -26,15 +27,15 @@
 # WHETHER  IN AN  ACTION OF  CONTRACT, TORT  OR OTHERWISE,  ARISING
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
-#
+
 """Read from and write to cpio format archives.
 
-   Derived from Lars Gust‰bel's tarfile.py
+   Derived from Lars Gust√§bel's tarfile.py
 """
 
 version     = "0.1"
 __author__  = "Simon Rowe"
-__credits__ = "Lars Gust‰bel"
+__credits__ = "Lars Gust√§bel"
 
 #---------
 # Imports

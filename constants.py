@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Functions to perform the XE installation
-#
-# written by Andrew Peace & Mark Nijmeijer
+# SPDX-License-Identifier: GPL-2.0-only
 
 import version
 import string
@@ -68,17 +58,10 @@ def error_string(error, logname, with_hd):
     ) = range(3)
 
     ERROR_STRINGS = {
-        ERROR_STRING_UNKNOWN_ERROR_WITH_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s (and /root/%s on your hard disk if possible).",
-        ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s.",
-        ERROR_STRING_KNOWN_ERROR: "An unrecoverable error has occurred.  The error was:\n\n%s\n"
-    }
-
-    if version.PRODUCT_VERSION:
-        ERROR_STRINGS = {
-            ERROR_STRING_UNKNOWN_ERROR_WITH_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s (and /root/%s on your hard disk if possible).\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
-            ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s.\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
-            ERROR_STRING_KNOWN_ERROR: "An unrecoverable error has occurred.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details."
-            }
+        ERROR_STRING_UNKNOWN_ERROR_WITH_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s (and /root/%s on your hard disk if possible).\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
+        ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s.\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
+        ERROR_STRING_KNOWN_ERROR: "An unrecoverable error has occurred.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details."
+        }
 
     if error == "":
         if with_hd:

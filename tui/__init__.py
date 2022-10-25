@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Text user interface functions
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 from snack import *
 from version import *
@@ -38,7 +28,7 @@ To advance to the next screen navigate to the Ok button and press Enter or press
 def init_ui():
     global screen
     screen = SnackScreen()
-    screen.drawRootText(0, 0, "Welcome to %s - Version %s" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION or PLATFORM_VERSION))
+    screen.drawRootText(0, 0, "Welcome to %s - Version %s" % (PRODUCT_BRAND or PLATFORM_NAME, PRODUCT_VERSION_TEXT))
     if PRODUCT_BRAND:
         if len(COPYRIGHT_YEARS) > 0:
             screen.drawRootText(0, 1, "Copyright (c) %s %s" % (COPYRIGHT_YEARS, COMPANY_NAME_LEGAL))

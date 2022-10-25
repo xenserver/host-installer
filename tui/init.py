@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# 'Init' text user interface
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 from snack import *
 from version import *
@@ -111,7 +101,7 @@ def confirm_proceed():
     b = snackutil.ButtonChoiceWindowEx(
         tui.screen,
         "Confirm Local Disk Format",
-        "WARNING: proceeding with this installation will reinstall your local hard disk with %s %s" % (PRODUCT_BRAND, PRODUCT_VERSION),
+        "WARNING: proceeding with this installation will reinstall your local hard disk with %s %s" % (PRODUCT_BRAND, PRODUCT_VERSION_TEXT),
         ['Proceed', 'Cancel'], default=1, width=50
     )
 

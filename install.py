@@ -1,15 +1,6 @@
 #!/usr/bin/env python
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
 
-###
-# XEN HOST INSTALLER
-# Main script
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 import sys
 import traceback
@@ -106,6 +97,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'network-backend': constants.NETWORK_BACKEND_DEFAULT,
         'root-password': ('pwdhash', '!!'),
         'services': { s: None for s in constants.SERVICES }, # default state for services, example {'sshd': None}
+        'preserve-first-partition': constants.PRESERVE_IF_UTILITY,
         }
     suppress_extra_cd_dialog = False
     serial_console = None

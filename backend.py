@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Functions to perform the XE installation
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 import os
 import os.path
@@ -512,7 +502,7 @@ def configureNTP(mounts, ntp_servers):
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
-def inspectTargetDisk(disk, existing, create_sr_part, preserve_first_partition):
+def inspectTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
     primary_part = 1

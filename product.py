@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Manage product installations
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 import os
 
@@ -47,6 +37,7 @@ class ExistingInstallation:
         self.root_fs = None
         self._boot_fs = None
         self.boot_fs_mount = None
+        self.detailed_version = ''
 
     def __str__(self):
         return "%s %s" % (
@@ -419,7 +410,7 @@ class ExistingRetailInstallation(ExistingInstallation):
         self.readInventory()
 
     def __repr__(self):
-        return "<ExistingRetailInstallation: %s on %s>" % (str(self), self.root_device)
+        return "<ExistingRetailInstallation: %s (%s) on %s>" % (str(self), self.detailed_version, self.root_device)
 
     def mount_root(self, ro=True, boot_device=None):
         opts = None
@@ -468,10 +459,8 @@ class ExistingRetailInstallation(ExistingInstallation):
                 self.oem_version = self.inventory['OEM_VERSION']
                 self.visual_version = self.inventory['OEM_VERSION'] + build_suffix
             else:
-                if self.build is not None and '/' in self.build:
-                    self.visual_version = self.inventory['PRODUCT_VERSION']
-                else:
-                    self.visual_version = self.inventory['PRODUCT_VERSION'] + build_suffix
+                self.visual_version = self.inventory['PRODUCT_VERSION_TEXT']
+                self.detailed_version = self.inventory['PRODUCT_VERSION'] + build_suffix
         finally:
             self.unmount_root()
 
@@ -481,6 +470,7 @@ class XenServerBackup:
         self.inventory = util.readKeyValueFile(os.path.join(mnt, constants.INVENTORY_FILE), strip_quotes=True)
         self.build = self.inventory.get('BUILD_NUMBER', None)
         build_suffix = ('-' + self.build) if self.build is not None else ''
+        self.detailed_version = ''
         self.version = Version.from_string(self.inventory['PLATFORM_VERSION'] +
                                            build_suffix)
         if 'PRODUCT_NAME' in self.inventory:
@@ -499,10 +489,8 @@ class XenServerBackup:
             self.oem_version = self.inventory['OEM_VERSION']
             self.visual_version = self.inventory['OEM_VERSION'] + build_suffix
         else:
-            if self.build is not None and '/' in self.build:
-                self.visual_version = self.inventory['PRODUCT_VERSION']
-            else:
-                self.visual_version = self.inventory['PRODUCT_VERSION'] + build_suffix
+            self.visual_version = self.inventory['PRODUCT_VERSION_TEXT']
+            self.detailed_version = self.inventory['PRODUCT_VERSION'] + build_suffix
 
         if self.inventory['PRIMARY_DISK'].startswith('/dev/md_'):
             # Handle restoring an installation using a /dev/md_* path
@@ -516,7 +504,7 @@ class XenServerBackup:
             self.visual_brand, self.visual_version)
 
     def __repr__(self):
-        return "<XenServerBackup: %s on %s>" % (str(self), self.partition)
+        return "<XenServerBackup: %s (%s) on %s>" % (str(self), self.detailed_version, self.partition)
 
 def findXenSourceBackups():
     """Scans the host and find partitions containing backups of XenSource
@@ -531,6 +519,7 @@ def findXenSourceBackups():
             b = util.TempMount(p, 'backup-', ['ro'], 'ext3')
             if os.path.exists(os.path.join(b.mount_point, '.xen-backup-partition')):
                 backup = XenServerBackup(p, b.mount_point)
+                logger.log("Found a backup: %s" % (repr(backup),))
                 if backup.version >= XENSERVER_MIN_VERSION and \
                         backup.version <= THIS_PLATFORM_VERSION:
                     backups.append(backup)
@@ -563,7 +552,7 @@ def findXenSourceProducts():
             logger.log("This is not fatal.  Continuing anyway.")
 
         if inst:
-            logger.log("Found an installation: %s on %s" % (str(inst), disk))
+            logger.log("Found an installation: %s" % (repr(inst),))
             installs.append(inst)
 
     return installs

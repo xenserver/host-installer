@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Functions to perform restore from backup partition, including UI.
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 import backend
 import product
@@ -35,7 +25,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
     tool = PartitionTool(disk)
     _, _, _, storage, _ = diskutil.probeDisk(disk)
     create_sr_part = storage[0] is not None
-    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, [], constants.PRESERVE_IF_UTILITY, create_sr_part, True)
+    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, constants.PRESERVE_IF_UTILITY, create_sr_part)
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options=['ro'])
     inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes=True)

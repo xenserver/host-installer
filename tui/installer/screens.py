@@ -1,14 +1,4 @@
-# Copyright (c) 2005-2006 XenSource, Inc. All use and distribution of this
-# copyrighted material is governed by and subject to terms and conditions
-# as licensed by XenSource, Inc. All other rights reserved.
-# Xen, XenSource and XenEnterprise are either registered trademarks or
-# trademarks of XenSource Inc. in the United States and/or other countries.
-
-###
-# XEN CLEAN INSTALLER
-# Installer TUI screens
-#
-# written by Andrew Peace
+# SPDX-License-Identifier: GPL-2.0-only
 
 import string
 import datetime
@@ -172,8 +162,7 @@ def hardware_warnings(answers, ram_warning, vt_warning):
 
 def overwrite_warning(answers):
     warning_string = "Continuing will result in a clean installation, all existing configuration will be lost."
-    if PRODUCT_VERSION:
-        warning_string += "\n\nAlternatively, please contact a Technical Support Representative for the recommended upgrade path."
+    warning_string += "\n\nAlternatively, please contact a Technical Support Representative for the recommended upgrade path."
 
     button = snackutil.ButtonChoiceWindowEx(
         tui.screen,
