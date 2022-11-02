@@ -38,6 +38,28 @@ def selectDefault(key, entries):
             return text, k
     return None
 
+# kernel-alt warning
+def kernel_warning(answers):
+    if answers.get("kernel-alt"):
+        button = snackutil.ButtonChoiceWindowEx(
+            tui.screen,
+            "Alternate kernel",
+            """WARNING: you chose to install our alternative kernel (kernel-alt).
+
+It is based on our main kernel + upstream kernel.org patches, so it should be stable by construction. However it receives less testing than the main kernel.
+
+A boot menu entry for kernel-alt will be added, but we will still boot the main kernel by default.
+
+If kernel-alt works BETTER than the main kernel for you, TELL US so that we may fix the main kernel!
+""",
+            ['Ok', 'Reboot'], width=60)
+
+        if button == 'ok' or button is None:
+            return True
+        else:
+            return EXIT
+    return True
+
 # welcome screen:
 def welcome_screen(answers):
     driver_answers = {'driver-repos': []}
@@ -504,6 +526,56 @@ def setup_runtime_networking(answers):
     # Get the answers from the user
     return tui.network.requireNetworking(answers, defaults)
 
+def raid_array_ui(answers):
+    disk_entries = sorted_disk_list()
+    raid_disks = [de for de in disk_entries if diskutil.is_raid(de)]
+    raid_slaves = [slave for master in raid_disks for slave in diskutil.getDeviceSlaves(master)]
+    entries = []
+    for de in disk_entries:
+        if de not in raid_slaves and de not in raid_disks:
+            vendor, model, size = diskutil.getExtendedDiskInfo(de)
+            string_entry = "%s - %s [%s %s]" % (
+                diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
+            entries.append((string_entry, de))
+    if len(entries) < 2:
+        return SKIP_SCREEN
+    text = TextboxReflowed(54, "Do you want to group disks in a software RAID 1 array?  \n\n" +
+                           "The array will be created immediately and erase all the target disks.")
+    buttons = ButtonBar(tui.screen, [('Create', 'create'), ('Back', 'back')])
+    scroll, _ = snackutil.scrollHeight(3, len(entries))
+    cbt = CheckboxTree(3, scroll)
+    for (c_text, c_item) in entries:
+        cbt.append(c_text, c_item, False)
+    gf = GridFormHelp(tui.screen, 'RAID Array', 'guestdisk:info', 1, 4)
+    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 3, growx=1)
+    gf.addHotKey('F5')
+
+    tui.update_help_line([None, "<F5> disk info"])
+    loop = True
+    while loop:
+        rc = gf.run()
+        if rc == 'F5':
+            disk_more_info(cbt.getCurrent())
+        else:
+            loop = False
+    tui.screen.popWindow()
+    tui.screen.popHelpLine()
+
+    button = buttons.buttonPressed(rc)
+    if button == 'create':
+        selected = cbt.getSelection()
+        txt = 'The content of the disks %s will be deleted when you activate "Ok"' % (str(selected))
+        title = 'RAID array creation'
+        confirmation = snackutil.ButtonChoiceWindowEx(tui.screen, title, txt, ('Ok', 'Cancel'), 40, default=1)
+        if confirmation == 'ok':
+            answers['raid'] = {'/dev/md127': selected}
+            tui.progress.showMessageDialog("Please wait", "Creating raid array...")
+            diskutil.create_raid(answers['raid'])
+            tui.progress.clearModelessDialog()
+    return REPEAT_STEP
+
 def disk_more_info(context):
     if not context: return True
 
@@ -532,14 +604,18 @@ def disk_more_info(context):
     return True
 
 def sorted_disk_list():
-    return sorted(diskutil.getQualifiedDiskList(),
-                  lambda x, y: len(x) == len(y) and cmp(x,y) or (len(x)-len(y)))
+    return sorted(set(diskutil.getQualifiedDiskList()),
+                  lambda x, y: len(x) == len(y) and cmp(x, y) or (len(x) - len(y)))
+
+def filter_out_raid_member(diskEntries):
+    raid_disks = [de for de in diskEntries if diskutil.is_raid(de)]
+    raid_slaves = set(member for master in raid_disks for member in diskutil.getDeviceSlaves(master))
+    return [e for e in diskEntries if e not in raid_slaves]
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     button = None
-    diskEntries = sorted_disk_list()
-
+    diskEntries = filter_out_raid_member(sorted_disk_list())
     entries = []
     target_is_sr = {}
     min_primary_disk_size = constants.min_primary_disk_size
@@ -584,7 +660,7 @@ def select_primary_disk(answers):
 
 You may need to change your system settings to boot from this disk.""" % (MY_PRODUCT_BRAND),
             entries,
-            ['Ok', 'Back'], 55, scroll, height, default, help='pridisk:info',
+            ['Ok', 'Software RAID', 'Back'], 55, scroll, height, default, help='pridisk:info',
             hotkeys={'F5': disk_more_info})
 
         tui.screen.popHelpLine()
@@ -611,7 +687,12 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
             else:
                 answers["preserve-first-partition"] = 'false'
 
-    if button is None: return SKIP_SCREEN
+    # XCP-ng: we replaced `SKIP_SCREEN` by `RIGHT_FORWARDS` for RAID support to avoid a loop after raid creation
+    if button is None: return RIGHT_FORWARDS
+
+    # XCP-ng
+    if button == 'software raid':
+        return raid_array_ui(answers)
 
     return RIGHT_FORWARDS
 
@@ -636,7 +717,7 @@ def check_sr_space(answers):
     return EXIT
 
 def select_guest_disks(answers):
-    diskEntries = sorted_disk_list()
+    diskEntries = filter_out_raid_member(sorted_disk_list())
 
     # CA-38329: filter out device mapper nodes (except primary disk) as these won't exist
     # at XenServer boot and therefore cannot be added as physical volumes to Local SR.
@@ -671,16 +752,19 @@ def select_guest_disks(answers):
     cbt = CheckboxTree(3, scroll)
     for (c_text, c_item) in entries:
         cbt.append(c_text, c_item, c_item in currently_selected)
-    txt = "Enable thin provisioning"
-    if len(BRAND_VDI) > 0:
-        txt += " (Optimized storage for %s)" % BRAND_VDI
+    txt = "Use EXT instead of LVM for local storage repository"
     tb = Checkbox(txt, srtype == constants.SR_TYPE_EXT and 1 or 0)
 
-    gf = GridFormHelp(tui.screen, 'Virtual Machine Storage', 'guestdisk:info', 1, 4)
+    explanations = Textbox(54, 2,
+                           "LVM: block based. May be faster. Thick provisioning.\n"
+                           "EXT: file based. May be slower. Thin provisioning.")
+
+    gf = GridFormHelp(tui.screen, 'Virtual Machine Storage', 'guestdisk:info', 1, 5)
     gf.add(text, 0, 0, padding=(0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
-    gf.add(tb, 0, 2, padding=(0, 0, 0, 1))
-    gf.add(buttons, 0, 3, growx=1)
+    gf.add(tb, 0, 2, padding=(0, 0, 0, 0))
+    gf.add(explanations, 0, 3, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 4, growx=1)
     gf.addHotKey('F5')
 
     tui.update_help_line([None, "<F5> more info"])

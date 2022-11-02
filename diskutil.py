@@ -116,6 +116,9 @@ for major in range(48, 56):
 # /dev/md    : md has major 9: each device has 15 minors)
 disk_nodes += [ (9, x * 16) for x in range(16) ]
 
+# /dev/mmcblk: mmcblk has major 179, each device usually (per kernel) has 7 minors
+disk_nodes += [ (179, x * 8) for x in range(32) ]
+
 def getDiskList():
     # read the partition tables:
     parts = open("/proc/partitions")
@@ -155,6 +158,20 @@ def getDiskList():
     disks.extend(map(lambda node: node.replace('/dev/',''), getMdNodes()))
 
     return disks
+
+def create_raid(configuration):
+    if configuration:
+        for raid_device, members in configuration.viewitems():
+            # allows for idempotence
+            if not os.path.exists(raid_device):
+                for dev in members:
+                    util.runCmd2(['mdadm', '--zero-superblock', '--force', dev])
+                    # let it fail without catching
+                cmd = ['mdadm', '--create', raid_device, '--run', '--metadata=1.0', '--level=mirror',
+                       '--raid-devices=%s' % (len(members))] + members
+                rc, out, err = util.runCmd2(cmd, with_stdout=True, with_stderr=True)
+                if rc != 0:
+                    raise Exception('Error running: %s\n%s\n\n%s' % (' '.join(cmd), out, err))
 
 def getPartitionList():
     disks = getDiskList()
