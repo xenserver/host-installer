@@ -33,60 +33,14 @@ Restore:
   ...
 </restore>
 
-Common Elements
----------------
+Elements common to all answerfiles, both 'installation' and 'restore'
+---------------------------------------------------------------------
 
-  <source type="type">repo</source>
   <driver-source type="type">repo</driver-source>*
 
-  where type is one of:
-
-    local (repo ignored)
-    url
-    nfs
-
-  'source' defines the location of the installation repository or a
-  Supplemental Pack. There may be multiple 'source' elements.
-
-  'driver-source' defines the source of a Supplemental Pack containing
-  device drivers to be loaded by the installer and included after
-  installation of the main repository.
-
-  Repository formats:
-
-    nfs - server:/path/
-
-    url - one of:
-
-      http://[user[:passwd]]@host[:port]/path/
-      https://[user[:passwd]]@host[:port]/path/
-      ftp://[user[:passwd]]@host[:port]/path/
-      file:///path/
-      nfs://server:/path/
-
-
-  <bootloader location="mbr|partition">grub2|extlinux[D]|grub[D]</bootloader>?
-
-    Default: mbr
-
-    grub is no longer supported as of 6.0. extlinux is no longer supported as of 7.0
-
-    Defines the bootloader variant and location.
-
-    Optional attributes:
-
-        write-boot-entry=bool
-
-            Whether to modify the EFI Boot Manager and write a boot
-            entry for a UEFI installation. (new in 7.1)
-
-            Default: True
-
-  <network-backend>bridge|openvswitch|vswitch</network-backend>?
-
-    Default: bridge (5.6 FP1 and earlier), vswitch (6.0 and later)
-
-    Defines the network stack variant.
+    The source of a Supplemental Pack containing device drivers to be
+    loaded by the installer and included after installation of the
+    main repository.
 
 
   <script stage="stage" type="type">url</script>*
@@ -111,12 +65,14 @@ Common Elements
 
       installation-complete - 0 | 1 (success or failure)
 
+
   <post-install-script type="type">url</post-install-script>?[D]
 
     If 'type' is 'nfs' then 'url' is taken to be an nfs location,
     else 'url' is treated as a url determined by its protocol.
 
     Replaced by <script stage="filesystem-populated">
+
 
   <install-failed-script>url</install-failed-script>?[D]
 
@@ -127,6 +83,67 @@ Common Elements
 
     Specifies interfaces to run Fibre Channel over Ethernet VLAN
     Discovery on.
+
+
+Elements for 'installation' modes
+---------------------------------
+
+  <source type="type">repo</source>
+
+    The location of the installation repository or a Supplemental
+    Pack. There may be multiple 'source' elements.
+
+
+  <bootloader location="mbr|partition">grub2|extlinux[D]|grub[D]</bootloader>?
+
+    Default: mbr
+
+    grub is no longer supported as of 6.0. extlinux is no longer supported as of 7.0
+
+    Defines the bootloader variant and location.
+
+    Optional attributes:
+
+        write-boot-entry=bool
+
+            Whether to modify the EFI Boot Manager and write a boot
+            entry for a UEFI installation. (new in 7.1)
+
+            Default: True
+
+
+  <network-backend>bridge|openvswitch|vswitch</network-backend>?
+
+    Default: bridge (5.6 FP1 and earlier), vswitch (6.0 and later)
+
+    Defines the network stack variant.
+
+
+Format of 'source' and 'driver-source'
+--------------------------------------
+
+  These two elements share the same structure:
+
+    <source type="type">repo</source>
+    <driver-source type="type">repo</driver-source>
+
+  where type is one of:
+
+    local (repo ignored)
+    url
+    nfs
+
+  Repository formats:
+
+    nfs - server:/path/
+
+    url - one of:
+
+      http://[user[:passwd]]@host[:port]/path/
+      https://[user[:passwd]]@host[:port]/path/
+      ftp://[user[:passwd]]@host[:port]/path/
+      file:///path/
+      nfs://server:/path/
 
 
 (Re)Install Elements
