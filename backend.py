@@ -326,6 +326,10 @@ def performInstallation(answers, ui_package, interactive):
             # Set scheduler granularity if necessary.
             if 'sched-gran' in answers['host-config']:
                 default_host_config['sched-gran'] = answers['host-config']['sched-gran']
+
+            # Set xen-pciback if necessary.
+            if 'xen-pciback.hide' in answers['host-config']:
+                default_host_config['xen-pciback.hide'] = answers['host-config']['xen-pciback.hide']
         except Exception as e:
             logger.logException(e)
             raise RuntimeError("Failed to get existing installation settings")
@@ -1046,6 +1050,9 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
 
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "console=hvc0"
+
+    if "xen-pciback.hide" in host_config:
+        common_kernel_params += " %s" % host_config["xen-pciback.hide"]
 
     if diskutil.is_iscsi(primary_disk):
         common_kernel_params += " rd.iscsi.ibft=1 rd.iscsi.firmware=1"
