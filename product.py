@@ -382,7 +382,7 @@ class ExistingInstallation:
             if sched_gran:
                 results['host-config']['sched-gran'] = sched_gran
 
-            # Subset of hypervisor arguments
+            # Subset of dom0 kernel arguments
             kernel_args = boot_config.menu[boot_config.default].getKernelArgs()
 
             #   - xen-pciback.hide
