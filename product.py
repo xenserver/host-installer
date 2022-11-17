@@ -381,6 +381,15 @@ class ExistingInstallation:
             sched_gran = next((x for x in xen_args if x.startswith('sched-gran=')), None)
             if sched_gran:
                 results['host-config']['sched-gran'] = sched_gran
+
+            # Subset of dom0 kernel arguments
+            kernel_args = boot_config.menu[boot_config.default].getKernelArgs()
+
+            #   - xen-pciback.hide
+            pciback = next((x for x in kernel_args if x.startswith('xen-pciback.hide=')), None)
+            if pciback:
+                results['host-config']['xen-pciback.hide'] = pciback
+
         except:
             pass
         self.unmount_boot()
