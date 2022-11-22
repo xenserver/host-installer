@@ -376,6 +376,14 @@ class ExistingInstallation:
             (dom0_mem, dom0_mem_min, dom0_mem_max) = xcp.dom0.parse_mem(dom0_mem_arg[0])
             if dom0_mem:
                 results['host-config']['dom0-mem'] = dom0_mem / 1024 / 1024
+
+            # Subset of dom0 kernel arguments
+            kernel_args = boot_config.menu[boot_config.default].getKernelArgs()
+
+            #   - xen-pciback.hide
+            pciback = next((x for x in kernel_args if x.startswith('xen-pciback.hide=')), None)
+            if pciback:
+                results['host-config']['xen-pciback.hide'] = pciback
         except:
             pass
         self.unmount_boot()
