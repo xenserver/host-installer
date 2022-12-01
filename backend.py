@@ -1152,8 +1152,12 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     # First remove existing entries
     rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
     check_efibootmgr_err(rc, err, install_type, "Failed to run efibootmgr")
+
+    # This list ensures that upgrades from previous versions with different
+    # names work, and the current version (so that self-upgrades always work).
+    labels = '|'.join(['XenServer', 'Citrix Hypervisor', branding['product-brand']])
     for line in out.splitlines():
-        match = re.match("Boot([0-9a-fA-F]{4})\\*? +(?:XenServer|%s)$" % branding['product-brand'], line)
+        match = re.match("Boot([0-9a-fA-F]{4})\\*? +(?:%s)$" % (labels,), line)
         if match:
             bootnum = match.group(1)
             rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr",
