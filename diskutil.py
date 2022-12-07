@@ -139,8 +139,8 @@ def getDiskList():
                 if major == 202 and isRemovable("/dev/" + name): # Ignore PV CDROM devices
                     continue
                 disks.append(name.replace("!", "/"))
-            # Handle LOCAL/EXPERIMENTAL and Block Extended Major devices
-            if 240 <= major <= 254 or major == 259:
+            # Handle dynamic and Block Extended Major devices
+            if 234 <= major <= 254 or 384 <= major <= 511 or major == 259:
                 rc, out = util.runCmd2(['/bin/lsblk', '-d', '-n', '-o', 'TYPE', "/dev/" + name.replace("!","/")],
                                        with_stdout=True)
                 if rc == 0 and out.strip() not in ['part', 'md']:
