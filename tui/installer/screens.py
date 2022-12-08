@@ -221,9 +221,11 @@ def get_admin_interface_configuration(answers):
 def get_installation_type(answers):
     entries = []
     for x in answers['upgradeable-products']:
-        entries.append(("Upgrade %s" % str(x), (x, x.settingsAvailable())))
+        entries.append(("Upgrade %s on %s" % (x, diskutil.getHumanDiskLabel(x.primary_disk, short=True)),
+                        (x, x.settingsAvailable())))
     for b in answers['backups']:
-        entries.append(("Restore %s from backup" % str(b), (b, None)))
+        entries.append(("Restore %s from backup to %s" % (b, diskutil.getHumanDiskLabel(b.root_disk, short=True)),
+                        (b, None)))
 
     entries.append( ("Perform clean installation", None) )
 
