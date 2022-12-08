@@ -546,16 +546,20 @@ def select_primary_disk(answers):
 
     for de in diskEntries:
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-        if min_primary_disk_size <= diskutil.blockSizeToGBSize(size):
-            # determine current usage
-            target_is_sr[de] = False
-            (boot, root, state, storage, logs) = diskutil.probeDisk(de)
-            if storage[0]:
-                target_is_sr[de] = True
-            (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
-            stringEntry = "%s - %s [%s %s]" % (diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
-            e = (stringEntry, de)
-            entries.append(e)
+        if diskutil.blockSizeToGBSize(size) < min_primary_disk_size:
+            logger.log("disk %s is too small: %s < %s GB" %
+                       (de, diskutil.blockSizeToGBSize(size), min_primary_disk_size))
+            continue
+
+        # determine current usage
+        target_is_sr[de] = False
+        (boot, root, state, storage, logs) = diskutil.probeDisk(de)
+        if storage[0]:
+            target_is_sr[de] = True
+        (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
+        stringEntry = "%s - %s [%s %s]" % (diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
+        e = (stringEntry, de)
+        entries.append(e)
 
     # we should have at least one disk
     if len(entries) == 0:
