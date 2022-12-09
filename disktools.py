@@ -1077,7 +1077,7 @@ class GPTPartitionTool(PartitionToolBase):
                 self.partitions[num]['id'] == self.ID_EFI_BOOT and self.partitions[num]['partlabel'] == constants.UTILITY_PARTLABEL]
 
 def probePartitioningScheme(device):
-    """Determine whether the MBR is a DOS MBR, a GPT PMBR, or corrupt"""
+    """Determine whether the MBR is a DOS MBR, or a GPT PMBR"""
     partitionType = constants.PARTITION_GPT   # default
     rv, out = util.runCmd2(['blkid', '-s', 'PTTYPE', '-o', 'value', device], with_stdout=True)
     out = out.strip()
