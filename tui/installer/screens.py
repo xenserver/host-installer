@@ -154,6 +154,11 @@ def hardware_warnings(answers, ram_warning, vt_warning):
 
 def scan_existing(answers):
     tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
+
+    if 'assemble-raid' in answers:
+        logger.log("Assembling any RAID volumes")
+        rv = util.runCmd2([ 'mdadm', '--assemble', "--scan" ])
+
     answers['installed-products'] = product.find_installed_products()
     answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
     answers['backups'] = product.findXenSourceBackups()
@@ -219,13 +224,41 @@ def get_admin_interface_configuration(answers):
     return rc
 
 def get_installation_type(answers):
-    entries = []
+
+    # If we were not already told to enable RAID, build a full list of
+    # RAID members, for filtering out from upgradable-products and
+    # backups, and to decide whether to propose to activate existing RAID.
+    raid_members = []
+    if "assemble-raid" not in answers:
+        for disk in diskutil.getQualifiedDiskList():
+            rv, out = util.runCmd2([ 'mdadm', '--examine', disk ], with_stdout=True)
+            if rv == 0 and re.search("Array UUID :", out):
+                raid_members.append(disk)
+
+    upgradeable_products = []
     for x in answers['upgradeable-products']:
+        if x.primary_disk in raid_members:
+            logger.log("%s: disk %s in %s, skipping" % (x, x.primary_disk, raid_members))
+            continue
+        upgradeable_products.append(x)
+    backups = []
+    for b in answers['backups']:
+        if b.root_disk in raid_members:
+            logger.log("%s: disk %s in %s, skipping" % (b, b.root_disk, raid_members))
+            continue
+        backups.append(b)
+
+    entries = []
+    for x in upgradeable_products:
         entries.append(("Upgrade %s on %s" % (x, diskutil.getHumanDiskLabel(x.primary_disk, short=True)),
                         (x, x.settingsAvailable())))
-    for b in answers['backups']:
+    for b in backups:
         entries.append(("Restore %s from backup to %s" % (b, diskutil.getHumanDiskLabel(b.root_disk, short=True)),
                         (b, None)))
+
+    if raid_members:
+        logger.log("Found a MD RAID on: %s" % ", ".join(raid_members))
+        entries.append(("Assemble software RAID volumes", ("RAID", None)))
 
     entries.append( ("Perform clean installation", None) )
 
@@ -237,14 +270,21 @@ def get_installation_type(answers):
     else:
         default = None
 
-    if answers['upgradeable-products']:
-        text = "One or more existing product installations that can be upgraded have been detected."
-        if answers['backups']:
-            text += "  In addition one or more backups have been detected."
-    elif answers['backups']:
-        text = "One or more backups have been detected."
+    if upgradeable_products or backups:
+        if upgradeable_products:
+            text = "One or more existing product installations that can be upgraded have been detected."
+            if backups:
+                text += "  In addition one or more backups have been detected."
+        else:
+            text = "One or more backups have been detected."
+        if raid_members:
+            text += "  Also, some disks have been identified as members of a sofware-RAID volume."
+    elif raid_members:
+        text = "Some disks have been identified as members of a sofware-RAID volume."
     else:
         text = "No existing product installation or backup was detected."
+    if raid_members:
+        text += "  RAID volumes may themselves contain more upgradeable products or backups."
     text += "\n\nWhat would you like to do?"
 
     tui.update_help_line([None, "<F5> more info"])
@@ -313,6 +353,10 @@ def get_installation_type(answers):
     elif isinstance(entry[0], product.XenServerBackup):
         answers['install-type'] = constants.INSTALL_TYPE_RESTORE
         answers['backup-to-restore'], _ = entry
+    elif entry[0] == "RAID":
+        # go rescan for products after assembling RAID volumes
+        answers['assemble-raid'] = True
+        return LEFT_BACKWARDS
 
     return RIGHT_FORWARDS
 
