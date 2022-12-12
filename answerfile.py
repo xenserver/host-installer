@@ -133,6 +133,7 @@ class Answerfile:
         results['preserve-settings'] = False
         results['backup-existing-installation'] = False
 
+        results.update(self.parseAssembleRaid())
         results.update(self.parseDisks())
         results.update(self.parseInterface())
         results.update(self.parseRootPassword())
@@ -170,6 +171,7 @@ class Answerfile:
 
         results['install-type'] = INSTALL_TYPE_RESTORE
 
+        results.update(self.parseAssembleRaid())
         backups = product.findXenSourceBackups()
         if len(backups) == 0:
             raise AnswerfileException("Could not locate exsisting backup.")
@@ -227,6 +229,7 @@ class Answerfile:
     def parseExistingInstallation(self):
         results = {}
 
+        results.update(self.parseAssembleRaid())
         inst = getElementsByTagName(self.top_node, ['existing-installation'],
                                     mandatory=True)
         disk = normalize_disk(getText(inst[0]))
@@ -291,6 +294,15 @@ class Answerfile:
                 address = util.URL(address)
 
             results['extra-repos'].append((rtype, address))
+        return results
+
+    def parseAssembleRaid(self):
+        results = {}
+        nodes = getElementsByTagName(self.top_node, ['assemble-raid'])
+        if nodes:
+            results['assemble-raid'] = True # possibly useless
+            logger.log("Assembling any RAID volumes")
+            rv = util.runCmd2([ 'mdadm', '--assemble', "--scan" ])
         return results
 
     def parseDisks(self):
