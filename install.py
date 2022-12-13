@@ -252,7 +252,11 @@ def go(ui, args, answerfile_address, answerfile_script):
                 restore.restoreFromBackup(backup, progress)
                 if ui:
                     tui.progress.clearModelessDialog()
-                    tui.progress.OKDialog("Restore", "The restore operation completed successfully.")
+                    tui.progress.OKDialog("Restore Complete",
+                                          """The restore operation completed successfully.
+
+Please remove any local media from the drive, and press Enter to reboot.""")
+                logger.log("The restore operation completed successfully.")
             else:
                 logger.log("Starting actual installation")
                 backend.performInstallation(results, ui, interactive)
