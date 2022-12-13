@@ -318,10 +318,6 @@ def performInstallation(answers, ui_package, interactive):
                                                          default_host_config['dom0-mem'])
                 default_host_config['dom0-vcpus'] = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(),
                                                                            answers['host-config']['dom0-mem'])
-
-            # Set xen-pciback if necessary.
-            if 'xen-pciback.hide' in answers['host-config']:
-                default_host_config['xen-pciback.hide'] = answers['host-config']['xen-pciback.hide']
         except Exception as e:
             logger.logException(e)
             raise RuntimeError("Failed to get existing installation settings")
