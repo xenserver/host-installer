@@ -62,19 +62,8 @@ def runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
                            shell=isinstance(command, str),
                            close_fds=True)
 
-#     if inputtext:
-#      (out, err) = cmd.communicate(inputtext)
-#         rv = cmd.returncode
-#     else:
-#         (stdout, stderr) = (cmd.stdout, cmd.stderr)
-#         for line in stdout:
-#             out += line
-#         for line in stderr:
-#             err += line
-#         rv = cmd.wait()
-
-    # the above has a deadlock condition.
-    # The following should suffice in all cases
+    # We could poll stdout/stderr for commands outputing large amounts
+    # of data, but the following should suffice in all cases
     (out, err) = cmd.communicate(inputtext)
     rv = cmd.returncode
 
