@@ -392,6 +392,10 @@ def getHumanDiskName(disk):
         return disk[5:]
     return disk
 
+def getHumanDiskLabel(disk):
+    (vendor, model, size) = getExtendedDiskInfo(disk)
+    return "%s - %s [%s %s]" % (getHumanDiskName(disk), getHumanDiskSize(size), vendor, model)
+
 # given a list of disks, work out which ones are part of volume
 # groups that will cause a problem if we install XE to those disks:
 def findProblematicVGs(disks):
