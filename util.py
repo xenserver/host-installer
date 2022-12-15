@@ -55,28 +55,21 @@ def copyFilesFromDir(sourcedir, dest):
 
 def runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
 
-    cmd = subprocess.Popen(command, bufsize=1,
-                           stdin=(inputtext and subprocess.PIPE or None),
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE,
-                           shell=isinstance(command, str),
-                           close_fds=True)
+    try:
+        cmd = subprocess.Popen(command, bufsize=1,
+                               stdin=(inputtext and subprocess.PIPE or None),
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               shell=isinstance(command, str),
+                               close_fds=True)
 
-#     if inputtext:
-#      (out, err) = cmd.communicate(inputtext)
-#         rv = cmd.returncode
-#     else:
-#         (stdout, stderr) = (cmd.stdout, cmd.stderr)
-#         for line in stdout:
-#             out += line
-#         for line in stderr:
-#             err += line
-#         rv = cmd.wait()
-
-    # the above has a deadlock condition.
-    # The following should suffice in all cases
-    (out, err) = cmd.communicate(inputtext)
-    rv = cmd.returncode
+        # We could poll stdout/stderr for commands outputing large amounts
+        # of data, but the following should suffice in all cases
+        (out, err) = cmd.communicate(inputtext)
+        rv = cmd.returncode
+    except Exception as ex:
+        logger.log("running %s caused an exception: %s" % (command, ex))
+        raise
 
     l = "ran %s; rc %d" % (str(command), rv)
     if inputtext:
