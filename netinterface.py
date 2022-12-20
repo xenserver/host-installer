@@ -37,8 +37,7 @@ class NetInterface:
         elif isinstance(dns, str):
             dns = [ dns ]
         if mode == self.Static:
-            assert ipaddr
-            assert netmask
+            assert ipaddr and netmask
 
         self.hwaddr = hwaddr
         if ipv6:

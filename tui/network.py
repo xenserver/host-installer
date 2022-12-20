@@ -483,27 +483,38 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
             )
         ifaceName = conf_dict['config'].getInterfaceName(conf_dict['interface'])
         netutil.ifdown(ifaceName)
-        ifup_error = netutil.ifup(ifaceName) != 0
-        if conf_dict['config'].modev6 == NetInterface.Autoconf:
-            time.sleep(2)
 
-        # check that we have *some* network:
-        if ifup_error or not netutil.interfaceUp(ifaceName):
+        def display_error():
             tui.progress.clearModelessDialog()
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
-            direction = REPEAT_STEP
-        else:
-            if answers and type(answers) == dict:
-                # write out results
-                answers[interface_key] = conf_dict['interface']
-                answers[config_key] = conf_dict['config']
-                # update cache of manual configurations
-                manual_config = {}
-                all_dhcp = False
-                if 'runtime-iface-configuration' in answers:
-                    manual_config = answers['runtime-iface-configuration'][1]
-                manual_config[conf_dict['interface']] = conf_dict['config']
-                answers['runtime-iface-configuration'] = (all_dhcp, manual_config)
-            tui.progress.clearModelessDialog()
+            return REPEAT_STEP
+
+        if netutil.ifup(ifaceName) != 0:
+            return display_error()
+
+        # For Autoconf wait a bit for network setup
+        try_nb = 10 if conf_dict['config'].modev6 == NetInterface.Autoconf else 0
+        while True:
+            if try_nb == 0 or netutil.interfaceUp(ifaceName):
+                break
+            try_nb -= 1
+            time.sleep(0.1)
+
+        # check that we have *some* network:
+        if not netutil.interfaceUp(ifaceName):
+            return display_error()
+
+        if answers and type(answers) == dict:
+            # write out results
+            answers[interface_key] = conf_dict['interface']
+            answers[config_key] = conf_dict['config']
+            # update cache of manual configurations
+            manual_config = {}
+            all_dhcp = False
+            if 'runtime-iface-configuration' in answers:
+                manual_config = answers['runtime-iface-configuration'][1]
+            manual_config[conf_dict['interface']] = conf_dict['config']
+            answers['runtime-iface-configuration'] = (all_dhcp, manual_config)
+        tui.progress.clearModelessDialog()
 
     return direction
