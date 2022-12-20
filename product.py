@@ -77,7 +77,7 @@ class ExistingInstallation:
                 for path in constants.INIT_SERVICE_FILES:
                     if not os.path.exists(self.join_state_path(path)):
                         result = False
-                        logger.log('Cannot upgrade, expected file missing: %s' % (path,))
+                        logger.log('Cannot upgrade %s, expected file missing: %s (installation never booted?)' % (self.primary_disk, path))
         except Exception:
             result = False
         finally:
