@@ -727,7 +727,7 @@ def confirm_installation(answers):
         backup = answers['backup-to-restore']
         label = "Confirm Restore"
         text = "Are you sure you want to restore your installation with the backup on %s?\n\nYour existing installation will be overwritten with the backup (though VMs will still be intact).\n\nTHIS OPERATION CANNOT BE UNDONE." % diskutil.getHumanDiskName(backup.partition)
-        ok = 'Restore %s' % MY_PRODUCT_BRAND
+        ok = 'Restore %s' % backup
     else:
         label = "Confirm Installation"
         text1 = "We have collected all the information required to install %s. " % MY_PRODUCT_BRAND
