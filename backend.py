@@ -1016,6 +1016,9 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     if rc == 0 and ('1022:7451' in out or '1022:7459' in out):
         common_xen_params += " ioapic_ack=old"
 
+    if "sched-gran" in host_config:
+        common_xen_params += " %s" % host_config["sched-gran"]
+
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "console=hvc0"
 

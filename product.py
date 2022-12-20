@@ -377,6 +377,11 @@ class ExistingInstallation:
             if dom0_mem:
                 results['host-config']['dom0-mem'] = dom0_mem / 1024 / 1024
 
+            #   - sched-gran
+            sched_gran = next((x for x in xen_args if x.startswith('sched-gran=')), None)
+            if sched_gran:
+                results['host-config']['sched-gran'] = sched_gran
+
             # Subset of dom0 kernel arguments
             kernel_args = boot_config.menu[boot_config.default].getKernelArgs()
 
