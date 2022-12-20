@@ -144,13 +144,13 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
                 # validate input
                 msg = ''
                 if static_rb.selected():
-                    if not netutil.valid_ip_addr(ip_field.value()):
+                    if not netutil.valid_ipv4_addr(ip_field.value()):
                         msg = 'IP Address'
-                    elif not netutil.valid_ip_addr(subnet_field.value()):
+                    elif not netutil.valid_ipv4_addr(subnet_field.value()):
                         msg = 'Subnet mask'
-                    elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
+                    elif gateway_field.value() != '' and not netutil.valid_ipv4_addr(gateway_field.value()):
                         msg = 'Gateway'
-                    elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
+                    elif dns_field.value() != '' and not netutil.valid_ipv4_addr(dns_field.value()):
                         msg = 'Nameserver'
                 if vlan_cb.selected():
                     if not netutil.valid_vlan(vlan_field.value()):
@@ -271,13 +271,13 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
                 msg = ''
                 if static_rb.selected():
                     subnet_value = int(subnet_field.value())
-                    if not netutil.valid_ip_addr(ip_field.value()):
+                    if not netutil.valid_ipv6_addr(ip_field.value()):
                         msg = 'IPv6 Address'
                     elif subnet_value > 128 or subnet_value < 4:
                         msg = 'CIDR'
-                    elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
+                    elif gateway_field.value() != '' and not netutil.valid_ipv6_addr(gateway_field.value()):
                         msg = 'Gateway'
-                    elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
+                    elif dns_field.value() != '' and not netutil.valid_ipv6_addr(dns_field.value()):
                         msg = 'Nameserver'
                 if vlan_cb.selected():
                     if not netutil.valid_vlan(vlan_field.value()):

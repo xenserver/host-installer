@@ -1500,10 +1500,9 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
             print >>mc, "IPv6='%s'" % admin_config.ipv6addr
             if admin_config.ipv6_gateway:
                 print >>mc, "IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway
-        if admin_config.valid() and not admin_config.isDHCP():
-            if manual_nameservers:
-                print >>mc, "DNS='%s'" % (','.join(nameservers),)
-            if domain:
+        if manual_nameservers:
+            print >>mc, "DNS='%s'" % (','.join(nameservers),)
+        if domain:
                 print >>mc, "DOMAIN='%s'" % domain
         if admin_config.vlan:
             print >>mc, "VLAN='%d'" % admin_config.vlan

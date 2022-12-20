@@ -229,10 +229,25 @@ def valid_vlan(vlan):
         return False
     return True
 
+def valid_ipv4_addr(addr):
+    octet = '(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)'
+    ipv4_re = '^' + octet + '(\.' + octet + '){3}'
+    return re.match(ipv4_re, addr)
+
+def valid_ipv6_addr(addr):
+    ipv6_char = '[0-9a-fA-F]'
+    ipv6_elem = ipv6_char + '{1,4}'
+    octet = '(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])'
+    ipv6_re = '^((' + ipv6_elem + ':){7,7}' + ipv6_elem + '|(' + ipv6_elem + ':){1,7}:|(' + ipv6_elem + ':){1,6}:' + \
+        ipv6_elem + '|(' + ipv6_elem + ':){1,5}(:' + ipv6_elem + '){1,2}|(' + ipv6_elem + ':){1,4}(:' + ipv6_elem + \
+        '){1,3}|(' + ipv6_elem + ':){1,3}(:' + ipv6_elem + '){1,4}|(' + ipv6_elem + ':){1,2}(:' + ipv6_elem + \
+        '){1,5}|' + ipv6_elem + ':((:' + ipv6_elem + '){1,6})|:((:' + ipv6_elem + '){1,7}|:)|fe80:(:' + ipv6_char + \
+        '{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}(' + octet + '\.){3,3}' + octet + '|(' + ipv6_elem + \
+        ':){1,4}:(' + octet + '\.){3,3}' + octet + ')'
+    return re.match(ipv6_re, addr)
+
 def valid_ip_addr(addr):
-    ipv4_re = '^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}'
-    ipv6_re = '^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))'
-    return re.match(ipv4_re, addr) or re.match(ipv6_re, addr)
+    return valid_ipv4_addr(addr) or valid_ipv6_addr(addr)
 
 def network(ipaddr, netmask):
     ip = map(int,ipaddr.split('.',3))
