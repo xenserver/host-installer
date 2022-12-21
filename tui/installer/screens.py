@@ -936,8 +936,9 @@ def get_name_service_configuration(answers):
                 answers['manual-nameservers'][1].append(ns2_entry.value())
                 if ns3_entry.value() != '':
                     answers['manual-nameservers'][1].append(ns3_entry.value())
-            if 'net-admin-configuration' in answers and answers['net-admin-configuration'].valid() and not answers['net-admin-configuration'].isDHCP():
-                answers['net-admin-configuration'].dns = answers['manual-nameservers'][1]
+            admin_config = answers.get('net-admin-configuration')
+            if admin_config is not None and admin_config.valid() and not admin_config.isDHCP():
+                admin_config.dns = answers['manual-nameservers'][1]
         else:
             answers['manual-nameservers'] = (False, None)
 
