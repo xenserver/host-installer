@@ -385,9 +385,9 @@ def repartition_existing(answers):
         "Convert Existing Installation",
         """The installer needs to change the disk layout of your existing installation.
 
-The conversion will replace all previous system image partitions to create the %s %s disk partition layout.
+The conversion will replace all previous system image partitions to create the %s disk partition layout.
 
-Continue with installation?""" % (COMPANY_NAME_SHORT, MY_PRODUCT_BRAND),
+Continue with installation?""" % (MY_PRODUCT_BRAND,),
         ['Continue', 'Back'], help='repartwarn'
         )
     if button == 'back': return LEFT_BACKWARDS
