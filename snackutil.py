@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+import types
 from snack import *
 
 def ListboxChoiceWindowEx(screen, title, text, items,
