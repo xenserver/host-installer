@@ -243,6 +243,9 @@ def get_installation_type(answers):
         upgradeable_products.append(x)
     backups = []
     for b in answers['backups']:
+        if not os.path.exists(b.root_disk):
+            logger.log("%s: disk %s not found, skipping" % (b, b.root_disk))
+            continue
         if b.root_disk in raid_members:
             logger.log("%s: disk %s in %s, skipping" % (b, b.root_disk, raid_members))
             continue
