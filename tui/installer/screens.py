@@ -237,12 +237,14 @@ def get_installation_type(answers):
     else:
         default = None
 
-    if len(answers['upgradeable-products']) > 0:
+    if answers['upgradeable-products']:
         text = "One or more existing product installations that can be upgraded have been detected."
-        if len(answers['backups']) > 0:
+        if answers['backups']:
             text += "  In addition one or more backups have been detected."
-    else:
+    elif answers['backups']:
         text = "One or more backups have been detected."
+    else:
+        text = "No existing product installation or backup was detected."
     text += "\n\nWhat would you like to do?"
 
     tui.update_help_line([None, "<F5> more info"])
