@@ -1146,7 +1146,7 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
 
     # Then add a new one
     rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
-                            "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/grubx64.efi".replace('/', '\\'),
+                            "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/shimx64.efi".replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
     check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
 
