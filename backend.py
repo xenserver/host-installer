@@ -1086,6 +1086,8 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
     # prepare extra mounts for installing bootloader:
     util.bindMount("/dev", "%s/dev" % mounts['root'])
     util.bindMount("/sys", "%s/sys" % mounts['root'])
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+        util.bindMount("/sys/firmware/efi/efivars", "%s/sys/firmware/efi/efivars" % mounts['root'])
     util.bindMount("/proc", "%s/proc" % mounts['root'])
 
     try:
@@ -1138,6 +1140,8 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
     finally:
         # done installing - undo our extra mounts:
         util.umount("%s/proc" % mounts['root'])
+        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+            util.umount("%s/sys/firmware/efi/efivars" % mounts['root'])
         util.umount("%s/sys" % mounts['root'])
         util.umount("%s/dev" % mounts['root'])
 
