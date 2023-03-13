@@ -445,6 +445,9 @@ class ThirdGenUpgrader(Upgrader):
 
         self.restore_list += ['var/lib/xcp/verify_certificates']
 
+        # Preserve etcd state
+        self.restore_list += ['var/lib/etcd']
+
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'logs-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, logs_partnum, admin_iface, admin_bridge, admin_config):
 
