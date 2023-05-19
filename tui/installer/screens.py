@@ -27,6 +27,9 @@ import tui.progress
 import driver
 import tui.fcoe
 
+from netinterface import NetInterface
+
+
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
 def selectDefault(key, entries):
@@ -1001,14 +1004,21 @@ def get_timezone_city(answers):
     return RIGHT_FORWARDS
 
 def get_time_configuration_method(answers):
-    ENTRY_NTP = "Using NTP", "ntp"
-    ENTRY_MANUAL = "Manual time entry", "manual"
-    entries = [ ENTRY_NTP, ENTRY_MANUAL ]
+    ENTRY_DHCP_NTP = "Use DHCP NTP servers", "dhcp"
+    ENTRY_DEFAULT_NTP = "Use default NTP servers", "default"
+    ENTRY_MANUAL_NTP = "Provide NTP servers manually", "manual"
+    ENTRY_NO_NTP = "No NTP (not recommended)", "none"
+
+    entries = [ ENTRY_DEFAULT_NTP, ENTRY_MANUAL_NTP, ENTRY_NO_NTP ]
+    if answers['net-admin-configuration'].mode == NetInterface.DHCP:
+        entries.insert(0, ENTRY_DHCP_NTP)
 
     # default value?
     default = None
-    if "time-config-method" in answers:
-        default = selectDefault(answers['time-config-method'], entries)
+    if "ntp-config-method" in answers:
+        default = selectDefault(answers['ntp-config-method'], entries)
+    if answers['net-admin-configuration'].isStatic():
+        default = ENTRY_DEFAULT_NTP
 
     (button, entry) = ListboxChoiceWindow(
         tui.screen,
@@ -1018,28 +1028,16 @@ def get_time_configuration_method(answers):
 
     if button == 'back': return LEFT_BACKWARDS
 
-    if entry == 'ntp':
-        answers['time-config-method'] = 'ntp'
-    elif entry == 'manual':
-        answers['time-config-method'] = 'manual'
+    answers['ntp-config-method'] = entry
     return RIGHT_FORWARDS
 
 def get_ntp_servers(answers):
-    if answers['time-config-method'] != 'ntp':
+    if answers['ntp-config-method'] != 'manual':
         return SKIP_SCREEN
-
-    def dhcp_change():
-        for x in [ ntp1_field, ntp2_field, ntp3_field ]:
-            x.setFlags(FLAG_DISABLED, not dhcp_cb.value())
-
-    hide_cb = answers['net-admin-configuration'].isStatic()
 
     gf = GridFormHelp(tui.screen, 'NTP Configuration', 'ntpconf', 1, 4)
     text = TextboxReflowed(60, "Please specify details of the NTP servers you wish to use (e.g. pool.ntp.org)?")
     buttons = ButtonBar(tui.screen, [("Ok", "ok"), ("Back", "back")])
-
-    dhcp_cb = Checkbox("NTP is configured by my DHCP server", 1)
-    dhcp_cb.setCallback(dhcp_change, ())
 
     def ntpvalue(answers, sn):
         if 'ntp-servers' not in answers:
@@ -1052,11 +1050,8 @@ def get_ntp_servers(answers):
                 return ""
 
     ntp1_field = Entry(40, ntpvalue(answers, 0))
-    ntp1_field.setFlags(FLAG_DISABLED, hide_cb)
     ntp2_field = Entry(40, ntpvalue(answers, 1))
-    ntp2_field.setFlags(FLAG_DISABLED, hide_cb)
     ntp3_field = Entry(40, ntpvalue(answers, 2))
-    ntp3_field.setFlags(FLAG_DISABLED, hide_cb)
 
     ntp1_text = Textbox(15, 1, "NTP Server 1:")
     ntp2_text = Textbox(15, 1, "NTP Server 2:")
@@ -1073,9 +1068,6 @@ def get_ntp_servers(answers):
     i = 1
 
     gf.add(text, 0, 0, padding=(0, 0, 0, 1))
-    if not hide_cb:
-        gf.add(dhcp_cb, 0, 1)
-        i += 1
     gf.add(entry_grid, 0, i, padding=(0, 0, 0, 1))
     gf.add(buttons, 0, i+1, growx=1)
 
@@ -1083,22 +1075,20 @@ def get_ntp_servers(answers):
 
     if button == 'back': return LEFT_BACKWARDS
 
-    if hide_cb or not dhcp_cb.value():
-        servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
-        if len(servers) == 0:
-            ButtonChoiceWindow(tui.screen,
-                               "NTP Configuration",
-                               "You did not specify any NTP servers",
-                               ["Ok"])
-            return REPEAT_STEP
-        else:
-            answers['ntp-servers'] = servers
+    servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
+    if len(servers) == 0:
+        ButtonChoiceWindow(tui.screen,
+                            "NTP Configuration",
+                            "You did not specify any NTP servers",
+                            ["Ok"])
+        return REPEAT_STEP
     else:
-        answers['ntp-servers'] = []
+        answers['ntp-servers'] = servers
+
     return RIGHT_FORWARDS
 
 def set_time(answers):
-    if answers['time-config-method'] != 'manual':
+    if answers['ntp-config-method'] != 'none':
         return SKIP_SCREEN
 
     done = False

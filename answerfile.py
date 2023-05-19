@@ -434,10 +434,26 @@ class Answerfile:
             # Default to Etc/UTC if not present
             results['timezone'] = 'Etc/UTC'
 
-        nodes = getElementsByTagName(self.top_node, ['ntp-server', 'ntp-servers'])
-        results['ntp-servers'] = map(lambda x: getText(x), nodes)
-        results['time-config-method'] = 'ntp'
+        ntpNodes = getElementsByTagName(self.top_node, ['ntp'])
+        ntpServerNodes = getElementsByTagName(self.top_node, ['ntp-server', 'ntp-servers'])
+        if len(ntpNodes) == 1:
+            results['ntp-config-method'] = getStrAttribute(ntpNodes[0], ['source'], mandatory=True)
+            if results['ntp-config-method'] not in ("dhcp", "default", "manual", "none"):
+                raise AnswerfileException("Expected <ntp> source to be one of (dhcp, default, manual, none)")
+        elif len(ntpNodes) == 0:
+            # Maintain backwards compatibility by matching the missing ntp element to the answerfile contents
+            results['ntp-config-method'] = "default"
+            if ntpServerNodes:
+                results['ntp-config-method'] = "manual"
+            elif results['net-admin-configuration'].mode == NetInterface.DHCP:
+                results['ntp-config-method'] = "dhcp"
+        else:
+            raise AnswerfileException("Expected zero or one <ntp> elements but found %s" % len(ntpNodes))
 
+        if ntpServerNodes and results['ntp-config-method'] != "manual":
+            raise AnswerfileException("<ntp-server> and <ntp-servers> elements are only valid when using <ntp source=\"manual\" />")
+
+        results['ntp-servers'] = map(lambda x: getText(x), ntpServerNodes)
         return results
 
     def parseKeymap(self):
