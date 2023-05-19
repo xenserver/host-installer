@@ -217,7 +217,7 @@ class ExistingInstallation:
             results['root-password'] = ('pwdhash', root_pwd)
 
             # don't care about this too much.
-            results['time-config-method'] = 'ntp'
+            results['ntp-config-method'] = 'default'
 
             # read network configuration.  We only care to find out what the
             # management interface is, and what its configuration was.

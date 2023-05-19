@@ -264,6 +264,22 @@ Format of 'source' and 'driver-source'
     Specifies the timezone (region/city)
 
 
+  <ntp source="<source>" />
+
+    Specifies the source for NTP servers
+
+    <source> can be any one of dhcp|default|manual|none
+
+    dhcp - use NTP servers from DHCP
+    default - use default NTP servers
+    manual - use provided NTP servers, in this case at least one "<ntp-server>"
+              entry must be specified
+    none - NTP is disabled
+
+    If the "<ntp>" element is not specified, the default shall be "manual" if "<ntp-server>" is specified, "dhcp" if using DHCP, otherwise "default".
+    It is an error to provide "<ntp-server>" if <source> is dhcp|default|none.
+
+
   <ntp-server>ntp</ntp-server>*
   <ntp-servers>ntp</ntp-servers>*[D]
 

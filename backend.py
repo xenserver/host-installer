@@ -2,6 +2,7 @@
 
 import os
 import os.path
+import stat
 import subprocess
 import datetime
 import re
@@ -106,9 +107,9 @@ def getPrepSequence(ans, interactive):
         Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         ]
 
-    if ans['time-config-method'] == 'ntp':
-        seq.append(Task(setTimeNTP, A(ans, 'ntp-servers'), []))
-    elif ans['time-config-method'] == 'manual':
+    if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
+        seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
+    elif ans['ntp-config-method'] == "none":
         seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
 
     if not interactive:
@@ -204,8 +205,10 @@ def getFinalisationSequence(ans):
             Task(prepareStorageRepositories, A(ans, 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
             Task(configureSRMultipathing, A(ans, 'mounts', 'primary-disk'), []),
             ]
-    if ans['time-config-method'] == 'ntp':
-        seq.append(Task(configureNTP, A(ans, 'mounts', 'ntp-servers'), []))
+
+    seq.append(Task(setDHCPNTP, A(ans, "mounts", "ntp-config-method"), []))
+    if ans['ntp-config-method'] != "none":
+        seq.append(Task(configureNTP, A(ans, 'mounts', 'ntp-config-method', 'ntp-servers'), []))
     # complete upgrade if appropriate:
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
@@ -475,8 +478,8 @@ def rewriteNTPConf(root, ntp_servers):
         ntpsconf.write("server %s iburst\n" % server)
     ntpsconf.close()
 
-def setTimeNTP(ntp_servers):
-    if len(ntp_servers) > 0:
+def setTimeNTP(ntp_servers, ntp_config_method):
+    if ntp_config_method in ("dhcp", "manual"):
         rewriteNTPConf('', ntp_servers)
 
     # This might fail or stall if the network is not set up correctly so set a
@@ -493,9 +496,20 @@ def setTimeManually(localtime, set_time_dialog_dismissed, timezone):
     util.setLocalTime(timestr, timezone=timezone)
     assert util.runCmd2(['hwclock', '--utc', '--systohc']) == 0
 
-def configureNTP(mounts, ntp_servers):
+def setDHCPNTP(mounts, ntp_config_method):
+    script = os.path.join(mounts['root'], "etc/dhcp/dhclient.d/chrony.sh")
+    oldPermissions = os.stat(script).st_mode
+
+    if ntp_config_method == "dhcp":
+        newPermissions = oldPermissions | (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)  # Add execute permission
+    else:
+        newPermissions = oldPermissions & ~(stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)  # Remove execute permission
+
+    os.chmod(script, newPermissions)
+
+def configureNTP(mounts, ntp_config_method, ntp_servers):
     # If NTP servers were specified, update the NTP config file:
-    if len(ntp_servers) > 0:
+    if ntp_config_method in ("dhcp", "manual"):
         rewriteNTPConf(mounts['root'], ntp_servers)
 
     # now turn on the ntp service:
