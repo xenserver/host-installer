@@ -348,3 +348,22 @@ class NetInterface(object):
 
         nic.addIPv6(modev6, ipv6addr, gatewayv6)
         return nic
+
+class NetInterfaceV6(NetInterface):
+    def __init__(self, mode, hwaddr, ipaddr=None, netmask=None, gateway=None, dns=None, domain=None, vlan=None):
+        super(NetInterfaceV6, self).__init__(None, hwaddr, None, None, None, None, None, vlan)
+
+        ipv6addr = None
+        if mode == self.Static:
+            assert ipaddr
+            assert netmask
+
+            ipv6addr = ipaddr + "/" + netmask
+            if dns == '':
+                dns = None
+            elif isinstance(dns, str):
+                dns = [ dns ]
+            self.dns = dns
+            self.domain = domain
+
+        self.addIPv6(mode, ipv6addr=ipv6addr, ipv6gw=gateway)
