@@ -219,7 +219,7 @@ baseurl=%s
     def enableInitrdCreation(self):
         pass
 
-    def getBranding(self, mounts, branding):
+    def getBranding(self, branding):
         return branding
 
 class YumRepositoryWithInfo(YumRepository):
@@ -339,7 +339,7 @@ gpgkey=file://%s
     def enableInitrdCreation(self):
         os.unlink(self._conffile)
 
-    def getBranding(self, mounts, branding):
+    def getBranding(self, branding):
         if self._platform_data:
             branding.update({'platform-name': self._platform_data['name'],
                              'platform-version': self._platform_data['version'].ver_as_string() })

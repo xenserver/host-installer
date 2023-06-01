@@ -155,7 +155,7 @@ def getMainRepoSequence(ans, repos):
                 progress_text="Installing %s..." % (", ".join([repo.name() for repo in repos]))))
     for repo in repos:
         seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
-        seq.append(Task(repo.getBranding, A(ans, 'mounts', 'branding'), ['branding']))
+        seq.append(Task(repo.getBranding, A(ans, 'branding'), ['branding']))
     return seq
 
 def getRepoSequence(ans, repos):
@@ -166,7 +166,7 @@ def getRepoSequence(ans, repos):
                      pass_progress_callback=True,
                      progress_text="Installing %s..." % repo.name()))
         seq.append(Task(repo.record_install, A(ans, 'mounts', 'installed-repos'), ['installed-repos']))
-        seq.append(Task(repo.getBranding, A(ans, 'mounts', 'branding'), ['branding']))
+        seq.append(Task(repo.getBranding, A(ans, 'branding'), ['branding']))
     return seq
 
 def getFinalisationSequence(ans):
