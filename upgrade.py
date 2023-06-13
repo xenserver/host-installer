@@ -445,6 +445,9 @@ class ThirdGenUpgrader(Upgrader):
 
         self.restore_list += ['var/lib/xcp/verify_certificates']
 
+        # Keep IPv6 enablement/disablement upon upgrades
+        self.restore_list += ['etc/sysctl.d/91-net-ipv6.conf']
+        
         # NRPE service config
         self.restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
 
