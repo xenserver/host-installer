@@ -15,6 +15,47 @@ import socket
 from snack import *
 
 def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
+    def choose_primary_address_type(nic):
+        gf = GridFormHelp(tui.screen, 'Networking', 'Address type', 1, 8)
+        txt = "Choose an address type for %s (%s)" % (nic.name, nic.hwaddr)
+        text = TextboxReflowed(45, txt)
+
+        b = [("Ok", "ok"), ("Back", "back")]
+        buttons = ButtonBar(tui.screen, b)
+
+        # IPv4 by default
+        ipv4_rb = SingleRadioButton("IPv4", None, 1)
+        ipv6_rb = SingleRadioButton("IPv6", ipv4_rb, 0)
+        dual_rb = SingleRadioButton("Dual stack (IPv4 primary)", ipv6_rb, 0)
+
+        gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+        gf.add(ipv4_rb, 0, 2, anchorLeft=True)
+        gf.add(ipv6_rb, 0, 3, anchorLeft=True)
+        gf.add(dual_rb, 0, 4, anchorLeft=True)
+        gf.add(buttons, 0, 5, growx=1)
+
+        loop = True
+        direction = LEFT_BACKWARDS
+        address_type = None
+        while loop:
+            result = gf.run()
+            if buttons.buttonPressed(result) == 'back':
+                loop = False
+            elif buttons.buttonPressed(result) == 'ok':
+                value = None
+                if ipv4_rb.selected():
+                    value = "ipv4"
+                elif ipv6_rb.selected():
+                    value = "ipv6"
+                elif dual_rb.selected():
+                    value = "dual"
+                loop = False
+                direction = RIGHT_FORWARDS
+                address_type = value
+
+        tui.screen.popWindow()
+        return direction, address_type
+
     def get_ip_configuration(nic, txt, defaults, include_dns, iface_class):
         def use_vlan_cb_change():
             vlan_field.setFlags(FLAG_DISABLED, vlan_cb.value())
@@ -151,9 +192,30 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
 
         return RIGHT_FORWARDS, answers
 
-    direction, answers = get_ip_configuration(nic, txt, defaults, include_dns, NetInterface)
+    direction, address_type = choose_primary_address_type(nic)
     if direction == LEFT_BACKWARDS:
+        return LEFT_BACKWARDS, None
+
+    answers = None
+    if address_type in ["ipv4", "dual"]:
+        direction, answers = get_ip_configuration(nic, txt, defaults, include_dns, NetInterface)
+        if direction == LEFT_BACKWARDS:
             return LEFT_BACKWARDS, None
+
+    if address_type in ["ipv6", "dual"]:
+        direction, answers_ipv6 = get_ip_configuration(nic, txt, defaults, include_dns, NetInterfaceV6)
+        if direction == LEFT_BACKWARDS:
+            return LEFT_BACKWARDS, None
+
+        if answers == None:
+            answers = answers_ipv6
+        else:
+            answers.modev6 = answers_ipv6.modev6
+            answers.ipv6addr = answers_ipv6.ipv6addr
+            answers.ipv6_gateway = answers_ipv6.ipv6_gateway
+            if answers_ipv6.dns != None:
+                answers.dns = answers_ipv6.dns if answers.dns == None else answers.dns + answers_ipv6.dns
+
     return RIGHT_FORWARDS, answers
 
 def select_netif(text, conf, offer_existing=False, default=None):
