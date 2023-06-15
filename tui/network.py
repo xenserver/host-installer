@@ -286,23 +286,26 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         ifaceName = conf_dict['config'].getInterfaceName(conf_dict['interface'])
         netutil.ifdown(ifaceName)
 
-        # check that we have *some* network:
-        if netutil.ifup(ifaceName) != 0 or not netutil.interfaceUp(ifaceName):
+        def display_error():
             tui.progress.clearModelessDialog()
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
-            direction = REPEAT_STEP
-        else:
-            if answers and type(answers) == dict:
-                # write out results
-                answers[interface_key] = conf_dict['interface']
-                answers[config_key] = conf_dict['config']
-                # update cache of manual configurations
-                manual_config = {}
-                all_dhcp = False
-                if 'runtime-iface-configuration' in answers:
-                    manual_config = answers['runtime-iface-configuration'][1]
-                manual_config[conf_dict['interface']] = conf_dict['config']
-                answers['runtime-iface-configuration'] = (all_dhcp, manual_config)
-            tui.progress.clearModelessDialog()
+            return REPEAT_STEP
+
+        # check that we have *some* network:
+        if netutil.ifup(ifaceName) != 0 or not netutil.interfaceUp(ifaceName):
+            return display_error()
+
+        if answers and type(answers) == dict:
+            # write out results
+            answers[interface_key] = conf_dict['interface']
+            answers[config_key] = conf_dict['config']
+            # update cache of manual configurations
+            manual_config = {}
+            all_dhcp = False
+            if 'runtime-iface-configuration' in answers:
+                manual_config = answers['runtime-iface-configuration'][1]
+            manual_config[conf_dict['interface']] = conf_dict['config']
+            answers['runtime-iface-configuration'] = (all_dhcp, manual_config)
+        tui.progress.clearModelessDialog()
 
     return direction
