@@ -14,124 +14,129 @@ import time
 from snack import *
 
 def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
+    def get_ip_configuration(nic, txt, defaults, include_dns, iface_class):
+        def use_vlan_cb_change():
+            vlan_field.setFlags(FLAG_DISABLED, vlan_cb.value())
 
-    def use_vlan_cb_change():
-        vlan_field.setFlags(FLAG_DISABLED, vlan_cb.value())
+        def dhcp_change():
+            for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
+                x.setFlags(FLAG_DISABLED, static_rb.selected())
 
-    def dhcp_change():
-        for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
-            x.setFlags(FLAG_DISABLED, static_rb.selected())
+        gf = GridFormHelp(tui.screen, 'Networking', 'ifconfig', 1, 8)
+        if txt is None:
+            txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
+        text = TextboxReflowed(45, txt)
+        b = [("Ok", "ok"), ("Back", "back")]
+        buttons = ButtonBar(tui.screen, b)
 
-    gf = GridFormHelp(tui.screen, 'Networking', 'ifconfig', 1, 8)
-    if txt is None:
-        txt = "Configuration for %s (%s)" % (nic.name, nic.hwaddr)
-    text = TextboxReflowed(45, txt)
-    b = [("Ok", "ok"), ("Back", "back")]
-    buttons = ButtonBar(tui.screen, b)
+        ip_field = Entry(16)
+        subnet_field = Entry(16)
+        gateway_field = Entry(16)
+        dns_field = Entry(16)
+        vlan_field = Entry(16)
 
-    ip_field = Entry(16)
-    subnet_field = Entry(16)
-    gateway_field = Entry(16)
-    dns_field = Entry(16)
-    vlan_field = Entry(16)
+        if defaults and defaults.isStatic4():
+            # static configuration defined previously
+            dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 0)
+            dhcp_rb.setCallback(dhcp_change, ())
+            static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 1)
+            static_rb.setCallback(dhcp_change, ())
+            if defaults.ipaddr:
+                ip_field.set(defaults.ipaddr)
+            if defaults.netmask:
+                subnet_field.set(defaults.netmask)
+            if defaults.gateway:
+                gateway_field.set(defaults.gateway)
+            if defaults.dns:
+                dns_field.set(defaults.dns[0])
+        else:
+            dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
+            dhcp_rb.setCallback(dhcp_change, ())
+            static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 0)
+            static_rb.setCallback(dhcp_change, ())
+            ip_field.setFlags(FLAG_DISABLED, False)
+            subnet_field.setFlags(FLAG_DISABLED, False)
+            gateway_field.setFlags(FLAG_DISABLED, False)
+            dns_field.setFlags(FLAG_DISABLED, False)
 
-    if defaults and defaults.isStatic4():
-        # static configuration defined previously
-        dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 0)
-        dhcp_rb.setCallback(dhcp_change, ())
-        static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 1)
-        static_rb.setCallback(dhcp_change, ())
-        if defaults.ipaddr:
-            ip_field.set(defaults.ipaddr)
-        if defaults.netmask:
-            subnet_field.set(defaults.netmask)
-        if defaults.gateway:
-            gateway_field.set(defaults.gateway)
-        if defaults.dns:
-            dns_field.set(defaults.dns[0])
-    else:
-        dhcp_rb = SingleRadioButton("Automatic configuration (DHCP)", None, 1)
-        dhcp_rb.setCallback(dhcp_change, ())
-        static_rb = SingleRadioButton("Static configuration:", dhcp_rb, 0)
-        static_rb.setCallback(dhcp_change, ())
-        ip_field.setFlags(FLAG_DISABLED, False)
-        subnet_field.setFlags(FLAG_DISABLED, False)
-        gateway_field.setFlags(FLAG_DISABLED, False)
-        dns_field.setFlags(FLAG_DISABLED, False)
+        vlan_cb = Checkbox("Use VLAN:", defaults.isVlan() if defaults else False)
+        vlan_cb.setCallback(use_vlan_cb_change, ())
+        if defaults and defaults.isVlan():
+            vlan_field.set(str(defaults.vlan))
+        else:
+            vlan_field.setFlags(FLAG_DISABLED, False)
 
-    vlan_cb = Checkbox("Use VLAN:", defaults.isVlan() if defaults else False)
-    vlan_cb.setCallback(use_vlan_cb_change, ())
-    if defaults and defaults.isVlan():
-        vlan_field.set(str(defaults.vlan))
-    else:
-        vlan_field.setFlags(FLAG_DISABLED, False)
+        ip_text = Textbox(15, 1, "IP Address:")
+        subnet_text = Textbox(15, 1, "Subnet mask:")
+        gateway_text = Textbox(15, 1, "Gateway:")
+        dns_text = Textbox(15, 1, "Nameserver:")
+        vlan_text = Textbox(15, 1, "VLAN (1-4094):")
 
-    ip_text = Textbox(15, 1, "IP Address:")
-    subnet_text = Textbox(15, 1, "Subnet mask:")
-    gateway_text = Textbox(15, 1, "Gateway:")
-    dns_text = Textbox(15, 1, "Nameserver:")
-    vlan_text = Textbox(15, 1, "VLAN (1-4094):")
+        entry_grid = Grid(2, include_dns and 4 or 3)
+        entry_grid.setField(ip_text, 0, 0)
+        entry_grid.setField(ip_field, 1, 0)
+        entry_grid.setField(subnet_text, 0, 1)
+        entry_grid.setField(subnet_field, 1, 1)
+        entry_grid.setField(gateway_text, 0, 2)
+        entry_grid.setField(gateway_field, 1, 2)
+        if include_dns:
+            entry_grid.setField(dns_text, 0, 3)
+            entry_grid.setField(dns_field, 1, 3)
 
-    entry_grid = Grid(2, include_dns and 4 or 3)
-    entry_grid.setField(ip_text, 0, 0)
-    entry_grid.setField(ip_field, 1, 0)
-    entry_grid.setField(subnet_text, 0, 1)
-    entry_grid.setField(subnet_field, 1, 1)
-    entry_grid.setField(gateway_text, 0, 2)
-    entry_grid.setField(gateway_field, 1, 2)
-    if include_dns:
-        entry_grid.setField(dns_text, 0, 3)
-        entry_grid.setField(dns_field, 1, 3)
+        vlan_grid =  Grid(2, 1)
+        vlan_grid.setField(vlan_text, 0, 0)
+        vlan_grid.setField(vlan_field, 1, 0)
 
-    vlan_grid =  Grid(2, 1)
-    vlan_grid.setField(vlan_text, 0, 0)
-    vlan_grid.setField(vlan_field, 1, 0)
+        gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+        gf.add(dhcp_rb, 0, 2, anchorLeft=True)
+        gf.add(static_rb, 0, 3, anchorLeft=True)
+        gf.add(entry_grid, 0, 4, padding=(0, 0, 0, 1))
+        gf.add(vlan_cb, 0, 5, anchorLeft=True)
+        gf.add(vlan_grid, 0, 6, padding=(0, 0, 0, 1))
+        gf.add(buttons, 0, 7, growx=1)
 
-    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
-    gf.add(dhcp_rb, 0, 2, anchorLeft=True)
-    gf.add(static_rb, 0, 3, anchorLeft=True)
-    gf.add(entry_grid, 0, 4, padding=(0, 0, 0, 1))
-    gf.add(vlan_cb, 0, 5, anchorLeft=True)
-    gf.add(vlan_grid, 0, 6, padding=(0, 0, 0, 1))
-    gf.add(buttons, 0, 7, growx=1)
+        loop = True
+        while loop:
+            result = gf.run()
 
-    loop = True
-    while loop:
-        result = gf.run()
-
-        if buttons.buttonPressed(result) in ['ok', None]:
-            # validate input
-            msg = ''
-            if static_rb.selected():
-                if not netutil.valid_ip_addr(ip_field.value()):
-                    msg = 'IP Address'
-                elif not netutil.valid_ip_addr(subnet_field.value()):
-                    msg = 'Subnet mask'
-                elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
-                    msg = 'Gateway'
-                elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
-                    msg = 'Nameserver'
-            if vlan_cb.selected():
-                if not netutil.valid_vlan(vlan_field.value()):
-                    msg = 'VLAN'
-            if msg != '':
-                tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)
+            if buttons.buttonPressed(result) in ['ok', None]:
+                # validate input
+                msg = ''
+                if static_rb.selected():
+                    if not netutil.valid_ip_addr(ip_field.value()):
+                        msg = 'IP Address'
+                    elif not netutil.valid_ip_addr(subnet_field.value()):
+                        msg = 'Subnet mask'
+                    elif gateway_field.value() != '' and not netutil.valid_ip_addr(gateway_field.value()):
+                        msg = 'Gateway'
+                    elif dns_field.value() != '' and not netutil.valid_ip_addr(dns_field.value()):
+                        msg = 'Nameserver'
+                if vlan_cb.selected():
+                    if not netutil.valid_vlan(vlan_field.value()):
+                        msg = 'VLAN'
+                if msg != '':
+                    tui.progress.OKDialog("Networking", "Invalid %s, please check the field and try again." % msg)
+                else:
+                    loop = False
             else:
                 loop = False
+
+        tui.screen.popWindow()
+
+        if buttons.buttonPressed(result) == 'back': return LEFT_BACKWARDS, None
+
+        vlan_value = int(vlan_field.value()) if vlan_cb.selected() else None
+        if bool(dhcp_rb.selected()):
+            answers = NetInterface(NetInterface.DHCP, nic.hwaddr, vlan=vlan_value)
         else:
-            loop = False
+            answers = NetInterface(NetInterface.Static, nic.hwaddr, ip_field.value(),
+                                subnet_field.value(), gateway_field.value(),
+                                dns_field.value(), vlan=vlan_value)
+        return RIGHT_FORWARDS, answers
 
-    tui.screen.popWindow()
-
-    if buttons.buttonPressed(result) == 'back': return LEFT_BACKWARDS, None
-
-    vlan_value = int(vlan_field.value()) if vlan_cb.selected() else None
-    if bool(dhcp_rb.selected()):
-        answers = NetInterface(NetInterface.DHCP, nic.hwaddr, vlan=vlan_value)
-    else:
-        answers = NetInterface(NetInterface.Static, nic.hwaddr, ip_field.value(),
-                               subnet_field.value(), gateway_field.value(),
-                               dns_field.value(), vlan=vlan_value)
+    direction, answers = get_ip_configuration(nic, txt, defaults, include_dns, NetInterface)
+    if direction == LEFT_BACKWARDS:
+            return LEFT_BACKWARDS, None
     return RIGHT_FORWARDS, answers
 
 def select_netif(text, conf, offer_existing=False, default=None):
