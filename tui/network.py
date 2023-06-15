@@ -19,7 +19,7 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
 
     def dhcp_change():
         for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
-            x.setFlags(FLAG_DISABLED, not dhcp_rb.selected())
+            x.setFlags(FLAG_DISABLED, static_rb.selected())
 
     gf = GridFormHelp(tui.screen, 'Networking', 'ifconfig', 1, 8)
     if txt is None:
