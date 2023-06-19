@@ -396,5 +396,11 @@ class NetInterfaceV6(NetInterface):
                 dns = [ dns ]
             self.dns = dns
             self.domain = domain
+        elif mode == self.Autoconf:
+            if dns == '':
+                dns = None
+            elif isinstance(dns, str):
+                dns = [ dns ]
+            self.dns = dns
 
         self.addIPv6(mode, ipv6addr=ipv6addr, ipv6gw=gateway)

@@ -64,6 +64,10 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
             for x in [ ip_field, gateway_field, subnet_field, dns_field ]:
                 x.setFlags(FLAG_DISABLED, static_rb.selected())
 
+            # Allow manual DNS for autoconf
+            if autoconf_rb.selected():
+                dns_field.setFlags(FLAG_DISABLED, True)
+
         ipv6 = iface_class == NetInterfaceV6
 
         gf = GridFormHelp(tui.screen, 'Networking', 'ifconfig', 1, 10)
@@ -123,16 +127,19 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
         dns_text = Textbox(15, 1, "Nameserver:")
         vlan_text = Textbox(15, 1, "VLAN (1-4094):")
 
-        entry_grid = Grid(2, include_dns and 4 or 3)
+        entry_grid = Grid(2, 3)
         entry_grid.setField(ip_text, 0, 0)
         entry_grid.setField(ip_field, 1, 0)
         entry_grid.setField(subnet_text, 0, 1)
         entry_grid.setField(subnet_field, 1, 1)
         entry_grid.setField(gateway_text, 0, 2)
         entry_grid.setField(gateway_field, 1, 2)
+
+        dns_grid = None
         if include_dns:
-            entry_grid.setField(dns_text, 0, 3)
-            entry_grid.setField(dns_field, 1, 3)
+            dns_grid =  Grid(2, 1)
+            dns_grid.setField(dns_text, 0, 0)
+            dns_grid.setField(dns_field, 1, 0)
 
         vlan_grid =  Grid(2, 1)
         vlan_grid.setField(vlan_text, 0, 0)
@@ -144,9 +151,11 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
         gf.add(entry_grid, 0, 4, padding=(0, 0, 0, 1))
         if ipv6:
             gf.add(autoconf_rb, 0, 5, anchorLeft=True)
-        gf.add(vlan_cb, 0, 6, anchorLeft=True)
-        gf.add(vlan_grid, 0, 7, padding=(0, 0, 0, 1))
-        gf.add(buttons, 0, 8, growx=1)
+        if include_dns:
+            gf.add(dns_grid, 0, 6, anchorLeft=True)
+        gf.add(vlan_cb, 0, 7, anchorLeft=True)
+        gf.add(vlan_grid, 0, 8, padding=(0, 0, 0, 1))
+        gf.add(buttons, 0, 9, growx=1)
 
         loop = True
         ip_family = socket.AF_INET6 if ipv6 else socket.AF_INET
@@ -166,6 +175,9 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
                         msg = 'Gateway'
                     elif dns_field.value() != '' and not netutil.valid_ip_address_family(dns_field.value(), ip_family):
                         msg = 'Nameserver'
+                elif autoconf_rb.selected():
+                    if dns_field.value() != '' and not netutil.valid_ip_address_family(dns_field.value(), ip_family):
+                        msg = 'Nameserver'
                 if vlan_cb.selected():
                     if not netutil.valid_vlan(vlan_field.value()):
                         msg = 'VLAN'
@@ -184,7 +196,8 @@ def get_iface_configuration(nic, txt=None, defaults=None, include_dns=False):
         if dhcp_rb.selected():
             answers = iface_class(NetInterface.DHCP, nic.hwaddr, vlan=vlan_value)
         elif ipv6 and autoconf_rb.selected():
-            answers = iface_class(NetInterface.Autoconf, nic.hwaddr, vlan=vlan_value)
+            answers = iface_class(NetInterface.Autoconf, nic.hwaddr,
+                                  dns=dns_field.value(), vlan=vlan_value)
         else:
             answers = iface_class(NetInterface.Static, nic.hwaddr, ip_field.value(),
                             subnet_field.value(), gateway_field.value(),
