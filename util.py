@@ -388,6 +388,9 @@ class URL(object):
 
             return self.url
 
+    def __repr__(self):
+        return "'" + self.__str__() + "'"
+
     def getScheme(self):
         return self.scheme
 
