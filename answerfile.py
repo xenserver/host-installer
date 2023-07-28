@@ -137,7 +137,7 @@ class Answerfile:
         results.update(self.parseInterface())
         results.update(self.parseRootPassword())
         results.update(self.parseNSConfig())
-        results.update(self.parseTimeConfig())
+        self.parseTimeConfig(results)
         results.update(self.parseKeymap())
         results.update(self.parseServices())
 
@@ -424,8 +424,7 @@ class Answerfile:
             results['manual-hostname'] = (False, None)
         return results
 
-    def parseTimeConfig(self):
-        results = {}
+    def parseTimeConfig(self, results):
 
         nodes = getElementsByTagName(self.top_node, ['timezone'])
         if len(nodes) > 0:
@@ -454,7 +453,6 @@ class Answerfile:
             raise AnswerfileException("<ntp-server> and <ntp-servers> elements are only valid when using <ntp source=\"manual\" />")
 
         results['ntp-servers'] = map(lambda x: getText(x), ntpServerNodes)
-        return results
 
     def parseKeymap(self):
         results = {}
