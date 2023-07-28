@@ -443,19 +443,19 @@ def eula_screen(answers):
     while True:
         button = snackutil.ButtonChoiceWindowEx(
             tui.screen,
-            "End User License Agreement",
+            "End User Agreement",
             eula,
-            ['Accept EULA', 'Back'], width=60, default=1, help='eula')
+            ['Accept EUA', 'Back'], width=60, default=1, help='eua')
 
-        if button == 'accept eula':
+        if button == 'accept eua':
             return RIGHT_FORWARDS
         elif button == 'back':
             return LEFT_BACKWARDS
         else:
             ButtonChoiceWindow(
                 tui.screen,
-                "End User License Agreement",
-                "You must select 'Accept EULA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this product.",
+                "End User Agreement",
+                "You must select 'Accept EUA' (by highlighting it with the cursor keys, then pressing either Space or Enter) in order to install this product.",
                 ['Ok'])
 
 def confirm_erase_volume_groups(answers):
