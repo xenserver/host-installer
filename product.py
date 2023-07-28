@@ -228,6 +228,7 @@ class ExistingInstallation:
 
             if not mgmt_iface:
                 logger.log('No existing management interface found.')
+                raise SettingsNotAvailable("Could not find network configuration")
             elif os.path.exists(self.join_state_path(constants.NETWORK_DB)):
                 logger.log('Checking %s for management interface configuration' % constants.NETWORKD_DB)
 
@@ -280,6 +281,9 @@ class ExistingInstallation:
                     results['net-admin-configuration'].addIPv6(NetInterface.DHCP)
                 elif protov6 == 'autoconf':
                     results['net-admin-configuration'].addIPv6(NetInterface.Autoconf)
+            else:
+                logger.log("Failed to find " + self.join_state_path(constants.NETWORK_DB))
+                raise SettingsNotAvailable("Could not find network configuration")
 
             repo_list = []
             if os.path.exists(self.join_state_path(constants.INSTALLED_REPOS_DIR)):

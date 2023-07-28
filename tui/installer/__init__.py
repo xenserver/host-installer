@@ -24,8 +24,11 @@ def need_networking(answers):
            answers['source-media'] in ['url', 'nfs']:
         return True
     if 'installation-to-overwrite' in answers:
-        settings = answers['installation-to-overwrite'].readSettings()
-        return (settings['master'] is not None)
+        try:
+            settings = answers['installation-to-overwrite'].readSettings()
+            return (settings['master'] is not None)
+        except product.SettingsNotAvailable as text:
+            logger.log("Settings unavailable: %s" % text)
     return False
 
 is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']
@@ -72,20 +75,25 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
     def preserve_timezone(answers):
         if not_preserve_settings(answers):
             return False
-        if 'installation-to-overwrite' not in answers:
-            return False
-        settings = answers['installation-to-overwrite'].readSettings()
-        return 'timezone' in settings and 'request-timezone' not in settings
+        if 'installation-to-overwrite' in answers and \
+                answers['installation-to-overwrite'].settingsAvailable():
+            settings = answers['installation-to-overwrite'].readSettings()
+            return 'timezone' in settings and 'request-timezone' not in settings
+        return False
     not_preserve_timezone = lambda a: not preserve_timezone(a)
 
     def ha_enabled(answers):
         settings = {}
-        if 'installation-to-overwrite' in answers:
+        if 'installation-to-overwrite' in answers and \
+                answers['installation-to-overwrite'].settingsAvailable():
             settings = answers['installation-to-overwrite'].readSettings()
         return 'ha-armed' in settings and settings['ha-armed']
 
     def out_of_order_pool_upgrade_fn(answers):
-        if 'installation-to-overwrite' not in answers:
+        if (
+            "installation-to-overwrite" not in answers
+            or not answers["installation-to-overwrite"].settingsAvailable()
+        ):
             return False
 
         ret = False
