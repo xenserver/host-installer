@@ -250,8 +250,18 @@ def fetchFile(source, dest):
                source[:6] == 'https:' or \
                source[:5] == 'file:' or \
                source[:4] == 'ftp:':
-            # This something that can be fetched using urllib2:
-            fd = urllib2.urlopen(source)
+            # This something that can be fetched using urllib2
+            request = source
+
+            url = URL(source)
+            if url.getScheme() in ['http', 'https'] and url.getUsername(): # Auth HTTP(s)
+                passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+                passman.add_password(None, url.getHostname(), url.getUsername(), url.getPassword())
+                handler = urllib2.HTTPBasicAuthHandler(passman)
+                urllib2.install_opener(urllib2.build_opener(handler))
+                request = url.getPlainURL()
+
+            fd = urllib2.urlopen(request)
             fd_dest = open(dest, 'w')
             shutil.copyfileobj(fd, fd_dest)
             fd_dest.close()
