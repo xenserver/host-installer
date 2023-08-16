@@ -474,8 +474,10 @@ def rewriteNTPConf(root, ntp_servers):
     ntpsconf = open("%s/etc/chrony.conf" % root, 'w')
     for line in lines:
         ntpsconf.write(line)
-    for server in ntp_servers:
-        ntpsconf.write("server %s iburst\n" % server)
+
+    if ntp_servers:
+        for server in ntp_servers:
+            ntpsconf.write("server %s iburst\n" % server)
     ntpsconf.close()
 
 def setTimeNTP(ntp_servers, ntp_config_method):
