@@ -4,7 +4,7 @@
 
 SUPPORT_FILE="/tmp/support.tar.bz2"
 echo "Collecting logs for submission to Technical Support..."
-/usr/bin/python /opt/xensource/installer/xelogging.py
+/usr/bin/python3 /opt/xensource/installer/xelogging.py
 echo
 echo "Logfiles have been collected. You can find them in ${SUPPORT_FILE}:"
 echo

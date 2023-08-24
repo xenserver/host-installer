@@ -20,7 +20,7 @@ Scripts are expected to begin with a shebang, with the following as accepted
 interpreters:
   /bin/sh
   /bin/bash
-  /usr/bin/python
+  /usr/bin/python3
 
 
 Startup

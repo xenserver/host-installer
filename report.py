@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # SPDX-License-Identifier: GPL-2.0-only
 
@@ -12,8 +12,7 @@ import snack
 import snackutil
 import sys
 import uicontroller
-import urllib
-import urlparse
+import urllib.parse
 import util
 from version import *
 from xelogging import collectLogs
@@ -177,13 +176,13 @@ def get_ftp_dest(answers):
 
     if 'dest-address' in answers:
         url = answers['dest-address']
-        parts = urlparse.urlsplit(url)
+        parts = urllib.parse.urlsplit(url)
         if parts.username is not None:
-            user_field.set(urllib.unquote(parts.username))
+            user_field.set(urllib.parse.unquote(parts.username))
             if parts.password is None:
                 url_field.set(url.replace('%s@' % parts.username, '', 1))
             else:
-                passwd_field.set(urllib.unquote(parts.password))
+                passwd_field.set(urllib.parse.unquote(parts.password))
                 url_field.set(url.replace('%s:%s@' % (parts.username, parts.password), '', 1))
         else:
             url_field.set(url)
@@ -212,9 +211,9 @@ def get_ftp_dest(answers):
     if not url.startswith('ftp://'):
         url = 'ftp://' + url
     if user_field.value() != '':
-        quoted_user = urllib.quote(user_field.value(), safe='')
+        quoted_user = urllib.parse.quote(user_field.value(), safe='')
         if passwd_field.value() != '':
-            quoted_passwd = urllib.quote(passwd_field.value(), safe='')
+            quoted_passwd = urllib.parse.quote(passwd_field.value(), safe='')
             answers['dest-address'] = url.replace('//', '//%s:%s@' % (quoted_user, quoted_passwd), 1)
         else:
             answers['dest-address'] = url.replace('//', '//%s@' % quoted_user, 1)

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # SPDX-License-Identifier: GPL-2.0-only
 
@@ -66,13 +66,13 @@ def configureNetworking(ui, device, config):
 
     iface_to_start = []
     if device == 'all':
-        iface_to_start.extend(netcfg.keys())
+        iface_to_start.extend(list(netcfg.keys()))
     elif device.startswith('eth'):
         if device in nethw:
             iface_to_start.append(device)
     else:
         # MAC address
-        matching_list = filter(lambda x: x.hwaddr == device, nethw.values())
+        matching_list = [x for x in nethw.values() if x.hwaddr == device]
         if len(matching_list) == 1:
             devname = matching_list[0].name
             iface_to_start.append(devname)
@@ -99,7 +99,7 @@ def main(args):
     try:
         tty = os.path.basename(os.readlink('/proc/self/fd/0'))
         pidfile = open('/var/run/installer-%s.pid' % tty, 'w')
-        print >>pidfile, os.getpid()
+        print(os.getpid(), file=pidfile)
         pidfile.close()
     except:
         pass
@@ -164,7 +164,7 @@ def main(args):
     if ui:
         # switch to ISO 8859-1 mode so line drawing characters work as expected on
         # vt100 terminals.
-        print "\033%@"
+        print("\033%@")
 
         logger.log("Starting 'init' user interface on %s" % tty)
         ui.init_ui()

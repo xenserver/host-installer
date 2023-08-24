@@ -9,8 +9,7 @@ import tui.progress
 from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import repository
 import generalui
-import urlparse
-import urllib
+import urllib.parse
 import util
 from xcp import logger
 
@@ -29,7 +28,7 @@ def selectDefault(key, entries):
     REPOCHK_NO_BASE_REPO,
     REPOCHK_PLATFORM_VERSION_MISMATCH,
     REPOCHK_NO_ERRORS
-) = range(5)
+) = list(range(5))
 
 def check_repo_def(definition, require_base_repo):
     """ Check that the repository source definition gives access to suitable
@@ -160,9 +159,9 @@ def get_url_location(answers, require_base_repo):
         if button == 'back': return LEFT_BACKWARDS
 
         if user_field.value() != '':
-            quoted_user = urllib.quote(user_field.value(), safe='')
+            quoted_user = urllib.parse.quote(user_field.value(), safe='')
             if passwd_field.value() != '':
-                quoted_passwd = urllib.quote(passwd_field.value(), safe='')
+                quoted_passwd = urllib.parse.quote(passwd_field.value(), safe='')
                 urlstr = url_field.value().replace('//', '//%s:%s@' % (quoted_user, quoted_passwd), 1)
             else:
                 urlstr = url_field.value().replace('//', '//%s@' % quoted_user, 1)
@@ -206,7 +205,7 @@ def get_source_location(answers, require_base_rep):
         return get_nfs_location(answers, require_base_rep)
 
 def confirm_load_repo(answers, label, installed_repos):
-    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    cap_label = ' '.join([a.capitalize() for a in label.split()])
     if 'source-media' in answers and 'source-address' in answers:
         media = answers['source-media']
         address = answers['source-address']
@@ -227,7 +226,7 @@ def confirm_load_repo(answers, label, installed_repos):
         return LEFT_BACKWARDS
 
     if label != 'driver':
-        repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
+        repos = [r for r in repos if r.identifier() != constants.MAIN_REPOSITORY_NAME]
 
     if len(repos) == 0:
         ButtonChoiceWindow(
@@ -236,7 +235,7 @@ def confirm_load_repo(answers, label, installed_repos):
             ['Back'])
         return LEFT_BACKWARDS
 
-    USE, VERIFY, BACK = range(3)
+    USE, VERIFY, BACK = list(range(3))
     default_button = BACK
     if len(repos) == 1:
         text = TextboxReflowed(54, "The following %s was found:\n\n" % label)
@@ -285,7 +284,7 @@ def confirm_load_repo(answers, label, installed_repos):
 
 # verify the installation source?
 def verify_source(answers, label, require_base_repo):
-    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    cap_label = ' '.join([a.capitalize() for a in label.split()])
     if 'source-media' in answers and 'source-address' in answers:
         media = answers['source-media']
         address = answers['source-address']
@@ -293,7 +292,7 @@ def verify_source(answers, label, require_base_repo):
         media = 'local'
         address = ''
     done = False
-    SKIP, VERIFY = range(2)
+    SKIP, VERIFY = list(range(2))
     entries = [ ("Skip verification", SKIP),
                 ("Verify %s source" % label, VERIFY), ]
 
@@ -337,7 +336,7 @@ def verify_source(answers, label, require_base_repo):
     return RIGHT_FORWARDS
 
 def interactive_source_verification(repos, label):
-    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    cap_label = ' '.join([a.capitalize() for a in label.split()])
     errors = []
     pd = tui.progress.initProgressDialog(
         "Verifying %s Source" % cap_label, "Initializing...",

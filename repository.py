@@ -4,12 +4,9 @@ import os
 import os.path
 import glob
 import errno
-import md5
 import hashlib
 import tempfile
-import urlparse
-import urllib
-import urllib2
+import urllib.request, urllib.parse
 import ftplib
 import subprocess
 import re
@@ -27,7 +24,7 @@ from xcp import logger
 import cpiofile
 from constants import *
 import xml.dom.minidom
-import ConfigParser
+import configparser
 
 # get text from a node:
 def getText(nodelist):
@@ -132,7 +129,7 @@ class YumRepository(Repository):
                 primary_location = primary_location[0].getAttribute("href")
         repomdfp.close()
 
-        primaryfp = accessor.openAddress(primary_location)
+        primaryfp = accessor.openAddress(primary_location, mode="rb")
         # Open compressed xml using cpiofile._Stream which is an adapter between CpioFile and a stream-like object.
         # Useful when specifying the URL for HTTP or FTP repository - A simple GzipFile object will not work in this situation.
         primary_xml = cpiofile._Stream("", "r", "gz", primaryfp, 20*512)
@@ -144,7 +141,7 @@ class YumRepository(Repository):
         primaryfp.close()
 
         # Filter using only sha256 checksum
-        sha256_checksums = filter(lambda x: x.getAttribute("type") == "sha256", package_checksums)
+        sha256_checksums = [x for x in package_checksums if x.getAttribute("type") == "sha256"]
 
         # After the filter, the list of checksums will have the same size
         # of the list of names
@@ -253,7 +250,7 @@ class MainYumRepository(YumRepositoryWithInfo):
 
         accessor.start()
         try:
-            treeinfo = ConfigParser.SafeConfigParser()
+            treeinfo = configparser.SafeConfigParser()
             treeinfofp = accessor.openAddress(self.INFO_FILENAME)
             try:
                 treeinfo.readfp(treeinfofp)
@@ -331,10 +328,10 @@ gpgkey=file://%s
         # It is created after the yum install phase.
         confdir = os.path.join(root, 'etc', 'dracut.conf.d')
         self._conffile = os.path.join(confdir, 'xs_disable.conf')
-        os.makedirs(confdir, 0775)
+        os.makedirs(confdir, 0o775)
         with open(self._conffile, 'w') as f:
-            print >> f, 'echo Skipping initrd creation during host installation'
-            print >> f, 'exit 0'
+            print('echo Skipping initrd creation during host installation', file=f)
+            print('exit 0', file=f)
 
     def enableInitrdCreation(self):
         os.unlink(self._conffile)
@@ -442,7 +439,7 @@ class RPMPackage(object):
     def __init__(self, repository, name, size, sha256sum):
         self.repository = repository
         self.name = name
-        self.size = long(size)
+        self.size = int(size)
         self.sha256sum = sha256sum
 
     def check(self, fast=False, progress=lambda x : ()):
@@ -517,8 +514,8 @@ class FilesystemAccessor(Accessor):
     def finish(self):
         pass
 
-    def openAddress(self, addr):
-        return open(os.path.join(self.location, addr), 'r')
+    def openAddress(self, addr, mode="r"):
+        return open(os.path.join(self.location, addr), mode)
 
     def url(self):
         return util.URL("file://%s" % self.location)
@@ -636,18 +633,18 @@ class URLAccessor(Accessor):
                 logger.log("Using basic HTTP authentication")
                 hostname = self._url.getHostname()
                 password = self._url.getPassword()
-                self.passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+                self.passman = urllib.request.HTTPPasswordMgrWithDefaultRealm()
                 self.passman.add_password(None, hostname, username, password)
-                self.authhandler = urllib2.HTTPBasicAuthHandler(self.passman)
-                self.opener = urllib2.build_opener(self.authhandler)
-                urllib2.install_opener(self.opener)
+                self.authhandler = urllib.request.HTTPBasicAuthHandler(self.passman)
+                self.opener = urllib.request.build_opener(self.authhandler)
+                urllib.request.install_opener(self.opener)
 
         logger.log("Initializing URLRepositoryAccessor with base address %s" % str(self._url))
 
     def _url_concat(url1, end):
         url1 = url1.rstrip('/')
         end = end.lstrip('/')
-        return url1 + '/' + urllib.quote(end)
+        return url1 + '/' + urllib.parse.quote(end)
     _url_concat = staticmethod(_url_concat)
 
     def _url_decode(url):
@@ -678,7 +675,7 @@ class URLAccessor(Accessor):
         # if FTP, override by actually checking the file exists because urllib2 seems
         # to be not so good at this.
         try:
-            (scheme, netloc, path, params, query) = urlparse.urlsplit(url)
+            (scheme, netloc, path, params, query) = urllib.parse.urlsplit(url)
             fname = os.path.basename(path)
             directory = self._url_decode(os.path.dirname(path[1:]))
             hostname = self._url.getHostname()
@@ -699,9 +696,9 @@ class URLAccessor(Accessor):
 
     def openAddress(self, address):
         if self._url.getScheme() in ['http', 'https']:
-            ret_val = urllib2.urlopen(self._url_concat(self._url.getPlainURL(), address))
+            ret_val = urllib.request.urlopen(self._url_concat(self._url.getPlainURL(), address))
         else:
-            ret_val = urllib2.urlopen(self._url_concat(self._url.getURL(), address))
+            ret_val = urllib.request.urlopen(self._url_concat(self._url.getURL(), address))
         return URLFileWrapper(ret_val)
 
     def url(self):
@@ -737,8 +734,7 @@ def findRepositoriesOnMedia(drivers=False):
         static_devices.extend(map(os.path.basename, glob.glob('/sys/block/' + pattern)))
 
     removable_devices = diskutil.getRemovableDeviceList()
-    removable_devices = filter(lambda x: not x.startswith('fd'),
-                               removable_devices)
+    removable_devices = [x for x in removable_devices if not x.startswith('fd')]
 
     parent_devices = []
     partitions = []
@@ -791,7 +787,7 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
                        '--installroot', mounts['root'],
                        'install', '-y'] + targets
         logger.log("Running yum: %s" % ' '.join(yum_command))
-        p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr)
+        p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr, universal_newlines=True)
         count = 0
         total = 0
         verify_count = 0

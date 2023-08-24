@@ -30,8 +30,9 @@ def showMessageDialog(title, text):
     tui.screen.pushHelpLine(PLEASE_WAIT_STRING)
     tui.screen.refresh()
 
-def displayProgressDialog(current, (form, t, scale), updated_text=None):
-    scale.set(current)
+def displayProgressDialog(current, form_info, updated_text=None):
+    (form, t, scale) = form_info
+    scale.set(int(current))
     if updated_text:
         t.setText(updated_text)
 

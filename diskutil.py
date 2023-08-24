@@ -4,7 +4,6 @@ import re, sys
 import os.path
 import errno
 import constants
-import CDROM
 import fcntl
 import glob
 import util
@@ -16,6 +15,7 @@ import time
 from snackutil import ButtonChoiceWindowEx
 
 use_mpath = False
+CDROM_GET_CAPABILITY = 0x5331
 
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
@@ -106,7 +106,7 @@ disk_nodes += [ (202, x * 16) for x in range(16) ]
 
 # /dev/cciss : c[0-7]d[0-15]: Compaq Next Generation Drive Array
 # /dev/ida   : c[0-7]d[0-15]: Compaq Intelligent Drive Array
-for major in range(72, 80) + range(104, 112):
+for major in list(range(72, 80)) + list(range(104, 112)):
     disk_nodes += [ (major, x * 16) for x in range(16) ]
 
 # /dev/rd    : c[0-7]d[0-31]: Mylex DAC960 PCI RAID controller
@@ -116,8 +116,7 @@ for major in range(48, 56):
 def getDiskList():
     # read the partition tables:
     parts = open("/proc/partitions")
-    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
-                    parts.readlines())
+    partlines = [re.sub(" +", " ", x).strip() for x in parts.readlines()]
     parts.close()
 
     # parse it:
@@ -147,9 +146,9 @@ def getDiskList():
             # it wasn't an actual entry, maybe the headers or something:
             continue
     # Add multipath nodes to list
-    disks.extend(map(lambda node: node.replace('/dev/',''), getMpathNodes()))
+    disks.extend([node.replace('/dev/','') for node in getMpathNodes()])
     # Add md RAID nodes to list
-    disks.extend(map(lambda node: node.replace('/dev/',''), getMdNodes()))
+    disks.extend([node.replace('/dev/','') for node in getMdNodes()])
 
     return disks
 
@@ -165,17 +164,17 @@ def partitionsOnDisk(disk):
         disk = disk[5:]
     if isDeviceMapperNode('/dev/' + disk):
         name = disk.split('/',1)[1]
-        partitions = filter(lambda s: re.match(name + r'p?\d+$', s), os.listdir('/dev/mapper/'))
-        partitions = map(lambda s: "mapper/%s" % s, partitions)
+        partitions = [s for s in os.listdir('/dev/mapper/') if re.match(name + r'p?\d+$', s)]
+        partitions = ["mapper/%s" % s for s in partitions]
     else:
         name = disk.replace("/", "!")
-        partitions = filter(lambda s: s.startswith(name), os.listdir('/sys/block/%s' % name))
-        partitions = map(lambda n: n.replace("!","/"), partitions)
+        partitions = [s for s in os.listdir('/sys/block/%s' % name) if s.startswith(name)]
+        partitions = [n.replace("!","/") for n in partitions]
 
     return partitions
 
 def getQualifiedDiskList():
-    return map(lambda x: getQualifiedDeviceName(x), getDiskList())
+    return [getQualifiedDeviceName(x) for x in getDiskList()]
 
 def getQualifiedPartitionList():
     return [getQualifiedDeviceName(x) for x in getPartitionList()]
@@ -209,7 +208,7 @@ def idFromPartition(partition):
     prefixes = ['disk/by-id/edd', 'disk/by-id/dm-name-', 'disk/by-id/dm-uuid-', 'disk/by-id/lvm-pv-uuid-', 'disk/by-id/cciss-']
     if v == 0:
         for link in out.split():
-            if link.startswith('disk/by-id') and not True in map(lambda x : link.startswith(x), prefixes):
+            if link.startswith('disk/by-id') and not True in [link.startswith(x) for x in prefixes]:
                 symlink = '/dev/'+link
                 break
     return symlink
@@ -315,7 +314,7 @@ def isRemovable(path):
         f = None
         try:
             f = open(path, 'r')
-            if fcntl.ioctl(f, CDROM.CDROM_GET_CAPABILITY) == 0:
+            if fcntl.ioctl(f, CDROM_GET_CAPABILITY) == 0:
                 is_cdrom = True
         except: # Any exception implies this is not a CDROM
             pass
@@ -332,10 +331,10 @@ def isRemovable(path):
         return False
 
 def blockSizeToGBSize(blocks):
-    return (long(blocks) * 512) / (1024 * 1024 * 1024)
+    return (int(blocks) * 512) / (1024 * 1024 * 1024)
 
 def blockSizeToMBSize(blocks):
-    return (long(blocks) * 512) / (1024 * 1024)
+    return (int(blocks) * 512) / (1024 * 1024)
 
 def getHumanDiskSize(blocks):
     gb = blockSizeToGBSize(blocks)
@@ -380,8 +379,7 @@ def getHumanDiskName(disk):
         # mdadm may append an _ followed by a number (e.g. d0_0) to prevent
         # name collisions. Strip it if necessary.
         name = re.match("([^_]*)(_\d+)?$", name).group(1)
-        return 'RAID: %s(%s)' % (name, ','.join(map(lambda dev: dev[5:],
-                                                    getDeviceSlaves(disk))))
+        return 'RAID: %s(%s)' % (name, ','.join(dev[5:] for dev in getDeviceSlaves(disk)))
 
     if disk.startswith('/dev/disk/by-id/'):
         return disk[16:]
@@ -398,7 +396,7 @@ def getHumanDiskLabel(disk, short=False):
 # given a list of disks, work out which ones are part of volume
 # groups that will cause a problem if we install XE to those disks:
 def findProblematicVGs(disks):
-    real_disks = map(lambda d: os.path.realpath(d), disks)
+    real_disks = [os.path.realpath(d) for d in disks]
 
     # which disks are the volume groups on?
     vgdiskmap = {}
@@ -445,8 +443,7 @@ def log_available_disks():
         diskSizesGB = [blockSizeToGBSize(x) for x in diskSizes]
         logger.log("Disk sizes: %s" % str(diskSizesGB))
 
-        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x,
-                           diskSizesGB)
+        dom0disks = [x for x in diskSizesGB if constants.min_primary_disk_size <= x]
         if len(dom0disks) == 0:
             logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
@@ -474,7 +471,7 @@ def probeDisk(device, justInstall=False):
     possible_srs = []
 
     tool = PartitionTool(device)
-    for num, part in tool.iteritems():
+    for num, part in tool.items():
         label = None
         part_device = tool._partitionDevice(num)
 

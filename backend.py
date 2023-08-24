@@ -33,6 +33,7 @@ from xcp.version import Version
 import version
 from version import *
 from constants import *
+from functools import reduce
 
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
@@ -75,13 +76,13 @@ class Task:
         if self.pass_progress_callback:
             args.insert(0, progress_callback)
 
-        rv = apply(self.fn, args)
+        rv = self.fn(*args)
         if type(rv) is not tuple:
             rv = (rv,)
         myrv = {}
 
         if callable(self.returns):
-            ret = apply(self.returns, args)
+            ret = self.returns(*args)
         else:
             ret = self.returns
 
@@ -251,7 +252,7 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
     def doCleanup(actions):
         for tag, f, a in actions:
             try:
-                apply(f, a)
+                f(*a)
             except:
                 logger.log("FAILED to perform cleanup action %s" % tag)
 
@@ -273,7 +274,7 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
             if len(updated_state) > 0:
                 logger.log(
                     "DISPATCH: Updated state: %s" %
-                    str.join("; ", ["%s -> %s" % (v, updated_state[v]) for v in updated_state.keys()])
+                    "; ".join(["%s -> %s" % (k, v) for k, v in updated_state.items()])
                     )
                 for state_item in updated_state:
                     answers[state_item] = updated_state[state_item]
@@ -469,7 +470,7 @@ def rewriteNTPConf(root, ntp_servers):
     lines = ntpsconf.readlines()
     ntpsconf.close()
 
-    lines = filter(lambda x: not x.startswith('server '), lines)
+    lines = [x for x in lines if not x.startswith('server ')]
 
     ntpsconf = open("%s/etc/chrony.conf" % root, 'w')
     for line in lines:
@@ -604,7 +605,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
         raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size))
 
     tool = PartitionTool(disk, constants.PARTITION_GPT)
-    for num, part in tool.iteritems():
+    for num, part in tool.items():
         if num >= primary_partnum:
             tool.deletePartition(num)
 
@@ -726,13 +727,13 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 
     # write a config file for the prepare-storage firstboot script:
 
-    links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
+    links = [diskutil.idFromPartition(x) or x for x in partitions]
     fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
-    print >>fd, "XSPARTITIONS='%s'" % str.join(" ", links)
-    print >>fd, "XSTYPE='%s'" % sr_type_string
+    print("XSPARTITIONS='%s'" % str.join(" ", links), file=fd)
+    print("XSTYPE='%s'" % sr_type_string, file=fd)
     # Legacy names
-    print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
-    print >>fd, "TYPE='%s'" % sr_type_string
+    print("PARTITIONS='%s'" % str.join(" ", links), file=fd)
+    print("TYPE='%s'" % sr_type_string, file=fd)
     fd.close()
 
 def make_free_space(mount, required):
@@ -882,7 +883,7 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
         # Save command used to create initrd in <initrd_filename>.cmd
         cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
         cmd_fh = open(cmd_logfile, "w")
-        print >>cmd_fh, ' '.join(cmd + ['"$@"', kernel_version])
+        print(' '.join(cmd + ['"$@"', kernel_version]), file=cmd_fh)
         cmd_fh.close()
 
         if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd']) != 0:
@@ -910,7 +911,7 @@ def getKernelVersion(rootfs_mount):
         return None
 
     try:
-        uname_provides = filter(lambda x: x.startswith('kernel-uname-r'), out.split('\n'))
+        uname_provides = [x for x in out.split('\n') if x.startswith('kernel-uname-r')]
         return uname_provides[0].split('=')[1].strip()
     except:
         pass
@@ -1277,7 +1278,7 @@ def umountVolumes(mounts, cleanup, force=False):
     if 'logs' in mounts:
         util.umount(mounts['logs'])
     util.umount(mounts['root'])
-    cleanup = filter(filterCleanup, cleanup)
+    cleanup = list(filter(filterCleanup, cleanup))
     return cleanup
 
 ##########
@@ -1364,7 +1365,7 @@ def enableAgent(mounts, network_backend, services):
 
     # Enable/disable miscellaneous services
     actMap = {'enabled': 'enable', 'disabled': 'disable'}
-    for (service, state) in services.iteritems():
+    for (service, state) in services.items():
         action = 'disable' if constants.CC_PREPARATIONS and state is None else actMap.get(state)
         if action:
             util.runCmd2(['chroot', mounts['root'], 'systemctl', action, service + '.service'])
@@ -1477,7 +1478,8 @@ def setRootPassword(mounts, root_pwd):
         cmd = ["/usr/sbin/chroot", mounts["root"], "chpasswd", "-e"]
         pipe = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
         pipe.communicate('root:%s\n' % root_password)
         assert pipe.wait() == 0
     else:
@@ -1485,7 +1487,8 @@ def setRootPassword(mounts, root_pwd):
         pipe = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
         pipe.communicate(root_password + "\n")
         assert pipe.wait() == 0
 
@@ -1515,24 +1518,24 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')
     if not os.path.exists(mgmt_conf_file):
         mc = open(mgmt_conf_file, 'w')
-        print >>mc, "LABEL='%s'" % admin_iface
-        print >>mc, "MODE='%s'" % netinterface.NetInterface.getModeStr(admin_config.mode)
+        print("LABEL='%s'" % admin_iface, file=mc)
+        print("MODE='%s'" % netinterface.NetInterface.getModeStr(admin_config.mode), file=mc)
         if admin_config.mode == netinterface.NetInterface.Static:
-            print >>mc, "IP='%s'" % admin_config.ipaddr
-            print >>mc, "NETMASK='%s'" % admin_config.netmask
+            print("IP='%s'" % admin_config.ipaddr, file=mc)
+            print("NETMASK='%s'" % admin_config.netmask, file=mc)
             if admin_config.gateway:
-                print >>mc, "GATEWAY='%s'" % admin_config.gateway
+                print("GATEWAY='%s'" % admin_config.gateway, file=mc)
             if manual_nameservers:
-                print >>mc, "DNS='%s'" % (','.join(nameservers),)
+                print("DNS='%s'" % (','.join(nameservers),), file=mc)
             if domain:
-                print >>mc, "DOMAIN='%s'" % domain
-        print >>mc, "MODEV6='%s'" % netinterface.NetInterface.getModeStr(admin_config.modev6)
+                print("DOMAIN='%s'" % domain, file=mc)
+        print("MODEV6='%s'" % netinterface.NetInterface.getModeStr(admin_config.modev6), file=mc)
         if admin_config.modev6 == netinterface.NetInterface.Static:
-            print >>mc, "IPv6='%s'" % admin_config.ipv6addr
+            print("IPv6='%s'" % admin_config.ipv6addr, file=mc)
             if admin_config.ipv6_gateway:
-                print >>mc, "IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway
+                print("IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway, file=mc)
         if admin_config.vlan:
-            print >>mc, "VLAN='%d'" % admin_config.vlan
+            print("VLAN='%d'" % admin_config.vlan, file=mc)
         mc.close()
 
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
@@ -1552,8 +1555,9 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     # remove any files that may be present in the filesystem already,
     # particularly those created by kudzu:
     network_scripts = os.listdir(network_scripts_dir)
-    for s in filter(lambda x: x.startswith('ifcfg-'), network_scripts):
-        os.unlink(os.path.join(network_scripts_dir, s))
+    for s in network_scripts:
+        if s.startswith('ifcfg-'):
+            os.unlink(os.path.join(network_scripts_dir, s))
 
     # write the configuration file for the loopback interface
     lo = open(os.path.join(network_scripts_dir, 'ifcfg-lo'), 'w')
@@ -1584,7 +1588,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     # EA-1069 - write static-rules.conf and dynamic-rules.conf
     if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/')):
-        os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0775)
+        os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0o775)
 
     netutil.static_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')
     netutil.static_rules.save()

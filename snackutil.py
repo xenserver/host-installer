@@ -15,7 +15,7 @@ def ListboxChoiceWindowEx(screen, title, text, items,
     l = Listbox(height, scroll=scroll, returnExit=1)
     count = 0
     for item in items:
-        if (type(item) == types.TupleType):
+        if (type(item) == tuple):
             (text, key) = item
         else:
             text = item
@@ -108,7 +108,7 @@ def PasswordEntryWindow(screen, title, text, prompts, allowCancel=1, width=40,
     count = 0
     entryList = []
     for n in prompts:
-        if (type(n) == types.TupleType):
+        if (type(n) == tuple):
             (n, e) = n
         else:
             e = Entry(entryWidth, password=1)
@@ -168,7 +168,8 @@ def showMessageDialog(screen, title, text):
     screen.pushHelpLine(PLEASE_WAIT_STRING)
     screen.refresh()
 
-def displayProgressDialog(screen, current, (form, t, scale), updated_text=None):
+def displayProgressDialog(screen, current, form_info, updated_text=None):
+    (form, t, scale) = form_info
     scale.set(current)
     if updated_text:
         t.setText(updated_text)

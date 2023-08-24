@@ -1,4 +1,3 @@
-#! /usr/bin/python
 # -*- coding: utf-8 -*-
 
 # SPDX-License-Identifier: MIT
@@ -77,26 +76,26 @@ HEADERSIZE_SVR4 = 110                # length of fixed header
 #---------------------------------------------------------
 # Bits used in the mode field, values in octal.
 #---------------------------------------------------------
-S_IFLNK = 0120000        # symbolic link
-S_IFREG = 0100000        # regular file
-S_IFBLK = 0060000        # block device
-S_IFDIR = 0040000        # directory
-S_IFCHR = 0020000        # character device
-S_IFIFO = 0010000        # fifo
+S_IFLNK = 0o120000        # symbolic link
+S_IFREG = 0o100000        # regular file
+S_IFBLK = 0o060000        # block device
+S_IFDIR = 0o040000        # directory
+S_IFCHR = 0o020000        # character device
+S_IFIFO = 0o010000        # fifo
 
-TSUID   = 04000          # set UID on execution
-TSGID   = 02000          # set GID on execution
-TSVTX   = 01000          # reserved
+TSUID   = 0o4000          # set UID on execution
+TSGID   = 0o2000          # set GID on execution
+TSVTX   = 0o1000          # reserved
 
-TUREAD  = 0400           # read by owner
-TUWRITE = 0200           # write by owner
-TUEXEC  = 0100           # execute/search by owner
-TGREAD  = 0040           # read by group
-TGWRITE = 0020           # write by group
-TGEXEC  = 0010           # execute/search by group
-TOREAD  = 0004           # read by other
-TOWRITE = 0002           # write by other
-TOEXEC  = 0001           # execute/search by other
+TUREAD  = 0o400           # read by owner
+TUWRITE = 0o200           # write by owner
+TUEXEC  = 0o100           # execute/search by owner
+TGREAD  = 0o040           # read by group
+TGWRITE = 0o020           # write by group
+TGEXEC  = 0o010           # execute/search by group
+TOREAD  = 0o004           # read by other
+TOWRITE = 0o002           # write by other
+TOEXEC  = 0o001           # execute/search by other
 
 #---------------------------------------------------------
 # Some useful functions
@@ -114,7 +113,7 @@ def copyfileobj(src, dst, length=None):
 
     BUFSIZE = 16 * 1024
     blocks, remainder = divmod(length, BUFSIZE)
-    for b in xrange(blocks):
+    for b in range(blocks):
         buf = src.read(BUFSIZE)
         if len(buf) < BUFSIZE:
             raise IOError("end of file reached")
@@ -247,8 +246,8 @@ class _Stream:
         self.comptype = comptype
         self.fileobj  = fileobj
         self.bufsize  = bufsize
-        self.buf      = ""
-        self.pos      = 0L
+        self.buf      = b""
+        self.pos      = 0
         self.closed   = False
 
         if comptype == "gz":
@@ -257,7 +256,7 @@ class _Stream:
             except ImportError:
                 raise CompressionError("zlib module is not available")
             self.zlib = zlib
-            self.crc = zlib.crc32("")
+            self.crc = zlib.crc32(b"")
             if mode == "r":
                 self._init_read_gz()
             else:
@@ -269,7 +268,7 @@ class _Stream:
             except ImportError:
                 raise CompressionError("bz2 module is not available")
             if mode == "r":
-                self.dbuf = ""
+                self.dbuf = b""
                 self.cmp = bz2.BZ2Decompressor()
             else:
                 self.cmp = bz2.BZ2Compressor()
@@ -285,7 +284,7 @@ class _Stream:
                                             -self.zlib.MAX_WBITS,
                                             self.zlib.DEF_MEM_LEVEL,
                                             0)
-        timestamp = struct.pack("<L", long(time.time()))
+        timestamp = struct.pack("<L", int(time.time()))
         self.__write("\037\213\010\010%s\002\377" % timestamp)
         if self.name.endswith(".gz"):
             self.name = self.name[:-3]
@@ -330,8 +329,8 @@ class _Stream:
                 # while the same crc on a 64-bit box may "look positive".
                 # To avoid irksome warnings from the `struct` module, force
                 # it to look positive on all boxes.
-                self.fileobj.write(struct.pack("<L", self.crc & 0xffffffffL))
-                self.fileobj.write(struct.pack("<L", self.pos & 0xffffFFFFL))
+                self.fileobj.write(struct.pack("<L", self.crc & 0xffffffff))
+                self.fileobj.write(struct.pack("<L", self.pos & 0xffffFFFF))
 
         if not self._extfileobj:
             self.fileobj.close()
@@ -342,12 +341,12 @@ class _Stream:
         """Initialize for reading a gzip compressed fileobj.
         """
         self.cmp = self.zlib.decompressobj(-self.zlib.MAX_WBITS)
-        self.dbuf = ""
+        self.dbuf = b""
 
         # taken from gzip.GzipFile with some alterations
-        if self.__read(2) != "\037\213":
+        if self.__read(2) != b"\037\213":
             raise ReadError("not a gzip file")
-        if self.__read(1) != "\010":
+        if self.__read(1) != b"\010":
             raise CompressionError("unsupported compression method")
 
         flag = ord(self.__read(1))
@@ -380,7 +379,7 @@ class _Stream:
         """
         if pos - self.pos >= 0:
             blocks, remainder = divmod(pos - self.pos, self.bufsize)
-            for i in xrange(blocks):
+            for i in range(blocks):
                 self.read(self.bufsize)
             self.read(remainder)
         else:
@@ -399,7 +398,7 @@ class _Stream:
                 if not buf:
                     break
                 t.append(buf)
-            buf = "".join(t)
+            buf = b"".join(t)
         else:
             buf = self._read(size)
         self.pos += len(buf)
@@ -420,7 +419,7 @@ class _Stream:
             buf = self.cmp.decompress(buf)
             t.append(buf)
             c += len(buf)
-        t = "".join(t)
+        t = b"".join(t)
         self.dbuf = t[size:]
         return t[:size]
 
@@ -436,7 +435,7 @@ class _Stream:
                 break
             t.append(buf)
             c += len(buf)
-        t = "".join(t)
+        t = b"".join(t)
         self.buf = t[size:]
         return t[:size]
 # class _Stream
@@ -754,7 +753,7 @@ class CpioInfo(object):
            of the member.
         """
         self.ino = 0            # i-node
-        self.mode = S_IFREG | 0444
+        self.mode = S_IFREG | 0o444
         self.uid = 0            # user id
         self.gid = 0            # group id
         self.nlink = 1          # number of links
@@ -905,22 +904,22 @@ class CpioFile(object):
         self.closed = False
         self.members = []       # list of members as CpioInfo objects
         self._loaded = False    # flag if all members have been read
-        self.offset = 0L        # current position in the archive file
+        self.offset = 0         # current position in the archive file
         self.inodes = {}        # dictionary caching the inodes of
                                 # archive members already added
 
         if self._mode == "r":
             self.firstmember = None
-            self.firstmember = self.next()
+            self.firstmember = next(self)
 
         if self._mode == "a":
             # Move to the end of the archive,
             # before the trailer.
             self.firstmember = None
-            last_offset = 0L
+            last_offset = 0
             while True:
                 try:
-                    cpioinfo = self.next()
+                    cpioinfo = next(self)
                 except ReadError:
                     self.fileobj.seek(0)
                     break
@@ -1185,7 +1184,7 @@ class CpioFile(object):
         if stat.S_ISREG(stmd):
             cpioinfo.size = statres.st_size
         else:
-            cpioinfo.size = 0L
+            cpioinfo.size = 0
         cpioinfo.devmajor = os.major(statres.st_dev)
         cpioinfo.devminor = os.minor(statres.st_dev)
         if stat.S_ISCHR(stmd) or stat.S_ISBLK(stmd):
@@ -1207,17 +1206,17 @@ class CpioFile(object):
 
         for cpioinfo in self:
             if verbose:
-                print filemode(cpioinfo.mode),
-                print "%d/%d" % (cpioinfo.uid, cpioinfo.gid),
+                print(filemode(cpioinfo.mode), end=' ')
+                print("%d/%d" % (cpioinfo.uid, cpioinfo.gid), end=' ')
                 if cpioinfo.ischr() or cpioinfo.isblk():
-                    print "%10s" % ("%d,%d" \
-                                    % (cpioinfo.devmajor, cpioinfo.devminor)),
+                    print("%10s" % ("%d,%d" \
+                                    % (cpioinfo.devmajor, cpioinfo.devminor)), end=' ')
                 else:
-                    print "%10d" % cpioinfo.size,
-                print "%d-%02d-%02d %02d:%02d:%02d" \
-                      % time.localtime(cpioinfo.mtime)[:6],
+                    print("%10d" % cpioinfo.size, end=' ')
+                print("%d-%02d-%02d %02d:%02d:%02d" \
+                      % time.localtime(cpioinfo.mtime)[:6], end=' ')
 
-            print cpioinfo.name
+            print(cpioinfo.name)
 
     def add(self, name, arcname=None, recursive=True):
         """Add the file `name' to the archive. `name' may be any type of file
@@ -1323,7 +1322,7 @@ class CpioFile(object):
                 # Extract directory with a safe mode, so that
                 # all files below can be extracted as well.
                 try:
-                    os.makedirs(os.path.join(path, cpioinfo.name), 0777)
+                    os.makedirs(os.path.join(path, cpioinfo.name), 0o777)
                 except EnvironmentError:
                     pass
                 directories.append(cpioinfo)
@@ -1331,7 +1330,7 @@ class CpioFile(object):
                 self.extract(cpioinfo, path)
 
         # Reverse sort directories.
-        directories.sort(lambda a, b: cmp(a.name, b.name))
+        directories.sort(key=lambda a: a.name)
         directories.reverse()
 
         # Set correct owner, mtime and filemode on directories.
@@ -1430,7 +1429,7 @@ class CpioFile(object):
         if upperdirs and not os.path.exists(upperdirs):
             ti = CpioInfo()
             ti.name  = upperdirs
-            ti.mode  = stat.S_IFDIR | 0777
+            ti.mode  = stat.S_IFDIR | 0o777
             ti.mtime = cpioinfo.mtime
             ti.uid   = cpioinfo.uid
             ti.gid   = cpioinfo.gid
@@ -1600,7 +1599,7 @@ class CpioFile(object):
             raise ExtractError("could not change modification time")
 
     #--------------------------------------------------------------------------
-    def next(self):
+    def __next__(self):
         """Return the next member of the archive as a CpioInfo object, when
            CpioFile is opened for reading. Return None if there is no more
            available.
@@ -1697,7 +1696,7 @@ class CpioFile(object):
         else:
             end = members.index(cpioinfo)
 
-        for i in xrange(end - 1, -1, -1):
+        for i in range(end - 1, -1, -1):
             if name == members[i].name:
                 return members[i]
 
@@ -1706,7 +1705,7 @@ class CpioFile(object):
            members.
         """
         while True:
-            cpioinfo = self.next()
+            cpioinfo = next(self)
             if cpioinfo is None:
                 break
         self._loaded = True
@@ -1732,7 +1731,7 @@ class CpioFile(object):
         """Write debugging output to sys.stderr.
         """
         if level <= self.debug:
-            print >> sys.stderr, msg
+            print(msg, file=sys.stderr)
 # class CpioFile
 
 class CpioIter:
@@ -1751,7 +1750,7 @@ class CpioIter:
         """Return iterator object.
         """
         return self
-    def next(self):
+    def __next__(self):
         """Return the next item using CpioFile's next() method.
            When all members have been read, set CpioFile as _loaded.
         """
@@ -1759,7 +1758,7 @@ class CpioIter:
         # happen that getmembers() is called during iteration,
         # which will cause CpioIter to stop prematurely.
         if not self.cpiofile._loaded:
-            cpioinfo = self.cpiofile.next()
+            cpioinfo = next(self.cpiofile)
             if not cpioinfo:
                 self.cpiofile._loaded = True
                 raise StopIteration
@@ -1794,10 +1793,9 @@ class CpioFileCompat:
                 m.file_size = m.size
                 m.date_time = time.gmtime(m.mtime)[:6]
     def namelist(self):
-        return map(lambda m: m.name, self.infolist())
+        return [m.name for m in self.infolist()]
     def infolist(self):
-        return filter(lambda m: m.isreg(),
-                      self.cpiofile.getmembers())
+        return [m for m in self.cpiofile.getmembers() if m.isreg()]
     def printdir(self):
         self.cpiofile.list()
     def testzip(self):
@@ -1810,9 +1808,9 @@ class CpioFileCompat:
         self.cpiofile.add(filename, arcname)
     def writestr(self, zinfo, bytes):
         try:
-            from cStringIO import StringIO
+            from io import StringIO
         except ImportError:
-            from StringIO import StringIO
+            from io import StringIO
         import calendar
         zinfo.name = zinfo.filename
         zinfo.size = zinfo.file_size
