@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # SPDX-License-Identifier: GPL-2.0-only
 
@@ -299,7 +299,7 @@ Please remove any local media from the drive, and press Enter to reboot.""")
             logger.log(results)
         except Exception as e:
             # Don't let logging exceptions prevent subsequent actions
-            print 'Logging failed: '+str(e)
+            print('Logging failed: '+str(e))
 
         # exit with failure status:
         status = constants.EXIT_ERROR

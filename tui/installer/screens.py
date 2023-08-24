@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-import string
 import datetime
 import os.path
 import time
+import functools
 
 import generalui
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
@@ -196,7 +196,7 @@ def get_admin_interface(answers):
 
 def get_admin_interface_configuration(answers):
     if 'net-admin-interface' not in answers:
-        answers['net-admin-interface'] = answers['network-hardware'].keys()[0]
+        answers['net-admin-interface'] = list(answers['network-hardware'].keys())[0]
     nic = answers['network-hardware'][answers['net-admin-interface']]
 
     defaults = None
@@ -439,7 +439,7 @@ The backup will be placed on the backup partition of the destination disk (%s), 
 
 def eula_screen(answers):
     eula_file = open(constants.EULA_PATH, 'r')
-    eula = string.join(eula_file.readlines())
+    eula = " ".join(eula_file.readlines())
     eula_file.close()
 
     while True:
@@ -536,9 +536,9 @@ def disk_more_info(context):
     tui.screen.popHelpLine()
     return True
 
-def sorted_disk_list():
+def sorted_disk_list(): # Smallest to largest, then alphabetical
     return sorted(diskutil.getQualifiedDiskList(),
-                  lambda x, y: len(x) == len(y) and cmp(x,y) or (len(x)-len(y)))
+                  key=functools.cmp_to_key(lambda x, y: len(x) == len(y) and cmp(x,y) or (len(x)-len(y))))
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
@@ -646,7 +646,7 @@ def select_guest_disks(answers):
     # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
     # in the "Local" SR.
     allowed_in_local_sr = lambda dev: (dev == answers['primary-disk']) or (not isDeviceMapperNode(dev))
-    diskEntries = filter(allowed_in_local_sr, diskEntries)
+    diskEntries = list(filter(allowed_in_local_sr, diskEntries))
 
     if len(diskEntries) == 0 or constants.CC_PREPARATIONS:
         answers['guest-disks'] = []
@@ -729,7 +729,7 @@ def confirm_installation(answers):
         label = "Confirm Installation"
         text1 = "We have collected all the information required to install %s. " % MY_PRODUCT_BRAND
         if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
-            disks = map(diskutil.getHumanDiskName, answers['guest-disks'])
+            disks = list(map(diskutil.getHumanDiskName, answers['guest-disks']))
             if diskutil.getHumanDiskName(answers['primary-disk']) not in disks:
                 disks.append(diskutil.getHumanDiskName(answers['primary-disk']))
             disks.sort()
@@ -795,10 +795,12 @@ def get_root_password(answers):
 
 def get_name_service_configuration(answers):
     # horrible hack - need a tuple due to bug in snack that means
-    # we don't get an arge passed if we try to just pass False
-    def hn_callback((enabled, )):
+    # we don't get an arg passed if we try to just pass False
+    def hn_callback(params):
+        (enabled, ) = params
         hostname.setFlags(FLAG_DISABLED, enabled)
-    def ns_callback((enabled, )):
+    def ns_callback(params):
+        (enabled, ) = params
         for entry in [ns1_entry, ns2_entry, ns3_entry]:
             entry.setFlags(FLAG_DISABLED, enabled)
 
@@ -846,7 +848,7 @@ def get_name_service_configuration(answers):
         elif 'runtime-iface-configuration' in answers:
             all_dhcp, netdict = answers['runtime-iface-configuration']
             if not all_dhcp and isinstance(netdict, dict):
-                nameservers = netdict.values()[0].dns
+                nameservers = list(netdict.values())[0].dns
 
         if isinstance(nameservers, list) and id < len(nameservers):
             return nameservers[id]
@@ -992,7 +994,7 @@ def get_timezone_city(answers):
         tui.screen,
         "Select Time Zone",
         "Please select the city or area that the managed host is in (press a letter to jump to that place in the list):",
-        map(lambda x: x.replace('_', ' '), entries),
+        [x.replace('_', ' ') for x in entries],
         ['Ok', 'Back'], height=8, scroll=1, default=default, help='gettz')
 
     if button == 'back': return LEFT_BACKWARDS
@@ -1073,7 +1075,7 @@ def get_ntp_servers(answers):
 
     if button == 'back': return LEFT_BACKWARDS
 
-    servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
+    servers = [ntp_field.value() for ntp_field in (ntp1_field, ntp2_field, ntp3_field) if ntp_field.value() != ""]
     if len(servers) == 0:
         ButtonChoiceWindow(tui.screen,
                             "NTP Configuration",

@@ -66,7 +66,7 @@ class ExistingInstallation:
             if os.path.exists(self.join_state_path('etc/firstboot.d/state')):
                 firstboot_files = [ f for f in os.listdir(self.join_state_path('etc/firstboot.d')) \
                                     if f[0].isdigit() and os.stat(self.join_state_path('etc/firstboot.d', f))[stat.ST_MODE] & stat.S_IXUSR ]
-                missing_state_files = filter(lambda x: not os.path.exists(self.join_state_path('etc/firstboot.d/state', x)), firstboot_files)
+                missing_state_files = [x for x in firstboot_files if not os.path.exists(self.join_state_path('etc/firstboot.d/state', x))]
 
                 result = (len(missing_state_files) == 0)
                 if not result:
@@ -373,10 +373,10 @@ class ExistingInstallation:
             xen_args = boot_config.menu[boot_config.default].getHypervisorArgs()
 
             #   - cpuid_mask
-            results['host-config']['xen-cpuid-masks'] = filter(lambda x: x.startswith('cpuid_mask'), xen_args)
+            results['host-config']['xen-cpuid-masks'] = [x for x in xen_args if x.startswith('cpuid_mask')]
 
             #   - dom0_mem
-            dom0_mem_arg = filter(lambda x: x.startswith('dom0_mem'), xen_args)
+            dom0_mem_arg = [x for x in xen_args if x.startswith('dom0_mem')]
             (dom0_mem, dom0_mem_min, dom0_mem_max) = xcp.dom0.parse_mem(dom0_mem_arg[0])
             if dom0_mem:
                 results['host-config']['dom0-mem'] = dom0_mem / 1024 / 1024

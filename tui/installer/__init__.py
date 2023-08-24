@@ -15,7 +15,7 @@ import diskutil
 from disktools import *
 import version
 import ssl
-import xmlrpclib
+import xmlrpc.client
 
 from snack import *
 
@@ -106,7 +106,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                 context = ssl.create_default_context()
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
-                s = xmlrpclib.Server("https://"+settings['master'], context=context)
+                s = xmlrpc.client.Server("https://"+settings['master'], context=context)
                 session = s.session.slave_login("", settings['pool-token'])["Value"]
                 pool = s.pool.get_all(session)["Value"][0]
                 master = s.pool.get_master(session, pool)["Value"]

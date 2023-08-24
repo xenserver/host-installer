@@ -41,9 +41,9 @@ def run_script(script, stage, *args):
         raise RuntimeError("Missing interpreter in %s." % script)
     interp = line[2:].split()
     if interp[0] == '/usr/bin/env':
-        if len (interp) < 2 or interp[1] not in ['python']:
+        if len (interp) < 2 or interp[1] not in ['python3']:
             raise RuntimeError("Invalid interpreter %s in %s." % (interp[1], script))
-    elif interp[0] not in ['/bin/sh', '/bin/bash', '/usr/bin/python']:
+    elif interp[0] not in ['/bin/sh', '/bin/bash', '/usr/bin/python3']:
         raise RuntimeError("Invalid interpreter %s in %s." % (interp[0], script))
 
     cmd = [local_name]

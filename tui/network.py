@@ -139,8 +139,8 @@ def select_netif(text, conf, offer_existing=False, default=None):
     netutil.scanConfiguration() output to be used.
     """
 
-    netifs = conf.keys()
-    netifs.sort(lambda l, r: int(l[3:]) - int(r[3:]))
+    netifs = list(conf.keys())
+    netifs.sort(key=lambda netif: int(netif[3:]))
 
     if default not in netifs:
         # find first link that is up
@@ -171,7 +171,7 @@ def select_netif(text, conf, offer_existing=False, default=None):
             snackutil.TableDialog(tui.screen, "Interface Details", *table)
         else:
             netifs_all = netutil.getNetifList(include_vlan=True)
-            details = map(lambda x: (x, netutil.ipaddr(x)), filter(netutil.interfaceUp, netifs_all))
+            details = [(x, netutil.ipaddr(x)) for x in list(filter(netutil.interfaceUp, netifs_all))]
             snackutil.TableDialog(tui.screen, "Networking Details", *details)
         tui.screen.popHelpLine()
         return True
@@ -267,7 +267,7 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
                 uicontroller.Step(specify_configuration, args=[None, def_conf]) ]
     else:
         text = "%s Setup needs network access to continue.\n\nHow should networking be configured at this time?" % (version.PRODUCT_BRAND or version.PLATFORM_NAME)
-        conf_dict['interface'] = nethw.keys()[0]
+        conf_dict['interface'] = list(nethw.keys())[0]
         seq = [ uicontroller.Step(specify_configuration, args=[text, def_conf]) ]
     direction = uicontroller.runSequence(seq, conf_dict)
 

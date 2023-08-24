@@ -3,9 +3,7 @@
 import os
 import os.path
 import subprocess
-import urllib
-import urllib2
-import urlparse
+import urllib.request, urllib.parse
 import shutil
 import re
 import datetime
@@ -54,6 +52,10 @@ def copyFilesFromDir(sourcedir, dest):
 # shell
 
 def runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
+    """
+    Run a command with subprocess.Popen
+    Expects string output from stdout & stderr
+    """
 
     try:
         cmd = subprocess.Popen(command, bufsize=1,
@@ -61,6 +63,7 @@ def runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
                                shell=isinstance(command, str),
+                               universal_newlines=True,
                                close_fds=True)
 
         # We could poll stdout/stderr for commands outputing large amounts
@@ -121,7 +124,7 @@ def pidof(name):
         except:
             return False
     pids = filter(is_pid, os.listdir('/proc'))
-    pids = filter(has_name, pids)
+    pids = list(filter(has_name, pids))
     return pids
 
 def mount(dev, mountpoint, options=None, fstype=None):
@@ -250,7 +253,7 @@ def fetchFile(source, dest):
                source[:6] == 'https:' or \
                source[:5] == 'file:' or \
                source[:4] == 'ftp:':
-            # This something that can be fetched using urllib2
+            # This something that can be fetched using urllib
             request = source
 
             url = URL(source)
@@ -261,7 +264,7 @@ def fetchFile(source, dest):
                 urllib2.install_opener(urllib2.build_opener(handler))
                 request = url.getPlainURL()
 
-            fd = urllib2.urlopen(request)
+            fd = urllib.request.urlopen(request)
             fd_dest = open(dest, 'w')
             shutil.copyfileobj(fd, fd_dest)
             fd_dest.close()
@@ -322,8 +325,7 @@ def readKeyValueFile(filename, allowed_keys=None, strip_quotes=True):
 
     # remove lines that do not contain allowed keys
     if allowed_keys:
-        lines = filter(lambda x: True in [x.startswith(y) for y in allowed_keys],
-                       lines)
+        lines = [x for x in lines if True in [x.startswith(y) for y in allowed_keys]]
 
     defs = [ (l[:l.find("=")], l[(l.find("=") + 1):]) for l in lines ]
 
@@ -379,7 +381,7 @@ class URL(object):
 
     def __init__(self, url):
         self.url = url
-        parts = urlparse.urlsplit(url)
+        parts = urllib.parse.urlsplit(url)
         self.scheme = parts.scheme
         self.hostname = parts.hostname
         self.username = parts.username
@@ -410,12 +412,12 @@ class URL(object):
     def getUsername(self):
         if self.username is None:
             return None
-        return urllib.unquote(self.username)
+        return urllib.parse.unquote(self.username)
 
     def getPassword(self):
         if self.password is None:
             return None
-        return urllib.unquote(self.password)
+        return urllib.parse.unquote(self.password)
 
     def getURL(self):
         """Get the full URL with username/password.

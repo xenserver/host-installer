@@ -48,7 +48,7 @@ def scanConfiguration():
     return conf
 
 def getNetifList(include_vlan=False):
-    all = os.listdir("/sys/class/net")
+    allNetifs = os.listdir("/sys/class/net")
 
     def ethfilter(interface, include_vlan):
         return interface.startswith("eth") and (interface.isalnum() or
@@ -58,8 +58,8 @@ def getNetifList(include_vlan=False):
         iface, vlan = splitInterfaceVlan(ethx)
         return (int(iface.strip('eth'))*10000 + (int(vlan) if vlan else -1))
 
-    relevant = filter(lambda x: ethfilter(x, include_vlan), all)
-    relevant.sort(lambda l, r: rankValue(l) - rankValue(r))
+    relevant = [x for x in allNetifs if ethfilter(x, include_vlan)]
+    relevant.sort(key=lambda ethx: rankValue(ethx))
     return relevant
 
 def writeNetInterfaceFiles(configuration):
@@ -105,7 +105,7 @@ def ipaddr(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return None
-    inets = filter(lambda x: 'inet ' in x, out.split("\n"))
+    inets = [x for x in out.split("\n") if 'inet ' in x]
     if len(inets) == 1:
         m = re.search(r'inet (\S+)/', inets[0])
         if m:
@@ -117,7 +117,7 @@ def interfaceUp(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return False
-    inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
+    inets = [x for x in out.split("\n") if x.startswith("    inet ")]
     return len(inets) == 1
 
 # work out if a link is up:
@@ -140,7 +140,7 @@ def setAllLinksUp():
         if nif not in diskutil.ibft_reserved_nics:
             subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up'], close_fds=True))
 
-    while None in map(lambda x: x.poll(), subprocs):
+    while None in [x.poll() for x in subprocs]:
         time.sleep(1)
 
 def networkingUp():
@@ -162,7 +162,7 @@ def getPCIInfo(interface):
         info = output.strip('\n')
 
     cur_if = None
-    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE)
+    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE, universal_newlines=True)
     for line in pipe.stdout:
         l = line.strip('\n')
         if l.startswith('Kernel name'):
@@ -218,14 +218,14 @@ def valid_ip_addr(addr):
     return True
 
 def network(ipaddr, netmask):
-    ip = map(int,ipaddr.split('.',3))
-    nm = map(int,netmask.split('.',3))
-    nw = map(lambda i: ip[i] & nm[i], range(4))
+    ip = list(map(int,ipaddr.split('.',3)))
+    nm = list(map(int,netmask.split('.',3)))
+    nw = [ip[i] & nm[i] for i in range(4)]
     return ".".join(map(str,nw))
 
 def prefix2netmask(mask):
     bits = 0
-    for i in xrange(32-mask, 32):
+    for i in range(32-mask, 32):
         bits |= (1 << i)
     return inet_ntoa(pack('>I', bits))
 
@@ -234,7 +234,7 @@ class NetDevices:
         self.netdev = []
         details = {}
 
-        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE)
+        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE, universal_newlines=True)
         for line in pipe.stdout:
             l = line.strip('\n')
             if len(l) == 0:
@@ -397,7 +397,7 @@ def remap_netdevs(remap_list):
     def macpci_as_list(x):
         return [str(x.mac), str(x.pci), x.tname]
 
-    new_lastboot = map(macpci_as_list, current_state)
+    new_lastboot = list(map(macpci_as_list, current_state))
     dynamic_rules.lastboot = new_lastboot
 
     LOG.info("All done ordering the network devices")

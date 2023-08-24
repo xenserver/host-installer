@@ -3,7 +3,6 @@
 import re, sys
 import os.path
 import constants
-import CDROM
 import fcntl
 import util
 import netutil
@@ -34,7 +33,7 @@ def select_fcoe_ifaces(answers):
 
         return
 
-    netifs.sort(lambda l, r: int(l[3:]) - int(r[3:]))
+    netifs.sort(key=lambda netif: int(netif[3:]))
 
     def iface_details(context):
         tui.update_help_line([' ', ' '])
@@ -98,10 +97,10 @@ def select_fcoe_ifaces(answers):
     logger.log("fcoe result %s" % str(result))
     tui.progress.clearModelessDialog()
 
-    fail = {k: v for k, v in result.iteritems() if v != 'OK'}
+    fail = {k: v for k, v in result.items() if v != 'OK'}
     if len(fail.keys()) > 0:
         # Report any errors
-        err_text = '\n'.join(map(lambda (x, y): "%s %s" % (x, y), fail.iteritems()))
+        err_text = '\n'.join("%s %s" % (x_y[0], x_y[1]) for x_y in fail.items())
         text = TextboxReflowed(60, "The following errors occured while discovering FCoE disks.")
         errs = Textbox(30, 6, err_text, scroll=len(fail.keys()) > 6)
         buttons = ButtonBar(tui.screen, [('Ok', 'ok')])
@@ -118,7 +117,7 @@ def select_fcoe_ifaces(answers):
 
     luns = {}
     for k, v in d.items():
-        for k2, v2 in v.items():
+        for v2 in v.values():
             for lun in v2['luns'].values():
                 luns[os.path.basename(lun['device'])] = {'Capacity': lun['capacity'], 'Description': lun['description'],
                                                          'Port': v2['Port Name'], 'VLAN': k}

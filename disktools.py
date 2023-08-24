@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # SPDX-License-Identifier: GPL-2.0-only
 
 import constants
@@ -139,7 +137,7 @@ class LVMTool:
     def cmdWrap(cls, params):
         rv, out, err = util.runCmd2(params, True, True)
         if rv != 0:
-            if isinstance(err, (types.ListType, types.TupleType)):
+            if isinstance(err, (list, tuple)):
                 raise Exception("\n".join(err)+"\nError="+str(rv))
             else:
                 raise Exception(str(err)+"\nError="+str(rv))
@@ -213,7 +211,7 @@ class LVMTool:
             segRange = self.decodeSegmentRange(lvSeg['seg_pe_ranges'])
             if segRange['device'] == device:
                 segments.append(Segment(segRange['start'], segRange['size']))
-        segments.sort(lambda x, y : cmp(x.start, y.start))
+        segments.sort(key=lambda x: x.start)
         return segments
 
     def freeSegmentList(self, device):
@@ -458,7 +456,7 @@ class LVMTool:
             totalExtents += sum([ move.size for move in moveList ])
         extentsSoFar = 0
 
-        for device, moveList in sorted(self.moveLists.iteritems()):
+        for device, moveList in sorted(self.moveLists.items()):
             thisSize = sum([ move.size for move in moveList ])
             callback = lambda percent : (progress_callback( 5 + (98 - 5) * (extentsSoFar + thisSize * percent / 100) / totalExtents) )
             self.executeMoves(callback, device, moveList)
@@ -586,7 +584,7 @@ class PartitionToolBase:
         if newNumber in self.partitions:
             raise Exception('Partition '+str(newNumber)+' already exists')
 
-        partitions = [None] + [part for num, part in sorted(self.partitions.iteritems(), key=lambda item: item[1]['start'])]
+        partitions = [None] + [part for num, part in sorted(self.partitions.items(), key=lambda item: item[1]['start'])]
 
         if startBytes is None:
             if len(partitions) == 0:
@@ -682,19 +680,19 @@ class PartitionToolBase:
         self.partitions[number]['size'] = sizeBytes / self.sectorSize
 
     def setActiveFlag(self, activeFlag, number):
-        assert isinstance(activeFlag, types.BooleanType) # Assert that params are the right way around
+        assert isinstance(activeFlag, bool) # Assert that params are the right way around
         if not number in self.partitions:
             raise Exception('Partition '+str(number)+' does not exist')
         self.partitions[number]['active'] = activeFlag
 
     def inactivateDisk(self):
-        for number, partition in self.partitions.iteritems():
+        for number, partition in self.partitions.items():
             if partition['active']:
                 self.setActiveFlag(False, number)
 
-    def iteritems(self):
+    def items(self):
         # sorted() creates a new list, so you can delete partitions whilst iterating
-        for number, partition in sorted(self.partitions.iteritems()):
+        for number, partition in sorted(self.partitions.items()):
             yield number, partition
 
     def commit(self, dryrun=False, log=False):
@@ -709,14 +707,14 @@ class PartitionToolBase:
         output += "Sector last usable  : "+str(self.sectorLastUsable)+"\n"
         output += "Sector first usable : "+str(self.sectorFirstUsable)+"\n"
         output += "Partition size and start addresses in sectors:\n"
-        for number, partition in sorted(self.origPartitions.iteritems()):
+        for number, partition in sorted(self.origPartitions.items()):
             output += "Old partition "+str(number)+":"
-            for k, v in sorted(partition.iteritems()):
+            for k, v in sorted(partition.items()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
-        for number, partition in sorted(self.partitions.iteritems()):
+        for number, partition in sorted(self.partitions.items()):
             output += "New partition "+str(number)+":"
-            for k, v in sorted(partition.iteritems()):
+            for k, v in sorted(partition.items()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
         logger.log(output)
@@ -832,10 +830,10 @@ class DOSPartitionTool(PartitionToolBase):
         self.waitForDeviceNodes()
 
     def writeThisPartitionTable(self, table, dryrun=False, log=False):
-        input = 'unit: sectors\n\n'
+        cmd_input = 'unit: sectors\n\n'
 
         # sfdisk doesn't allow us to skip partitions, so invent lines for empty slot
-        for number in range(1, 1+max([1]+table.keys())):
+        for number in range(1, 1+max([1]+list(table.keys()))):
             partition = table.get(number, {
                 'start': 0,
                 'size': 0,
@@ -849,9 +847,9 @@ class DOSPartitionTool(PartitionToolBase):
             if partition['active']:
                 line += ', bootable'
 
-            input += line+'\n'
+            cmd_input += line+'\n'
         if log:
-            logger.log('Input to sfdisk:\n'+input)
+            logger.log('Input to sfdisk:\n'+cmd_input)
 
         if isDeviceMapperNode(self.device):
             # Destroy device mapper partitions before re-writing partition table on mpath device
@@ -872,8 +870,9 @@ class DOSPartitionTool(PartitionToolBase):
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             close_fds=True,
+            universal_newlines=True,
             )
-        output = process.communicate(input)
+        output = process.communicate(cmd_input)
         if log:
             logger.log('Output from sfdisk:\n'+output[0])
 
@@ -882,10 +881,10 @@ class DOSPartitionTool(PartitionToolBase):
             rv = createPartnodes(self.device)
             if rv:
                 raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
-            for number in table.keys():
+            for number, partition in table.items():
                 size = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', '%sp%d' % (self.device, number)]))/self.sectorSize
-                if size != table[number]['size']:
-                    raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, table[number]['size']))
+                if size != partition['size']:
+                    raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, partition['size']))
 
         else:
             if process.returncode != 0:
@@ -900,7 +899,7 @@ class DOSPartitionTool(PartitionToolBase):
             rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr=True)
             if rc == 1:
                 lines = err.split('\n')
-                if len(filter(lambda x : x != '' and not x.endswith('extends past end of disk'), lines)) != 0:
+                if len([x for x in lines if x != '' and not x.endswith('extends past end of disk')]) != 0:
                     raise Exception(err)
             elif rc != 0:
                 raise Exception(err)
@@ -998,7 +997,7 @@ class GPTPartitionTool(PartitionToolBase):
         return partitions
 
     def commitActivePartitiontoDisk(self, partnum):
-        for num, part in self.iteritems():
+        for num, part in self.items():
             if num == partnum:
                 self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag set
             else:
@@ -1102,7 +1101,7 @@ def PartitionTool(device, partitionType=None):
 def destroyPartnodes(dev):
     # Destroy partition nodes for a device-mapper device
     dmnodes = [ '/dev/mapper/%s' % f for f in os.listdir('/dev/mapper') ]
-    partitions = filter(lambda dmnode: re.match(dev + r'p?\d+$', dmnode), dmnodes)
+    partitions = [dmnode for dmnode in dmnodes if re.match(dev + r'p?\d+$', dmnode)]
     for partition in partitions:
         # the obvious way to do this is to use "kpartx -d" but that's broken!
         rv = util.runCmd2(['dmsetup', 'remove', partition])
@@ -1144,7 +1143,7 @@ def getDeviceMapperMaj():
     global cached_DM_maj
     if not cached_DM_maj:
         try:
-            line = filter(lambda x: x.endswith('device-mapper\n'), open('/proc/devices').readlines())
+            line = [x for x in open('/proc/devices').readlines() if x.endswith('device-mapper\n')]
             cached_DM_maj = int(line[0].split()[0])
         except:
             pass
@@ -1159,8 +1158,7 @@ def isDeviceMapperNode(dev):
 def getSysfsDir(dev):
     major, minor = getMajMin(dev)
     parts = open("/proc/partitions")
-    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
-                    parts.readlines())
+    partlines = [re.sub(" +", " ", x).strip() for x in parts.readlines()]
     parts.close()
     # parse it:
     disks = []
@@ -1199,7 +1197,7 @@ def getDeviceSlaves(disk):
     major, minor = getMajMin(disk)
     rv, out = util.runCmd2(['sh','-c','ls -d1 /sys/block/*/holders/*/dev'],with_stdout=True)
     lines = out.strip().split('\n')
-    lines = filter(lambda x: x != '', lines)
+    lines = [x for x in lines if x != '']
     for f in lines:
         _, _, _, dev, _, _, _ = f.split('/')
         __major, __minor = map(int, open(f).read().split(':'))

@@ -342,7 +342,7 @@ class ThirdGenUpgrader(Upgrader):
                     if x in just_dirs:
                         path = os.path.join(backup_fs.mount_point, x)
                         if not os.path.exists(path):
-                            os.mkdir(path, 0755)
+                            os.mkdir(path, 0o755)
                     else:
                         cmd = ['cp', '-a'] + \
                               [ os.path.join(primary_fs.mount_point, x) ] + \
@@ -363,9 +363,12 @@ class ThirdGenUpgrader(Upgrader):
                     if os.path.exists(src):
                         util.runCmd2(['cp', '-f', src, os.path.join(backup_fs.mount_point, destination)])
 
-                map(replace_config, ('efi-grub.cfg', 'grub.cfg', 'menu.lst', 'extlinux.conf'),
-                                    ('boot/efi/EFI/xenserver/grub.cfg', 'boot/grub',
-                                     'boot/grub', 'boot'))
+                configMaps = [("efi-grub.cfg", "boot/efi/EFI/xenserver/grub.cfg"),
+                                ("grub.cfg", "boot/grub"),
+                                ("menu.lst", "boot/grub"),
+                                ("extlinux.conf", "boot")]
+                for config_file, destination in configMaps:
+                    replace_config(config_file, destination)
 
                 fh = open(os.path.join(backup_fs.mount_point, '.xen-backup-partition'), 'w')
                 fh.close()
@@ -462,7 +465,7 @@ class ThirdGenUpgrader(Upgrader):
         f.close()
 
         state = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'host.conf'), 'w')
-        print >>state, "UPGRADE=true"
+        print("UPGRADE=true", file=state)
         state.close()
 
         # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
@@ -519,6 +522,5 @@ class UpgraderList(list):
 __upgraders__ = UpgraderList([ThirdGenUpgrader, InCloudSphereUpgrader])
 
 def filter_for_upgradeable_products(installed_products):
-    upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),
-        installed_products)
+    upgradeable_products = [p for p in installed_products if p.isUpgradeable() and upgradeAvailable(p)]
     return upgradeable_products

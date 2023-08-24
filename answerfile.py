@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # SPDX-License-Identifier: GPL-2.0-only
 
 """answerfile - parse installation answerfiles"""
@@ -181,7 +179,7 @@ class Answerfile:
             disk = normalize_disk(getText(nodes[0]))
             disk = disktools.getMpathMasterOrDisk(disk)
             logger.log("Filtering backup list for disk %s" % disk)
-            backups = filter(lambda x: x.root_disk == disk, backups)
+            backups = [x for x in backups if x.root_disk == disk]
             logger.log("Backup list filtered: %s" % ", ".join(str(b) for b in backups))
 
         if len(backups) > 1:
@@ -236,13 +234,13 @@ class Answerfile:
         results['primary-disk'] = disk
 
         installations = product.findXenSourceProducts()
-        installations = filter(lambda x: x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk, installations)
+        installations = [x for x in installations if x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk]
         if len(installations) == 0:
             raise AnswerfileException("Could not locate the installation specified to be reinstalled.")
         elif len(installations) > 1:
             # FIXME non-multipath case?
             logger.log("Warning: multiple paths detected - recommend use of --device_mapper_multipath=yes")
-            logger.log("Warning: selecting 1st path from %s" % str(map(lambda x: x.primary_disk, installations)))
+            logger.log("Warning: selecting 1st path from %s" % str([x.primary_disk for x in installations]))
         results['installation-to-overwrite'] = installations[0]
         return results
 
@@ -342,7 +340,7 @@ class Answerfile:
             else:
                 if_hwaddr = getStrAttribute(interface, ['hwaddr'])
                 if if_hwaddr:
-                    matching_list = filter(lambda x: x.hwaddr == if_hwaddr.lower(), nethw.values())
+                    matching_list = [x for x in list(nethw.values()) if x.hwaddr == if_hwaddr.lower()]
                     if len(matching_list) == 1:
                         if_name = matching_list[0].name
             if not if_name and not if_hwaddr:
@@ -364,7 +362,7 @@ class Answerfile:
         else:
             if_hwaddr = getStrAttribute(node, ['hwaddr'])
             if if_hwaddr:
-                matching_list = filter(lambda x: x.hwaddr == if_hwaddr.lower(), nethw.values())
+                matching_list = [x for x in list(nethw.values()) if x.hwaddr == if_hwaddr.lower()]
                 if len(matching_list) == 1:
                     if_name = matching_list[0].name
         if not if_name and not if_hwaddr:
@@ -416,7 +414,7 @@ class Answerfile:
     def parseNSConfig(self):
         results = {}
         nodes = getElementsByTagName(self.top_node, ['name-server', 'nameserver'])
-        results['manual-nameservers'] = (len(nodes) > 0, map(lambda x: getText(x), nodes))
+        results['manual-nameservers'] = (len(nodes) > 0, [getText(x) for x in nodes])
         nodes = getElementsByTagName(self.top_node, ['hostname'])
         if len(nodes) > 0:
             results['manual-hostname'] = (True, getText(nodes[0]))

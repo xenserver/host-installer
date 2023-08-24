@@ -4,13 +4,14 @@ import os
 import time
 import datetime
 import constants
+import functools
 
 def getTimeZoneRegions():
     tzf = open(constants.timezone_data_file)
     lines = tzf.readlines()
     tzf.close()
 
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
+    lines = [x.strip('\n').split('/') for x in lines]
 
     regions = []
     for zone in lines:
@@ -24,7 +25,7 @@ def getTimeZoneCities(desired_region):
     lines = tzf.readlines()
     tzf.close()
 
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
+    lines = [x.strip('\n').split('/') for x in lines]
 
     cities = []
     for zone in lines:
@@ -39,7 +40,7 @@ def getKeymaps():
     lines = kbdfile.readlines()
     kbdfile.close()
 
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
+    lines = [x.strip('\n').split('/') for x in lines]
 
     keymaps = []
     for keymap in lines:
@@ -57,8 +58,10 @@ def getKeymaps():
         elif b2 == 'us' or b2 == 'uk':
             return 1
         else:
-            return cmp("%s %s" % a, "%s %s" % b)
-    keymaps.sort(cmp_us_uk_first)
+            a_str = " ".join(a)
+            b_str = " ".join(b)
+            return (a_str > b_str) - (a_str < b_str)
+    keymaps.sort(key=functools.cmp_to_key(cmp_us_uk_first))
 
     return keymaps
 

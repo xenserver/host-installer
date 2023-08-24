@@ -9,4 +9,4 @@ OPERATION_REBOOT = -1
     OPERATION_UPGRADE,
     OPERATION_LOAD_DRIVER,
     OPERATION_RESTORE,
-) = range(5)
+) = list(range(5))
