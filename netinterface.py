@@ -23,7 +23,7 @@ class NetInterface:
     DHCP = 2
     Autoconf = 3
 
-    def __init__(self, mode, hwaddr, ipaddr=None, netmask=None, gateway=None,
+    def __init__(self, mode, nic, ipaddr=None, netmask=None, gateway=None,
                  dns=None, domain=None, vlan=None):
         assert mode is None or mode == self.Static or mode == self.DHCP
         if ipaddr == '':
@@ -41,7 +41,7 @@ class NetInterface:
             assert netmask
 
         self.mode = mode
-        self.hwaddr = hwaddr
+        self.hwaddr = nic.hwaddr
         if mode == self.Static:
             self.ipaddr = ipaddr
             self.netmask = netmask
@@ -60,6 +60,13 @@ class NetInterface:
         self.modev6 = None
         self.ipv6addr = None
         self.ipv6_gateway = None
+
+        self.bond_mode = nic.bond_mode
+        if nic.bond_mode is not None:
+            # Not `balance-slb` because it's openvswitch specific
+            assert nic.bond_mode in ["lacp", "active-backup"]
+            assert nic.bond_members is not None
+            self.bond_members = nic.bond_members
 
     def __repr__(self):
         hw = "hwaddr = '%s' " % self.hwaddr
@@ -83,9 +90,11 @@ class NetInterface:
             ipv6 = "autoconf"
         else:
             ipv6 = "None"
-        vlan = ("vlan = '%d' " % self.vlan) if self.vlan else ""
+        bonding = ((" %s:%s" % (self.bond_mode, ",".join(self.bond_members)))
+                   if self.bond_mode else "")
+        vlan = (" vlan='%d' " % self.vlan) if self.vlan else ""
 
-        return "<NetInterface: %s%s ipv4:%s ipv6:%s>" % (hw, vlan, ipv4, ipv6)
+        return "<NetInterface: %s%s%s ipv4:%s ipv6:%s>" % (hw, bonding, vlan, ipv4, ipv6)
 
     def get(self, name, default=None):
         retval = default
@@ -141,30 +150,76 @@ class NetInterface:
         """ Write a RedHat-style configuration entry for this interface to
         file object f using interface name iface. """
 
+        def writeBondMember(index, member):
+            """ Write a RedHat-style configuration entry for a bond member. """
+
+            with open('/etc/sysconfig/network-scripts/ifcfg-%s' % member, 'w') as f:
+                f.write("NAME=%s-slave%d\n" % (iface, index))
+                f.write("DEVICE=%s\n" % member)
+                f.write("ONBOOT=yes\n")
+                f.write("MASTER=%s\n" % iface)
+                f.write("SLAVE=yes\n")
+                f.write("BOOTPROTO=none\n")
+                f.write("Type=Ethernet\n")
+
+        def writeBondMaster():
+            """ Write a RedHat-style configuration entry for a bond master. """
+
+            with open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface, 'w') as f:
+                f.write("NAME=%s\n" % iface)
+                f.write("DEVICE=%s\n" % iface)
+                f.write("ONBOOT=yes\n")
+                f.write("Type=Bond\n")
+                f.write("NOZEROCONF=yes\n")
+                f.write("BONDING_MASTER=yes\n")
+                if self.bond_mode == "lacp":
+                    f.write("BONDING_OPTS=\"mode=4 miimon=100\"\n")
+                elif self.bond_mode == "active-backup":
+                    f.write("BONDING_OPTS=\"mode=1 miimon=100\"\n")
+
+                if self.vlan:
+                    f.write("BOOTPROTO=none\n")
+                else:
+                    writeIpConfig(f)
+
+        def writeIface(iface_name):
+            with open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface_name, 'w') as f:
+                f.write("NAME=%s\n" % iface_name)
+                f.write("DEVICE=%s\n" % iface_name)
+                f.write("ONBOOT=yes\n")
+                writeIpConfig(f)
+                if self.vlan:
+                    f.write("VLAN=yes\n")
+
+        def writeIpConfig(f):
+            if self.mode == self.DHCP:
+                f.write("BOOTPROTO=dhcp\n")
+                f.write("PERSISTENT_DHCLIENT=1\n")
+            else:
+                # CA-11825: broadcast needs to be determined for non-standard networks
+                bcast = self.getBroadcast()
+                f.write("BOOTPROTO=none\n")
+                f.write("IPADDR=%s\n" % self.ipaddr)
+                if bcast is not None:
+                    f.write("BROADCAST=%s\n" % bcast)
+                f.write("NETMASK=%s\n" % self.netmask)
+                if self.gateway:
+                    f.write("GATEWAY=%s\n" % self.gateway)
+
         assert self.modev6 is None
         assert self.mode
+
         iface_vlan = self.getInterfaceName(iface)
 
-        f = open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface_vlan, 'w')
-        f.write("DEVICE=%s\n" % iface_vlan)
-        f.write("ONBOOT=yes\n")
-        if self.mode == self.DHCP:
-            f.write("BOOTPROTO=dhcp\n")
-            f.write("PERSISTENT_DHCLIENT=1\n")
+        if self.bond_mode:
+            # configuration of the bond interface
+            for idx, member in enumerate(self.bond_members):
+                writeBondMember(idx, member)
+            writeBondMaster() # ... includes IP config if not using VLAN ...
+            if self.vlan:
+                writeIface(iface_vlan) # ... but here when using VLAN
         else:
-            # CA-11825: broadcast needs to be determined for non-standard networks
-            bcast = self.getBroadcast()
-            f.write("BOOTPROTO=none\n")
-            f.write("IPADDR=%s\n" % self.ipaddr)
-            if bcast is not None:
-                f.write("BROADCAST=%s\n" % bcast)
-            f.write("NETMASK=%s\n" % self.netmask)
-            if self.gateway:
-                f.write("GATEWAY=%s\n" % self.gateway)
-        if self.vlan:
-            f.write("VLAN=yes\n")
-        f.close()
-
+            writeIface(iface_vlan)
 
     def waitUntilUp(self, iface):
         if not self.isStatic():
