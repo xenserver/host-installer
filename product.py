@@ -540,7 +540,8 @@ def findXenSourceBackups():
                 if backup.version >= XENSERVER_MIN_VERSION and \
                         backup.version <= THIS_PLATFORM_VERSION:
                     backups.append(backup)
-        except:
+        except Exception as ex:
+            logger.log("findXenSourceBackups caught exception for partition %s: %s" % (p, ex))
             pass
         if b:
             b.unmount()
