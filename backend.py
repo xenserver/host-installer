@@ -1143,20 +1143,6 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
             else:
                 installGrub2(mounts, root_partition, True)
 
-        if serial:
-            # ensure a getty will run on the serial console
-            old = open("%s/etc/inittab" % mounts['root'], 'r')
-            new = open('/tmp/inittab', 'w')
-
-            for line in old:
-                if line.startswith("s%d:" % serial.id):
-                    new.write(re.sub(r'getty \S+ \S+', "getty %s %s" % (serial.dev, serial.baud), line))
-                else:
-                    new.write(line)
-
-            old.close()
-            new.close()
-            shutil.move('/tmp/inittab', "%s/etc/inittab" % mounts['root'])
     finally:
         # done installing - undo our extra mounts:
         util.umount("%s/proc" % mounts['root'])
