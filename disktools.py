@@ -826,7 +826,8 @@ class DOSPartitionTool(PartitionToolBase):
 
     def commitActivePartitiontoDisk(self, part_num):
         self.settleUdev()
-        self.cmdWrap([self.SFDISK, '--no-reread', '-A%d' % part_num, self.device]) # BIOS bootable flag set for one and unset for others partition
+        # BIOS bootable flag set for one and unset for others partition
+        self.cmdWrap([self.SFDISK, '--no-reread', '-A', self.device, part_num])
         self.waitForDeviceNodes()
 
     def writeThisPartitionTable(self, table, dryrun=False, log=False):
@@ -1045,7 +1046,7 @@ class GPTPartitionTool(PartitionToolBase):
             # at location 0x1fe.
             # However, let's keep them happy by making the single partition in the protective MBR "active".
             self.settleUdev()
-            self.cmdWrap(['sfdisk', '--no-reread', '-A1', self.device])
+            self.cmdWrap(['sfdisk', '--no-reread', '-A', self.device, '1'])
 
         # Ensure that we write out in on-disk order to prevent conflicts when
         # partition sizes get rounded.
