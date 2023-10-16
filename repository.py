@@ -782,12 +782,11 @@ def findRepositoriesOnMedia(drivers=False):
 def installFromYum(targets, mounts, progress_callback, cachedir):
         # Use a temporary file to avoid deadlocking
         stderr = tempfile.TemporaryFile()
-
-        yum_command = ['yum', '-c', '/root/yum.conf',
+        dnf_cmd = ['dnf', '--releasever=/', '-c', '/root/yum.conf',
                        '--installroot', mounts['root'],
                        'install', '-y'] + targets
-        logger.log("Running yum: %s" % ' '.join(yum_command))
-        p = subprocess.Popen(yum_command, stdout=subprocess.PIPE, stderr=stderr, universal_newlines=True)
+        logger.log("Running : %s" % ' '.join(dnf_cmd))
+        p = subprocess.Popen(dnf_cmd, stdout=subprocess.PIPE, stderr=stderr, universal_newlines=True)
         count = 0
         total = 0
         verify_count = 0
@@ -796,7 +795,7 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
             if not line:
                 break
             line = line.rstrip()
-            logger.log("YUM: %s" % line)
+            logger.log("DNF: %s" % line)
             if line == 'Resolving Dependencies':
                 progress_callback(1)
             elif line == 'Dependencies Resolved':
@@ -818,10 +817,10 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
         stderr.seek(0)
         stderr = stderr.read()
         if stderr:
-            logger.log("YUM stderr: %s" % stderr.strip())
+            logger.log("DNF stderr: %s" % stderr.strip())
 
         if rv:
-            logger.log("Yum exited with %d" % rv)
+            logger.log("DNF exited with %d" % rv)
             raise ErrorInstallingPackage("Error installing packages")
 
         shutil.rmtree(os.path.join(mounts['root'], cachedir))
