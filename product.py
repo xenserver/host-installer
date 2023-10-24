@@ -393,8 +393,9 @@ class ExistingInstallation:
             pciback = next((x for x in kernel_args if x.startswith('xen-pciback.hide=')), None)
             if pciback:
                 results['host-config']['xen-pciback.hide'] = pciback
-        except:
-            pass
+        except Exception as e:
+            logger.log('Exception whilst parsing existing bootloader config:')
+            logger.logException(e)
         self.unmount_boot()
 
         return results
