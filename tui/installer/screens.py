@@ -537,8 +537,7 @@ def disk_more_info(context):
     return True
 
 def sorted_disk_list(): # Smallest to largest, then alphabetical
-    return sorted(diskutil.getQualifiedDiskList(),
-                  key=functools.cmp_to_key(lambda x, y: len(x) == len(y) and cmp(x,y) or (len(x)-len(y))))
+    return sorted(diskutil.getQualifiedDiskList(), key=lambda disk: (len(disk), disk))
 
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
