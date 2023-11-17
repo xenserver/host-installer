@@ -296,12 +296,21 @@ Format of 'source' and 'driver-source'
 (Re)Install Attributes
 ----------------------
 
-  <installation sr-type="lvm|ext"?>
-  <installation srtype="lvm|ext"?>[D]
+  <installation sr-type="srtype"?>
+  <installation srtype="srtype"?>[D]
+
+    where srtype is one of
+
+      lvm
+      ext
+      the SR type specified in the large-block-capable-sr-type feature file
+        (if present)
 
     Local SR type.
 
-    Default: lvm
+    Default: lvm if the disks included in local SR storage all have 512 byte
+             logical blocks, otherwise (when available) the SR type from
+             the large-block-capable-sr-type feature
 
 
 Upgrade Elements
