@@ -89,8 +89,10 @@ class LVMTool:
     # Volume group prefixes
     VG_SWAP_PREFIX = 'VG_XenSwap'
     VG_CONFIG_PREFIX = 'VG_XenConfig'
+    # Prefix used by the SR type 'lvm'
     VG_SR_PREFIX = 'VG_XenStorage'
-    VG_EXT_SR_PREFIX = 'XSLocalEXT'
+    # Prefix for non-'lvm' local storage SR types
+    VG_OTHER_SR_PREFIX = 'XSLocal'
 
     PVMOVE = ['pvmove']
     LVCHANGE = ['lvchange']
@@ -349,7 +351,7 @@ class LVMTool:
     def srPartition(self, devicePrefix):
         retVal = self.testPartition(devicePrefix, self.VG_SR_PREFIX)
         if retVal is None:
-            retVal = self.testPartition(devicePrefix, self.VG_EXT_SR_PREFIX)
+            retVal = self.testPartition(devicePrefix, self.VG_OTHER_SR_PREFIX)
         return retVal
 
     def isPartitionConfig(self, device):
@@ -365,7 +367,7 @@ class LVMTool:
     def isPartitionSR(self, device):
         pv = self.deviceToPVOrNone(device)
         return pv is not None and (pv['vg_name'].startswith(self.VG_SR_PREFIX) or \
-                                   pv['vg_name'].startswith(self.VG_EXT_SR_PREFIX))
+                                   pv['vg_name'].startswith(self.VG_OTHER_SR_PREFIX))
 
     def deleteDevice(self, device):
         """Deletes PVs, VGs and LVs associated with a device (partition)"""
