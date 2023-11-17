@@ -284,6 +284,17 @@ def getDiskDeviceSize(dev):
     elif os.path.exists("/sys/block/%s/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/size" % dev))
 
+def getDiskBlockSize(dev):
+    if not dev.startswith("/dev/"):
+        dev = '/dev/' + dev
+    if isDeviceMapperNode(dev):
+        return getDiskBlockSize(getDeviceSlaves(dev)[0])
+    if dev.startswith("/dev/"):
+        dev = re.match("/dev/(.*)", dev).group(1)
+    dev = dev.replace("/", "!")
+    return int(__readOneLineFile__("/sys/block/%s/queue/logical_block_size"
+                                   % dev))
+
 def getDiskSerialNumber(dev):
     # For Multipath nodes return info about 1st slave
     if not dev.startswith("/dev/"):
@@ -334,18 +345,38 @@ def isRemovable(path):
     else:
         return False
 
+def isLargeBlockDisk(dev):
+    """
+    Determines whether a disk's logical block size is larger than 512 bytes
+    (e.g. 4KB) with the consequence that "lvm" and "ext" SR types will not
+    be able to make use of it.
+    """
+    return getDiskBlockSize(dev) > 512
+
 def blockSizeToGBSize(blocks):
     return (long(blocks) * 512) // (1024 * 1024 * 1024)
 
 def blockSizeToMBSize(blocks):
     return (long(blocks) * 512) // (1024 * 1024)
 
-def getHumanDiskSize(blocks):
-    gb = blockSizeToGBSize(blocks)
+def blockSizeToBytes(blocks):
+    return long(blocks) * 512
+
+def bytesToHuman(num_bytes):
+    kb = num_bytes // 1024
+    mb = kb // 1024
+    gb = mb // 1024
+
     if gb > 0:
         return "%d GB" % gb
-    else:
-        return "%d MB" % blockSizeToMBSize(blocks)
+    if mb > 0:
+        return "%d MB" % mb
+    if kb > 0:
+        return "%d KB" % kb
+    return "%d bytes" % num_bytes
+
+def getHumanDiskSize(blocks):
+    return bytesToHuman(blockSizeToBytes(blocks))
 
 def getExtendedDiskInfo(disk, inMb=0):
     return (getDiskDeviceVendor(disk), getDiskDeviceModel(disk),
@@ -447,6 +478,8 @@ def log_available_disks():
         diskSizes = [getDiskDeviceSize(x) for x in disks]
         diskSizesGB = [blockSizeToGBSize(x) for x in diskSizes]
         logger.log("Disk sizes: %s" % str(diskSizesGB))
+        logger.log("Disk block sizes: %s" % [getDiskBlockSize(x)
+                                             for x in disks])
 
         dom0disks = filter(lambda x: constants.min_primary_disk_size <= x,
                            diskSizesGB)
@@ -465,7 +498,7 @@ class Disk:
 
 INSTALL_RETAIL = 1
 STORAGE_LVM = 1
-STORAGE_EXT3 = 2
+STORAGE_OTHER = 2
 
 def probeDisk(device):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
@@ -476,7 +509,7 @@ def probeDisk(device):
         boot is a tuple of True or False and the partition device
         root is a tuple of None or INSTALL_RETAIL and the partition device
         state is a tuple of True or False and the partition device
-        storage is a tuple of None, STORAGE_LVM or STORAGE_EXT3 and the partition device
+        storage is a tuple of None, STORAGE_LVM or STORAGE_OTHER and the partition device
         logs is a tuple of True or False and the partition device
         swap is a tuple of True or False and the partition device
     """
@@ -521,9 +554,8 @@ def probeDisk(device):
             disk.state = (True, part_device)
         elif lv_tool.isPartitionSR(part_device):
             pv = lv_tool.deviceToPVOrNone(part_device)
-            if pv is not None and pv['vg_name'].startswith(lv_tool.VG_EXT_SR_PREFIX):
-                # odd 'ext3 in an LV' SR
-                disk.storage = (STORAGE_EXT3, part_device)
+            if pv is not None and pv['vg_name'].startswith(lv_tool.VG_OTHER_SR_PREFIX):
+                disk.storage = (STORAGE_OTHER, part_device)
             else:
                 disk.storage = (STORAGE_LVM, part_device)
 
