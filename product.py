@@ -19,6 +19,7 @@ from xcp.version import *
 from xcp import logger
 import xml.dom.minidom
 import simplejson as json
+import glob
 
 class SettingsNotAvailable(Exception):
     pass
@@ -168,8 +169,21 @@ class ExistingInstallation:
             ntps = []
             for line in lines:
                 if line.startswith("server "):
-                    ntps.append(line[7:].split()[0].strip())
+                    s = line[7:].split()[0].strip()
+                    if any(s.endswith(d) for d in constants.DEFAULT_NTP_DOMAINS):
+                        continue
+                    ntps.append(s)
             results['ntp-servers'] = ntps
+            # ntp-config-method should be set as follows:
+            # 'dhcp' if dhcp was in use, regardless of server configuration
+            # 'manual' if we had existing NTP servers defined (other than default servers)
+            # 'default' if no NTP servers are defined
+            if self._check_dhcp_ntp_status():
+                results['ntp-config-method'] = 'dhcp'
+            elif ntps:
+                results['ntp-config-method'] = 'manual'
+            else:
+                results['ntp-config-method'] = 'default'
 
             # keyboard:
             keyboard_dict = {}
@@ -215,9 +229,6 @@ class ExistingInstallation:
             if not root_pwd:
                 raise SettingsNotAvailable("no root password found")
             results['root-password'] = ('pwdhash', root_pwd)
-
-            # don't care about this too much.
-            results['ntp-config-method'] = 'default'
 
             # read network configuration.  We only care to find out what the
             # management interface is, and what its configuration was.
@@ -399,6 +410,19 @@ class ExistingInstallation:
         self.unmount_boot()
 
         return results
+
+    def _check_dhcp_ntp_status(self):
+        """Validate if DHCP was in use and had provided any NTP servers"""
+        if os.path.exists(self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')) and \
+           not (os.stat(self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')).st_mode & stat.S_IXUSR):
+            # chrony.sh not executable indicates not using DHCP for NTP
+            return False
+
+        for f in glob.glob(self.join_state_path('var/lib/dhclient/chrony.servers.*')):
+            if os.path.getsize(f) > 0:
+                return True
+
+        return False
 
     def mount_boot(self, ro=True):
         opts = None
