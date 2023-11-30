@@ -503,6 +503,10 @@ def partitionDevice(device, deviceNum):
     return device + determineMidfix(device) + str(deviceNum)
 
 
+def roundUp(n, mult):
+    n += mult - 1
+    return n - n % mult
+
 class PartitionToolBase:
     """
     Base class for the DOS and GPT Partition Tool classes.
@@ -513,6 +517,7 @@ class PartitionToolBase:
     DEFAULT_SECTOR_SIZE = 512 # Used if sfdisk won't print its (hardcoded) value
 
     def __init__(self, device):
+        self.sectorAlignment = 1
         self.device = device
         self.midfix = determineMidfix(device)
         self.readDiskDetails()
@@ -598,6 +603,7 @@ class PartitionToolBase:
                     startSector =  partitions[order - 1]['start'] + partitions[order - 1]['size']
             else:
                 startSector =  partitions[-1]['start'] + partitions[-1]['size']
+            startSector = roundUp(startSector, self.sectorAlignment)
         else:
             if startBytes % self.sectorSize != 0:
                 raise Exception("Partition start ("+str(startBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
@@ -936,6 +942,7 @@ class GPTPartitionTool(PartitionToolBase):
         self.sectorExtent      = int(self.cmdWrap(['blockdev', '--getsize64', self.device])) // self.sectorSize
         self.sectorFirstUsable = 34
         self.sectorLastUsable  = self.sectorExtent - 34
+        self.sectorAlignment   = 2 ** 20 // self.sectorSize
 
     def partitionTable(self):
         cmd = [self.SGDISK, '--print', self.device]
@@ -1056,14 +1063,16 @@ class GPTPartitionTool(PartitionToolBase):
             end    = part['size'] + start - 1
             idt    = part['id']
             active = part['active']
-            self.cmdWrap([self.SGDISK, '--new=%d:%d:%d' % (num,start,end), self.device])
-            self.cmdWrap([self.SGDISK, '--typecode=%d:%s' % (num,self.GUID_to_type_code[idt]), self.device])
+            args = [self.SGDISK, '--set-alignment=1', '--new=%d:%d:%d' % (num,start,end)]
+            args += ['--typecode=%d:%s' % (num,self.GUID_to_type_code[idt])]
             if active:
-                self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag
+                args += ['--attributes=%d:set:2' % num] # BIOS bootable flag
             if 'partlabel' in part and part['partlabel']:
-                self.cmdWrap([self.SGDISK, '--change-name=%d:%s' % (num, part['partlabel']), self.device])
+                args += ['--change-name=%d:%s' % (num,part['partlabel'])]
             if 'partuuid' in part:
-                self.cmdWrap([self.SGDISK, '--partition-guid=%d:%s' % (num, part['partuuid']), self.device])
+                args += ['--partition-guid=%d:%s' % (num,part['partuuid'])]
+            args += [self.device]
+            self.cmdWrap(args)
 
         if isDeviceMapperNode(self.device):
             # Create partitions using device mapper
