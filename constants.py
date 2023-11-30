@@ -57,19 +57,22 @@ def error_string(error, logname, with_hd):
         ERROR_STRING_KNOWN_ERROR
     ) = range(3)
 
+    CONTACT_TEXT = "\n\nPlease refer to your user guide or contact a Technical Support Representative for more details."
+
     ERROR_STRINGS = {
-        ERROR_STRING_UNKNOWN_ERROR_WITH_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s (and /root/%s on your hard disk if possible).\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
-        ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s.\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
-        ERROR_STRING_KNOWN_ERROR: "An unrecoverable error has occurred.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details."
+        ERROR_STRING_UNKNOWN_ERROR_WITH_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s (and /root/%s on your hard disk if possible).%s",
+        ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s.%s",
+        ERROR_STRING_KNOWN_ERROR: "An unrecoverable error has occurred.  The error was:\n\n%s.%s"
         }
 
     if error == "":
         if with_hd:
-            return ERROR_STRINGS[ERROR_STRING_UNKNOWN_ERROR_WITH_HD] % (logname, logname)
+            return ERROR_STRINGS[ERROR_STRING_UNKNOWN_ERROR_WITH_HD] % (
+                logname, logname, CONTACT_TEXT)
         else:
-            return ERROR_STRINGS[ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD] % logname
+            return ERROR_STRINGS[ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD] % (logname, CONTACT_TEXT)
     else:
-        return ERROR_STRINGS[ERROR_STRING_KNOWN_ERROR] % error
+        return ERROR_STRINGS[ERROR_STRING_KNOWN_ERROR] % (error, CONTACT_TEXT)
 
 # minimum hardware specs:
 # memory checks should be done against MIN_SYSTEM_RAM_MB since libxc
