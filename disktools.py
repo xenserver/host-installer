@@ -942,8 +942,10 @@ class GPTPartitionTool(PartitionToolBase):
     def readDiskDetails(self):
         self.sectorSize        = int(self.cmdWrap(['blockdev', '--getss', self.device]))
         self.sectorExtent      = int(self.cmdWrap(['blockdev', '--getsize64', self.device])) // self.sectorSize
-        self.sectorFirstUsable = 34
-        self.sectorLastUsable  = self.sectorExtent - 34
+        # size depends on GPT entries (should be 128), their size (128 bytes) and sector size
+        # first sector is MBR, second GPT header
+        self.sectorFirstUsable = 2 - (-128*128 // self.sectorSize)
+        self.sectorLastUsable  = self.sectorExtent - self.sectorFirstUsable
         self.sectorAlignment   = 2 ** 20 // self.sectorSize
 
     def partitionTable(self):
