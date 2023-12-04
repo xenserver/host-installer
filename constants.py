@@ -84,13 +84,7 @@ GPT_SUPPORT = True
 
 # filesystems and partitions (sizes in MB):
 boot_size = 512
-root_mbr_size_old = 4096
-root_mbr_size = 18432
-root_gpt_size_old = 3584
-root_gpt_size = 17920
-root_size_old = max(root_mbr_size_old, root_gpt_size_old)  # used for free space calculations
-root_size = max(root_mbr_size, root_gpt_size)  # used for free space calculations
-backup_size_old = 4096
+root_size = 18432
 backup_size = 18432
 swap_file_size = 512
 swap_size = 1024
