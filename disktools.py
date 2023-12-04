@@ -316,13 +316,13 @@ class LVMTool:
             raise Exception("Size requested for "+str(device)+" ("+str(byteSize)+
                 ") is greater than device size ("+str(pv['dev_size'])+")")
 
-        extentBytes = pv['pv_size'] / pv['pv_pe_count'] # Typically 4MiB
+        extentBytes = pv['pv_size'] // pv['pv_pe_count'] # Typically 4MiB
         # Calculate the threshold in extents beyond which segments must be moved elsewhere.
         # Round down, so enough space is freed for pvresize to complete, and allow
         # PVRESIZE_EXTENT_MARGIN for extents consumed by LVM metadata
-        metadataExtents = (pv['pe_start'] + extentBytes - 1) / extentBytes # Round up
+        metadataExtents = (pv['pe_start'] + extentBytes - 1) // extentBytes # Round up
 
-        thresholdExtent = byteSize / extentBytes - metadataExtents - self.PVRESIZE_EXTENT_MARGIN
+        thresholdExtent = byteSize // extentBytes - metadataExtents - self.PVRESIZE_EXTENT_MARGIN
         self.makeSpaceAfterThreshold(device, thresholdExtent)
         self.resizeList.append({'device' : device, 'bytesize' : byteSize})
 
@@ -466,7 +466,7 @@ class LVMTool:
         # Process resize list
         progress_callback(98)
         for resize in self.resizeList:
-            self.cmdWrap(self.PVRESIZE + ['--setphysicalvolumesize', str(resize['bytesize']/1024)+'k', resize['device']])
+            self.cmdWrap(self.PVRESIZE + ['--setphysicalvolumesize', str(resize['bytesize']//1024)+'k', resize['device']])
         self.resizeList = []
 
         self.readAllInfo() # Reread the new LVM configuration
@@ -601,7 +601,7 @@ class PartitionToolBase:
         else:
             if startBytes % self.sectorSize != 0:
                 raise Exception("Partition start ("+str(startBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
-            startSector = startBytes / self.sectorSize
+            startSector = startBytes // self.sectorSize
 
         if sizeBytes is None:
             if order:
@@ -619,7 +619,7 @@ class PartitionToolBase:
             if sizeBytes % self.sectorSize != 0:
                 raise Exception("Partition size ("+str(sizeBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
 
-            sizeSectors = sizeBytes / self.sectorSize
+            sizeSectors = sizeBytes // self.sectorSize
 
         if sizeSectors < 0:
             self.dump()
@@ -677,7 +677,7 @@ class PartitionToolBase:
         if sizeBytes % self.sectorSize != 0:
             raise Exception("Partition size ("+str(sizeBytes)+") is not a multiple of the sector size "+str(self.sectorSize))
 
-        self.partitions[number]['size'] = sizeBytes / self.sectorSize
+        self.partitions[number]['size'] = sizeBytes // self.sectorSize
 
     def setActiveFlag(self, activeFlag, number):
         assert isinstance(activeFlag, bool) # Assert that params are the right way around
@@ -745,7 +745,7 @@ class DOSPartitionTool(PartitionToolBase):
         # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
         # Actually truncate a bit more because sfdisk has unfathomablely lower limit
         self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
-        cylinders = int(self.sectorExtent/(heads * sectors))
+        cylinders = int(self.sectorExtent//(heads * sectors))
         self.sectorExtent = cylinders * heads * sectors # Ignore partial cylinder at end
 
         self.sectorFirstUsable = sectors # Some SANs require bootable disks to start on sector boundary
@@ -773,11 +773,11 @@ class DOSPartitionTool(PartitionToolBase):
         sectors = 63
         self.sectorSize = 512
         out = self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])
-        self.sectorExtent = int(out)/self.sectorSize
+        self.sectorExtent = int(out)//self.sectorSize
         # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
         # Actually truncate a bit more because sfdisk has unfathomablely lower limit
         self.sectorExtent = min([self.sectorExtent, 0xffe00000]) # 2047G
-        cylinders = int(self.sectorExtent/(heads * sectors))
+        cylinders = int(self.sectorExtent//(heads * sectors))
         self.sectorExtent = cylinders * heads * sectors # Ignore partial cylinder at end
         self.sectorFirstUsable = sectors # Some SANs require bootable disks to start on sector boundary
         self.sectorLastUsable = self.sectorExtent - 1
@@ -859,7 +859,7 @@ class DOSPartitionTool(PartitionToolBase):
                 raise Exception('Failed to destroy partitions on ' + self.device)
             heads = 255
             sectors = 63
-            cylinders = self.sectorExtent/(heads * sectors)
+            cylinders = self.sectorExtent//(heads * sectors)
             cmd = [self.SFDISK, dryrun and '-Lnu' or '-Lu', '--no-reread', '-f', '-C%d' % cylinders, '-H%d' % heads, '-S%d' % sectors, self.device]
         else:
             cmd = [self.SFDISK, dryrun and '-LnuS' or '-LuS', '--no-reread', '-f', self.device]
@@ -883,7 +883,7 @@ class DOSPartitionTool(PartitionToolBase):
             if rv:
                 raise Exception('Failed to create partitions on %s using kpartx ' % self.device)
             for number, partition in table.items():
-                size = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', '%sp%d' % (self.device, number)]))/self.sectorSize
+                size = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', '%sp%d' % (self.device, number)]))//self.sectorSize
                 if size != partition['size']:
                     raise Exception('Failed to create partition %sp%d of size %d' % (self.device, number, partition['size']))
 
@@ -933,7 +933,7 @@ class GPTPartitionTool(PartitionToolBase):
 
     def readDiskDetails(self):
         self.sectorSize        = int(self.cmdWrap(['blockdev', '--getss', self.device]))
-        self.sectorExtent      = int(self.cmdWrap(['blockdev', '--getsize64', self.device])) / self.sectorSize
+        self.sectorExtent      = int(self.cmdWrap(['blockdev', '--getsize64', self.device])) // self.sectorSize
         self.sectorFirstUsable = 34
         self.sectorLastUsable  = self.sectorExtent - 34
 

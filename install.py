@@ -216,7 +216,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         status = constants.EXIT_OK
 
         # how much RAM do we have?
-        ram_found_mb = hardware.getHostTotalMemoryKB() / 1024
+        ram_found_mb = hardware.getHostTotalMemoryKB() // 1024
         ram_warning = ram_found_mb < constants.MIN_SYSTEM_RAM_MB
         vt_warning = not hardware.VTSupportEnabled()
 
