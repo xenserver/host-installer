@@ -332,10 +332,10 @@ def isRemovable(path):
         return False
 
 def blockSizeToGBSize(blocks):
-    return (long(blocks) * 512) / (1024 * 1024 * 1024)
+    return (long(blocks) * 512) // (1024 * 1024 * 1024)
 
 def blockSizeToMBSize(blocks):
-    return (long(blocks) * 512) / (1024 * 1024)
+    return (long(blocks) * 512) // (1024 * 1024)
 
 def getHumanDiskSize(blocks):
     gb = blockSizeToGBSize(blocks)
@@ -346,7 +346,7 @@ def getHumanDiskSize(blocks):
 
 def getExtendedDiskInfo(disk, inMb=0):
     return (getDiskDeviceVendor(disk), getDiskDeviceModel(disk),
-            inMb and (getDiskDeviceSize(disk)/2048) or getDiskDeviceSize(disk))
+            inMb and (getDiskDeviceSize(disk)//2048) or getDiskDeviceSize(disk))
 
 
 def readExtPartitionLabel(partition):
