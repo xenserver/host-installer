@@ -298,7 +298,7 @@ def performInstallation(answers, ui_package, interactive):
 
     dom0_mem = xcp.dom0.default_memory_for_version(
                     hardware.getHostTotalMemoryKB(),
-                    Version.from_string(version.PLATFORM_VERSION)) / 1024
+                    Version.from_string(version.PLATFORM_VERSION)) // 1024
     dom0_vcpus = xcp.dom0.default_vcpus(hardware.getHostTotalCPUs(), dom0_mem)
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
