@@ -97,6 +97,8 @@ swap_size = 1024
 logs_size = 4096
 logs_free_space = 20
 
+install_size = logs_size + backup_size + root_size + boot_size + swap_size
+
 # filesystems and partitions types:
 bootfs_type = 'vfat'
 rootfs_type = 'ext3'
@@ -153,6 +155,7 @@ ROLLING_POOL_DIR = "boot/installer"
 
 HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"
 SAFE_2_UPGRADE = "var/preserve/safe2upgrade"
+SAFE_2_MBR_UPGRADE = "var/preserve/safe2mbrupgrade"
 
 # NTP server domains to treat as 'default' servers
 DEFAULT_NTP_DOMAINS = [".centos.pool.ntp.org", ".xenserver.pool.ntp.org"]

@@ -798,3 +798,19 @@ def parentdev_from_devpath(devpath):
 
     # If there is no parent of the parent cannot be determined...
     return None
+
+
+def gpt_header_sectors(sector_size):
+    '''Returns the number of sectors consumed by the GPT'''
+
+    # For 512 byte sectors, this would be:
+    # 1 sector for MBR, 1 sector for GPT header + 32 sectors for partition entries.
+    return 2 - (-128 * 128 // sector_size)
+
+
+def backup_gpt_header_sectors(sector_size):
+    '''Returns the number of sectors consumed by the GPT'''
+
+    # For 512 byte sectors, this would be:
+    # 1 sector for GPT header + 32 sectors for partition entries.
+    return gpt_header_sectors(sector_size) - 1
