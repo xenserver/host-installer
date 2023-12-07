@@ -9,6 +9,7 @@ import product
 from xcp.version import *
 from xcp import logger
 from disktools import *
+from shrinklvm import shrink_lvm
 from netinterface import *
 import util
 import constants
@@ -46,6 +47,12 @@ class Upgrader(object):
                 True in [ _min <= version <= _max for (_min, _max) in cls.upgrades_versions ])
 
     upgrades = classmethod(upgrades)
+
+    convertTargetStateChanges = []
+    convertTargetArgs = []
+    def convertTarget(self, progress_callback):
+        """ Convert MBR disk to GPT prior to installation. """
+        return
 
     prepTargetStateChanges = []
     prepTargetArgs = []
@@ -201,6 +208,8 @@ class ThirdGenUpgrader(Upgrader):
         self.safe2upgrade = os.path.isfile(safe2upgrade_path)
         self.vgs_output = None
 
+        self.safe2mbrupgrade = os.path.isfile(os.path.join(primary_fs.mount_point, constants.SAFE_2_MBR_UPGRADE))
+
         self.storage_type = None
         if os.path.exists(default_storage_conf_path):
             input_data = util.readKeyValueFile(default_storage_conf_path)
@@ -213,9 +222,102 @@ class ThirdGenUpgrader(Upgrader):
         if tool.partTableType == constants.PARTITION_DOS and utilparts is not None:
             raise RuntimeError("Util partition detected on DOS partition type, upgrade forbidden.")
 
+    convertTargetStateChanges = []
+    convertTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'backup-partnum']
+    def convertTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, backup_partnum):
+        if not self.safe2mbrupgrade:
+            return
+
+        tool = PartitionTool(primary_disk)
+        if tool.partTableType != constants.PARTITION_DOS:
+            return
+
+        partition_starts = sorted([i['start'] for i in tool.partitions.values()])
+
+        # Verify the primary disk layout is as expected
+        if primary_partnum == 1:
+            # No utility partition
+
+            assert(len(tool.utilityPartitions()) == 0)
+            assert(backup_partnum == 2)
+            assert(storage_partnum == 3)
+
+            assert(len(tool.partitions) == 3)
+        else:
+            # Have utility partition
+            assert(primary_partnum == 2)
+            assert(backup_partnum == 3)
+            assert(storage_partnum == 4)
+
+            assert(len(tool.partitions) == 4)
+
+            # Ensure that utility partition is first on disk
+            assert(tool.partitions[1]['start'] == partition_starts[0])
+
+            # Ensure there is enough space before the utility partition for the GPT
+            assert(tool.partitions[1]['start'] >= diskutil.gpt_header_sectors(tool.sectorSize))
+
+        # Ensure that the SR is the last partition on disk
+        assert(tool.partitions[storage_partnum]['start'] == partition_starts[-1])
+
+        # Ensure new partitions do not exist.
+        boot_partition = tool.getPartition(boot_partnum)
+        assert(boot_partition is None)
+        logs_partition = tool.getPartition(logs_partnum)
+        assert(logs_partition is None)
+        swap_partition = tool.getPartition(swap_partnum)
+        assert(swap_partition is None)
+
+        # This upgrade process is only supported for 512 byte sectors.
+        assert(tool.sectorSize == 512)
+
+        # This upgrade process is only supported for LVM SRs.
+        assert(self.source.storage[0] == diskutil.STORAGE_LVM)
+
+        # Calculate how much space is required at the start and end of the LVM SR.
+        if primary_partnum == 1:
+            existing_install_start = partition_starts[0]
+        else:
+            existing_install_start = partition_starts[1]
+
+        # The new installation start is aligned up to a 1 MiB boundary.
+        # The SR will therefore be resized to a 1 MiB boundary because
+        # the installation is sized in whole MiBs.
+        new_install_start = (existing_install_start + 2047) & ~2047
+        new_sr_start = new_install_start + (constants.install_size * 1024 * 1024 / tool.sectorSize)
+        start_sectors_required = new_sr_start - tool.partitions[storage_partnum]['start']
+        end_sectors_required = max(tool.partitions[storage_partnum]['start'] +
+                                   tool.partitions[storage_partnum]['size'] -
+                                   (tool.sectorExtent - diskutil.backup_gpt_header_sectors(tool.sectorSize)), 0)
+
+        logger.log('Existing install start: {}'.format(existing_install_start))
+        logger.log('New install start: {}'.format(new_install_start))
+        logger.log('Existing SR start: {}'.format(tool.partitions[storage_partnum]['start']))
+        logger.log('New SR start: {}'.format(new_sr_start))
+        logger.log('Start sectors required: {}'.format(start_sectors_required))
+        logger.log('End sectors required {}'.format(end_sectors_required))
+
+        progress_callback(5)
+
+        shrink_lvm(primary_disk, storage_partnum, start_sectors_required * tool.sectorSize,
+                   end_sectors_required * tool.sectorSize,
+                   lambda p: progress_callback(5 + int(p * 0.9)))
+
+        # Now that we have freed the end of the disk, convert to GPT
+        util.runCmd2(['sgdisk', '--mbrtogpt', primary_disk])
+
+        progress_callback(97)
+
+        # Fix up partition ids to be what the rest of the installer expects
+        tool = PartitionTool(primary_disk)
+        tool.partitions[primary_partnum]['id'] = tool.ID_LINUX
+        tool.partitions[backup_partnum]['id'] = tool.ID_LINUX
+        tool.commit()
+
+
     prepTargetStateChanges = []
-    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']
-    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum):
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'backup-partnum']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, backup_partnum):
         """ Modify partition layout prior to installation. """
 
         tool = PartitionTool(primary_disk, constants.PARTITION_GPT)
@@ -278,6 +380,28 @@ class ThirdGenUpgrader(Upgrader):
                         util.mkfs('ext3', '/dev/' + self.vgs_output + '/' + sr_uuid, ['-F'])
                     except Exception as e:
                         raise RuntimeError("Backup: Failed to format filesystem on %s: %s" % (storage_part, e))
+        elif self.safe2mbrupgrade and logs_partition is None:
+            # Create logs partition using the old root + boot (if any) partitions
+            tool.deletePartition(primary_partnum)
+            tool.deletePartitionIfPresent(boot_partnum)
+
+            offset = primary_partnum - 1
+
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, order=(1 + offset), number=logs_partnum)
+
+            # Create new root partition
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, order=(3 + offset), number=primary_partnum)
+
+            # Create boot partition
+            if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, order=(4 + offset), number=boot_partnum)
+            else:
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, order=(4 + offset), number=boot_partnum)
+
+            # Create swap partition
+            tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, order=(5 + offset), number=swap_partnum)
+
+            tool.commit(log=True)
         else:
             # If the boot partition already, exists, no partition updates are
             # necessary.
@@ -287,9 +411,9 @@ class ThirdGenUpgrader(Upgrader):
                     return
             raise RuntimeError("Old partition layout is unsupported, run prepare_host_upgrade plugin and try again")
 
-    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum']
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum', 'primary-partnum']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum, primary_partnum):
 
         tool = PartitionTool(target_disk)
         boot_part = tool.getPartition(boot_partnum)
@@ -317,8 +441,14 @@ class ThirdGenUpgrader(Upgrader):
                     util.runCmd2(['pvremove', storage_part])
                 # Delete LVM partition
                 tool.deletePartition(storage_partnum)
-            # Resize backup partition
-            tool.resizePartition(number=backup_partnum, sizeBytes=constants.backup_size * 2**20)
+
+        if (self.safe2upgrade or self.safe2mbrupgrade) and logs_partition is None:
+            # Recreate backup partition
+            # This will ensure it is aligned properly
+            backup_part = tool.getPartition(backup_partnum)
+            tool.deletePartition(backup_partnum)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.backup_size * 2**20,
+                                 number=backup_partnum, order=(primary_partnum + 1))
             # Write partition table
             tool.commit(log=True)
 

@@ -448,6 +448,7 @@ class ExistingRetailInstallation(ExistingInstallation):
         self.variant = 'Retail'
         ExistingInstallation.__init__(self, primary_disk, boot_device, state_device)
         self.root_device = root_device
+        self.storage = storage
         self._boot_fs_mounted = False
         self.readInventory()
 
