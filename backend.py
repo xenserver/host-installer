@@ -122,6 +122,12 @@ def getPrepSequence(ans, interactive):
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
+        seq.append(Task(convertTarget,
+                        lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].convertTargetArgs ],
+                        lambda progress_callback, upgrader, *a: upgrader.convertTargetStateChanges,
+                        progress_text="Converting target disk...",
+                        progress_scale=100,
+                        pass_progress_callback=True))
         if 'backup-existing-installation' in ans and ans['backup-existing-installation']:
             seq.append(Task(doBackup,
                             lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].doBackupArgs ],
@@ -1704,6 +1710,9 @@ def verifyRepos(sources, ui):
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """
     return upgrade.getUpgrader(source)
+
+def convertTarget(progress_callback, upgrader, *args):
+    return upgrader.convertTarget(progress_callback, *args)
 
 def prepareTarget(progress_callback, upgrader, *args):
     return upgrader.prepareTarget(progress_callback, *args)
