@@ -51,25 +51,19 @@ NETWORK_BACKEND_VSWITCH_ALT = "vswitch"
 
 # error strings:
 def error_string(error, logname, with_hd):
-    (
-        ERROR_STRING_UNKNOWN_ERROR_WITH_HD,
-        ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD,
-        ERROR_STRING_KNOWN_ERROR
-    ) = list(range(3))
-
-    ERROR_STRINGS = {
-        ERROR_STRING_UNKNOWN_ERROR_WITH_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s (and /root/%s on your hard disk if possible).\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
-        ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD: "An unrecoverable error has occurred.  The details of the error can be found in the log file, which has been written to /tmp/%s.\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.",
-        ERROR_STRING_KNOWN_ERROR: "An unrecoverable error has occurred.  The error was:\n\n%s\n\nPlease refer to your user guide, or contact a Technical Support Representative, for further details."
-        }
-
+    error = error.rstrip()
     if error == "":
+        err = "The details of the error can be found in the log file, which has been written to /tmp/%s" % logname
         if with_hd:
-            return ERROR_STRINGS[ERROR_STRING_UNKNOWN_ERROR_WITH_HD] % (logname, logname)
-        else:
-            return ERROR_STRINGS[ERROR_STRING_UNKNOWN_ERROR_WITHOUT_HD] % logname
+            err += " (and /root/%s on your hard disk if possible)" % logname
     else:
-        return ERROR_STRINGS[ERROR_STRING_KNOWN_ERROR] % error
+        err = "The error was:\n\n%s" % error
+
+    if err[-1:] != '.':
+        err += '.'
+
+    return ('An unrecoverable error has occurred.  ' + err +
+        '\n\nPlease refer to your user guide or contact a Technical Support Representative for more details.')
 
 # minimum hardware specs:
 # memory checks should be done against MIN_SYSTEM_RAM_MB since libxc
