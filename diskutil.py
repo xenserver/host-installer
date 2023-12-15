@@ -454,7 +454,7 @@ INSTALL_RETAIL = 1
 STORAGE_LVM = 1
 STORAGE_EXT3 = 2
 
-def probeDisk(device, justInstall=False):
+def probeDisk(device):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
     Returns a tuple (boot, root, state, storage, logs)
 
@@ -501,20 +501,19 @@ def probeDisk(device, justInstall=False):
         elif part['id'] == GPTPartitionTool.ID_EFI_BOOT or part['id'] == GPTPartitionTool.ID_BIOS_BOOT:
             boot = (True, part_device)
 
-    if not justInstall:
-        lv_tool = len(possible_srs) and LVMTool()
-        for num in possible_srs:
-            part_device = tool._partitionDevice(num)
+    lv_tool = len(possible_srs) and LVMTool()
+    for num in possible_srs:
+        part_device = tool._partitionDevice(num)
 
-            if lv_tool.isPartitionConfig(part_device):
-                state = (True, part_device)
-            elif lv_tool.isPartitionSR(part_device):
-                pv = lv_tool.deviceToPVOrNone(part_device)
-                if pv is not None and pv['vg_name'].startswith(lv_tool.VG_EXT_SR_PREFIX):
-                    # odd 'ext3 in an LV' SR
-                    storage = (STORAGE_EXT3, part_device)
-                else:
-                    storage = (STORAGE_LVM, part_device)
+        if lv_tool.isPartitionConfig(part_device):
+            state = (True, part_device)
+        elif lv_tool.isPartitionSR(part_device):
+            pv = lv_tool.deviceToPVOrNone(part_device)
+            if pv is not None and pv['vg_name'].startswith(lv_tool.VG_EXT_SR_PREFIX):
+                # odd 'ext3 in an LV' SR
+                storage = (STORAGE_EXT3, part_device)
+            else:
+                storage = (STORAGE_LVM, part_device)
 
     logger.log('Probe of %s found boot=%s root=%s state=%s storage=%s logs=%s' %
                   (device, str(boot), str(root), str(state), str(storage), str(logs)))
