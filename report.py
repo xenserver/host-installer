@@ -67,7 +67,7 @@ def disk_more_info(context):
     if not context: return True
 
     usage = 'unknown'
-    (boot, root, state, storage, logs) = diskutil.probeDisk(context)
+    (_, root, _, storage, _) = diskutil.probeDisk(context)
     if root[0]:
         usage = "%s installation" % (PRODUCT_BRAND or PLATFORM_NAME)
     elif storage[0]:
@@ -92,7 +92,7 @@ def get_local_disk(answers):
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         # determine current usage
         target_is_sr[de] = False
-        (boot, root, state, storage, logs) = diskutil.probeDisk(de)
+        (_, _, _, storage, _) = diskutil.probeDisk(de)
         if storage[0]:
             target_is_sr[de] = True
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
