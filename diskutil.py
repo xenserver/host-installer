@@ -493,7 +493,7 @@ def probeDisk(device):
                 if num + 2 in tool.partitions:
                     # George Retail and earlier didn't use the correct id for SRs
                     possible_srs = [num+2]
-            elif label and label.startswith('logs-'):
+            elif label and label.startswith(constants.logsfs_label_prefix):
                 logs = (True, part_device)
         elif part['id'] == tool.ID_LINUX_LVM:
             if num not in possible_srs:
