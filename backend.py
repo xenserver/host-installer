@@ -104,7 +104,7 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(inspectTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
+        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
         ]
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
@@ -524,7 +524,11 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
-def inspectTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
+# This is attempting to understand the desired layout of the future partitioning
+# based on options passed and status of disk (like partition to retain).
+# This is used on upgrade or restore.
+# Returns 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum'
+def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
     primary_part = 1
