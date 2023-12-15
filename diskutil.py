@@ -456,14 +456,15 @@ STORAGE_EXT3 = 2
 
 def probeDisk(device, justInstall=False):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
-    Returns a tuple (boot, state, storage)
+    Returns a tuple (boot, root, state, storage, logs)
 
     Where:
 
         boot is a tuple of True or False and the partition device
-        root is a tuple of None, INSTALL_RETAIL and the partition device
+        root is a tuple of None or INSTALL_RETAIL and the partition device
         state is a tuple of True or False and the partition device
         storage is a tuple of None, STORAGE_LVM or STORAGE_EXT3 and the partition device
+        logs is a tuple of True or False and the partition device
     """
 
     boot = (False, None)
