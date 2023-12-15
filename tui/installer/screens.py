@@ -513,7 +513,7 @@ def disk_more_info(context):
     if not context: return True
 
     usage = 'unknown'
-    (boot, root, state, storage, logs) = diskutil.probeDisk(context)
+    (_, root, _, storage, _) = diskutil.probeDisk(context)
     if root[0]:
         usage = "%s installation" % MY_PRODUCT_BRAND
     elif storage[0]:
@@ -558,7 +558,7 @@ def select_primary_disk(answers):
 
         # determine current usage
         target_is_sr[de] = False
-        (boot, root, state, storage, logs) = diskutil.probeDisk(de)
+        (_, _, _, storage, _) = diskutil.probeDisk(de)
         if storage[0]:
             target_is_sr[de] = True
         e = (diskutil.getHumanDiskLabel(de), de)

@@ -583,7 +583,7 @@ def findXenSourceProducts():
     installs = []
 
     for disk in diskutil.getQualifiedDiskList():
-        (boot, root, state, storage, logs) = diskutil.probeDisk(disk)
+        (boot, root, state, storage, _) = diskutil.probeDisk(disk)
 
         inst = None
         try:
