@@ -68,10 +68,10 @@ def disk_more_info(context):
     if not context: return True
 
     usage = 'unknown'
-    (_, root, _, storage, _) = diskutil.probeDisk(context)
-    if root[0]:
+    disk = diskutil.probeDisk(context)
+    if disk.root[0]:
         usage = "%s installation" % (PRODUCT_BRAND or PLATFORM_NAME)
-    elif storage[0]:
+    elif disk.storage[0]:
         usage = 'VM storage'
 
     tui.update_help_line([' ', ' '])
@@ -93,8 +93,8 @@ def get_local_disk(answers):
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         # determine current usage
         target_is_sr[de] = False
-        (_, _, _, storage, _) = diskutil.probeDisk(de)
-        if storage[0]:
+        disk = diskutil.probeDisk(de)
+        if disk.storage[0]:
             target_is_sr[de] = True
         (vendor, model, size) = diskutil.getExtendedDiskInfo(de)
         stringEntry = "%s - %s [%s %s]" % (diskutil.getHumanDiskName(de), diskutil.getHumanDiskSize(size), vendor, model)
