@@ -450,13 +450,23 @@ def log_available_disks():
         if len(dom0disks) == 0:
             logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
+class Disk:
+    def __init__(self, device):
+        self.device = device
+        self.boot = (False, None)
+        self.root = (None, None)
+        self.state = (False, None)
+        self.storage = (None, None)
+        self.logs = (False, None)
+        self.swap = (False, None)
+
 INSTALL_RETAIL = 1
 STORAGE_LVM = 1
 STORAGE_EXT3 = 2
 
 def probeDisk(device):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
-    Returns a tuple (boot, root, state, storage, logs)
+    Returns a Disk object with XenServer partitions and state (boot, root, storage, logs, swap)
 
     Where:
 
@@ -465,13 +475,10 @@ def probeDisk(device):
         state is a tuple of True or False and the partition device
         storage is a tuple of None, STORAGE_LVM or STORAGE_EXT3 and the partition device
         logs is a tuple of True or False and the partition device
+        swap is a tuple of True or False and the partition device
     """
 
-    boot = (False, None)
-    root = (None, None)
-    state = (False, None)
-    storage = (None, None)
-    logs = (False, None)
+    disk = Disk(device)
     possible_srs = []
 
     tool = PartitionTool(device)
@@ -488,37 +495,39 @@ def probeDisk(device):
         if part['id'] == tool.ID_LINUX:
             # probe for retail
             if label and label.startswith('root-'):
-                root = (INSTALL_RETAIL, part_device)
-                state = (True, part_device)
+                disk.root = (INSTALL_RETAIL, part_device)
+                disk.state = (True, part_device)
                 if num + 2 in tool.partitions:
                     # George Retail and earlier didn't use the correct id for SRs
                     possible_srs = [num+2]
             elif label and label.startswith(constants.logsfs_label_prefix):
-                logs = (True, part_device)
+                disk.logs = (True, part_device)
         elif part['id'] == tool.ID_LINUX_LVM:
             if num not in possible_srs:
                 possible_srs.append(num)
+        elif part['id'] == tool.ID_LINUX_SWAP:
+            disk.swap = (True, part_device)
         elif part['id'] == GPTPartitionTool.ID_EFI_BOOT or part['id'] == GPTPartitionTool.ID_BIOS_BOOT:
-            boot = (True, part_device)
+            disk.boot = (True, part_device)
 
     lv_tool = len(possible_srs) and LVMTool()
     for num in possible_srs:
         part_device = tool._partitionDevice(num)
 
         if lv_tool.isPartitionConfig(part_device):
-            state = (True, part_device)
+            disk.state = (True, part_device)
         elif lv_tool.isPartitionSR(part_device):
             pv = lv_tool.deviceToPVOrNone(part_device)
             if pv is not None and pv['vg_name'].startswith(lv_tool.VG_EXT_SR_PREFIX):
                 # odd 'ext3 in an LV' SR
-                storage = (STORAGE_EXT3, part_device)
+                disk.storage = (STORAGE_EXT3, part_device)
             else:
-                storage = (STORAGE_LVM, part_device)
+                disk.storage = (STORAGE_LVM, part_device)
 
-    logger.log('Probe of %s found boot=%s root=%s state=%s storage=%s logs=%s' %
-                  (device, str(boot), str(root), str(state), str(storage), str(logs)))
+    logger.log('Probe of %s found boot=%s root=%s disk.state=%s storage=%s logs=%s' %
+                  (device, str(disk.boot), str(disk.root), str(disk.state), str(disk.storage), str(disk.logs)))
 
-    return (boot, root, state, storage, logs)
+    return disk
 
 
 # Keep track of iscsi disks we have logged into
