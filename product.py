@@ -582,13 +582,13 @@ def findXenSourceProducts():
 
     installs = []
 
-    for disk in diskutil.getQualifiedDiskList():
-        (boot, root, state, storage, _) = diskutil.probeDisk(disk)
+    for disk_device in diskutil.getQualifiedDiskList():
+        disk = diskutil.probeDisk(disk_device)
 
         inst = None
         try:
-            if root[0] == diskutil.INSTALL_RETAIL:
-                inst = ExistingRetailInstallation(disk, boot[1], root[1], state[1], storage)
+            if disk.root[0] == diskutil.INSTALL_RETAIL:
+                inst = ExistingRetailInstallation(disk_device, disk.boot[1], disk.root[1], disk.state[1], disk.storage)
         except Exception as e:
             logger.log("A problem occurred whilst scanning for existing installations:")
             logger.logException(e)
