@@ -23,8 +23,8 @@ def restoreFromBackup(backup, progress=lambda x: ()):
     bootlabel = None
     disk = backup.root_disk
     tool = PartitionTool(disk)
-    _, _, _, storage, _ = diskutil.probeDisk(disk)
-    create_sr_part = storage[0] is not None
+    dsk = diskutil.probeDisk(disk)
+    create_sr_part = dsk.storage[0] is not None
     _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.inspectTargetDisk(disk, None, constants.PRESERVE_IF_UTILITY, create_sr_part)
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options=['ro'])
