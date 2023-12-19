@@ -21,11 +21,11 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
     label = None
     bootlabel = None
-    disk = backup.root_disk
-    tool = PartitionTool(disk)
-    dsk = diskutil.probeDisk(disk)
-    create_sr_part = dsk.storage[0] is not None
-    _, boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.partitionTargetDisk(disk, None, constants.PRESERVE_IF_UTILITY, create_sr_part)
+    disk_device = backup.root_disk
+    tool = PartitionTool(disk_device)
+    disk = diskutil.probeDisk(disk_device)
+    create_sr_part = disk.storage[0] is not None
+    boot_partnum = tool.partitionNumber(disk.boot[1]) if disk.boot[0] else -1
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options=['ro'])
     inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes=True)
@@ -37,13 +37,13 @@ def restoreFromBackup(backup, progress=lambda x: ()):
     backup_partition = backup.partition
 
     assert backup_partition.startswith('/dev/')
-    assert disk.startswith('/dev/')
+    assert disk_device.startswith('/dev/')
 
-    restore_partition = partitionDevice(disk, primary_partnum)
+    restore_partition = disk.root[1]
     logger.log("Restoring to partition %s." % restore_partition)
 
     boot_part = tool.getPartition(boot_partnum)
-    boot_device = partitionDevice(disk, boot_partnum) if boot_part else None
+    boot_device = disk.boot[1] if boot_part else None
     efi_boot = boot_part and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT
 
     # determine current location of bootloader
@@ -58,6 +58,68 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             root_fs.unmount()
     except:
         pass
+
+    # should we restore old schema and move to MBR?
+    restore_partitions = None
+    if 'BOOT' not in backup_partition_layout and 'LOG' not in backup_partition_layout:
+        new_restore_partition = restore_partition
+        efi_boot = False
+
+        # remove unneeded partitions
+        if disk.swap[0]:
+            tool.deletePartition(tool.partitionNumber(disk.swap[1])) # swap
+        tool.deletePartitionIfPresent(boot_partnum) # boot
+
+        # use logs as root
+        root_partnum = tool.partitionNumber(disk.root[1])
+        backup_partnum = tool.partitionNumber(backup_partition)
+        if disk.logs[0]:
+            logs_partnum = tool.partitionNumber(disk.logs[1])
+            if (tool.partitionStart(logs_partnum) < tool.partitionStart(root_partnum) and
+                    tool.partitionSize(logs_partnum) >= constants.root_gpt_size_old):
+                restore_partition = disk.logs[1]
+                tool.deletePartition(root_partnum)
+                tool.renamePartition(logs_partnum, root_partnum)
+            else:
+                tool.deletePartition(tool.partitionNumber(disk.logs[1])) # logs
+
+        # rewrite with MBR format, we need to manually convert IDs from GPT to MBR
+        # Potentially partitions are not created with the same original alignment, but this is not an issue
+        # with modern hardware.
+        assert len(tool.partitions) <= 4
+        new_tool = PartitionTool(tool.device, constants.PARTITION_DOS)
+        for number in list(new_tool.partitions):
+            new_tool.deletePartition(number)
+        for number in tool.partitions:
+            if number == backup_partnum:
+                continue
+            assert number >= 1 and number <= 4
+            part = tool.getPartition(number)
+            # convert id from GPT to MBR
+            id = new_tool.ID_LINUX
+            if part['id'] == tool.ID_LINUX_SWAP:
+                id = new_tool.ID_LINUX_SWAP
+            elif part['id'] == tool.ID_LINUX_LVM:
+                id = new_tool.ID_LINUX_LVM
+            # if root make it active
+            active = (number == root_partnum)
+            new_tool.createPartition(id, tool.partitionSize(number), number, startBytes=tool.partitionStart(number), active=active)
+        # create new backup parition
+        new_backup_partnum = root_partnum + 1
+        new_tool.createPartition(new_tool.ID_LINUX, constants.backup_size_old * 2**20, new_backup_partnum, order=new_backup_partnum)
+
+        def restore_partitions():
+            """Restore old partition schema.
+            Returns new PartitionTool object and new restore partition.
+            """
+
+            new_tool.writePartitionTable()
+            # Clear GPT header, sfdisk doesn't do it properly.
+            # We do this way to avoid intermediate states without partitions.
+            if tool.partTableType == constants.PARTITION_GPT and new_tool.partTableType == constants.PARTITION_DOS:
+                clear_gpt_headers(tool)
+            util.mkfs(constants.rootfs_type, partitionDevice(new_tool.device, new_backup_partnum))
+            return (new_tool, new_restore_partition)
 
     # mount the backup fs
     backup_fs = util.TempMount(backup_partition, 'restore-backup-', options=['ro'])
@@ -122,29 +184,38 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                     if m:
                         bootlabel = m.group(1)
 
+            # restore bootloader configuration
+            dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
+            util.assertDir(os.path.dirname(dst_file))
+            boot_config.commit(dst_file)
+
+            # repartition if needed
+            backup_fs.unmount()
+            if restore_partitions:
+                dest_fs.unmount()
+                (tool, restore_partition) = restore_partitions()
+                dest_fs = util.TempMount(restore_partition, 'restore-dest-')
+
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
 
             # prepare extra mounts for installing bootloader:
             util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
             util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
             util.bindMount("/proc", "%s/proc" % dest_fs.mount_point)
+
+            # restore boot loader
             if boot_config.src_fmt == 'grub2':
                 if efi_boot:
                     branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
                     branding['product-brand'] = branding['PRODUCT_BRAND']
-                    backend.setEfiBootEntry(mounts, disk, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
+                    backend.setEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
                 else:
                     if location == constants.BOOT_LOCATION_MBR:
-                        backend.installGrub2(mounts, disk, False)
+                        backend.installGrub2(mounts, disk_device, False)
                     else:
                         backend.installGrub2(mounts, restore_partition, True)
             else:
-                backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
-
-            # restore bootloader configuration
-            dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
-            util.assertDir(os.path.dirname(dst_file))
-            boot_config.commit(dst_file)
+                backend.installExtLinux(mounts, disk_device, probePartitioningScheme(disk_device), location)
         finally:
             util.umount("%s/proc" % dest_fs.mount_point)
             util.umount("%s/sys" % dest_fs.mount_point)
@@ -168,11 +239,30 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             raise RuntimeError("Failed to label boot partition")
 
     if 'LOG' in backup_partition_layout: # From 7.x (new layout) to 7.x (new layout)
-        tool.commitActivePartitiontoDisk(boot_partnum)
+        if boot_partnum >= 0:
+            tool.commitActivePartitiontoDisk(boot_partnum)
         rdm_label = label.split("-")[1]
-        logs_part = partitionDevice(disk, logs_partnum)
-        swap_part = partitionDevice(disk, swap_partnum)
+        logs_part = disk.logs[1]
+        swap_part = disk.swap[1]
         if util.runCmd2(['e2label', logs_part, constants.logsfs_label%rdm_label]) != 0:
             raise RuntimeError("Failed to label logs partition")
         if util.runCmd2(['swaplabel', '-L', constants.swap_label%rdm_label, swap_part]) != 0:
             raise RuntimeError("Failed to label swap partition")
+
+def clear_gpt_headers(tool):
+    """This functions clears GPT header and footer.
+    It should be called in case MBR tools doesn't do it properly.
+    """
+
+    assert tool.partTableType == constants.PARTITION_GPT
+    f = open(tool.device, 'r+b')
+
+    # header
+    f.seek(tool.sectorSize)
+    f.write(b'\x00' * tool.sectorSize)
+
+    # footer
+    f.seek((tool.sectorExtent - 1) * tool.sectorSize)
+    f.write(b'\x00' * tool.sectorSize)
+
+    f.close()
