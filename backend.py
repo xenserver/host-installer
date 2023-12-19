@@ -526,7 +526,7 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
 
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
-# This is used on upgrade or restore.
+# This should be used for upgrade or install, not for restore.
 # Returns 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum'
 def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
