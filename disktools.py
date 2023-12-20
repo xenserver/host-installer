@@ -594,9 +594,7 @@ class PartitionToolBase:
         partitions = [None] + [part for num, part in sorted(self.partitions.iteritems(), key=lambda item: item[1]['start'])]
 
         if startBytes is None:
-            if len(partitions) == 0:
-                startSector = self.sectorFirstUsable
-            elif order:
+            if order:
                 if order < 1:
                     raise Exception("Order cannot be less than 1")
                 elif order == 1:
