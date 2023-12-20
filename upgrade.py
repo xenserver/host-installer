@@ -342,7 +342,7 @@ class ThirdGenUpgrader(Upgrader):
                     if x in just_dirs:
                         path = os.path.join(backup_fs.mount_point, x)
                         if not os.path.exists(path):
-                            os.mkdir(path, 0755)
+                            os.mkdir(path, 0o755)
                     else:
                         cmd = ['cp', '-a'] + \
                               [ os.path.join(primary_fs.mount_point, x) ] + \

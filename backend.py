@@ -1584,7 +1584,7 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
     # EA-1069 - write static-rules.conf and dynamic-rules.conf
     if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/')):
-        os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0775)
+        os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0o775)
 
     netutil.static_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')
     netutil.static_rules.save()

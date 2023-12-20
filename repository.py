@@ -331,7 +331,7 @@ gpgkey=file://%s
         # It is created after the yum install phase.
         confdir = os.path.join(root, 'etc', 'dracut.conf.d')
         self._conffile = os.path.join(confdir, 'xs_disable.conf')
-        os.makedirs(confdir, 0775)
+        os.makedirs(confdir, 0o775)
         with open(self._conffile, 'w') as f:
             print >> f, 'echo Skipping initrd creation during host installation'
             print >> f, 'exit 0'
