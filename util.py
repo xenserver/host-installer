@@ -264,11 +264,9 @@ def fetchFile(source, dest):
                 urllib2.install_opener(urllib2.build_opener(handler))
                 request = url.getPlainURL()
 
-            fd = urllib.request.urlopen(request)
-            fd_dest = open(dest, 'w')
-            shutil.copyfileobj(fd, fd_dest)
-            fd_dest.close()
-            fd.close()
+            with urllib.request.urlopen(request) as fd_resp:
+                with open(dest, 'wb') as fd_dest:
+                    shutil.copyfileobj(fd_resp, fd_dest)
         else:
             raise InvalidSource("Unknown source type.")
 
