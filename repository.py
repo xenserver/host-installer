@@ -129,7 +129,7 @@ class YumRepository(Repository):
                 primary_location = primary_location[0].getAttribute("href")
         repomdfp.close()
 
-        primaryfp = accessor.openAddress(primary_location, mode="rb")
+        primaryfp = accessor.openAddress(primary_location)
         # Open compressed xml using cpiofile._Stream which is an adapter between CpioFile and a stream-like object.
         # Useful when specifying the URL for HTTP or FTP repository - A simple GzipFile object will not work in this situation.
         primary_xml = cpiofile._Stream("", "r", "gz", primaryfp, 20*512)
@@ -250,10 +250,10 @@ class MainYumRepository(YumRepositoryWithInfo):
 
         accessor.start()
         try:
-            treeinfo = configparser.SafeConfigParser()
+            treeinfo = configparser.ConfigParser()
             treeinfofp = accessor.openAddress(self.INFO_FILENAME)
             try:
-                treeinfo.readfp(treeinfofp)
+                treeinfo.read_string(treeinfofp.read().decode())
             except Exception as e:
                 raise RepoFormatError("Failed to read %s: %s" % (self.INFO_FILENAME, str(e)))
             finally:
@@ -452,12 +452,12 @@ class RPMPackage(object):
                 logger.log("Validating package %s" % self.name)
                 namefp = self.repository.accessor().openAddress(self.name)
                 m = hashlib.sha256()
-                data = ''
+                data = b''
                 total_read = 0
                 while True:
                     data = namefp.read(10485760)
                     total_read += len(data)
-                    if data == '':
+                    if data == b'':
                         break
                     else:
                         m.update(data)
@@ -514,8 +514,8 @@ class FilesystemAccessor(Accessor):
     def finish(self):
         pass
 
-    def openAddress(self, addr, mode="r"):
-        return open(os.path.join(self.location, addr), mode)
+    def openAddress(self, addr):
+        return open(os.path.join(self.location, addr), "rb")
 
     def url(self):
         return util.URL("file://%s" % self.location)
@@ -619,6 +619,7 @@ class URLFileWrapper:
                 consume -= step
             if len(self.read(consume)) != consume: # Discard data
                 raise IOError('Seek beyond end of file')
+
 
 class URLAccessor(Accessor):
     def __init__(self, url):
