@@ -66,7 +66,7 @@ class Upgrader(object):
         tranformation on the answers dict. """
         return
 
-    def buildRestoreList(self):
+    def buildRestoreList(self, src_base):
         """ Add filenames to self.restore_list which will be copied by
         completeUpgrade(). """
         return
@@ -161,7 +161,7 @@ class Upgrader(object):
         backup_volume = partitionDevice(target_disk, backup_partnum)
         tds = util.TempMount(backup_volume, 'upgrade-src-', options=['ro'])
         try:
-            self.buildRestoreList()
+            self.buildRestoreList(tds.mount_point)
             init_id_maps(tds.mount_point, mounts['root'])
 
             logger.log("Restoring preserved files")
@@ -386,7 +386,7 @@ class ThirdGenUpgrader(Upgrader):
 
         return installID, controlID
 
-    def buildRestoreList(self):
+    def buildRestoreList(self, src_base):
         self.restore_list += ['etc/xensource/ptoken', 'etc/xensource/pool.conf',
                               'etc/xensource/xapi-ssl.pem']
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
@@ -445,8 +445,18 @@ class ThirdGenUpgrader(Upgrader):
 
         self.restore_list += ['var/lib/xcp/verify_certificates']
 
-        # NRPE service config
+        # CP-42523: NRPE service config
         self.restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
+
+        # CP-44441: SNMP service config
+        # From XS 8.4 SNMP feature is supported, and new file /etc/snmp/snmp.xs.conf is added
+        # into dom0, the file can be treated as the feature flag. Host installer must not
+        # restore old default config files prior to XS 8.4 becasuse they are incompatible with
+        # xapi snmp plugin.
+        snmp_xs_conf = 'etc/snmp/snmp.xs.conf'
+        if os.path.isfile(os.path.join(src_base, snmp_xs_conf)):
+            self.restore_list += [snmp_xs_conf, 'etc/snmp/snmpd.xs.conf',
+                                  'etc/sysconfig/snmpd', 'var/lib/net-snmp/snmpd.conf']
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'logs-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, logs_partnum, admin_iface, admin_bridge, admin_config):
