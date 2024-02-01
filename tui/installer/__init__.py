@@ -134,6 +134,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[lambda _:(ram_warning or vt_warning)]),
         Step(uis.overwrite_warning,
              predicates=[only_unupgradeable_products]),
+        Step(uis.bios_warning,
+             predicates=[lambda _: not constants.UEFI_INSTALLER]),
         Step(uis.get_installation_type,
              predicates=[lambda _:len(results['upgradeable-products']) > 0 or len(results['backups']) > 0]),
         Step(uis.upgrade_settings_warning,
