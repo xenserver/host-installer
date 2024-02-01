@@ -142,7 +142,7 @@ If %s are present you may need to load a device driver on the previous screen fo
     return RIGHT_FORWARDS
 
 def hardware_warnings(answers, ram_warning, vt_warning):
-    vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
+    vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's firmware.  This capability is required to start Windows virtual machines."
     not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (MY_PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
 
     text = "The following problem(s) were found with your hardware:\n\n"
@@ -176,6 +176,26 @@ def overwrite_warning(answers):
         )
 
     if button == 'back': return LEFT_BACKWARDS
+    return RIGHT_FORWARDS
+
+def bios_warning(answers):
+    text = ("Booting %s hosts in BIOS mode is now deprecated. "
+            "You can still install your %s hosts in BIOS boot mode. "
+            "However, doing so may prevent you from upgrading your %s "
+            "hosts to a future version of %s. We recommend that you "
+            "install your %s hosts by using UEFI boot mode.") % ((MY_PRODUCT_BRAND,) * 5)
+
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "System Firmware",
+        text,
+        ['Ok', 'Back'],
+        width=60, help="bioswarn"
+    )
+
+    if button == 'back':
+        return LEFT_BACKWARDS
+
     return RIGHT_FORWARDS
 
 def get_admin_interface(answers):
