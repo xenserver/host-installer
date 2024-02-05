@@ -519,7 +519,7 @@ class ThirdGenUpgrader(Upgrader):
 
     def buildRestoreList(self, src_base):
         self.restore_list += ['etc/xensource/ptoken', 'etc/xensource/pool.conf',
-                              'etc/xensource/xapi-ssl.pem']
+                              'etc/xensource/xapi-ssl.pem', 'etc/xensource/xapi-pool-tls.pem']
         self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
 
         self.restore_list += [ 'etc/sysconfig/network']
@@ -588,6 +588,9 @@ class ThirdGenUpgrader(Upgrader):
         if os.path.isfile(os.path.join(src_base, snmp_xs_conf)):
             self.restore_list += [snmp_xs_conf, 'etc/snmp/snmpd.xs.conf',
                                   'etc/sysconfig/snmpd', 'var/lib/net-snmp/snmpd.conf']
+
+        # Preserve pool certificates across upgrades
+        self.restore_list += ['etc/stunnel/xapi-pool-ca-bundle.pem', {'dir': 'etc/stunnel/certs-pool'}]
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'logs-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, logs_partnum, admin_iface, admin_bridge, admin_config):
