@@ -738,7 +738,7 @@ def get_sr_type(answers):
     need_large_block_sr_type = any(diskutil.isLargeBlockDisk(disk)
                                    for disk in guest_disks)
 
-    if not need_large_block_sr_type:
+    if not need_large_block_sr_type or not constants.SR_TYPE_LARGE_BLOCK:
         srtype = answers.get('sr-type', constants.SR_TYPE_LVM)
         txt = "Enable thin provisioning"
         if len(BRAND_VDI) > 0:
@@ -747,22 +747,13 @@ def get_sr_type(answers):
         content = tb
         get_type = lambda: tb.selected() and constants.SR_TYPE_EXT or constants.SR_TYPE_LVM
         buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
-    elif constants.SR_TYPE_LARGE_BLOCK:
+    else:
         content = TextboxReflowed(40,
                                   "%s storage will be configured for"
                                   " large disk block size."
                                   % BRAND_GUEST)
         get_type = lambda: constants.SR_TYPE_LARGE_BLOCK
         buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
-    else:
-        content = TextboxReflowed(54,
-                                  "Only disks with a block size of 512 bytes"
-                                  " can be used for %s storage. Please"
-                                  " unselect any disks where the block size"
-                                  " is different from this."
-                                  % BRAND_GUEST)
-        buttons = ButtonBar(tui.screen, [('Back', 'back')])
-        get_type = None
 
     gf = GridFormHelp(tui.screen, 'Virtual Machine Storage Type', 'guestdisk:info2', 1, 4)
     gf.add(content, 0, 0, padding=(0, 0, 0, 1))

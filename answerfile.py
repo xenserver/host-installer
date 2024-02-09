@@ -343,7 +343,7 @@ class Answerfile:
                                   sr_type_mapping,
                                   default=default_sr_type)
 
-        if sr_type != SR_TYPE_LARGE_BLOCK and len(large_block_disks) > 0:
+        if SR_TYPE_LARGE_BLOCK and sr_type != SR_TYPE_LARGE_BLOCK and len(large_block_disks) > 0:
             raise AnswerfileException("%s not compatible with SR type %s"
                                       % (", ".join(large_block_disks), sr_type))
 
