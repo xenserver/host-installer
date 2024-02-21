@@ -300,11 +300,11 @@ def parse_arg(arg):
     if sd not in ['s', 'd']:
         LOG.warning("'%s' is not valid to distinguish between static/dynamic rules" % (sd,))
         return
+
+    if sd == 's':
+        formulae = static_rules.formulae
     else:
-        if sd == 's':
-            formulae = static_rules.formulae
-        else:
-            formulae = dynamic_rules.formulae
+        formulae = dynamic_rules.formulae
 
     if len(val) < 2:
         LOG.warning("'%s' is not a valid mapping target - Ignoring" % (val,))
