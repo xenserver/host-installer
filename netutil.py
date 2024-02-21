@@ -331,7 +331,7 @@ def remap_netdevs(remap_list):
     for cmd in remap_list:
         parse_arg(cmd)
 
-        # Grab the current state from biosdevname
+    # Grab the current state from biosdevname
     current_eths = all_devices_all_names()
     current_state = []
 
