@@ -1395,7 +1395,7 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
         except:
             pass
     else:
-        hostname = 'localhost.localdomain'
+        hostname = ''
 
     # /etc/hostname:
     eh = open('%s/etc/hostname' % mounts['root'], 'w')
