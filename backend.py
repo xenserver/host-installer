@@ -697,7 +697,7 @@ def writeGuestDiskPartitions(primary_disk, guest_disks):
             assert gd[:5] == '/dev/'
 
             tool = PartitionTool(gd, constants.PARTITION_GPT)
-            tool.deletePartitions(tool.partitions.keys())
+            tool.deletePartitions(list(tool.partitions.keys()))
             tool.commit(log=True)
 
 
