@@ -853,43 +853,22 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
                              '/etc/init.d/sm-multipath', action]) != 0:
                 raise RuntimeError("Failed to generate multipath configuration")
 
-        # Run mkinitrd inside dom0 chroot
+        # Run dracut inside dom0 chroot
         output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
 
         # default to only including host specific kernel modules in initrd
-        if os.path.isdir(os.path.join(mounts['root'], 'etc/dracut.conf.d')):
-            # disable multipath on root partition
-            try:
-                if not isDeviceMapperNode(partition):
-                    f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
-                    f.write('omit_dracutmodules+=" multipath "\n')
-                    f.close()
-            except:
-                pass
-        else:
-            args = ['--theme=/usr/share/splash']
+        # disable multipath on root partition
+        try:
+            if not isDeviceMapperNode(partition):
+                f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
+                f.write('omit_dracutmodules+=" multipath "\n')
+                f.close()
+        except:
+            pass
 
-            if isDeviceMapperNode(partition):
-                # [multipath-root]: /etc/fstab specifies the rootdev by LABEL so we need this to make sure mkinitrd
-                # picks up the master device and not the slave
-                args.append('--rootdev='+ partition)
-            else:
-                args.append('--without-multipath')
+        cmd = ['dracut', output_file, kernel_version]
 
-            cmd = ['mkinitrd', '--latch']
-            cmd.extend( args )
-            if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
-                raise RuntimeError("Failed to latch arguments for initrd.")
-
-        cmd = ['new-kernel-pkg', '--install', '--mkinitrd']
-
-        # Save command used to create initrd in <initrd_filename>.cmd
-        cmd_logfile = os.path.join(mounts['root'], output_file[1:] + '.cmd')
-        cmd_fh = open(cmd_logfile, "w")
-        print(' '.join(cmd + ['"$@"', kernel_version]), file=cmd_fh)
-        cmd_fh.close()
-
-        if util.runCmd2(['chroot', mounts['root'], '/bin/sh', output_file + '.cmd']) != 0:
+        if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
             raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
 
     finally:
@@ -1015,12 +994,21 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     proc_modules.close()
 
     # Generate /boot/initrd-fallback.img.
-    cmd = ['mkinitrd', '--verbose']
-    for mod in modules:
-        cmd.append('--with=%s' % mod)
+    cmd = ['dracut', '--verbose', '--add-drivers', f'{" ".join(modules)}']
     cmd += ['/boot/initrd-fallback.img', kernel_version]
-    if util.runCmd2(['chroot', mounts['root']] + cmd):
-        raise RuntimeError("Failed to generate fallback initrd")
+
+    try:
+        util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
+        util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
+        util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
+
+        if util.runCmd2(['chroot', mounts['root']] + cmd):
+            raise RuntimeError("Failed to generate fallback initrd")
+    finally:
+        util.umount(os.path.join(mounts['root'], 'sys'))
+        util.umount(os.path.join(mounts['root'], 'dev'))
+        util.umount(os.path.join(mounts['root'], 'proc'))
+
 
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
     short_version = kernelShortVersion(xen_kernel_version)
