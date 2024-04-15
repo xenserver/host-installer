@@ -1145,8 +1145,14 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
                                  "Failed to remove efi boot entry %r" % (line,))
 
     # Then add a new one
+    if os.path.exists(os.path.join(mounts['esp'], 'EFI/xenserver/shimx64.efi')):
+        efi = "EFI/xenserver/shimx64.efi"
+    elif os.path.exists(os.path.join(mounts['esp'], 'EFI/xenserver/grubx64.efi')):
+        efi = "EFI/xenserver/grubx64.efi"
+    else:
+        raise RuntimeError("Failed to find EFI loader")
     rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
-                            "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/shimx64.efi".replace('/', '\\'),
+                            "-L", branding['product-brand'], "-l", '\\' + efi.replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
     check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
 
