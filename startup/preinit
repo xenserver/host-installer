@@ -50,10 +50,6 @@ for arg in $args; do
       [ -z "$ramdisk_done" ] && /opt/xensource/installer/S05ramdisk start
       ramdisk_done=1
       copy=0;;
-    mount=*)
-      [ -z "$mount_done" ] && /opt/xensource/installer/S06mount start
-      mount_done=1
-      copy=0;;
     sshpassword=* | start=*)
       copy=0;;
   esac

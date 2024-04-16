@@ -248,6 +248,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    reboot = main(util.splitArgs(sys.argv[1:], ('--console', '--map_netdev')))
+    reboot = main(util.splitArgs(sys.argv[1:], ('--console', '--map_netdev', '--mount')))
     if reboot:
         os.system("reboot")
