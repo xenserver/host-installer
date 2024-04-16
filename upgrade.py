@@ -299,6 +299,9 @@ class ThirdGenUpgrader(Upgrader):
 
         progress_callback(5)
 
+        device = util.DeviceUnblock(primary_disk)
+        device.unblock()
+
         shrink_lvm(primary_disk, storage_partnum, start_sectors_required * tool.sectorSize,
                    end_sectors_required * tool.sectorSize,
                    lambda p: progress_callback(5 + int(p * 0.9)))
@@ -313,6 +316,8 @@ class ThirdGenUpgrader(Upgrader):
         tool.partitions[primary_partnum]['id'] = tool.ID_LINUX
         tool.partitions[backup_partnum]['id'] = tool.ID_LINUX
         tool.commit()
+
+        device.block()
 
 
     prepTargetStateChanges = []
@@ -332,6 +337,9 @@ class ThirdGenUpgrader(Upgrader):
         # 6 - swap partition
 
         self.testUpgradeForbidden(tool)
+
+        device = util.DeviceUnblock(primary_disk)
+        device.unblock()
 
         if self.safe2upgrade and logs_partition is None:
             # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
@@ -408,8 +416,11 @@ class ThirdGenUpgrader(Upgrader):
             part = tool.getPartition(boot_partnum)
             if part:
                 if logs_partition is not None:
+                    device.block()
                     return
             raise RuntimeError("Old partition layout is unsupported, run prepare_host_upgrade plugin and try again")
+
+        device.block()
 
     doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum', 'primary-partnum']
     doBackupStateChanges = []
@@ -445,12 +456,16 @@ class ThirdGenUpgrader(Upgrader):
         if (self.safe2upgrade or self.safe2mbrupgrade) and logs_partition is None:
             # Recreate backup partition
             # This will ensure it is aligned properly
+            device = util.DeviceUnblock(target_disk)
+            device.unblock()
+
             backup_part = tool.getPartition(backup_partnum)
             tool.deletePartition(backup_partnum)
             tool.createPartition(tool.ID_LINUX, sizeBytes=constants.backup_size * 2**20,
                                  number=backup_partnum, order=(primary_partnum + 1))
             # Write partition table
             tool.commit(log=True)
+            device.block()
 
         # format the backup partition:
         backup_partition = partitionDevice(target_disk, backup_partnum)

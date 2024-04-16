@@ -437,3 +437,68 @@ class URL(object):
             assert self.password is None
 
             return self.url
+
+def readCmdlineMounts():
+    class Mount:
+        def __init__(self, dev, mountpoint, options=None, fstype=None):
+            self.dev = dev
+            self.mountpoint = mountpoint
+            self.options = options
+            self.fstype = fstype
+
+        def __repr__(self):
+            return "Mount(%s, %s, %s, %s)" % (self.dev, self.mountpoint, self.fstype, self.options)
+
+        def mount(self):
+            mount(self.dev, self.mountpoint,
+                  self.options if self.options is None else [self.options], self.fstype)
+
+        def umount(self):
+            umount(self.mountpoint)
+
+    mounts = []
+    with open('/proc/cmdline') as f:
+        for m in [x for x in f.read().rstrip().split(b' ') if x.startswith(b'mount=')]:
+            m = m.split(':')
+            if len(m) < 2:
+                continue
+            dev = m[0][6:]
+            fstype = None
+            options = None
+            if len(m) >= 4:
+                fstype = m[1]
+                options = m[2]
+                mnt = m[3]
+            elif len(m) >= 3:
+                fstype = m[1]
+                mnt = m[2]
+            else:
+                mnt = m[1]
+            mounts.append(Mount(dev, mnt, options, fstype))
+    return mounts
+
+def deviceIsBusy(dev):
+    try:
+        os.close(os.open(dev, os.O_EXCL|os.O_RDONLY))
+    except OSError as e:
+        return e.errno == errno.EBUSY
+    except:
+        pass
+    return False
+
+class DeviceUnblock:
+    def __init__(self, dev):
+        self.dev = dev
+        self.mounts = []
+
+    def unblock(self):
+        if not deviceIsBusy(self.dev):
+            return
+        self.mounts = readCmdlineMounts()
+        for m in self.mounts:
+            m.umount()
+
+    def block(self):
+        for m in self.mounts:
+            m.mount()
+
