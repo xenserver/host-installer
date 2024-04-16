@@ -1278,3 +1278,78 @@ def getMdNodes():
     except IOError:
         pass
     return nodes
+
+
+class DeviceMounter:
+    class Mount:
+        def __init__(self, dev, mountpoint, options=None, fstype=None):
+            self.dev = dev
+            self.mountpoint = mountpoint
+            self.options = options
+            self.fstype = fstype
+
+        def __repr__(self):
+            return "Mount(%s, %s, %s, %s)" % (self.dev, self.mountpoint, self.fstype, self.options)
+
+        def mount(self):
+            util.mount(self.dev, self.mountpoint, self.options, self.fstype)
+
+        def umount(self):
+            util.umount(self.mountpoint)
+
+    mounts = []
+
+    @classmethod
+    def addMountPoints(cls, arg_mounts):
+        mounts = []
+        for arg in arg_mounts:
+            m = arg.split(':')
+            if len(m) < 2:
+                continue
+            dev = m[0]
+            fstype = None
+            options = None
+            if len(m) > 4:
+                raise Exception("Invalid syntax for --mount argument: %s" % arg)
+            if len(m) == 4:
+                fstype = m[1]
+                options = m[2]
+                mnt = m[3]
+            elif len(m) >= 3:
+                fstype = m[1]
+                mnt = m[2]
+            else:
+                mnt = m[1]
+            if dev.startswith("LABEL=") or dev.startswith("UUID="):
+                rc, out = util.runCmd2(['blkid', '-t', dev, '-o', 'device'], with_stdout=True)
+                if rc != 0:
+                    # for compatibility ignore the device
+                    continue
+                dev = out.rstrip()
+            elif dev.startswith("VG_"):
+                rc = util.runCmd2(LVMTool.LVCHANGE + ['-a', 'y', dev])
+                if rc != 0:
+                    # for compatibility ignore the device
+                    continue
+                dev = dev.replace("-", "--")
+                vg, lv, _ = (dev + "//").split("/", 2)
+                dev = "/dev/mapper/%s-%s" % (vg, lv)
+            mounts.append(cls.Mount(dev, mnt, options, fstype))
+        cls.mounts = mounts
+
+    def __init__(self):
+        self.mounts = self.__class__.mounts
+
+    def mount(self):
+        for m in self.mounts:
+            m.mount()
+
+    def __umount(self):
+        for m in self.mounts:
+            m.umount()
+
+    def __enter__(self):
+        self.mount()
+
+    def __exit__(self, type, value, traceback):
+        self.__umount()
