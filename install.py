@@ -128,6 +128,8 @@ def go(ui, args, answerfile_address, answerfile_script):
         elif opt == "--cc-preparations":
             constants.CC_PREPARATIONS = True
             results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
+        elif opt == "--mount":
+            disktools.DeviceMounter.addMountPoints(val)
 
     if boot_console and not serial_console:
         serial_console = boot_console
@@ -204,7 +206,8 @@ def go(ui, args, answerfile_address, answerfile_script):
         results['extra-repos'] += extra_repo_defs
         logger.log("Driver repos: %s" % str(results['extra-repos']))
 
-        scripts.run_scripts('installation-start')
+        with disktools.DeviceMounter():
+            scripts.run_scripts('installation-start')
 
         if parsing_except:
             raise parsing_except

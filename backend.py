@@ -1180,6 +1180,9 @@ def installExtLinux(mounts, disk, location=constants.BOOT_LOCATION_MBR):
 # mounting and unmounting of various volumes
 
 def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, cleanup, target_boot_mode):
+    mounter = DeviceMounter()
+    mounter.mount()
+
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot'}
 
@@ -1648,22 +1651,23 @@ def writei18n(mounts):
 def verifyRepos(sources, ui):
     """ Check repos are accessible """
 
-    for i in sources:
-        repo_good = False
+    with DeviceMounter():
+        for i in sources:
+            repo_good = False
 
-        if ui:
-            if tui.repo.check_repo_def((i['media'], i['address']), False) == tui.repo.REPOCHK_NO_ERRORS:
-               repo_good = True
-        else:
-            try:
-                repos = repository.repositoriesFromDefinition(i['media'], i['address'])
-                if len(repos) > 0:
+            if ui:
+                if tui.repo.check_repo_def((i['media'], i['address']), False) == tui.repo.REPOCHK_NO_ERRORS:
                     repo_good = True
-            except:
-                pass
+            else:
+                try:
+                    repos = repository.repositoriesFromDefinition(i['media'], i['address'])
+                    if len(repos) > 0:
+                        repo_good = True
+                except:
+                    pass
 
-        if not repo_good:
-            raise RuntimeError("Unable to access repository (%s, %s)" % (i['media'], i['address']))
+            if not repo_good:
+                raise RuntimeError("Unable to access repository (%s, %s)" % (i['media'], i['address']))
 
 def getUpgrader(source):
     """ Returns an appropriate upgrader for a given source. """

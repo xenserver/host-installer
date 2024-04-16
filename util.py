@@ -131,14 +131,16 @@ def mount(dev, mountpoint, options=None, fstype=None):
     logger.log("Mounting %s to %s, options = %s, fstype = %s" % (dev, mountpoint, options, fstype))
 
     cmd = ['/bin/mount']
+    if type(options) == list:
+        options = ",".join(options)
     if options:
-        assert type(options) == list
+        assert type(options) == str
 
     if fstype:
         cmd += ['-t', fstype]
 
     if options:
-        cmd += ['-o', ",".join(options)]
+        cmd += ['-o', options]
 
     cmd.append(dev)
     cmd.append(mountpoint)
