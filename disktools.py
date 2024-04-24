@@ -924,6 +924,22 @@ class DOSPartitionTool(PartitionToolBase):
         # Return list of partition numbers for partitions we should preserve
         return [num for num in self.partitions.keys() if self.partitions[num]['id'] == self.ID_DELL_UTILITY]
 
+    def convertToGPT(self):
+        self.cmdWrap(['sgdisk', '--mbrtogpt', self.device])
+
+        gpt_tool = GPTPartitionTool(self.device)
+
+        # Copy hidden attribute on MS partitions
+        hidden_args = []
+        for num, part in self.partitions.iteritems():
+            if part['id'] in self.__HIDDEN_MS_IDS and gpt_tool.partitions[num]['id'] == gpt_tool.ID_LINUX:
+                hidden_args.append('--attributes=%d:set:62' % num)
+                gpt_tool.partitions[num]['hidden'] = True
+        if hidden_args:
+            self.cmdWrap([gpt_tool.SGDISK] + hidden_args + [self.device])
+
+        return gpt_tool
+
 
 class GPTPartitionTool(PartitionToolBase):
 

@@ -101,6 +101,10 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                 id = new_tool.ID_LINUX_SWAP
             elif part['id'] == tool.ID_LINUX_LVM:
                 id = new_tool.ID_LINUX_LVM
+            elif part['id'] == tool.ID_LINUX:
+                rv, out = util.runCmd2(['blkid', '-s', 'TYPE', '-o', 'value', partitionDevice(tool.device, number)], with_stdout=True)
+                if rv == 0 and 'vfat' in out:
+                    id = 0x1c if part.get('hidden', False) else 0x0c
             # if root make it active
             active = (number == root_partnum)
             new_tool.createPartition(id, tool.partitionSize(number), number, startBytes=tool.partitionStart(number), active=active)
