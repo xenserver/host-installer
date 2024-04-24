@@ -734,6 +734,11 @@ class DOSPartitionTool(PartitionToolBase):
     ID_DELL_UTILITY = 0xde
     ID_EFI_BOOT = 0xef
 
+    # List of hidden Microsoft partition IDs
+    __HIDDEN_MS_IDS = {
+        0x11, 0x14, 0x16, 0x17, 0x1b, 0x1c, 0x1e, 0x27
+    }
+
     SFDISK = '/sbin/sfdisk'
     partTableType = constants.PARTITION_DOS
 
@@ -821,12 +826,14 @@ class DOSPartitionTool(PartitionToolBase):
                 size = int(matches.group(3))
                 if size != 0: # Treat partitions of size 0 as not present
                     number = self._partitionNumber(matches.group(1))
+                    hidden = idt in self.__HIDDEN_MS_IDS
 
                     partitions[number] = {
                         'start': int(matches.group(2)),
                         'size': size,
                         'id': idt,
-                        'active': active
+                        'active': active,
+                        'hidden': hidden
                         }
         return partitions
 
@@ -958,6 +965,7 @@ class GPTPartitionTool(PartitionToolBase):
         matchHeader    = re.compile('Number\s+Start \(sector\)\s+End \(sector\)\s+Size\s+Code\s+Name')
         matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})(\s+(.*))?$') # num start end sz typecode name
         matchActive    = re.compile('.*\(legacy BIOS bootable\)')
+        matchHidden    = re.compile('.*\(hidden\)')
         matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
         matchPartUUID  = re.compile('^Partition unique GUID: ([0-9A-F\-]+)$')
         partitions = {}
@@ -990,6 +998,7 @@ class GPTPartitionTool(PartitionToolBase):
         for number in partitions:
             out = self.cmdWrap([self.SGDISK, '--attributes=%d:show' % number, self.device])
             partitions[number]['active'] = matchActive.match(out) and True or False
+            partitions[number]['hidden'] = matchHidden.match(out) and True or False
             out = self.cmdWrap([self.SGDISK, '--info=%d' % number, self.device])
             for line in out.split('\n'):
                 m = matchId.match(line)
@@ -1065,10 +1074,13 @@ class GPTPartitionTool(PartitionToolBase):
             end    = part['size'] + start - 1
             idt    = part['id']
             active = part['active']
+            hidden = part.get('hidden', False) and idt == self.ID_LINUX
             args = [self.SGDISK, '--set-alignment=1', '--new=%d:%d:%d' % (num,start,end)]
             args += ['--typecode=%d:%s' % (num,self.GUID_to_type_code[idt])]
             if active:
                 args += ['--attributes=%d:set:2' % num] # BIOS bootable flag
+            if hidden:
+                args += ['--attributes=%d:set:62' % num] # hidden flag
             if 'partlabel' in part and part['partlabel']:
                 args += ['--change-name=%d:%s' % (num,part['partlabel'])]
             if 'partuuid' in part:
