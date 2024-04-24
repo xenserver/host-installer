@@ -304,12 +304,11 @@ class ThirdGenUpgrader(Upgrader):
                    lambda p: progress_callback(5 + int(p * 0.9)))
 
         # Now that we have freed the end of the disk, convert to GPT
-        util.runCmd2(['sgdisk', '--mbrtogpt', primary_disk])
+        tool = tool.convertToGPT()
 
         progress_callback(97)
 
         # Fix up partition ids to be what the rest of the installer expects
-        tool = PartitionTool(primary_disk)
         tool.partitions[primary_partnum]['id'] = tool.ID_LINUX
         tool.partitions[backup_partnum]['id'] = tool.ID_LINUX
         tool.commit()
