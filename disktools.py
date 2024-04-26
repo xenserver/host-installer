@@ -1004,11 +1004,15 @@ class GPTPartitionTool(PartitionToolBase):
         return partitions
 
     def commitActivePartitiontoDisk(self, partnum):
+        args = []
         for num, part in self.items():
             if num == partnum:
-                self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag set
+                args += ['--attributes=%d:set:2' % num] # BIOS bootable flag set
             else:
-                self.cmdWrap([self.SGDISK, '--attributes=%d:clear:2' % num, self.device]) # BIOS bootable flag clear
+                args += ['--attributes=%d:clear:2' % num] # BIOS bootable flag clear
+
+        if args:
+            self.cmdWrap([self.SGDISK] + args + [self.device])
 
         self.waitForDeviceNodes()
 
@@ -1056,25 +1060,26 @@ class GPTPartitionTool(PartitionToolBase):
 
         # Ensure that we write out in on-disk order to prevent conflicts when
         # partition sizes get rounded.
+        args = [self.SGDISK, '--set-alignment=1']
         items = sorted(table.items(), key=lambda item: item[1]['start'])
         for num,part in items:
             start  = part['start']
             end    = part['size'] + start - 1
             idt    = part['id']
             active = part['active']
-            hidden = part.get('hidden', False) and idt == self.ID_LINUX
-            args = [self.SGDISK, '--set-alignment=1', '--new=%d:%d:%d' % (num,start,end)]
+            hidden = part.get('hidden', False)
+            args += ['--new=%d:%d:%d' % (num,start,end)]
             args += ['--typecode=%d:%s' % (num,self.GUID_to_type_code[idt])]
             if active:
                 args += ['--attributes=%d:set:2' % num] # BIOS bootable flag
-            if hidden:
+            if hidden and idt == self.ID_LINUX:
                 args += ['--attributes=%d:set:62' % num] # hidden flag
             if 'partlabel' in part and part['partlabel']:
                 args += ['--change-name=%d:%s' % (num,part['partlabel'])]
             if 'partuuid' in part:
                 args += ['--partition-guid=%d:%s' % (num,part['partuuid'])]
-            args += [self.device]
-            self.cmdWrap(args)
+        args += [self.device]
+        self.cmdWrap(args)
 
         if isDeviceMapperNode(self.device):
             # Create partitions using device mapper
