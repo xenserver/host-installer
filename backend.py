@@ -995,7 +995,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     proc_modules.close()
 
     # Generate /boot/initrd-fallback.img.
-    cmd = ['dracut', '--verbose', '--add-drivers', " ".join(modules)]
+    cmd = ['dracut', '--verbose', '--add-drivers', ' '.join(modules), '--no-hostonly']
     cmd += ['/boot/initrd-fallback.img', kernel_version]
 
     try:
