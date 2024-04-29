@@ -202,28 +202,21 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
 
-            # prepare extra mounts for installing bootloader:
-            util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
-            util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
-            util.bindMount("/proc", "%s/proc" % dest_fs.mount_point)
-
             # restore boot loader
-            if boot_config.src_fmt == 'grub2':
-                if efi_boot:
-                    branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
-                    branding['product-brand'] = branding['PRODUCT_BRAND']
-                    backend.setEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
-                else:
-                    if location == constants.BOOT_LOCATION_MBR:
-                        backend.installGrub2(mounts, disk_device, False)
+            with util.ChrootMounts(dest_fs.mount_point):
+                if boot_config.src_fmt == 'grub2':
+                    if efi_boot:
+                        branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
+                        branding['product-brand'] = branding['PRODUCT_BRAND']
+                        backend.setEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
                     else:
-                        backend.installGrub2(mounts, restore_partition, True)
-            else:
-                backend.installExtLinux(mounts, disk_device, probePartitioningScheme(disk_device), location)
+                        if location == constants.BOOT_LOCATION_MBR:
+                            backend.installGrub2(mounts, disk_device, False)
+                        else:
+                            backend.installGrub2(mounts, restore_partition, True)
+                else:
+                    backend.installExtLinux(mounts, disk_device, probePartitioningScheme(disk_device), location)
         finally:
-            util.umount("%s/proc" % dest_fs.mount_point)
-            util.umount("%s/sys" % dest_fs.mount_point)
-            util.umount("%s/dev" % dest_fs.mount_point)
             if efi_mounted:
                 util.umount(esp)
             dest_fs.unmount()
