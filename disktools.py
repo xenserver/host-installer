@@ -762,27 +762,15 @@ class DOSPartitionTool(PartitionToolBase):
         self.sectorFirstUsable = sectors # Some SANs require bootable disks to start on sector boundary
         self.sectorLastUsable = self.sectorExtent - 1
 
-        # Read sector size.  This will fail if the disk has no partition table at all
-        self.sectorSize = None
-
-        out = self.cmdWrap([self.SFDISK, '-LluS', self.device])
-        for line in out.split("\n"):
-            matches = re.match(r'^\s*Units:\s*sectors\s*of\s*(\d+)\s*bytes', line)
-            if matches:
-                self.sectorSize = int(matches.group(1))
-                break
-
-        if self.sectorSize is None:
-            self.sectorSize = self.DEFAULT_SECTOR_SIZE
-            logger.log("Couldn't determine sector size from sfdisk output - no partition table?\n"+
-                "Using default value: "+str(self.sectorSize)+"\nsfdisk output:"+out)
+        # Read sector size
+        self.sectorSize = int(self.cmdWrap([self.BLOCKDEV, '--getss', self.device]))
 
     def __readDeviceMapperDiskDetails(self):
         # DM nodes don't have a geometry and this version of sfdisk will return nothing.
         # Later versions return the default geometry below.
         heads = 255
         sectors = 63
-        self.sectorSize = 512
+        self.sectorSize = int(self.cmdWrap([self.BLOCKDEV, '--getss', self.device]))
         out = self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])
         self.sectorExtent = int(out)//self.sectorSize
         # DOS partition tables have 32bit sector addresses so we may need to truncate sectorExtent
@@ -959,8 +947,8 @@ class GPTPartitionTool(PartitionToolBase):
     partTableType = constants.PARTITION_GPT
 
     def readDiskDetails(self):
-        self.sectorSize        = int(self.cmdWrap(['blockdev', '--getss', self.device]))
-        self.sectorExtent      = int(self.cmdWrap(['blockdev', '--getsize64', self.device])) // self.sectorSize
+        self.sectorSize        = int(self.cmdWrap([self.BLOCKDEV, '--getss', self.device]))
+        self.sectorExtent      = int(self.cmdWrap([self.BLOCKDEV, '--getsize64', self.device])) // self.sectorSize
         # size depends on GPT entries (should be 128), their size (128 bytes) and sector size
         # first sector is MBR, second GPT header
         self.sectorFirstUsable = 2 - (-128*128 // self.sectorSize)
