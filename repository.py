@@ -791,28 +791,33 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
         count = 0
         total = 0
         verify_count = 0
+        progressLine = re.compile('.*?(\d+)/(\d+)$')
         while True:
             line = p.stdout.readline()
             if not line:
                 break
             line = line.rstrip()
             logger.log("DNF: %s" % line)
+            # normalize spaces, they easily change based on indentation
+            line = ' '.join(line.split())
             if line == 'Resolving Dependencies':
                 progress_callback(1)
-            elif line == 'Dependencies Resolved':
+            elif line == 'Dependencies resolved.':
                 progress_callback(3)
-            elif line.startswith('-----------------------------------------'):
-                progress_callback(7)
             elif line == 'Running transaction':
                 progress_callback(10)
-            elif line.endswith(' will be installed') or line.endswith(' will be updated'):
-                total += 1
-            elif line.startswith('  Installing : ') or line.startswith('  Updating : '):
+            elif line.startswith('Installing : ') or line.startswith('Updating : '):
                 count += 1
+                m = progressLine.match(line)
+                if m is not None:
+                    count = int(m.group(1))
+                    total = int(m.group(2))
                 if total > 0:
+                    # installation, from 10% to 90%
                     progress_callback(10 + int((count * 80.0) / total))
-            elif line.startswith('  Verifying  : '):
+            elif line.startswith('Verifying : '):
                 verify_count += 1
+                # verification, from 90% to 100%
                 progress_callback(90 + int((verify_count * 10.0) / total))
         rv = p.wait()
         stderr.seek(0)
