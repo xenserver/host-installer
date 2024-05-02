@@ -1147,7 +1147,7 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
 
     # First remove existing entries
     rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
-    check_efibootmgr_err(rc, err, install_type, "Failed to run efibootmgr")
+    check_efibootmgr_err(rc, err, install_type, "Failed to list efi boot entries")
 
     # This list ensures that upgrades from previous versions with different
     # names work, and the current version (so that self-upgrades always work).
@@ -1158,13 +1158,14 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
             bootnum = match.group(1)
             rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr",
                                     "--delete-bootnum", "--bootnum", bootnum], with_stderr=True)
-            check_efibootmgr_err(rc, err, install_type, "Failed to remove efi boot entry")
+            check_efibootmgr_err(rc, err, install_type,
+                                 "Failed to remove efi boot entry %r" % (line,))
 
     # Then add a new one
     rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
                             "-L", branding['product-brand'], "-l", '\\' + "EFI/xenserver/grubx64.efi".replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
-    check_efibootmgr_err(rc, err, install_type, "Failed to run efibootmgr")
+    check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
 
 def installGrub2(mounts, disk, force):
     if force:
