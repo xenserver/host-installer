@@ -839,43 +839,30 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
                 mount.unmount()
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
+    if isDeviceMapperNode(partition):
+        # Generate a valid multipath configuration for the initrd
+        action = 'generate-fcoe' if fcoe_interfaces else 'generate-bfs'
+        if util.runCmd2(['chroot', mounts['root'],
+                         '/etc/init.d/sm-multipath', action]) != 0:
+            raise RuntimeError("Failed to generate multipath configuration")
 
+    # Run dracut inside dom0 chroot
+    output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
+
+    # default to only including host specific kernel modules in initrd
+    # disable multipath on root partition
     try:
-        util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
-        util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
-        util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
-        util.mount('none', os.path.join(mounts['root'], 'tmp'), None, 'tmpfs')
+        if not isDeviceMapperNode(partition):
+            f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
+            f.write('omit_dracutmodules+=" multipath "\n')
+            f.close()
+    except:
+        pass
 
-        if isDeviceMapperNode(partition):
-            # Generate a valid multipath configuration for the initrd
-            action = 'generate-fcoe' if fcoe_interfaces else 'generate-bfs'
-            if util.runCmd2(['chroot', mounts['root'],
-                             '/etc/init.d/sm-multipath', action]) != 0:
-                raise RuntimeError("Failed to generate multipath configuration")
+    cmd = ['dracut', output_file, kernel_version]
 
-        # Run dracut inside dom0 chroot
-        output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
-
-        # default to only including host specific kernel modules in initrd
-        # disable multipath on root partition
-        try:
-            if not isDeviceMapperNode(partition):
-                f = open(os.path.join(mounts['root'], 'etc/dracut.conf.d/xs_disable_multipath.conf'), 'w')
-                f.write('omit_dracutmodules+=" multipath "\n')
-                f.close()
-        except:
-            pass
-
-        cmd = ['dracut', output_file, kernel_version]
-
-        if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
-            raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
-
-    finally:
-        util.umount(os.path.join(mounts['root'], 'sys'))
-        util.umount(os.path.join(mounts['root'], 'dev'))
-        util.umount(os.path.join(mounts['root'], 'proc'))
-        util.umount(os.path.join(mounts['root'], 'tmp'))
+    if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
+        raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
 
 def getXenVersion(rootfs_mount):
     """ Return the xen version by interogating the package version in the chroot """
@@ -997,17 +984,8 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     cmd = ['dracut', '--verbose', '--add-drivers', ' '.join(modules), '--no-hostonly']
     cmd += ['/boot/initrd-fallback.img', kernel_version]
 
-    try:
-        util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
-        util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
-        util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
-
-        if util.runCmd2(['chroot', mounts['root']] + cmd):
-            raise RuntimeError("Failed to generate fallback initrd")
-    finally:
-        util.umount(os.path.join(mounts['root'], 'sys'))
-        util.umount(os.path.join(mounts['root'], 'dev'))
-        util.umount(os.path.join(mounts['root'], 'proc'))
+    if util.runCmd2(['chroot', mounts['root']] + cmd):
+        raise RuntimeError("Failed to generate fallback initrd")
 
 
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
@@ -1094,53 +1072,37 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
                       boot_serial=None, host_config=None, fcoe_interface=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
-    # prepare extra mounts for installing bootloader:
-    util.bindMount("/dev", "%s/dev" % mounts['root'])
-    util.bindMount("/sys", "%s/sys" % mounts['root'])
-    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        util.bindMount("/sys/firmware/efi/efivars", "%s/sys/firmware/efi/efivars" % mounts['root'])
-    util.bindMount("/proc", "%s/proc" % mounts['root'])
+    if host_config:
+        s = serial and {'port': serial.id, 'baud': int(serial.baud)} or None
 
-    try:
-        if host_config:
-            s = serial and {'port': serial.id, 'baud': int(serial.baud)} or None
-
-            if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-                fn = os.path.join(mounts['boot'], "efi/EFI/xenserver/grub.cfg")
-            else:
-                fn = os.path.join(mounts['boot'], "grub/grub.cfg")
-            boot_config = bootloader.Bootloader('grub2', fn,
-                                                timeout=constants.BOOT_MENU_TIMEOUT,
-                                                serial=s, location=location)
-            xen_version = getXenVersion(mounts['root'])
-            if xen_version is None:
-                raise RuntimeError("Unable to determine Xen version.")
-            xen_kernel_version = getKernelVersion(mounts['root'])
-            if not xen_kernel_version:
-                raise RuntimeError("Unable to determine kernel version.")
-            buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config,
-                                serial, boot_serial, host_config, disk,
-                                disk_label_suffix, fcoe_interface)
-            util.assertDir(os.path.dirname(fn))
-            boot_config.commit()
-
-        root_partition = partitionDevice(disk, primary_partnum)
         if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-            if write_boot_entry:
-                setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
+            fn = os.path.join(mounts['boot'], "efi/EFI/xenserver/grub.cfg")
         else:
-            if location == constants.BOOT_LOCATION_MBR:
-                installGrub2(mounts, disk, False)
-            else:
-                installGrub2(mounts, root_partition, True)
+            fn = os.path.join(mounts['boot'], "grub/grub.cfg")
+        boot_config = bootloader.Bootloader('grub2', fn,
+                                            timeout=constants.BOOT_MENU_TIMEOUT,
+                                            serial=s, location=location)
+        xen_version = getXenVersion(mounts['root'])
+        if xen_version is None:
+            raise RuntimeError("Unable to determine Xen version.")
+        xen_kernel_version = getKernelVersion(mounts['root'])
+        if not xen_kernel_version:
+            raise RuntimeError("Unable to determine kernel version.")
+        buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config,
+                            serial, boot_serial, host_config, disk,
+                            disk_label_suffix, fcoe_interface)
+        util.assertDir(os.path.dirname(fn))
+        boot_config.commit()
 
-    finally:
-        # done installing - undo our extra mounts:
-        util.umount("%s/proc" % mounts['root'])
-        if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-            util.umount("%s/sys/firmware/efi/efivars" % mounts['root'])
-        util.umount("%s/sys" % mounts['root'])
-        util.umount("%s/dev" % mounts['root'])
+    root_partition = partitionDevice(disk, primary_partnum)
+    if target_boot_mode == TARGET_BOOT_MODE_UEFI:
+        if write_boot_entry:
+            setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
+    else:
+        if location == constants.BOOT_LOCATION_MBR:
+            installGrub2(mounts, disk, False)
+        else:
+            installGrub2(mounts, root_partition, True)
 
 def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     def check_efibootmgr_err(rc, err, install_type, err_type):
@@ -1236,17 +1198,33 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     new_cleanup = cleanup + [ ("umount-/tmp/root", util.umount, (mounts['root'], )),
                               ("umount-/tmp/root/mnt",  util.umount, (os.path.join(mounts['root'], 'mnt'), )) ]
 
+    for d in ('proc', 'sys', 'dev'):
+        mountdir = os.path.join(mounts['root'], d)
+        util.assertDir(mountdir)
+        util.bindMount(f"/{d}", mountdir)
+        new_cleanup.append((f"umount-{mountdir}",  util.umount, mountdir, ))
+
+    mountdir = os.path.join(mounts['root'], 'tmp')
+    util.assertDir(mountdir)
+    util.mount('none', mountdir, None, 'tmpfs')
+    new_cleanup.append((f"umount-{mountdir}",  util.umount, mountdir, ))
+
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         mounts['esp'] = '/tmp/root/boot/efi'
         bootp = partitionDevice(primary_disk, boot_partnum)
         util.assertDir(os.path.join(mounts['root'], 'boot', 'efi'))
         util.mount(bootp, mounts['esp'])
         new_cleanup.append(("umount-/tmp/root/boot/efi", util.umount, (mounts['esp'], )))
+
+        mountdir = os.path.join(mounts['root'], "sys/firmware/efi/efivars")
+        util.bindMount("/sys/firmware/efi/efivars", mountdir)
+        new_cleanup.append(("umount-/tmp/root/sys/firmware/efi/efivars", util.umount, (mountdir, )))
     if logs_partition:
         mounts['logs'] = os.path.join(mounts['root'], 'var/log')
         util.assertDir(mounts['logs'])
         util.mount(partitionDevice(primary_disk, logs_partnum), mounts['logs'])
         new_cleanup.append(("umount-/tmp/root/var/log", util.umount, (mounts['logs'], )))
+
     return mounts, new_cleanup
 
 def umountVolumes(mounts, cleanup, force=False):
@@ -1259,8 +1237,15 @@ def umountVolumes(mounts, cleanup, force=False):
     util.umount(constants.EXTRA_SCRIPTS_DIR)
     if 'esp' in mounts:
         util.umount(mounts['esp'])
+        util.umount(os.path.join(mounts['root'], "sys/firmware/efi/efivars"))
     if 'logs' in mounts:
         util.umount(mounts['logs'])
+
+    util.umount(os.path.join(mounts['root'], 'tmp'))
+
+    for d in ('proc', 'sys', 'dev'):
+        util.umount(os.path.join(mounts['root'], d))
+
     util.umount(mounts['root'])
     cleanup = list(filter(filterCleanup, cleanup))
     return cleanup
@@ -1285,9 +1270,6 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum, disk_label_suffix):
     swap_partition = tool.getPartition(swap_partnum)
 
     if swap_partition:
-        util.bindMount("/proc", "%s/proc" % mounts['root'])
-        util.bindMount("/sys", "%s/sys" % mounts['root'])
-        util.bindMount("/dev", "%s/dev" % mounts['root'])
         dev = partitionDevice(primary_disk, swap_partnum)
         while True:
             # The uuid of a swap partition overlaps the same position as the
@@ -1305,19 +1287,12 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum, disk_label_suffix):
             keys = [line.strip().split('=')[0] for line in out.strip().split('\n')]
             if 'ID_FS_AMBIVALENT' not in keys:
                 break
-        util.umount("%s/dev" % mounts['root'])
-        util.umount("%s/proc" % mounts['root'])
-        util.umount("%s/sys" % mounts['root'])
     else:
         util.assertDir("%s/var/swap" % mounts['root'])
         util.runCmd2(['dd', 'if=/dev/zero',
                       'of=%s' % os.path.join(mounts['root'], constants.swap_file.lstrip('/')),
                       'bs=1024', 'count=%d' % (constants.swap_file_size * 1024)])
-        util.bindMount("/proc", "%s/proc" % mounts['root'])
-        util.bindMount("/sys", "%s/sys" % mounts['root'])
         util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_file])
-        util.umount("%s/proc" % mounts['root'])
-        util.umount("%s/sys" % mounts['root'])
 
 def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum, disk_label_suffix):
 
