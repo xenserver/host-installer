@@ -16,6 +16,7 @@ import time
 from snackutil import ButtonChoiceWindowEx
 
 use_mpath = False
+IBFT_BLOCK_VALID_FLAG = 1 << 0
 
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
@@ -647,7 +648,9 @@ def setup_ibft_nics():
             nm = f.read().strip()
         with open(os.path.join(e, 'flags'), 'r') as f:
             flags = int(f.read().strip())
-            assert (flags & 3) == 3
+            if (flags & IBFT_BLOCK_VALID_FLAG) == 0:
+                logger.log("Skipping %s not marked as valid" % (e,))
+                continue
 
         if mac not in mac_map:
             raise RuntimeError('Found mac %s in iBFT but cannot find matching NIC' % mac)
