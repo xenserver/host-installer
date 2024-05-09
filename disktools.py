@@ -1141,7 +1141,7 @@ def PartitionTool(device, partitionType=None):
 def destroyPartnodes(dev):
     # Destroy partition nodes for a device-mapper device
     dmnodes = [ '/dev/mapper/%s' % f for f in os.listdir('/dev/mapper') ]
-    partitions = filter(lambda dmnode: re.match(dev + r'p?\d+$', dmnode), dmnodes)
+    partitions = [dmnode for dmnode in dmnodes if re.match(dev + r'p?\d+$', dmnode)]
     for partition in partitions:
         # the obvious way to do this is to use "kpartx -d" but that's broken!
         rv = util.runCmd2(['dmsetup', 'remove', partition])
@@ -1183,7 +1183,7 @@ def getDeviceMapperMaj():
     global cached_DM_maj
     if not cached_DM_maj:
         try:
-            line = filter(lambda x: x.endswith('device-mapper\n'), open('/proc/devices').readlines())
+            line = [x for x in open('/proc/devices').readlines() if x.endswith('device-mapper\n')]
             cached_DM_maj = int(line[0].split()[0])
         except:
             pass
@@ -1198,8 +1198,7 @@ def isDeviceMapperNode(dev):
 def getSysfsDir(dev):
     major, minor = getMajMin(dev)
     parts = open("/proc/partitions")
-    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
-                    parts.readlines())
+    partlines = [re.sub(" +", " ", x).strip() for x in parts.readlines()]
     parts.close()
     # parse it:
     disks = []
@@ -1238,7 +1237,7 @@ def getDeviceSlaves(disk):
     major, minor = getMajMin(disk)
     rv, out = util.runCmd2(['sh','-c','ls -d1 /sys/block/*/holders/*/dev'],with_stdout=True)
     lines = out.strip().split('\n')
-    lines = filter(lambda x: x != '', lines)
+    lines = [x for x in lines if x != '']
     for f in lines:
         _, _, _, dev, _, _, _ = f.split('/')
         __major, __minor = map(int, open(f).read().split(':'))

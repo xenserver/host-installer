@@ -72,7 +72,7 @@ def configureNetworking(ui, device, config):
             iface_to_start.append(device)
     else:
         # MAC address
-        matching_list = filter(lambda x: x.hwaddr == device, nethw.values())
+        matching_list = [x for x in nethw.values() if x.hwaddr == device]
         if len(matching_list) == 1:
             devname = matching_list[0].name
             iface_to_start.append(devname)

@@ -1794,10 +1794,9 @@ class CpioFileCompat:
                 m.file_size = m.size
                 m.date_time = time.gmtime(m.mtime)[:6]
     def namelist(self):
-        return map(lambda m: m.name, self.infolist())
+        return [m.name for m in self.infolist()]
     def infolist(self):
-        return filter(lambda m: m.isreg(),
-                      self.cpiofile.getmembers())
+        return [m for m in self.cpiofile.getmembers() if m.isreg()]
     def printdir(self):
         self.cpiofile.list()
     def testzip(self):

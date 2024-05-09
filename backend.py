@@ -278,7 +278,7 @@ def executeSequence(sequence, seq_name, answers, ui, cleanup):
             if len(updated_state) > 0:
                 logger.log(
                     "DISPATCH: Updated state: %s" %
-                    str.join("; ", ["%s -> %s" % (v, updated_state[v]) for v in updated_state.keys()])
+                    "; ".join(["%s -> %s" % (k, v) for k, v in updated_state.items()])
                     )
                 for state_item in updated_state:
                     answers[state_item] = updated_state[state_item]
@@ -474,7 +474,7 @@ def rewriteNTPConf(root, ntp_servers):
     lines = ntpsconf.readlines()
     ntpsconf.close()
 
-    lines = filter(lambda x: not x.startswith('server '), lines)
+    lines = [x for x in lines if not x.startswith('server ')]
 
     ntpsconf = open("%s/etc/chrony.conf" % root, 'w')
     for line in lines:
@@ -881,7 +881,7 @@ def getKernelVersion(rootfs_mount):
         return None
 
     try:
-        uname_provides = filter(lambda x: x.startswith('kernel-uname-r'), out.split('\n'))
+        uname_provides = [x for x in out.split('\n') if x.startswith('kernel-uname-r')]
         return uname_provides[0].split('=')[1].strip()
     except:
         pass
@@ -1498,8 +1498,9 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     # remove any files that may be present in the filesystem already,
     # particularly those created by kudzu:
     network_scripts = os.listdir(network_scripts_dir)
-    for s in filter(lambda x: x.startswith('ifcfg-'), network_scripts):
-        os.unlink(os.path.join(network_scripts_dir, s))
+    for s in network_scripts:
+        if s.startswith('ifcfg-'):
+            os.unlink(os.path.join(network_scripts_dir, s))
 
     # write the configuration file for the loopback interface
     lo = open(os.path.join(network_scripts_dir, 'ifcfg-lo'), 'w')

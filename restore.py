@@ -157,8 +157,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                 efi_mounted = True
 
             # copy files from the backup partition to the restore partition:
-            objs = filter(lambda x: x not in ['lost+found', '.xen-backup-partition', '.xen-gpt.bin'],
-                          os.listdir(backup_fs.mount_point))
+            objs = [x for x in os.listdir(backup_fs.mount_point) if x not in ['lost+found', '.xen-backup-partition', '.xen-gpt.bin']]
             for i in range(len(objs)):
                 obj = objs[i]
                 logger.log("Restoring subtree %s..." % obj)

@@ -119,8 +119,7 @@ disk_nodes += [ (179, x * 8) for x in range(32) ]
 def getDiskList():
     # read the partition tables:
     parts = open("/proc/partitions")
-    partlines = map(lambda x: re.sub(" +", " ", x).strip(),
-                    parts.readlines())
+    partlines = [re.sub(" +", " ", x).strip() for x in parts.readlines()]
     parts.close()
 
     # parse it:
@@ -150,9 +149,9 @@ def getDiskList():
             # it wasn't an actual entry, maybe the headers or something:
             continue
     # Add multipath nodes to list
-    disks.extend(map(lambda node: node.replace('/dev/',''), getMpathNodes()))
+    disks.extend([node.replace('/dev/','') for node in getMpathNodes()])
     # Add md RAID nodes to list
-    disks.extend(map(lambda node: node.replace('/dev/',''), getMdNodes()))
+    disks.extend([node.replace('/dev/','') for node in getMdNodes()])
 
     return disks
 
@@ -168,17 +167,17 @@ def partitionsOnDisk(disk):
         disk = disk[5:]
     if isDeviceMapperNode('/dev/' + disk):
         name = disk.split('/',1)[1]
-        partitions = filter(lambda s: re.match(name + r'p?\d+$', s), os.listdir('/dev/mapper/'))
-        partitions = map(lambda s: "mapper/%s" % s, partitions)
+        partitions = [s for s in os.listdir('/dev/mapper/') if re.match(name + r'p?\d+$', s)]
+        partitions = ["mapper/%s" % s for s in partitions]
     else:
         name = disk.replace("/", "!")
-        partitions = filter(lambda s: s.startswith(name), os.listdir('/sys/block/%s' % name))
-        partitions = map(lambda n: n.replace("!","/"), partitions)
+        partitions = [s for s in os.listdir('/sys/block/%s' % name) if s.startswith(name)]
+        partitions = [n.replace("!","/") for n in partitions]
 
     return partitions
 
 def getQualifiedDiskList():
-    return map(lambda x: getQualifiedDeviceName(x), getDiskList())
+    return [getQualifiedDeviceName(x) for x in getDiskList()]
 
 def getQualifiedPartitionList():
     return [getQualifiedDeviceName(x) for x in getPartitionList()]
@@ -212,7 +211,7 @@ def idFromPartition(partition):
     prefixes = ['disk/by-id/edd', 'disk/by-id/dm-name-', 'disk/by-id/dm-uuid-', 'disk/by-id/lvm-pv-uuid-', 'disk/by-id/cciss-']
     if v == 0:
         for link in out.split():
-            if link.startswith('disk/by-id') and not True in map(lambda x : link.startswith(x), prefixes):
+            if link.startswith('disk/by-id') and not True in [link.startswith(x) for x in prefixes]:
                 symlink = '/dev/'+link
                 break
     return symlink
@@ -414,8 +413,7 @@ def getHumanDiskName(disk):
         # mdadm may append an _ followed by a number (e.g. d0_0) to prevent
         # name collisions. Strip it if necessary.
         name = re.match("([^_]*)(_\d+)?$", name).group(1)
-        return 'RAID: %s(%s)' % (name, ','.join(map(lambda dev: dev[5:],
-                                                    getDeviceSlaves(disk))))
+        return 'RAID: %s(%s)' % (name, ','.join(dev[5:] for dev in getDeviceSlaves(disk)))
 
     if disk.startswith('/dev/disk/by-id/'):
         return disk[16:]
@@ -432,7 +430,7 @@ def getHumanDiskLabel(disk, short=False):
 # given a list of disks, work out which ones are part of volume
 # groups that will cause a problem if we install XE to those disks:
 def findProblematicVGs(disks):
-    real_disks = map(lambda d: os.path.realpath(d), disks)
+    real_disks = [os.path.realpath(d) for d in disks]
 
     # which disks are the volume groups on?
     vgdiskmap = {}
@@ -481,8 +479,7 @@ def log_available_disks():
         logger.log("Disk block sizes: %s" % [getDiskBlockSize(x)
                                              for x in disks])
 
-        dom0disks = filter(lambda x: constants.min_primary_disk_size <= x,
-                           diskSizesGB)
+        dom0disks = [x for x in diskSizesGB if constants.min_primary_disk_size <= x]
         if len(dom0disks) == 0:
             logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
