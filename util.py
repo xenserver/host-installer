@@ -213,26 +213,6 @@ class TempMount:
         if os.path.isdir(self.mount_point):
             os.rmdir(self.mount_point)
 
-class ChrootMounts:
-    def __init__(self, root_dir):
-        self.root_dir = root_dir
-
-    def __enter__(self):
-        root_dir = self.root_dir
-        bindMount('/sys', os.path.join(root_dir, 'sys'))
-        bindMount('/dev', os.path.join(root_dir, 'dev'))
-        bindMount('/proc', os.path.join(root_dir, 'proc'))
-        bindMount('/run', os.path.join(root_dir, 'run'))
-        mount('none', os.path.join(root_dir, 'tmp'), None, 'tmpfs')
-
-    def __exit__(self, type, value, traceback):
-        root_dir = self.root_dir
-        umount(os.path.join(root_dir, 'tmp'))
-        umount(os.path.join(root_dir, 'run'))
-        umount(os.path.join(root_dir, 'proc'))
-        umount(os.path.join(root_dir, 'dev'))
-        umount(os.path.join(root_dir, 'sys'))
-
 ###
 # fetching of remote files
 
