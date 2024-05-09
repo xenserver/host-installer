@@ -1204,13 +1204,13 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     for d in ('proc', 'sys', 'dev'):
         mountdir = os.path.join(mounts['root'], d)
         util.assertDir(mountdir)
-        util.bindMount(f"/{d}", mountdir)
-        new_cleanup.append((f"umount-{mountdir}",  util.umount, mountdir, ))
+        util.bindMount("/%s" % d, mountdir)
+        new_cleanup.append(("umount-%s" % mountdir,  util.umount, mountdir, ))
 
     mountdir = os.path.join(mounts['root'], 'tmp')
     util.assertDir(mountdir)
     util.mount('none', mountdir, None, 'tmpfs')
-    new_cleanup.append((f"umount-{mountdir}",  util.umount, mountdir, ))
+    new_cleanup.append(("umount-%s" % mountdir,  util.umount, mountdir, ))
 
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         mounts['esp'] = '/tmp/root/boot/efi'
