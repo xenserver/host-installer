@@ -113,7 +113,7 @@ class Answerfile:
             script = buildURL(stype, getText(node))
             scripts.add_script(stage, script)
 
-        # depreciated formats
+        # deprecated formats
         nodes = getElementsByTagName(self.top_node, ['post-install-script'])
         if len(nodes) == 1:
             stype = getStrAttribute(nodes[0], ['type'], mandatory=False).lower()
