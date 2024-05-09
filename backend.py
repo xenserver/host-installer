@@ -841,7 +841,12 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
 
 def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
-    with util.ChrootMounts(mounts['root']):
+    try:
+        util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
+        util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
+        util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
+        util.mount('none', os.path.join(mounts['root'], 'tmp'), None, 'tmpfs')
+
         if isDeviceMapperNode(partition):
             # Generate a valid multipath configuration for the initrd
             action = 'generate-fcoe' if fcoe_interfaces else 'generate-bfs'
@@ -866,6 +871,12 @@ def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
 
         if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
             raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
+
+    finally:
+        util.umount(os.path.join(mounts['root'], 'sys'))
+        util.umount(os.path.join(mounts['root'], 'dev'))
+        util.umount(os.path.join(mounts['root'], 'proc'))
+        util.umount(os.path.join(mounts['root'], 'tmp'))
 
 def getXenVersion(rootfs_mount):
     """ Return the xen version by interogating the package version in the chroot """
@@ -987,9 +998,18 @@ def prepFallback(mounts, primary_disk, primary_partnum):
     cmd = ['dracut', '--verbose', '--add-drivers', ' '.join(modules), '--no-hostonly']
     cmd += ['/boot/initrd-fallback.img', kernel_version]
 
-    with util.ChrootMounts(mounts['root']):
+    try:
+        util.bindMount('/sys', os.path.join(mounts['root'], 'sys'))
+        util.bindMount('/dev', os.path.join(mounts['root'], 'dev'))
+        util.bindMount('/proc', os.path.join(mounts['root'], 'proc'))
+
         if util.runCmd2(['chroot', mounts['root']] + cmd):
             raise RuntimeError("Failed to generate fallback initrd")
+    finally:
+        util.umount(os.path.join(mounts['root'], 'sys'))
+        util.umount(os.path.join(mounts['root'], 'dev'))
+        util.umount(os.path.join(mounts['root'], 'proc'))
+
 
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
     short_version = kernelShortVersion(xen_kernel_version)
@@ -1277,31 +1297,39 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum, disk_label_suffix):
     swap_partition = tool.getPartition(swap_partnum)
 
     if swap_partition:
+        util.bindMount("/proc", "%s/proc" % mounts['root'])
+        util.bindMount("/sys", "%s/sys" % mounts['root'])
+        util.bindMount("/dev", "%s/dev" % mounts['root'])
         dev = partitionDevice(primary_disk, swap_partnum)
-        with util.ChrootMounts(mounts['root']):
-            while True:
-                # The uuid of a swap partition overlaps the same position as the
-                # superblock magic for a MINIX filesystem (offset 0x410 or 0x418).
-                # The uuid might by coincidence match the superblock magic. The
-                # magic is only two bytes long and there are several different
-                # magic identifiers which increases the chances of matching.  If
-                # this happens, blkid marks the partition as ambivalent because it
-                # contains multiple signatures which prevents by-label symlinks
-                # from being created and the swap partition from being activated.
-                # Avoid this by running mkswap until the filesystem is no longer
-                # ambivalent.
-                util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label%disk_label_suffix, dev])
-                rc, out = util.runCmd2(['chroot', mounts['root'], 'blkid', '-o', 'udev', '-p', dev], with_stdout=True)
-                keys = [line.strip().split('=')[0] for line in out.strip().split('\n')]
-                if 'ID_FS_AMBIVALENT' not in keys:
-                    break
+        while True:
+            # The uuid of a swap partition overlaps the same position as the
+            # superblock magic for a MINIX filesystem (offset 0x410 or 0x418).
+            # The uuid might by coincidence match the superblock magic. The
+            # magic is only two bytes long and there are several different
+            # magic identifiers which increases the chances of matching.  If
+            # this happens, blkid marks the partition as ambivalent because it
+            # contains multiple signatures which prevents by-label symlinks
+            # from being created and the swap partition from being activated.
+            # Avoid this by running mkswap until the filesystem is no longer
+            # ambivalent.
+            util.runCmd2(['chroot', mounts['root'], 'mkswap', '-L', constants.swap_label%disk_label_suffix, dev])
+            rc, out = util.runCmd2(['chroot', mounts['root'], 'blkid', '-o', 'udev', '-p', dev], with_stdout=True)
+            keys = [line.strip().split('=')[0] for line in out.strip().split('\n')]
+            if 'ID_FS_AMBIVALENT' not in keys:
+                break
+        util.umount("%s/dev" % mounts['root'])
+        util.umount("%s/proc" % mounts['root'])
+        util.umount("%s/sys" % mounts['root'])
     else:
         util.assertDir("%s/var/swap" % mounts['root'])
         util.runCmd2(['dd', 'if=/dev/zero',
                       'of=%s' % os.path.join(mounts['root'], constants.swap_file.lstrip('/')),
                       'bs=1024', 'count=%d' % (constants.swap_file_size * 1024)])
-        with util.ChrootMounts(mounts['root']):
-            util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_file])
+        util.bindMount("/proc", "%s/proc" % mounts['root'])
+        util.bindMount("/sys", "%s/sys" % mounts['root'])
+        util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_file])
+        util.umount("%s/proc" % mounts['root'])
+        util.umount("%s/sys" % mounts['root'])
 
 def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum, disk_label_suffix):
 
