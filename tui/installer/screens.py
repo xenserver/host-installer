@@ -1040,7 +1040,7 @@ def get_timezone_city(answers):
         tui.screen,
         "Select Time Zone",
         "Please select the city or area that the managed host is in (press a letter to jump to that place in the list):",
-        map(lambda x: x.replace('_', ' '), entries),
+        [x.replace('_', ' ') for x in entries],
         ['Ok', 'Back'], height=8, scroll=1, default=default, help='gettz')
 
     if button == 'back': return LEFT_BACKWARDS
@@ -1121,7 +1121,7 @@ def get_ntp_servers(answers):
 
     if button == 'back': return LEFT_BACKWARDS
 
-    servers = filter(lambda x: x != "", [ntp1_field.value(), ntp2_field.value(), ntp3_field.value()])
+    servers = [ntp_field.value() for ntp_field in (ntp1_field, ntp2_field, ntp3_field) if ntp_field.value() != ""]
     if len(servers) == 0:
         ButtonChoiceWindow(tui.screen,
                             "NTP Configuration",

@@ -206,7 +206,7 @@ def get_source_location(answers, require_base_rep):
         return get_nfs_location(answers, require_base_rep)
 
 def confirm_load_repo(answers, label, installed_repos):
-    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    cap_label = ' '.join([a.capitalize() for a in label.split()])
     if 'source-media' in answers and 'source-address' in answers:
         media = answers['source-media']
         address = answers['source-address']
@@ -227,7 +227,7 @@ def confirm_load_repo(answers, label, installed_repos):
         return LEFT_BACKWARDS
 
     if label != 'driver':
-        repos = filter(lambda r: r.identifier() != constants.MAIN_REPOSITORY_NAME, repos)
+        repos = [r for r in repos if r.identifier() != constants.MAIN_REPOSITORY_NAME]
 
     if len(repos) == 0:
         ButtonChoiceWindow(
@@ -285,7 +285,7 @@ def confirm_load_repo(answers, label, installed_repos):
 
 # verify the installation source?
 def verify_source(answers, label, require_base_repo):
-    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    cap_label = ' '.join([a.capitalize() for a in label.split()])
     if 'source-media' in answers and 'source-address' in answers:
         media = answers['source-media']
         address = answers['source-address']
@@ -337,7 +337,7 @@ def verify_source(answers, label, require_base_repo):
     return RIGHT_FORWARDS
 
 def interactive_source_verification(repos, label):
-    cap_label = ' '.join(map(lambda a: a.capitalize(), label.split()))
+    cap_label = ' '.join([a.capitalize() for a in label.split()])
     errors = []
     pd = tui.progress.initProgressDialog(
         "Verifying %s Source" % cap_label, "Initializing...",

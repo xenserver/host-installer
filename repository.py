@@ -144,7 +144,7 @@ class YumRepository(Repository):
         primaryfp.close()
 
         # Filter using only sha256 checksum
-        sha256_checksums = filter(lambda x: x.getAttribute("type") == "sha256", package_checksums)
+        sha256_checksums = [x for x in package_checksums if x.getAttribute("type") == "sha256"]
 
         # After the filter, the list of checksums will have the same size
         # of the list of names
@@ -737,8 +737,7 @@ def findRepositoriesOnMedia(drivers=False):
         static_devices.extend(map(os.path.basename, glob.glob('/sys/block/' + pattern)))
 
     removable_devices = diskutil.getRemovableDeviceList()
-    removable_devices = filter(lambda x: not x.startswith('fd'),
-                               removable_devices)
+    removable_devices = [x for x in removable_devices if not x.startswith('fd')]
 
     parent_devices = []
     partitions = []

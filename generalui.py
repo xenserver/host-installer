@@ -10,7 +10,7 @@ def getTimeZoneRegions():
     lines = tzf.readlines()
     tzf.close()
 
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
+    lines = [x.strip('\n').split('/') for x in lines]
 
     regions = []
     for zone in lines:
@@ -24,7 +24,7 @@ def getTimeZoneCities(desired_region):
     lines = tzf.readlines()
     tzf.close()
 
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
+    lines = [x.strip('\n').split('/') for x in lines]
 
     cities = []
     for zone in lines:
@@ -39,7 +39,7 @@ def getKeymaps():
     lines = kbdfile.readlines()
     kbdfile.close()
 
-    lines = map(lambda x: x.strip('\n').split('/'), lines)
+    lines = [x.strip('\n').split('/') for x in lines]
 
     keymaps = []
     for keymap in lines:

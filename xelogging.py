@@ -38,8 +38,8 @@ def collectLogs(dst, tarball_dir=None):
             shutil.copy("/tmp/install-log", dst)
         if os.path.exists(constants.SCRIPTS_DIR):
             os.system("cp -r "+constants.SCRIPTS_DIR+" %s/" % dst)
-    logs = filter(lambda x: x.endswith('-log') or x == 'answerfile' or
-                  x.startswith(os.path.basename(constants.SCRIPTS_DIR)), os.listdir(dst))
+    logs = [x for x in os.listdir(dst) if x.endswith('-log') or x == 'answerfile' or
+                  x.startswith(os.path.basename(constants.SCRIPTS_DIR))]
     logs = " ".join(logs)
 
     if os.path.exists(tarball_dir):

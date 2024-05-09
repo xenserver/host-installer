@@ -324,8 +324,7 @@ def readKeyValueFile(filename, allowed_keys=None, strip_quotes=True):
 
     # remove lines that do not contain allowed keys
     if allowed_keys:
-        lines = filter(lambda x: True in [x.startswith(y) for y in allowed_keys],
-                       lines)
+        lines = [x for x in lines if True in [x.startswith(y) for y in allowed_keys]]
 
     defs = [ (l[:l.find("=")], l[(l.find("=") + 1):]) for l in lines ]
 

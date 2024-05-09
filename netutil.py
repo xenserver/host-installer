@@ -105,7 +105,7 @@ def ipaddr(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return None
-    inets = filter(lambda x: 'inet ' in x, out.split("\n"))
+    inets = [x for x in out.split("\n") if 'inet ' in x]
     if len(inets) == 1:
         m = re.search(r'inet (\S+)/', inets[0])
         if m:
@@ -117,7 +117,7 @@ def interfaceUp(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return False
-    inets = filter(lambda x: x.startswith("    inet "), out.split("\n"))
+    inets = [x for x in out.split("\n") if x.startswith("    inet ")]
     return len(inets) == 1
 
 # work out if a link is up:
@@ -140,7 +140,7 @@ def setAllLinksUp():
         if nif not in diskutil.ibft_reserved_nics:
             subprocs.append(subprocess.Popen(['ip', 'link', 'set', nif, 'up'], close_fds=True))
 
-    while None in map(lambda x: x.poll(), subprocs):
+    while None in [x.poll() for x in subprocs]:
         time.sleep(1)
 
 def networkingUp():
