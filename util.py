@@ -122,7 +122,7 @@ def pidof(name):
         except:
             return False
     pids = filter(is_pid, os.listdir('/proc'))
-    pids = filter(has_name, pids)
+    pids = list(filter(has_name, pids))
     return pids
 
 def mount(dev, mountpoint, options=None, fstype=None):

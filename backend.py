@@ -704,7 +704,7 @@ def writeGuestDiskPartitions(primary_disk, guest_disks):
             assert gd[:5] == '/dev/'
 
             tool = PartitionTool(gd, constants.PARTITION_GPT)
-            tool.deletePartitions(tool.partitions.keys())
+            tool.deletePartitions(list(tool.partitions.keys()))
             tool.commit(log=True)
 
 
@@ -1268,7 +1268,7 @@ def umountVolumes(mounts, cleanup, force=False):
         util.umount(os.path.join(mounts['root'], d))
 
     util.umount(mounts['root'])
-    cleanup = filter(filterCleanup, cleanup)
+    cleanup = list(filter(filterCleanup, cleanup))
     return cleanup
 
 ##########

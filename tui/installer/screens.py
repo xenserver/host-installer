@@ -216,7 +216,7 @@ def get_admin_interface(answers):
 
 def get_admin_interface_configuration(answers):
     if 'net-admin-interface' not in answers:
-        answers['net-admin-interface'] = answers['network-hardware'].keys()[0]
+        answers['net-admin-interface'] = list(answers['network-hardware'].keys())[0]
     nic = answers['network-hardware'][answers['net-admin-interface']]
 
     defaults = None
@@ -667,7 +667,7 @@ def select_guest_disks(answers):
     # Also, since the DM nodes are multipathed SANs it doesn't make sense to include them
     # in the "Local" SR.
     allowed_in_local_sr = lambda dev: (dev == answers['primary-disk']) or (not isDeviceMapperNode(dev))
-    diskEntries = filter(allowed_in_local_sr, diskEntries)
+    diskEntries = list(filter(allowed_in_local_sr, diskEntries))
 
     if len(diskEntries) == 0 or constants.CC_PREPARATIONS:
         answers['guest-disks'] = []
@@ -777,7 +777,7 @@ def confirm_installation(answers):
         label = "Confirm Installation"
         text1 = "We have collected all the information required to install %s. " % MY_PRODUCT_BRAND
         if answers['install-type'] == constants.INSTALL_TYPE_FRESH:
-            disks = map(diskutil.getHumanDiskName, answers['guest-disks'])
+            disks = list(map(diskutil.getHumanDiskName, answers['guest-disks']))
             if diskutil.getHumanDiskName(answers['primary-disk']) not in disks:
                 disks.append(diskutil.getHumanDiskName(answers['primary-disk']))
             disks.sort()
@@ -894,7 +894,7 @@ def get_name_service_configuration(answers):
         elif 'runtime-iface-configuration' in answers:
             all_dhcp, netdict = answers['runtime-iface-configuration']
             if not all_dhcp and isinstance(netdict, dict):
-                nameservers = netdict.values()[0].dns
+                nameservers = list(netdict.values())[0].dns
 
         if isinstance(nameservers, list) and id < len(nameservers):
             return nameservers[id]

@@ -68,7 +68,7 @@ def configureNetworking(ui, device, config):
 
     iface_to_start = []
     if device == 'all':
-        iface_to_start.extend(netcfg.keys())
+        iface_to_start.extend(list(netcfg.keys()))
     elif device.startswith('eth'):
         if device in nethw:
             iface_to_start.append(device)
