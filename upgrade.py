@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+from __future__ import print_function
+
 import os
 import re
 import shutil
@@ -601,7 +603,7 @@ class ThirdGenUpgrader(Upgrader):
         f.close()
 
         state = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'host.conf'), 'w')
-        print >>state, "UPGRADE=true"
+        print("UPGRADE=true", file=state)
         state.close()
 
         # The existence of the static-rules.conf is used to detect upgrade from Boston or newer

@@ -2,6 +2,8 @@
 
 # SPDX-License-Identifier: GPL-2.0-only
 
+from __future__ import print_function
+
 import sys
 import os
 import os.path
@@ -99,7 +101,7 @@ def main(args):
     try:
         tty = os.path.basename(os.readlink('/proc/self/fd/0'))
         pidfile = open('/var/run/installer-%s.pid' % tty, 'w')
-        print >>pidfile, os.getpid()
+        print(os.getpid(), file=pidfile)
         pidfile.close()
     except:
         pass
@@ -164,7 +166,7 @@ def main(args):
     if ui:
         # switch to ISO 8859-1 mode so line drawing characters work as expected on
         # vt100 terminals.
-        print "\033%@"
+        print("\033%@")
 
         logger.log("Starting 'init' user interface on %s" % tty)
         ui.init_ui()

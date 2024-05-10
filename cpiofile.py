@@ -32,6 +32,8 @@
    Derived from Lars Gustäbel's tarfile.py
 """
 
+from __future__ import print_function
+
 version     = "0.1"
 __author__  = "Simon Rowe"
 __credits__ = "Lars Gustäbel"
@@ -1206,17 +1208,17 @@ class CpioFile(object):
 
         for cpioinfo in self:
             if verbose:
-                print filemode(cpioinfo.mode),
-                print "%d/%d" % (cpioinfo.uid, cpioinfo.gid),
+                print(filemode(cpioinfo.mode), end=' ')
+                print("%d/%d" % (cpioinfo.uid, cpioinfo.gid), end=' ')
                 if cpioinfo.ischr() or cpioinfo.isblk():
-                    print "%10s" % ("%d,%d" \
-                                    % (cpioinfo.devmajor, cpioinfo.devminor)),
+                    print("%10s" % ("%d,%d" \
+                                    % (cpioinfo.devmajor, cpioinfo.devminor)), end=' ')
                 else:
-                    print "%10d" % cpioinfo.size,
-                print "%d-%02d-%02d %02d:%02d:%02d" \
-                      % time.localtime(cpioinfo.mtime)[:6],
+                    print("%10d" % cpioinfo.size, end=' ')
+                print("%d-%02d-%02d %02d:%02d:%02d" \
+                      % time.localtime(cpioinfo.mtime)[:6], end=' ')
 
-            print cpioinfo.name
+            print(cpioinfo.name)
 
     def add(self, name, arcname=None, recursive=True):
         """Add the file `name' to the archive. `name' may be any type of file
@@ -1731,7 +1733,7 @@ class CpioFile(object):
         """Write debugging output to sys.stderr.
         """
         if level <= self.debug:
-            print >> sys.stderr, msg
+            print(msg, file=sys.stderr)
 # class CpioFile
 
 class CpioIter:

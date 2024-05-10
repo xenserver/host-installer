@@ -302,7 +302,7 @@ Please remove any local media from the drive, and press Enter to reboot.""")
             backend.prettyLogAnswers(results)
         except Exception as e:
             # Don't let logging exceptions prevent subsequent actions
-            print 'Logging failed: '+str(e)
+            print('Logging failed: '+str(e))
 
         # exit with failure status:
         status = constants.EXIT_ERROR
