@@ -29,7 +29,7 @@ def selectDefault(key, entries):
     REPOCHK_NO_BASE_REPO,
     REPOCHK_PLATFORM_VERSION_MISMATCH,
     REPOCHK_NO_ERRORS
-) = range(5)
+) = list(range(5))
 
 def check_repo_def(definition, require_base_repo):
     """ Check that the repository source definition gives access to suitable
@@ -236,7 +236,7 @@ def confirm_load_repo(answers, label, installed_repos):
             ['Back'])
         return LEFT_BACKWARDS
 
-    USE, VERIFY, BACK = range(3)
+    USE, VERIFY, BACK = list(range(3))
     default_button = BACK
     if len(repos) == 1:
         text = TextboxReflowed(54, "The following %s was found:\n\n" % label)
@@ -293,7 +293,7 @@ def verify_source(answers, label, require_base_repo):
         media = 'local'
         address = ''
     done = False
-    SKIP, VERIFY = range(2)
+    SKIP, VERIFY = list(range(2))
     entries = [ ("Skip verification", SKIP),
                 ("Verify %s source" % label, VERIFY), ]
 

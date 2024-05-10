@@ -218,8 +218,8 @@ def valid_ip_addr(addr):
     return True
 
 def network(ipaddr, netmask):
-    ip = map(int,ipaddr.split('.',3))
-    nm = map(int,netmask.split('.',3))
+    ip = list(map(int,ipaddr.split('.',3)))
+    nm = list(map(int,netmask.split('.',3)))
     nw = map(lambda i: ip[i] & nm[i], range(4))
     return ".".join(map(str,nw))
 
@@ -397,7 +397,7 @@ def remap_netdevs(remap_list):
     def macpci_as_list(x):
         return [str(x.mac), str(x.pci), x.tname]
 
-    new_lastboot = map(macpci_as_list, current_state)
+    new_lastboot = list(map(macpci_as_list, current_state))
     dynamic_rules.lastboot = new_lastboot
 
     LOG.info("All done ordering the network devices")
