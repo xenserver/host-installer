@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+from __future__ import print_function
+
 import os
 import os.path
 import stat
@@ -733,11 +735,11 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 
     links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
     fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
-    print >>fd, "XSPARTITIONS='%s'" % str.join(" ", links)
-    print >>fd, "XSTYPE='%s'" % sr_type
+    print("XSPARTITIONS='%s'" % str.join(" ", links), file=fd)
+    print("XSTYPE='%s'" % sr_type, file=fd)
     # Legacy names
-    print >>fd, "PARTITIONS='%s'" % str.join(" ", links)
-    print >>fd, "TYPE='%s'" % sr_type
+    print("PARTITIONS='%s'" % str.join(" ", links), file=fd)
+    print("TYPE='%s'" % sr_type, file=fd)
     fd.close()
 
 def make_free_space(mount, required):
@@ -1467,24 +1469,24 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     mgmt_conf_file = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'management.conf')
     if not os.path.exists(mgmt_conf_file):
         mc = open(mgmt_conf_file, 'w')
-        print >>mc, "LABEL='%s'" % admin_iface
-        print >>mc, "MODE='%s'" % netinterface.NetInterface.getModeStr(admin_config.mode)
+        print("LABEL='%s'" % admin_iface, file=mc)
+        print("MODE='%s'" % netinterface.NetInterface.getModeStr(admin_config.mode), file=mc)
         if admin_config.mode == netinterface.NetInterface.Static:
-            print >>mc, "IP='%s'" % admin_config.ipaddr
-            print >>mc, "NETMASK='%s'" % admin_config.netmask
+            print("IP='%s'" % admin_config.ipaddr, file=mc)
+            print("NETMASK='%s'" % admin_config.netmask, file=mc)
             if admin_config.gateway:
-                print >>mc, "GATEWAY='%s'" % admin_config.gateway
+                print("GATEWAY='%s'" % admin_config.gateway, file=mc)
             if manual_nameservers:
-                print >>mc, "DNS='%s'" % (','.join(nameservers),)
+                print("DNS='%s'" % (','.join(nameservers),), file=mc)
             if domain:
-                print >>mc, "DOMAIN='%s'" % domain
-        print >>mc, "MODEV6='%s'" % netinterface.NetInterface.getModeStr(admin_config.modev6)
+                print("DOMAIN='%s'" % domain, file=mc)
+        print("MODEV6='%s'" % netinterface.NetInterface.getModeStr(admin_config.modev6), file=mc)
         if admin_config.modev6 == netinterface.NetInterface.Static:
-            print >>mc, "IPv6='%s'" % admin_config.ipv6addr
+            print("IPv6='%s'" % admin_config.ipv6addr, file=mc)
             if admin_config.ipv6_gateway:
-                print >>mc, "IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway
+                print("IPv6_GATEWAY='%s'" % admin_config.ipv6_gateway, file=mc)
         if admin_config.vlan:
-            print >>mc, "VLAN='%d'" % admin_config.vlan
+            print("VLAN='%d'" % admin_config.vlan, file=mc)
         mc.close()
 
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
