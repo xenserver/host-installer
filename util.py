@@ -61,6 +61,7 @@ def runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,
                                shell=isinstance(command, str),
+                               universal_newlines=True,
                                close_fds=True)
 
         # We could poll stdout/stderr for commands outputing large amounts

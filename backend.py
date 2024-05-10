@@ -1431,7 +1431,8 @@ def setRootPassword(mounts, root_pwd):
         cmd = ["/usr/sbin/chroot", mounts["root"], "chpasswd", "-e"]
         pipe = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
         pipe.communicate('root:%s\n' % root_password)
         assert pipe.wait() == 0
     else:
@@ -1439,7 +1440,8 @@ def setRootPassword(mounts, root_pwd):
         pipe = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                                      stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
-                                     close_fds=True)
+                                     close_fds=True,
+                                     universal_newlines=True)
         pipe.communicate(root_password + "\n")
         assert pipe.wait() == 0
 

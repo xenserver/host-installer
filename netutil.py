@@ -162,7 +162,7 @@ def getPCIInfo(interface):
         info = output.strip('\n')
 
     cur_if = None
-    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE)
+    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE, universal_newlines=True)
     for line in pipe.stdout:
         l = line.strip('\n')
         if l.startswith('Kernel name'):
@@ -234,7 +234,7 @@ class NetDevices:
         self.netdev = []
         details = {}
 
-        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE)
+        pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE, universal_newlines=True)
         for line in pipe.stdout:
             l = line.strip('\n')
             if len(l) == 0:
