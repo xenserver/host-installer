@@ -225,7 +225,7 @@ def network(ipaddr, netmask):
 
 def prefix2netmask(mask):
     bits = 0
-    for i in xrange(32-mask, 32):
+    for i in range(32-mask, 32):
         bits |= (1 << i)
     return inet_ntoa(pack('>I', bits))
 

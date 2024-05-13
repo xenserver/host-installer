@@ -86,7 +86,7 @@ def start_fcoe(interfaces):
     # of seconds for FCoE to stabilize.
     time.sleep(30)
     util.runCmd2(util.udevsettleCmd())
-    for interface, status in result.iteritems():
+    for interface, status in result.items():
         if status == 'OK':
             logger.log(get_luns_on_intf(interface))
 
@@ -124,7 +124,7 @@ def get_fcoe_capable_ifaces(check_lun):
             outdata = outstr.split(':')
             return "Successful" in outdata[1]
 
-    for nic, conf in nics.iteritems():
+    for nic, conf in nics.items():
         if get_dcb_capablity(nic):
             if check_lun and len(get_luns_on_intf(nic)) > 0:
                 continue
@@ -231,7 +231,7 @@ def get_luns_on_intf(interface):
 
     for vlan in vlans:
         if vlan in fcoedisks:
-            for rport, val in fcoedisks[vlan].iteritems():
+            for rport, val in fcoedisks[vlan].items():
                 for lun in val['luns'].values():
                     lluns.append(lun['device'])
 
