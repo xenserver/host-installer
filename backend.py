@@ -733,7 +733,7 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 
     # write a config file for the prepare-storage firstboot script:
 
-    links = map(lambda x: diskutil.idFromPartition(x) or x, partitions)
+    links = [diskutil.idFromPartition(x) or x for x in partitions]
     fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
     print("XSPARTITIONS='%s'" % str.join(" ", links), file=fd)
     print("XSTYPE='%s'" % sr_type, file=fd)

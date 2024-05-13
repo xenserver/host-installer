@@ -660,6 +660,5 @@ class UpgraderList(list):
 __upgraders__ = UpgraderList([ThirdGenUpgrader, InCloudSphereUpgrader])
 
 def filter_for_upgradeable_products(installed_products):
-    upgradeable_products = filter(lambda p: p.isUpgradeable() and upgradeAvailable(p),
-        installed_products)
+    upgradeable_products = [p for p in installed_products if p.isUpgradeable() and upgradeAvailable(p)]
     return upgradeable_products
