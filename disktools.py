@@ -900,7 +900,7 @@ class DOSPartitionTool(PartitionToolBase):
             rc, err = util.runCmd2([self.SFDISK, '-LVquS', self.device], with_stderr=True)
             if rc == 1:
                 lines = err.split('\n')
-                if len(filter(lambda x : x != '' and not x.endswith('extends past end of disk'), lines)) != 0:
+                if len([x for x in lines if x != '' and not x.endswith('extends past end of disk')]) != 0:
                     raise Exception(err)
             elif rc != 0:
                 raise Exception(err)

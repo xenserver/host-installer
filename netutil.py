@@ -220,7 +220,7 @@ def valid_ip_addr(addr):
 def network(ipaddr, netmask):
     ip = list(map(int,ipaddr.split('.',3)))
     nm = list(map(int,netmask.split('.',3)))
-    nw = map(lambda i: ip[i] & nm[i], range(4))
+    nw = [ip[i] & nm[i] for i in range(4)]
     return ".".join(map(str,nw))
 
 def prefix2netmask(mask):
