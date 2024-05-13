@@ -98,10 +98,10 @@ def select_fcoe_ifaces(answers):
     logger.log("fcoe result %s" % str(result))
     tui.progress.clearModelessDialog()
 
-    fail = {k: v for k, v in result.iteritems() if v != 'OK'}
+    fail = {k: v for k, v in result.items() if v != 'OK'}
     if len(fail.keys()) > 0:
         # Report any errors
-        err_text = '\n'.join(map(lambda (x, y): "%s %s" % (x, y), fail.iteritems()))
+        err_text = '\n'.join(map(lambda (x, y): "%s %s" % (x, y), fail.items()))
         text = TextboxReflowed(60, "The following errors occured while discovering FCoE disks.")
         errs = Textbox(30, 6, err_text, scroll=len(fail.keys()) > 6)
         buttons = ButtonBar(tui.screen, [('Ok', 'ok')])

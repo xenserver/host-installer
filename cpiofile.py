@@ -115,7 +115,7 @@ def copyfileobj(src, dst, length=None):
 
     BUFSIZE = 16 * 1024
     blocks, remainder = divmod(length, BUFSIZE)
-    for b in xrange(blocks):
+    for b in range(blocks):
         buf = src.read(BUFSIZE)
         if len(buf) < BUFSIZE:
             raise IOError("end of file reached")
@@ -381,7 +381,7 @@ class _Stream:
         """
         if pos - self.pos >= 0:
             blocks, remainder = divmod(pos - self.pos, self.bufsize)
-            for i in xrange(blocks):
+            for i in range(blocks):
                 self.read(self.bufsize)
             self.read(remainder)
         else:
@@ -1698,7 +1698,7 @@ class CpioFile(object):
         else:
             end = members.index(cpioinfo)
 
-        for i in xrange(end - 1, -1, -1):
+        for i in range(end - 1, -1, -1):
             if name == members[i].name:
                 return members[i]
 

@@ -615,7 +615,7 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
         raise RuntimeError("The disk %s is smaller than %dGB." % (disk, constants.min_primary_disk_size))
 
     tool = PartitionTool(disk, constants.PARTITION_GPT)
-    for num, part in tool.iteritems():
+    for num, part in tool.items():
         if num >= primary_partnum:
             tool.deletePartition(num)
 
@@ -1345,7 +1345,7 @@ def enableAgent(mounts, network_backend, services):
 
     # Enable/disable miscellaneous services
     actMap = {'enabled': 'enable', 'disabled': 'disable'}
-    for (service, state) in services.iteritems():
+    for (service, state) in services.items():
         action = 'disable' if constants.CC_PREPARATIONS and state is None else actMap.get(state)
         if action:
             util.runCmd2(['chroot', mounts['root'], 'systemctl', action, service + '.service'])

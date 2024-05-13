@@ -458,7 +458,7 @@ class LVMTool:
             totalExtents += sum([ move.size for move in moveList ])
         extentsSoFar = 0
 
-        for device, moveList in sorted(self.moveLists.iteritems()):
+        for device, moveList in sorted(self.moveLists.items()):
             thisSize = sum([ move.size for move in moveList ])
             callback = lambda percent : (progress_callback( 5 + (98 - 5) * (extentsSoFar + thisSize * percent / 100) / totalExtents) )
             self.executeMoves(callback, device, moveList)
@@ -591,7 +591,7 @@ class PartitionToolBase:
         if newNumber in self.partitions:
             raise Exception('Partition '+str(newNumber)+' already exists')
 
-        partitions = [None] + [part for num, part in sorted(self.partitions.iteritems(), key=lambda item: item[1]['start'])]
+        partitions = [None] + [part for num, part in sorted(self.partitions.items(), key=lambda item: item[1]['start'])]
 
         if startBytes is None:
             if order:
@@ -692,13 +692,13 @@ class PartitionToolBase:
         self.partitions[number]['active'] = activeFlag
 
     def inactivateDisk(self):
-        for number, partition in self.partitions.iteritems():
+        for number, partition in self.partitions.items():
             if partition['active']:
                 self.setActiveFlag(False, number)
 
-    def iteritems(self):
+    def items(self):
         # sorted() creates a new list, so you can delete partitions whilst iterating
-        for number, partition in sorted(self.partitions.iteritems()):
+        for number, partition in sorted(self.partitions.items()):
             yield number, partition
 
     def commit(self, dryrun=False, log=False):
@@ -713,14 +713,14 @@ class PartitionToolBase:
         output += "Sector last usable  : "+str(self.sectorLastUsable)+"\n"
         output += "Sector first usable : "+str(self.sectorFirstUsable)+"\n"
         output += "Partition size and start addresses in sectors:\n"
-        for number, partition in sorted(self.origPartitions.iteritems()):
+        for number, partition in sorted(self.origPartitions.items()):
             output += "Old partition "+str(number)+":"
-            for k, v in sorted(partition.iteritems()):
+            for k, v in sorted(partition.items()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
-        for number, partition in sorted(self.partitions.iteritems()):
+        for number, partition in sorted(self.partitions.items()):
             output += "New partition "+str(number)+":"
-            for k, v in sorted(partition.iteritems()):
+            for k, v in sorted(partition.items()):
                 output += ' '+k+'='+((k == 'id') and hex(v) or str(v))
             output += "\n"
         logger.log(output)
@@ -916,7 +916,7 @@ class DOSPartitionTool(PartitionToolBase):
 
         # Copy hidden attribute on MS partitions
         hidden_args = []
-        for num, part in self.partitions.iteritems():
+        for num, part in self.partitions.items():
             if part['id'] in self.__HIDDEN_MS_IDS and gpt_tool.partitions[num]['id'] == gpt_tool.ID_LINUX:
                 hidden_args.append('--attributes=%d:set:62' % num)
                 gpt_tool.partitions[num]['hidden'] = True
@@ -1019,7 +1019,7 @@ class GPTPartitionTool(PartitionToolBase):
         return partitions
 
     def commitActivePartitiontoDisk(self, partnum):
-        for num, part in self.iteritems():
+        for num, part in self.items():
             if num == partnum:
                 self.cmdWrap([self.SGDISK, '--attributes=%d:set:2' % num, self.device]) # BIOS bootable flag set
             else:

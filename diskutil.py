@@ -515,7 +515,7 @@ def probeDisk(device):
     possible_srs = []
 
     tool = PartitionTool(device)
-    for num, part in tool.iteritems():
+    for num, part in tool.items():
         label = None
         part_device = tool._partitionDevice(num)
 
