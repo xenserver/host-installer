@@ -377,6 +377,7 @@ class UpdateYumRepository(YumRepositoryWithInfo):
             self._controlpkg = dom.documentElement.getAttribute('control')
             self._identifier = dom.documentElement.getAttribute('name-label')
             self._targets = [self._controlpkg, 'update-' + self._identifier]
+            self._key = dom.documentElement.getAttribute('key')
         except Exception as e:
             accessor.finish()
             logger.logException(e)
@@ -387,6 +388,13 @@ class UpdateYumRepository(YumRepositoryWithInfo):
 
     def name(self):
         return self._identifier
+
+    def _repo_config(self):
+        return """
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/%s
+""" % self._key
+
 
 class DriverUpdateYumRepository(UpdateYumRepository):
     """Represents a Yum repository containing packages and associated meta data for a driver disk."""
