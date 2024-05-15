@@ -971,6 +971,7 @@ def shrink_lvm(drive, partno, start_space, end_space, progress_callback):
 
     if not regions:
         logger.log('LVM partition does not need to be shrunk')
+        lvm.close()
         return
 
     # If we're shrinking the start by an amount that is not a multiple of the extent size
