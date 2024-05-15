@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import constants
+import errno
 import re, subprocess, types, os, time
 from pprint import pprint
 from copy import copy, deepcopy
@@ -1285,6 +1286,12 @@ class DeviceMounter:
             return "Mount(%s, %s, %s, %s)" % (self.dev, self.mountpoint, self.fstype, self.options)
 
         def mount(self):
+            try:
+                os.makedirs(self.mountpoint, mode=0o755)
+            except OSError as e:
+                if e.errno != errno.EEXIST:
+                    raise
+
             util.mount(self.dev, self.mountpoint, self.options, self.fstype)
 
         def umount(self):
