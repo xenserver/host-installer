@@ -12,6 +12,7 @@ import subprocess
 import re
 import gzip
 import shutil
+from io import BytesIO
 from xml.dom.minidom import parse
 
 import diskutil
@@ -21,7 +22,6 @@ import util
 from util import dev_null
 from xcp.version import *
 from xcp import logger
-import cpiofile
 from constants import *
 import xml.dom.minidom
 import configparser
@@ -130,14 +130,14 @@ class YumRepository(Repository):
         repomdfp.close()
 
         primaryfp = accessor.openAddress(primary_location)
-        # Open compressed xml using cpiofile._Stream which is an adapter between CpioFile and a stream-like object.
-        # Useful when specifying the URL for HTTP or FTP repository - A simple GzipFile object will not work in this situation.
-        primary_xml = cpiofile._Stream("", "r", "gz", primaryfp, 20*512)
-        primary_dom = parse(primary_xml)
-        package_names = primary_dom.getElementsByTagName("location")
-        package_sizes = primary_dom.getElementsByTagName("size")
-        package_checksums = primary_dom.getElementsByTagName("checksum")
-        primary_xml.close()
+
+        # HTTP&FTP accessors don't implement tell(): read xml using BytesIO to gunzip it
+        with BytesIO(primaryfp.read()) as fp, gzip.GzipFile("", "r", fileobj=fp) as xml:
+            dom = parse(xml)
+            package_names = dom.getElementsByTagName("location")
+            package_sizes = dom.getElementsByTagName("size")
+            package_checksums = dom.getElementsByTagName("checksum")
+
         primaryfp.close()
 
         # Filter using only sha256 checksum
