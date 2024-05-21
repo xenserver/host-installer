@@ -565,10 +565,9 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
 
     tool = PartitionTool(disk)
 
-    # Cannot preserve partition for legacy DOS partition table.
+    # Cannot preserve utility partition for legacy DOS partition table.
     if tool.partTableType == constants.PARTITION_DOS :
-        if preserve_first_partition == 'true' or (
-                preserve_first_partition == constants.PRESERVE_IF_UTILITY and tool.utilityPartitions()):
+        if preserve_first_partition == constants.PRESERVE_IF_UTILITY and tool.utilityPartitions():
             raise RuntimeError("Preserving initial partition on DOS unsupported")
 
     # Preserve any utility partitions unless user told us to zap 'em
