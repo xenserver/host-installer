@@ -21,7 +21,7 @@ IFS="
 "
 
 xen_commandline() {
-  python3 -c "import xen.lowlevel.xc as xc; print xc.xc().xeninfo()['xen_commandline']"
+  xl info xen_commandline
 }
 
 # Spaces separate arguments except for spaces enclosed by a pair of single or
