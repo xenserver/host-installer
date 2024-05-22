@@ -1357,11 +1357,17 @@ class DeviceMounter:
 
     def mount(self):
         for m in self.mounts:
-            m.mount()
+            try:
+                m.mount()
+            except Exception as e:
+                logger.logException(e)
 
     def __umount(self):
         for m in self.mounts:
-            m.umount()
+            try:
+                m.umount()
+            except Exception as e:
+                logger.logException(e)
 
     def __enter__(self):
         self.mount()
