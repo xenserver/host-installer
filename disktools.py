@@ -733,6 +733,7 @@ class DOSPartitionTool(PartitionToolBase):
     ID_LINUX = 0x83
     ID_LINUX_LVM = 0x8e
     ID_DELL_UTILITY = 0xde
+    ID_GPT_PROTECTIVE = 0xee
     ID_EFI_BOOT = 0xef
 
     # List of hidden Microsoft partition IDs
@@ -911,6 +912,11 @@ class DOSPartitionTool(PartitionToolBase):
         return [num for num in self.partitions.keys() if self.partitions[num]['id'] == self.ID_DELL_UTILITY]
 
     def convertToGPT(self):
+        # Clear any GPT data left if there are no protective partition.
+        # We ignore the error, in case there are data error is returned but data cleared.
+        if all([part['id'] != self.ID_GPT_PROTECTIVE for part in self.partitions.values()]):
+            util.runCmd2(['sgdisk', '--zap', self.device])
+
         self.cmdWrap(['sgdisk', '--mbrtogpt', self.device])
 
         gpt_tool = GPTPartitionTool(self.device)
