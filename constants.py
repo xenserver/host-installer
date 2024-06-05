@@ -176,3 +176,7 @@ INIT_SERVICE_FILES = [
 # optional features
 FEATURES_DIR = "/etc/xensource/features"
 HAS_SUPPLEMENTAL_PACKS = os.path.exists(os.path.join(FEATURES_DIR, "supplemental-packs"))
+
+# Error partitioning disk as in use
+PARTITIONING_ERROR = \
+	'The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation'

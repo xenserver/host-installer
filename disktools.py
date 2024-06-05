@@ -532,7 +532,8 @@ class PartitionToolBase:
         return int(matches.group(1))
 
     # Private methods:
-    def cmdWrap(self, params):
+    @classmethod
+    def cmdWrap(cls, params):
         rv, out, err = util.runCmd2(params, True, True)
         if rv != 0:
             raise Exception(err)
@@ -895,7 +896,7 @@ class DOSPartitionTool(PartitionToolBase):
 
             # CA-35300: sfdisk doesn't return non-zero when the BLKRRPART ioctl fails
             if 'BLKRRPART: Device or resource busy' in output:
-                raise Exception('The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation')
+                raise Exception(constants.PARTITIONING_ERROR)
 
             # Verify the table
             # Ignore warnings about partitions apparently with ends beyond the end of the disk
@@ -1042,7 +1043,7 @@ class GPTPartitionTool(PartitionToolBase):
         except:
             # Ignore error code which results from inconsistent initial state
             pass
-        self.cmdWrap([self.SGDISK, '--mbrtogpt', '--clear', self.device])
+        self.gdiskCheck([self.SGDISK, '--mbrtogpt', '--clear', self.device])
 
         has_esp = False
         for part in table.values():
@@ -1080,7 +1081,7 @@ class GPTPartitionTool(PartitionToolBase):
             if 'partuuid' in part:
                 args += ['--partition-guid=%d:%s' % (num,part['partuuid'])]
         args += [self.device]
-        self.cmdWrap(args)
+        self.gdiskCheck(args)
 
         if isDeviceMapperNode(self.device):
             # Create partitions using device mapper
@@ -1092,6 +1093,20 @@ class GPTPartitionTool(PartitionToolBase):
         # Return list of partition numbers for partitions we should preserve
         return [num for num in self.partitions.keys() if
                 self.partitions[num]['id'] == self.ID_EFI_BOOT and self.partitions[num]['partlabel'] == constants.UTILITY_PARTLABEL]
+
+    @classmethod
+    def gdiskCheck(cls, params):
+        out = cls.cmdWrap(params)
+        # This check is here to check partitions have been updated in the kernel.
+        # Note that not all operations requires the kernel to be updated.
+        # In this respect sgdisk differs from sfdisk (former gives warning latter an error)
+        # so check it manually to detect this issue which potentially leads to corruptions.
+        # Checking 2 strings allows to handle more possible versions of gdisk.
+        if ('The kernel is still using the old partition table' in out
+            or 'The new table will be used at the next reboot' in out):
+            raise Exception(constants.PARTITIONING_ERROR)
+        return out
+
 
 def probePartitioningScheme(device):
     """Determine whether the MBR is a DOS MBR, or a GPT PMBR"""
