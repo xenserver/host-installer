@@ -194,3 +194,7 @@ try:
             SR_TYPE_LARGE_BLOCK = value
 except IOError:
     pass
+
+# Error partitioning disk as in use
+PARTITIONING_ERROR = \
+	'The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation'
