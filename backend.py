@@ -725,7 +725,8 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
     partitions = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
 
     sr_type_strings = { constants.SR_TYPE_EXT: 'ext',
-                        constants.SR_TYPE_LVM: 'lvm' }
+                        constants.SR_TYPE_LVM: 'lvm',
+                        constants.SR_TYPE_LARGE_BLOCK: constants.SR_TYPE_LARGE_BLOCK }
     sr_type_string = sr_type_strings[sr_type]
 
     # write a config file for the prepare-storage firstboot script:
