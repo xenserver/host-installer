@@ -83,8 +83,7 @@ install:
 	$(INSTALL) -D -m644 bootloader/grub.cfg $(DESTDIR)$(EFI_DIR)/grub.cfg
 	$(INSTALL) -D -m644 bootloader/grub.cfg $(DESTDIR)$(EFI_DIR)/grub-usb.cfg
 
-	sed -i '/^set timeout=[0-9]\+$$/asearch --file --set /install.img' \
-	    $(DESTDIR)$(EFI_DIR)/grub-usb.cfg
+	patch < bootloader/grub-usb.patch $(DESTDIR)$(EFI_DIR)/grub-usb.cfg
 
 	$(INSTALL) -D -m644 bootloader/isolinux.cfg $(DESTDIR)/boot/isolinux/isolinux.cfg
 
