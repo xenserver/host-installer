@@ -629,34 +629,34 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     # Start the first partition at 1 MiB if there are no other partitions.
     # Otherwise start the partition following the utility partition.
     if order == 1:
-        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
+        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order, label=logspart_label)
     else:
-        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order)
+        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order, label=logspart_label)
     order += 1
 
     # Create backup partition
     if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes=backup_size * 2**20, number=backup_partnum, order=order)
+        tool.createPartition(tool.ID_LINUX, sizeBytes=backup_size * 2**20, number=backup_partnum, order=order, label=backuppart_label)
         order += 1
 
     # Create dom0 partition
-    tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum, order=order)
+    tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum, order=order, label=rootpart_label)
     order += 1
 
     # Create Boot partition
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
+        tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order, label=bootpart_label)
     else:
-        tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
+        tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order, label=bootpart_label)
     order += 1
 
     # Create swap partition
-    tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order)
+    tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order, label=swappart_label)
     order += 1
 
     # Create LVM partition
     if storage_partnum > 0:
-        tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum, order=order)
+        tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum, order=order, label=storagepart_label)
         order += 1
 
     if not sr_at_end:
@@ -666,23 +666,27 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
         new_parts[primary_partnum] = {'start': tool.partitions[primary_partnum]['start'] + tool.partitions[storage_partnum]['size'],
                                       'size': tool.partitions[primary_partnum]['size'],
                                       'id': tool.partitions[primary_partnum]['id'],
-                                      'active': tool.partitions[primary_partnum]['active']}
+                                      'active': tool.partitions[primary_partnum]['active'],
+                                      'partlabel': tool.partitions[primary_partnum]['partlabel']}
         if backup_partnum > 0:
             new_parts[backup_partnum] = {'start': new_parts[primary_partnum]['start'] + new_parts[primary_partnum]['size'],
                                          'size': tool.partitions[backup_partnum]['size'],
                                          'id': tool.partitions[backup_partnum]['id'],
-                                         'active': tool.partitions[backup_partnum]['active']}
+                                         'active': tool.partitions[backup_partnum]['active'],
+                                         'partlabel': tool.partitions[backup_partnum]['partlabel']}
 
         new_parts[storage_partnum] = {'start': tool.partitions[primary_partnum]['start'],
                                       'size': tool.partitions[storage_partnum]['size'],
                                       'id': tool.partitions[storage_partnum]['id'],
-                                      'active': tool.partitions[storage_partnum]['active']}
+                                      'active': tool.partitions[storage_partnum]['active'],
+                                      'partlabel': tool.partitions[storage_partnum]['partlabel']}
 
         for part in (primary_partnum, backup_partnum, storage_partnum):
             if part > 0:
                 tool.deletePartition(part)
                 tool.createPartition(new_parts[part]['id'], new_parts[part]['size'] * tool.sectorSize, part,
-                                     new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'])
+                                     new_parts[part]['start'] * tool.sectorSize, new_parts[part]['active'],
+                                     new_parts[part]['partlabel'])
 
     tool.commit(log=True)
 

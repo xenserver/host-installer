@@ -98,6 +98,13 @@ swap_label = 'swap-%s'
 logsfs_label_prefix = 'logs-'
 logsfs_label = logsfs_label_prefix + '%s'
 
+rootpart_label = "root"
+backuppart_label = "backup"
+storagepart_label = "localsr"
+bootpart_label = "ESP"
+logspart_label = "logs"
+swappart_label = "swap"
+
 MIN_PASSWD_LEN=6
 
 # file locations - installer filesystem
