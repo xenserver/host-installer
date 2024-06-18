@@ -238,22 +238,22 @@ class ThirdGenUpgrader(Upgrader):
             if boot_part:
                 tool.renamePartition(srcNumber=boot_partnum, destNumber=11, overwrite=False)
             # Create new bigger dom0 partition
-            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum, label=constants.rootpart_label)
             # Create Boot partition
             if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
-                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, label=constants.bootpart_label)
             else:
-                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum)
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, label=constants.bootpart_label)
             # Create swap partition
-            tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum)
+            tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum, label=constants.swappart_label)
             # Create storage LVM partition
             if storage_partnum > 0 and self.vgs_output:
-                tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum)
+                tool.createPartition(tool.ID_LINUX_LVM, number=storage_partnum, label=constants.storagepart_label)
             # Create logs partition using the old dom0 + Boot (if any) partitions
             tool.deletePartition(10)
             if boot_part:
                 tool.deletePartition(11)
-            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, startBytes=1024*1024, number=logs_partnum)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, startBytes=1024*1024, number=logs_partnum, label=constants.logspart_label)
 
             tool.commit(log=True)
 

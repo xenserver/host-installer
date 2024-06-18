@@ -580,7 +580,7 @@ class PartitionToolBase:
     def getPartition(self, number, default=None):
         return deepcopy(self.partitions.get(number, default))
 
-    def createPartition(self, id, sizeBytes=None, number=None, order=None, startBytes=None, active=False):
+    def createPartition(self, id, sizeBytes=None, number=None, order=None, startBytes=None, active=False, label=None):
         if number is None:
             if len(self.partitions) == 0:
                 newNumber = 1
@@ -635,7 +635,8 @@ class PartitionToolBase:
             'start': startSector,
             'size': sizeSectors,
             'id': id,
-            'active': active
+            'active': active,
+            'partlabel': label,
         }
 
     def deletePartition(self, number):
@@ -676,6 +677,11 @@ class PartitionToolBase:
         if number not in self.partitions:
             raise Exception('Partition '+str(number)+' does not exist')
         return self.getPartition(number)['id']
+
+    def partitionLabel(self, number):
+        if number not in self.partitions:
+            raise Exception('Partition '+str(number)+' does not exist')
+        return self.getPartition(number).get('partlabel', None)
 
     def resizePartition(self, number, sizeBytes):
         if number not in self.partitions:
