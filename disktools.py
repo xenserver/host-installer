@@ -966,7 +966,7 @@ class GPTPartitionTool(PartitionToolBase):
 
     def partitionTable(self):
         cmd = [self.SGDISK, '--print', self.device]
-        rv, out, err = util.runCmd2(cmd, True, True)
+        rv, out, _ = util.runCmd2(cmd, True, True)
         if rv != 0:
             logger.log('Invalid or corrupt partition table found on disk %s. Skipping...' % self.device)
             self.waitForDeviceNodes()
