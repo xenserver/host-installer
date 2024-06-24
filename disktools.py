@@ -3,6 +3,7 @@
 import constants
 import errno
 import re, subprocess, types, os, time
+import ppexpect
 from pprint import pprint
 from copy import copy, deepcopy
 import util
@@ -953,6 +954,7 @@ class GPTPartitionTool(PartitionToolBase):
         }
 
     SGDISK = 'sgdisk'
+    GDISK = 'gdisk'
     partTableType = constants.PARTITION_GPT
 
     def readDiskDetails(self):
@@ -968,9 +970,10 @@ class GPTPartitionTool(PartitionToolBase):
         cmd = [self.SGDISK, '--print', self.device]
         rv, out, _ = util.runCmd2(cmd, True, True)
         if rv != 0:
-            logger.log('Invalid or corrupt partition table found on disk %s. Skipping...' % self.device)
+            logger.log('Invalid or corrupt partition table found on disk %s. Trying MBR partitions...' % self.device)
+            partitions = self.__recoverDOSTable()
             self.waitForDeviceNodes()
-            return {}
+            return partitions
 
         partitions = self.__parsePartitions(out)
 
@@ -1036,6 +1039,30 @@ class GPTPartitionTool(PartitionToolBase):
                 if m:
                     partitions[number]['partuuid'] = m.group(1)
             assert 'id' in partitions[number]
+        return partitions
+
+    def __recoverDOSTable(self):
+        if probePartitioningScheme(self.device) != constants.PARTITION_DOS:
+            return {}
+
+        proc = ppexpect.Process([self.GDISK, self.device])
+        proc.expect(re.compile(r'(?s).*Found valid MBR and corrupt GPT.*1 - MBR.* answer:'))
+        proc.write('1\np\n')
+        m = proc.expect(re.compile(r'(?ms).*^(Number.*)^Command.*for help'))
+        partitions = self.__parsePartitions(m.group(1))
+
+        proc.write('x\n') # expert mode
+        proc.expect(re.compile('(?ms).*^Expert command'))
+
+        partitionRE = re.compile(r'(?ms).* (Partition GUID.*)^Expert command.*^Attribute value is .*Set fields are(.*)^Expert command')
+        def getPartitionInfo(number):
+            # information and attribute commands
+            proc.write('i\n%d\na\n%d\n\n' % (number, number))
+            m = proc.expect(partitionRE)
+            return (m.group(2), m.group(1))
+        partitions = self.__getPartitionsInfo(partitions, getPartitionInfo)
+
+        proc.close()
         return partitions
 
     def commitActivePartitiontoDisk(self, partnum):

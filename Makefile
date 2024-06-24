@@ -32,6 +32,7 @@ install:
 	        install.py \
 	        netinterface.py \
 	        netutil.py \
+	        ppexpect.py \
 	        product.py \
 	        report.py \
 	        repository.py \
