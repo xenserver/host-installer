@@ -972,15 +972,40 @@ class GPTPartitionTool(PartitionToolBase):
             self.waitForDeviceNodes()
             return {}
 
-        matchWarning   = re.compile('Found invalid GPT and valid MBR; converting MBR to GPT format.')
-        matchHeader    = re.compile('Number\s+Start \(sector\)\s+End \(sector\)\s+Size\s+Code\s+Name')
-        matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})(\s+(.*))?$') # num start end sz typecode name
+        partitions = self.__parsePartitions(out)
+
+        # For each partition determine the active state.
+        # By active we mean "BIOS bootable"
         matchActive    = re.compile('.*\(legacy BIOS bootable\)')
         matchHidden    = re.compile('.*\(hidden\)')
         matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
         matchPartUUID  = re.compile('^Partition unique GUID: ([0-9A-F\-]+)$')
+        for number in partitions:
+            out = self.cmdWrap([self.SGDISK, '--attributes=%d:show' % number, self.device])
+            partitions[number]['active'] = matchActive.match(out) and True or False
+            partitions[number]['hidden'] = matchHidden.match(out) and True or False
+            out = self.cmdWrap([self.SGDISK, '--info=%d' % number, self.device])
+            for line in out.split('\n'):
+                m = matchId.match(line)
+                if m:
+                    partitions[number]['id'] = m.group(1)
+                m = matchPartUUID.match(line)
+                if m:
+                    partitions[number]['partuuid'] = m.group(1)
+            assert 'id' in partitions[number]
+
+        # sgdisk opens the device with O_WRONLY even when not changing anything
+        # so settle udev to ensure device nodes are available for subsequent
+        # commands.
+        self.waitForDeviceNodes()
+        return partitions
+
+    def __parsePartitions(self, gdisk_output):
+        matchWarning   = re.compile('Found invalid GPT and valid MBR; converting MBR to GPT format.')
+        matchHeader    = re.compile('Number\s+Start \(sector\)\s+End \(sector\)\s+Size\s+Code\s+Name')
+        matchPartition = re.compile('^\s+(\d+)\s+(\d+)\s+(\d+)\s+([\d.]+\s+\w+)\s+([0-9A-F]{4})(\s+(.*))?$') # num start end sz typecode name
         partitions = {}
-        lines = out.split('\n')
+        lines = gdisk_output.split('\n')
         gotHeader = False
         for line in lines:
             if not line.strip():
@@ -1004,26 +1029,6 @@ class GPTPartitionTool(PartitionToolBase):
                     'size': size,
                     'partlabel': partlabel,
                     }
-        # For each partition determine the active state.
-        # By active we mean "BIOS bootable"
-        for number in partitions:
-            out = self.cmdWrap([self.SGDISK, '--attributes=%d:show' % number, self.device])
-            partitions[number]['active'] = matchActive.match(out) and True or False
-            partitions[number]['hidden'] = matchHidden.match(out) and True or False
-            out = self.cmdWrap([self.SGDISK, '--info=%d' % number, self.device])
-            for line in out.split('\n'):
-                m = matchId.match(line)
-                if m:
-                    partitions[number]['id'] = m.group(1)
-                m = matchPartUUID.match(line)
-                if m:
-                    partitions[number]['partuuid'] = m.group(1)
-            assert 'id' in partitions[number]
-
-        # sgdisk opens the device with O_WRONLY even when not changing anything
-        # so settle udev to ensure device nodes are available for subsequent
-        # commands.
-        self.waitForDeviceNodes()
         return partitions
 
     def commitActivePartitiontoDisk(self, partnum):
