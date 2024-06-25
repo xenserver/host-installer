@@ -974,25 +974,11 @@ class GPTPartitionTool(PartitionToolBase):
 
         partitions = self.__parsePartitions(out)
 
-        # For each partition determine the active state.
-        # By active we mean "BIOS bootable"
-        matchActive    = re.compile('.*\(legacy BIOS bootable\)')
-        matchHidden    = re.compile('.*\(hidden\)')
-        matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
-        matchPartUUID  = re.compile('^Partition unique GUID: ([0-9A-F\-]+)$')
-        for number in partitions:
-            out = self.cmdWrap([self.SGDISK, '--attributes=%d:show' % number, self.device])
-            partitions[number]['active'] = matchActive.match(out) and True or False
-            partitions[number]['hidden'] = matchHidden.match(out) and True or False
-            out = self.cmdWrap([self.SGDISK, '--info=%d' % number, self.device])
-            for line in out.split('\n'):
-                m = matchId.match(line)
-                if m:
-                    partitions[number]['id'] = m.group(1)
-                m = matchPartUUID.match(line)
-                if m:
-                    partitions[number]['partuuid'] = m.group(1)
-            assert 'id' in partitions[number]
+        def getPartitionInfo(number):
+            attrs = self.cmdWrap([self.SGDISK, '--attributes=%d:show' % number, self.device])
+            infos = self.cmdWrap([self.SGDISK, '--info=%d' % number, self.device])
+            return (attrs, infos)
+        partitions = self.__getPartitionsInfo(partitions, getPartitionInfo)
 
         # sgdisk opens the device with O_WRONLY even when not changing anything
         # so settle udev to ensure device nodes are available for subsequent
@@ -1029,6 +1015,27 @@ class GPTPartitionTool(PartitionToolBase):
                     'size': size,
                     'partlabel': partlabel,
                     }
+        return partitions
+
+    def __getPartitionsInfo(self, partitions, getPartitionInfo):
+        # For each partition determine the active state.
+        # By active we mean "BIOS bootable"
+        matchActive    = re.compile('.*\(legacy BIOS bootable\)')
+        matchHidden    = re.compile('.*\(hidden\)')
+        matchId        = re.compile('^Partition GUID code: ([0-9A-F\-]+) ')
+        matchPartUUID  = re.compile('^Partition unique GUID: ([0-9A-F\-]+)$')
+        for number in partitions:
+            (attrs, infos) = getPartitionInfo(number)
+            partitions[number]['active'] = matchActive.match(attrs) and True or False
+            partitions[number]['hidden'] = matchHidden.match(attrs) and True or False
+            for line in infos.split('\n'):
+                m = matchId.match(line)
+                if m:
+                    partitions[number]['id'] = m.group(1)
+                m = matchPartUUID.match(line)
+                if m:
+                    partitions[number]['partuuid'] = m.group(1)
+            assert 'id' in partitions[number]
         return partitions
 
     def commitActivePartitiontoDisk(self, partnum):
