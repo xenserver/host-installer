@@ -38,6 +38,7 @@ install:
 	        repository.py \
 	        restore.py \
 	        scripts.py \
+	        shrinklvm.py \
 	        snackutil.py \
 	        uicontroller.py \
 	        upgrade.py \
@@ -62,6 +63,7 @@ install:
 	    $(DESTDIR)/etc/init.d \
 	    $(DESTDIR)/etc/modprobe.d \
 	    $(DESTDIR)/etc/modules-load.d \
+	    $(DESTDIR)/etc/depmod.d \
 	    $(DESTDIR)/etc/dracut.conf.d \
 	    $(DESTDIR)/etc/systemd/system/systemd-udevd.d
 
@@ -71,6 +73,7 @@ install:
 	$(INSTALL) -m644 startup/blacklist $(DESTDIR)/etc/modprobe.d/installer-blacklist.conf
 	$(INSTALL) -m644 startup/modprobe.mlx4 $(DESTDIR)/etc/modprobe.d/mlx4.conf
 	$(INSTALL) -m644 startup/iscsi-modules $(DESTDIR)/etc/modules-load.d/iscsi.conf
+	$(INSTALL) -m644 startup/depmod.conf $(DESTDIR)/etc/depmod.d/
 	$(INSTALL) -m755 startup/preinit startup/S05ramdisk $(DESTDIR)/$(INSTALLER_DIR)/
 	$(INSTALL) -m644 startup/systemd-udevd_depmod.conf $(DESTDIR)/etc/systemd/system/systemd-udevd.d/installer.conf
 
