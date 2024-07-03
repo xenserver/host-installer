@@ -214,6 +214,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             # restore boot loader
             if boot_config.src_fmt == 'grub2':
                 if efi_boot:
+                    mounts['esp'] = esp
                     backend.setEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
                 else:
                     if location == constants.BOOT_LOCATION_MBR:
