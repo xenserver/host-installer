@@ -1049,7 +1049,11 @@ class GPTPartitionTool(PartitionToolBase):
         except:
             # Ignore error code which results from inconsistent initial state
             pass
-        self.gdiskCheck([self.SGDISK, '--mbrtogpt', '--clear', self.device])
+        args = [self.SGDISK, '--mbrtogpt', '--clear', self.device]
+        if isDeviceMapperNode(self.device):
+            self.cmdWrap(args)
+        else:
+            self.gdiskCheck(args)
 
         has_esp = False
         for part in table.values():
@@ -1087,7 +1091,10 @@ class GPTPartitionTool(PartitionToolBase):
             if 'partuuid' in part:
                 args += ['--partition-guid=%d:%s' % (num,part['partuuid'])]
         args += [self.device]
-        self.gdiskCheck(args)
+        if isDeviceMapperNode(self.device):
+            self.cmdWrap(args)
+        else:
+            self.gdiskCheck(args)
 
         if isDeviceMapperNode(self.device):
             # Create partitions using device mapper
