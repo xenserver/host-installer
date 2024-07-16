@@ -72,6 +72,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
         try:
             util.mkfs(constants.rootfs_type, restore_partition)
         except Exception as e:
+            logger.critical("Failed to create root filesystem", exc_info=1)
             raise RuntimeError("Failed to create root filesystem: %s" % e)
 
         if efi_boot:
