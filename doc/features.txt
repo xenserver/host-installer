@@ -14,3 +14,16 @@ Currently available feature flags are:
 
     This only impacts the UI, the <source> answerfile construct still
     allows to include supplemental packs without this feature flag.
+
+  large-block-capable-sr-type
+
+    Allow the use of an SR type for local storage that (unlike "lvm" and
+    "ext") is not restricted to using disks with 512 byte blocks. The flag
+    file's content must be the name of the SR type.
+
+    The other expectations for such an SR type are:
+    - Its only non-optional creation parameter (as with "lvm" and "ext") is
+      "device", a comma-separated list devices to use.
+    - It should use an identifying prefix for the names of volume groups that
+      it creates, and this prefix should start "XSLocal". (e.g. if the SR type
+      were called "foo", it might use the prefix "XSLocalFOO".)

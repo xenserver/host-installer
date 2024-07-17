@@ -531,6 +531,7 @@ def disk_more_info(context):
                           ("Vendor:", diskutil.getDiskDeviceVendor(context)),
                           ("Model:", diskutil.getDiskDeviceModel(context)),
                           ("Serial:", diskutil.getDiskSerialNumber(context)),
+                          ("Block size:", diskutil.bytesToHuman(diskutil.getDiskBlockSize(context))),
                           ("Size:", diskutil.getHumanDiskSize(diskutil.getDiskDeviceSize(context))),
                           ("Current usage:", usage))
     tui.screen.popHelpLine()
@@ -656,9 +657,6 @@ def select_guest_disks(answers):
         currently_selected = answers['guest-disks']
     else:
         currently_selected = answers['primary-disk']
-    srtype = constants.SR_TYPE_LVM
-    if 'sr-type' in answers:
-        srtype = answers['sr-type']
 
     # Make a list of entries: (text, item)
     entries = []
@@ -671,15 +669,10 @@ def select_guest_disks(answers):
     cbt = CheckboxTree(3, scroll)
     for (c_text, c_item) in entries:
         cbt.append(c_text, c_item, c_item in currently_selected)
-    txt = "Enable thin provisioning"
-    if len(BRAND_VDI) > 0:
-        txt += " (Optimized storage for %s)" % BRAND_VDI
-    tb = Checkbox(txt, srtype == constants.SR_TYPE_EXT and 1 or 0)
 
-    gf = GridFormHelp(tui.screen, 'Virtual Machine Storage', 'guestdisk:info', 1, 4)
+    gf = GridFormHelp(tui.screen, 'Virtual Machine Storage', 'guestdisk:info1', 1, 4)
     gf.add(text, 0, 0, padding=(0, 0, 0, 1))
     gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
-    gf.add(tb, 0, 2, padding=(0, 0, 0, 1))
     gf.add(buttons, 0, 3, growx=1)
     gf.addHotKey('F5')
 
@@ -700,7 +693,6 @@ def select_guest_disks(answers):
     if button == 'back': return LEFT_BACKWARDS
 
     answers['guest-disks'] = cbt.getSelection()
-    answers['sr-type'] = tb.selected() and constants.SR_TYPE_EXT or constants.SR_TYPE_LVM
     answers['sr-on-primary'] = answers['primary-disk'] in answers['guest-disks']
 
     # if the user select no disks for guest storage, check this is what
@@ -715,6 +707,51 @@ If you proceed, please refer to the user guide for details on provisioning stora
             ['Continue', 'Back'], help='noguest'
             )
         if button == 'back': return REPEAT_STEP
+
+    return RIGHT_FORWARDS
+
+def get_sr_type(answers):
+    guest_disks = answers['guest-disks']
+    assert guest_disks is not None
+
+    need_large_block_sr_type = any(diskutil.isLargeBlockDisk(disk)
+                                   for disk in guest_disks)
+
+    if not need_large_block_sr_type:
+        srtype = answers.get('sr-type', constants.SR_TYPE_LVM)
+        txt = "Enable thin provisioning"
+        if len(BRAND_VDI) > 0:
+            txt += " (Optimized storage for %s)" % BRAND_VDI
+        tb = Checkbox(txt, srtype == constants.SR_TYPE_EXT and 1 or 0)
+        content = tb
+        get_type = lambda: tb.selected() and constants.SR_TYPE_EXT or constants.SR_TYPE_LVM
+        buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
+    elif constants.SR_TYPE_LARGE_BLOCK:
+        content = TextboxReflowed(40,
+                                  "%s storage will be configured for"
+                                  " large disk block size."
+                                  % BRAND_GUEST)
+        get_type = lambda: constants.SR_TYPE_LARGE_BLOCK
+        buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
+    else:
+        content = TextboxReflowed(54,
+                                  "Only disks with a block size of 512 bytes"
+                                  " can be use for %s storage. Please"
+                                  " unselect any disks where the block size"
+                                  " is different from this."
+                                  % BRAND_GUEST)
+        buttons = ButtonBar(tui.screen, [('Back', 'back')])
+        get_type = None
+
+    gf = GridFormHelp(tui.screen, 'Virtual Machine Storage Type', 'guestdisk:info2', 1, 4)
+    gf.add(content, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 2, growx=1)
+    button = buttons.buttonPressed(gf.runOnce())
+
+    if button == 'back': return LEFT_BACKWARDS
+
+    if get_type:
+        answers['sr-type'] = get_type()
 
     return RIGHT_FORWARDS
 

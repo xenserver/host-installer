@@ -320,9 +320,33 @@ class Answerfile:
         results['sr-on-primary'] = results['primary-disk'] in guest_disks
         results['guest-disks'] = list(guest_disks)
 
-        results['sr-type'] = getMapAttribute(self.top_node, ['sr-type', 'srtype'],
-                                             [('lvm', SR_TYPE_LVM),
-                                              ('ext', SR_TYPE_EXT)], default='lvm')
+        sr_type_mapping = []
+        for sr_type in SR_TYPE_LVM, SR_TYPE_EXT, SR_TYPE_LARGE_BLOCK:
+            if sr_type:
+                sr_type_mapping.append((sr_type, sr_type))
+
+        large_block_disks = [
+            disk
+            for disk in guest_disks
+            if diskutil.isLargeBlockDisk(disk)
+        ]
+
+        if SR_TYPE_LARGE_BLOCK and len(large_block_disks) > 0:
+            default_sr_type = SR_TYPE_LARGE_BLOCK
+        else:
+            default_sr_type = SR_TYPE_LVM
+
+        sr_type = getMapAttribute(self.top_node,
+                                  ['sr-type', 'srtype'],
+                                  sr_type_mapping,
+                                  default=default_sr_type)
+
+        if sr_type != SR_TYPE_LARGE_BLOCK and len(large_block_disks) > 0:
+            raise AnswerfileException("%s not compatible with SR type %s"
+                                      % (", ".join(large_block_disks), sr_type))
+
+        results['sr-type'] = sr_type
+
         return results
 
     def parseFCoEInterface(self):

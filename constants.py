@@ -18,6 +18,7 @@ INSTALL_TYPE_RESTORE = "restore"
 # sr types:
 SR_TYPE_LVM = "lvm"
 SR_TYPE_EXT = "ext"
+# See also SR_TYPE_LARGE_BLOCK at the bottom of this file
 
 # partition schemes:
 PARTITION_DOS = "DOS"
@@ -183,6 +184,14 @@ INIT_SERVICE_FILES = [
 # optional features
 FEATURES_DIR = "/etc/xensource/features"
 HAS_SUPPLEMENTAL_PACKS = os.path.exists(os.path.join(FEATURES_DIR, "supplemental-packs"))
+SR_TYPE_LARGE_BLOCK = None
+try:
+    with open(os.path.join(FEATURES_DIR, "large-block-capable-sr-type")) as f:
+        value = f.read().strip()
+        if value:
+            SR_TYPE_LARGE_BLOCK = value
+except IOError:
+    pass
 
 # Error partitioning disk as in use
 PARTITIONING_ERROR = \
