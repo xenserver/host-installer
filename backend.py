@@ -728,19 +728,15 @@ def prepareStorageRepositories(mounts, primary_disk, storage_partnum, guest_disk
 
     partitions = getSRPhysDevs(primary_disk, storage_partnum, guest_disks)
 
-    sr_type_strings = { constants.SR_TYPE_EXT: 'ext',
-                        constants.SR_TYPE_LVM: 'lvm' }
-    sr_type_string = sr_type_strings[sr_type]
-
     # write a config file for the prepare-storage firstboot script:
 
     links = [diskutil.idFromPartition(x) or x for x in partitions]
     fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'default-storage.conf'), 'w')
     print("XSPARTITIONS='%s'" % str.join(" ", links), file=fd)
-    print("XSTYPE='%s'" % sr_type_string, file=fd)
+    print("XSTYPE='%s'" % sr_type, file=fd)
     # Legacy names
     print("PARTITIONS='%s'" % str.join(" ", links), file=fd)
-    print("TYPE='%s'" % sr_type_string, file=fd)
+    print("TYPE='%s'" % sr_type, file=fd)
     fd.close()
 
 def make_free_space(mount, required):

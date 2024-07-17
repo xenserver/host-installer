@@ -122,6 +122,10 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
         return ret
 
+    def has_guest_disks_fn(answers):
+        guest_disks = answers.get('guest-disks')
+        return guest_disks is not None and len(guest_disks) > 0
+
     if 'install-type' not in results:
         results['install-type'] = constants.INSTALL_TYPE_FRESH
         results['preserve-settings'] = False
@@ -152,6 +156,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[is_reinstall_fn, requires_repartition]),
         Step(uis.select_guest_disks,
              predicates=[is_clean_install_fn]),
+        Step(uis.get_sr_type,
+             predicates=[is_clean_install_fn, has_guest_disks_fn]),
         Step(uis.confirm_erase_volume_groups,
              predicates=[is_clean_install_fn]),
         Step(tui.repo.select_repo_source,
