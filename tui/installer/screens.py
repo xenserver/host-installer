@@ -663,7 +663,7 @@ def select_guest_disks(answers):
     for de in diskEntries:
         entries.append((diskutil.getHumanDiskLabel(de), de))
 
-    text = TextboxReflowed(54, "Which disks would you like to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you wish to create an advanced configuration after installation." % BRAND_GUEST)
+    text = TextboxReflowed(54, "Which disks do you want to use for %s storage?  \n\nOne storage repository will be created that spans the selected disks.  You can choose not to prepare any storage if you want to create an advanced configuration after installation." % BRAND_GUEST)
     buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
     scroll, _ = snackutil.scrollHeight(3, len(entries))
     cbt = CheckboxTree(3, scroll)
@@ -736,7 +736,7 @@ def get_sr_type(answers):
     else:
         content = TextboxReflowed(54,
                                   "Only disks with a block size of 512 bytes"
-                                  " can be use for %s storage. Please"
+                                  " can be used for %s storage. Please"
                                   " unselect any disks where the block size"
                                   " is different from this."
                                   % BRAND_GUEST)
