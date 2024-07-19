@@ -227,6 +227,10 @@ class Answerfile:
         logger.log('Primary disk: ' + disk)
         results['primary-disk'] = disk
 
+        results['fs-type'] = getStrAttribute(inst[0], ['fs-type'], default=default_rootfs_type)
+        if results['fs-type'] not in allowed_rootfs_types:
+            raise AnswerfileException("Expected fs-type to be one of %s" % (", ".join(allowed_rootfs_types)))
+
         installations = product.findXenSourceProducts()
         installations = [x for x in installations if x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk]
         if len(installations) == 0:
@@ -304,6 +308,9 @@ class Answerfile:
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
                                        default=True)
         results['sr-at-end'] = getBoolAttribute(node, ['sr-at-end'], default=True)
+        results['fs-type'] = getStrAttribute(node, ['fs-type'], default=default_rootfs_type)
+        if results['fs-type'] not in allowed_rootfs_types:
+            raise AnswerfileException("Expected fs-type to be one of %s" % (", ".join(allowed_rootfs_types)))
 
         # Guest disk(s) (Local SR)
         guest_disks = set()

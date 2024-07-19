@@ -338,9 +338,10 @@ class ThirdGenUpgrader(Upgrader):
             tool.commit(log=True)
 
         # format the backup partition:
+        backupfs_type = diskutil.fs_type_from_device(self.source.root_device)
         backup_partition = partitionDevice(target_disk, backup_partnum)
         try:
-            util.mkfs('ext3', backup_partition)
+            util.mkfs(backupfs_type, backup_partition)
         except Exception as e:
             raise RuntimeError("Backup: Failed to format filesystem on %s: %s" % (backup_partition, e))
         progress_callback(10)
