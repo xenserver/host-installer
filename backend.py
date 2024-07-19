@@ -143,7 +143,7 @@ def getPrepSequence(ans, interactive):
                         progress_scale=100,
                         pass_progress_callback=True))
     seq += [
-        Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix'), []),
+        Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix', 'fs-type'), []),
         Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'target-boot-mode'), ['mounts', 'cleanup']),
         ]
     return seq
@@ -177,7 +177,7 @@ def getFinalisationSequence(ans):
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
         Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
-        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix'), []),
+        Task(writeFstab, A(ans, 'mounts', 'target-boot-mode', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix', 'fs-type'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
         Task(configureCC, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
@@ -783,7 +783,7 @@ def make_free_space(mount, required):
 ###
 # Create dom0 disk file-systems:
 
-def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
+def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix, fs_type):
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         partition = partitionDevice(disk, boot_partnum)
         try:
@@ -794,7 +794,7 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
 
     partition = partitionDevice(disk, primary_partnum)
     try:
-        util.mkfs(rootfs_type, partition,
+        util.mkfs(fs_type, partition,
                   ["-L", rootfs_label%disk_label_suffix])
     except Exception as e:
         raise RuntimeError("Failed to create root filesystem: %s" % e)
@@ -803,6 +803,7 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
     logs_partition = tool.getPartition(logs_partnum)
     if logs_partition:
         run_mkfs = True
+        change_logs_fs_type = diskutil.fs_type_from_device(partitionDevice(disk, logs_partnum)) != fs_type
 
         # If the log partition already exists and is formatted correctly,
         # relabel it. Otherwise create the filesystem.
@@ -814,7 +815,7 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
             # Ignore the exception as it just means the partition needs to be
             # formatted.
             pass
-        if install_type != INSTALL_TYPE_FRESH and label and label.startswith(logsfs_label_prefix):
+        if install_type != INSTALL_TYPE_FRESH and label and label.startswith(logsfs_label_prefix) and not change_logs_fs_type:
             # If a filesystem which has not been unmounted cleanly is
             # relabelled, it will revert to the original label once it is
             # mounted. To prevent this, fsck the filesystem before relabelling.
@@ -826,7 +827,7 @@ def createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum
 
         if run_mkfs:
             try:
-                util.mkfs(logsfs_type, partition,
+                util.mkfs(fs_type, partition,
                           ["-L", logsfs_label % disk_label_suffix])
             except Exception as e:
                 raise RuntimeError("Failed to create logs filesystem: %s" % e)
@@ -1297,14 +1298,14 @@ def prepareSwapfile(mounts, primary_disk, swap_partnum, disk_label_suffix):
                       'bs=1024', 'count=%d' % (constants.swap_file_size * 1024)])
         util.runCmd2(['chroot', mounts['root'], 'mkswap', constants.swap_file])
 
-def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum, disk_label_suffix):
+def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnum, disk_label_suffix, fs_type):
 
     tool = PartitionTool(primary_disk)
     swap_partition = tool.getPartition(swap_partnum)
     logs_partition = tool.getPartition(logs_partnum)
 
     fstab = open(os.path.join(mounts['root'], 'etc/fstab'), "w")
-    fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label%disk_label_suffix, rootfs_type))
+    fstab.write("LABEL=%s    /         %s     defaults   1  1\n" % (rootfs_label%disk_label_suffix, fs_type))
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         fstab.write("LABEL=%s    /boot/efi         %s     defaults   0  2\n" % (bootfs_label%disk_label_suffix.upper(), bootfs_type))
 
@@ -1314,7 +1315,7 @@ def writeFstab(mounts, target_boot_mode, primary_disk, logs_partnum, swap_partnu
         if os.path.exists(os.path.join(mounts['root'], constants.swap_file.lstrip('/'))):
             fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_file))
     if logs_partition:
-        fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, logsfs_type))
+        fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, fs_type))
 
 def enableAgent(mounts, network_backend, services):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
