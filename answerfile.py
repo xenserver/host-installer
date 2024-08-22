@@ -155,12 +155,6 @@ class Answerfile:
         results['backup-existing-installation'] = True
         results.update(self.parseExistingInstallation())
 
-        # FIXME - obsolete?
-        nodes = getElementsByTagName(self.top_node, ['primary-disk'])
-        if len(nodes) == 1:
-            disk = normalize_disk(getText(nodes[0]))
-            results['primary-disk'] = disk
-
         return results
 
     def parseRestore(self):
