@@ -206,6 +206,17 @@ Format of 'source' and 'driver-source'
 
       proto="static|dhcp|none"
 
+    Optional attributes:
+
+      vlan="vlan"
+
+        Specifies tagged VLAN id for management interface. If not present,
+        untagged VLAN is used as default. VLAN is supported from 1 to 4094.
+
+      protov6="static|dhcp|autoconf|none"
+
+      Default: none
+
     If the interface is static then the following elements must be
     present:
 
@@ -219,17 +230,6 @@ Format of 'source' and 'driver-source'
 
     If proto is specified as "none" then protov6 must be specified and
     must not be none
-
-    Optional attributes:
-
-      vlan="vlan"
-
-        Specifies tagged VLAN id for management interface. If not present,
-        untagged VLAN is used as default. VLAN is supported from 1 to 4094.
-
-      protov6="static|dhcp|autoconf|none"
-
-      Default: none
 
     If protov6 is static then the following elements must be present:
 
