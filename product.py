@@ -560,7 +560,7 @@ def findXenSourceBackups():
     for p in partitions:
         b = None
         try:
-            b = util.TempMount(p, 'backup-', ['ro'], diskutil.fs_type_from_device(p))
+            b = util.TempMount(p, 'backup-', ['ro'])
             if os.path.exists(os.path.join(b.mount_point, '.xen-backup-partition')):
                 backup = XenServerBackup(p, b.mount_point)
                 logger.log("Found a backup: %s" % (repr(backup),))

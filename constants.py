@@ -88,8 +88,8 @@ logs_free_space = 20
 
 # filesystems and partitions types:
 bootfs_type = 'vfat'
-dom0fs_types = ('ext3', 'ext4')
-default_dom0fs_type = 'ext4'
+allowed_rootfs_types = ('ext3', 'ext4')
+default_rootfs_type = 'ext4'
 
 # filesystems and partitions labels:
 bootfs_label = "BOOT-%s"

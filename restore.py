@@ -80,7 +80,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
         if restore_fs_type != diskutil.fs_type_from_device(logs_partition):
             try:
                 util.mkfs(restore_fs_type, logs_partition)
-            except Exception as e:
+            except OSError as e:
                 raise RuntimeError("Failed to format logs filesystem (%s): %s" % (fs_type, e))
 
         if efi_boot:
