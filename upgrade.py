@@ -120,41 +120,58 @@ class Upgrader(object):
                         logger.error('Failed to parse: ' + line)
                         logger.logException(e)
 
-        # Copy ownership from a path in a source root to another path in a
-        # destination root. The ownership is copied such that it is not
-        # affected by changes in the underlying uid/gid.
-        def copy_ownership(src_root, src_path, dst_root, dst_path):
+        # Copy attributes from a path in a source root to another path in a
+        # destination root. 
+        # - The ownership is copied such that it is notaffected by changes 
+        #   in the underlying uid/gid. Or it's set to the specified.
+        # - The mode is set to the specified.
+        def copy_attributes(src_root, src_path, dst_root, dst_path, attr=None):
+            dst_f = '%s/%s' % (dst_root, dst_path)
+
             st = os.lstat('%s/%s' % (src_root, src_path))
             try:
-                new_uid = dst_uid_map[src_uid_map[st.st_uid]]
-                new_gid = dst_gid_map[src_gid_map[st.st_gid]]
+                user = src_uid_map[st.st_uid]
+                group = src_gid_map[st.st_gid]
+                if attr is not None:
+                    user = attr.get('user', user)
+                    group = attr.get('group', group)
+                new_uid = dst_uid_map[user]
+                new_gid = dst_gid_map[group]
             except IndexError as e:
-                logger.error('Failed to copy ownership')
+                logger.error('Failed to determine ownership')
                 logger.logException(e)
                 return
             if st.st_uid != new_uid or st.st_gid != new_gid:
-                os.lchown('%s/%s' % (dst_root, dst_path), new_uid, new_gid)
+                logger.log("Update uid=%d gid=%d" % (new_uid, new_gid))
+                os.lchown(dst_f, new_uid, new_gid)
 
-        def restore_file(src_base, f, d=None):
+            if attr is not None and 'mode' in attr:
+                mode = (st.st_mode & ~0o7777) | attr['mode']
+                logger.log("Update mode=0o%o" % mode)
+                os.chmod(dst_f, mode)
+
+        def restore_file(src_base, f, d=None, attr=None):
             if not d: d = f
             src = os.path.join(src_base, f)
             dst = os.path.join(mounts['root'], d)
             if os.path.exists(src):
                 logger.log("Restoring /%s" % f)
                 util.assertDir(os.path.dirname(dst))
+                # copy file/folder and try to preserve all attributes
                 if os.path.isdir(src):
                     util.runCmd2(['cp', '-a', src, os.path.dirname(dst)])
                 else:
                     util.runCmd2(['cp', '-a', src, dst])
 
+                # copy or set mode and ownership attributes
                 abs_f = os.path.join('/', f)
                 abs_d = os.path.join('/', d)
-                copy_ownership(src_base, abs_f, mounts['root'], abs_d)
+                copy_attributes(src_base, abs_f, mounts['root'], abs_d, attr)
                 for dirpath, dirnames, filenames in os.walk(src):
                     for i in dirnames + filenames:
                         src_path = os.path.join(dirpath, i)[len(src_base):]
                         dst_path = os.path.join(abs_d, src_path[len(abs_f) + 1:])
-                        copy_ownership(src_base, src_path, mounts['root'], dst_path)
+                        copy_attributes(src_base, src_path, mounts['root'], dst_path, attr)
             else:
                 logger.log("WARNING: /%s did not exist in the backup image." % f)
 
@@ -179,7 +196,7 @@ class Upgrader(object):
                             for ff in os.listdir(src_dir):
                                 fn = os.path.join(f['dir'], ff)
                                 if not pat or pat.match(fn):
-                                    restore_file(tds.mount_point, fn)
+                                    restore_file(tds.mount_point, fn, attr=f.get('attr'))
         finally:
             tds.unmount()
 
@@ -391,7 +408,9 @@ class ThirdGenUpgrader(Upgrader):
     def buildRestoreList(self, src_base):
         self.restore_list += ['etc/xensource/ptoken', 'etc/xensource/pool.conf',
                               'etc/xensource/xapi-ssl.pem', 'etc/xensource/xapi-pool-tls.pem']
-        self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+')})
+        self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+_key$'),
+                                  'attr': {'mode': 0o0600, 'group': 'root'}})
+        self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+_key\.pub$')})
 
         self.restore_list += [ 'etc/sysconfig/network']
         self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
