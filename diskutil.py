@@ -512,10 +512,12 @@ def probeDisk(device):
         swap is a tuple of True or False and the partition device
     """
 
+    logger.debug("probeDisk(%r)", device)
     disk = Disk(device)
     possible_srs = []
 
     tool = PartitionTool(device)
+    tool.dump()
     for num, part in tool.items():
         label = None
         part_device = tool._partitionDevice(num)
@@ -543,6 +545,8 @@ def probeDisk(device):
             disk.swap = (True, part_device)
         elif part['id'] == GPTPartitionTool.ID_EFI_BOOT or part['id'] == GPTPartitionTool.ID_BIOS_BOOT:
             disk.boot = (True, part_device)
+        else:
+            logger.info("part %s has unknown id: %s", num, part)
 
     lv_tool = len(possible_srs) and LVMTool()
     for num in possible_srs:
