@@ -842,3 +842,12 @@ def parentdev_from_devpath(devpath):
 
     # If there is no parent of the parent cannot be determined...
     return None
+
+def fs_type_from_device(device):
+    (rc, stdout) = util.runCmd2(['/bin/lsblk', '-n', '-o', 'FSTYPE', device], with_stdout=True)
+    if rc == 0:
+        return stdout.strip()
+
+    msg = "Failed to identify filesystem type on %s" % device
+    logger.log(msg)
+    raise Exception(msg)
