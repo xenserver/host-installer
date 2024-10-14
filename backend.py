@@ -638,11 +638,12 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     # Create logs partition
     # Start the first partition at 1 MiB if there are no other partitions.
     # Otherwise start the partition following the utility partition.
-    if order == 1:
-        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
-    else:
-        tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order)
-    order += 1
+    if logs_partnum > 0:
+        if order == 1:
+            tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
+        else:
+            tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order)
+        order += 1
 
     # Create backup partition
     if backup_partnum > 0:
@@ -661,8 +662,9 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     order += 1
 
     # Create swap partition
-    tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order)
-    order += 1
+    if swap_partnum > 0:
+        tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order)
+        order += 1
 
     # Create LVM partition
     if storage_partnum > 0:
