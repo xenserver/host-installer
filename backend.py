@@ -181,7 +181,8 @@ def getFinalisationSequence(ans):
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
         Task(configureCC, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
-                               'backup-partnum', 'storage-partnum', 'guest-disks', 'net-admin-bridge',
+                               'backup-partnum', 'logs-partnum', 'boot-partnum', 'swap-partnum', 'storage-partnum',
+                               'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'install-type'), []),
         Task(writeXencommons, A(ans, 'control-domain-uuid', 'mounts'), []),
         Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
@@ -1546,7 +1547,8 @@ def writeXencommons(controlID, mounts):
     with open(os.path.join(mounts['root'], constants.XENCOMMONS_FILE), "w") as f:
         f.write(contents)
 
-def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, install_type):
+def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, logs_partnum, boot_partnum, swap_partnum,
+                   storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, install_type):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
@@ -1571,7 +1573,15 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, s
     inv.write("PLATFORM_NAME='%s'\n" % branding['platform-name'])
     inv.write("PLATFORM_VERSION='%s'\n" % branding['platform-version'])
 
-    layout = 'ROOT,BACKUP,LOG,BOOT,SWAP'
+    layout = 'ROOT'
+    if backup_partnum > 0:
+        layout += ',BACKUP'
+    if logs_partnum > 0:
+        layout += ',LOG'
+    if boot_partnum > 0:
+        layout += ',BOOT'
+    if swap_partnum > 0:
+        layout += ',SWAP'
     if storage_partnum > 0:
         layout += ',SR'
     inv.write("PARTITION_LAYOUT='%s'\n" % layout)
