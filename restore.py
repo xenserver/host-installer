@@ -150,10 +150,11 @@ def restoreFromBackup(backup, progress=lambda x: ()):
         dest_fs = util.TempMount(restore_partition, 'restore-dest-')
         efi_mounted = False
         try:
+            mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
             if efi_boot:
-                esp = os.path.join(dest_fs.mount_point, 'boot', 'efi')
-                os.makedirs(esp)
-                util.mount(boot_device, esp)
+                mounts['esp'] = os.path.join(dest_fs.mount_point, 'boot', 'efi')
+                os.makedirs(mounts['esp'])
+                util.mount(boot_device, mounts['esp'])
                 efi_mounted = True
 
             # copy files from the backup partition to the restore partition:
@@ -199,8 +200,6 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                 (tool, restore_partition) = restore_partitions()
                 dest_fs = util.TempMount(restore_partition, 'restore-dest-')
 
-            mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-
             # prepare extra mounts for installing bootloader:
             util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
             util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
@@ -224,7 +223,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             util.umount("%s/sys" % dest_fs.mount_point)
             util.umount("%s/dev" % dest_fs.mount_point)
             if efi_mounted:
-                util.umount(esp)
+                util.umount(mounts['esp'])
             dest_fs.unmount()
     finally:
         backup_fs.unmount()
