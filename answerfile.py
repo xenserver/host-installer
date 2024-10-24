@@ -220,6 +220,11 @@ class Answerfile:
             if bl not in ['' , 'grub2']:
                 raise AnswerfileException("Unsupported bootloader '%s'" % bl)
 
+        results['target-platform'] = ''
+        nodes = getElementsByTagName(self.top_node, ['target-platform'])
+        if len(nodes) > 0:
+            results['target-platform'] = getText(nodes[0])
+
         return results
 
     def parseExistingInstallation(self):
