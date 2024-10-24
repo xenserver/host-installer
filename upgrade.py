@@ -472,7 +472,7 @@ class ThirdGenUpgrader(Upgrader):
         # CP-44441: SNMP service config
         # From XS 8.4 SNMP feature is supported, and new file /etc/snmp/snmp.xs.conf is added
         # into dom0, the file can be treated as the feature flag. Host installer must not
-        # restore old default config files prior to XS 8.4 becasuse they are incompatible with
+        # restore old default config files prior to XS 8.4 because they are incompatible with
         # xapi snmp plugin.
         snmp_xs_conf = 'etc/snmp/snmp.xs.conf'
         if os.path.isfile(os.path.join(src_base, snmp_xs_conf)):
