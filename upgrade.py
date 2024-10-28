@@ -420,21 +420,28 @@ class ThirdGenUpgrader(Upgrader):
             tool.deletePartition(primary_partnum)
             tool.deletePartitionIfPresent(boot_partnum)
 
-            offset = primary_partnum - 1
+            order = primary_partnum
 
-            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, order=(1 + offset), number=logs_partnum)
+            # reuse old root partition as log partition
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, order=order, number=logs_partnum)
+            order += 1
+
+            # account for backup partition, partition is left unchanged so no need to create again
+            order += 1
 
             # Create new root partition
-            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, order=(3 + offset), number=primary_partnum)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, order=order, number=primary_partnum)
+            order += 1
 
             # Create boot partition
             if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
-                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, order=(4 + offset), number=boot_partnum)
+                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, order=order, number=boot_partnum)
             else:
-                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, order=(4 + offset), number=boot_partnum)
+                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, order=order, number=boot_partnum)
+            order += 1
 
             # Create swap partition
-            tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, order=(5 + offset), number=swap_partnum)
+            tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, order=order, number=swap_partnum)
 
             tool.commit(log=True)
         else:
