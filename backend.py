@@ -105,7 +105,8 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'), ['target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']),
+        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'),
+            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
         ]
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
@@ -521,7 +522,7 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
 # This should be used for upgrade or install, not for restore.
-# Returns 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum'
+# Returns 'target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum'
 def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
@@ -549,12 +550,12 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
 
         logger.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
 
-        # Return install mode and numbers of boot, primary, backup, log, swap and SR partitions
+        # Return install mode and numbers of primary, backup, SR, boot, log and swap partitions
         storage_partition = tool.getPartition(primary_part+2)
         if storage_partition:
-            return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, primary_part+2)
+            return (target_boot_mode, primary_part, primary_part+1, primary_part+2, boot_partnum, primary_part+4, primary_part+5)
         else:
-            return (target_boot_mode, boot_partnum, primary_part, primary_part+1, primary_part+4, primary_part+5, 0)
+            return (target_boot_mode, primary_part, primary_part+1, 0, boot_partnum, primary_part+4, primary_part+5)
 
     tool = PartitionTool(disk)
 
@@ -584,7 +585,7 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
 
     logger.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
-    return (target_boot_mode, boot_part, primary_part, primary_part + 1, primary_part + 4, primary_part + 5, sr_part)
+    return (target_boot_mode, primary_part, primary_part + 1, sr_part, boot_part, primary_part + 4, primary_part + 5)
 
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
