@@ -38,7 +38,6 @@ class Upgrader(object):
     def __init__(self, source):
         """ source is the ExistingInstallation object we're to upgrade. """
         self.source = source
-        self.restore_list = []
 
     def upgrades(cls, product, version, variant):
         return (cls.upgrades_product == product and
@@ -67,9 +66,9 @@ class Upgrader(object):
         return
 
     def buildRestoreList(self, src_base):
-        """ Add filenames to self.restore_list which will be copied by
+        """ Returns list of filenames which will be copied by
         completeUpgrade(). """
-        return
+        return []
 
     completeUpgradeArgs = ['mounts', 'primary-disk', 'backup-partnum']
     def completeUpgrade(self, mounts, target_disk, backup_partnum):
@@ -178,11 +177,11 @@ class Upgrader(object):
         backup_volume = partitionDevice(target_disk, backup_partnum)
         tds = util.TempMount(backup_volume, 'upgrade-src-', options=['ro'])
         try:
-            self.buildRestoreList(tds.mount_point)
+            restore_list = self.buildRestoreList(tds.mount_point)
             init_id_maps(tds.mount_point, mounts['root'])
 
             logger.log("Restoring preserved files")
-            for f in self.restore_list:
+            for f in restore_list:
                 if isinstance(f, str):
                     restore_file(tds.mount_point, f)
                 elif isinstance(f, dict):
@@ -406,68 +405,69 @@ class ThirdGenUpgrader(Upgrader):
         return installID, controlID
 
     def buildRestoreList(self, src_base):
-        self.restore_list += ['etc/xensource/ptoken', 'etc/xensource/pool.conf',
-                              'etc/xensource/xapi-ssl.pem', 'etc/xensource/xapi-pool-tls.pem']
-        self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+_key$'),
-                                  'attr': {'mode': 0o0600, 'group': 'root'}})
-        self.restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+_key\.pub$')})
+        restore_list = []
+        restore_list += ['etc/xensource/ptoken', 'etc/xensource/pool.conf',
+                         'etc/xensource/xapi-ssl.pem', 'etc/xensource/xapi-pool-tls.pem']
+        restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+_key$'),
+                             'attr': {'mode': 0o0600, 'group': 'root'}})
+        restore_list.append({'dir': 'etc/ssh', 're': re.compile(r'.*/ssh_host_.+_key\.pub$')})
 
-        self.restore_list += [ 'etc/sysconfig/network']
-        self.restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
+        restore_list += [ 'etc/sysconfig/network']
+        restore_list.append({'dir': 'etc/sysconfig/network-scripts', 're': re.compile(r'.*/ifcfg-[a-z0-9.]+')})
 
-        self.restore_list += [constants.XAPI_DB, 'etc/xensource/license']
-        self.restore_list += [constants.CLUSTERD_CONF]
-        self.restore_list.append({'src': constants.OLD_XAPI_DB, 'dst': constants.XAPI_DB})
-        self.restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
+        restore_list += [constants.XAPI_DB, 'etc/xensource/license']
+        restore_list += [constants.CLUSTERD_CONF]
+        restore_list.append({'src': constants.OLD_XAPI_DB, 'dst': constants.XAPI_DB})
+        restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
 
-        self.restore_list += ['etc/xensource/syslog.conf']
+        restore_list += ['etc/xensource/syslog.conf']
 
-        self.restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
+        restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
 
         # CP-1508: preserve AD config
-        self.restore_list += ['etc/resolv.conf', 'etc/krb5.conf', 'etc/krb5.keytab']
-        self.restore_list.append({'dir': 'var/lib/samba'})
+        restore_list += ['etc/resolv.conf', 'etc/krb5.conf', 'etc/krb5.keytab']
+        restore_list.append({'dir': 'var/lib/samba'})
 
         # CP-35398: Integrate automatic upgrade tool from PBIS to winbind
-        self.restore_list += ['var/lib/pbis/db/registry.db']
+        restore_list += ['var/lib/pbis/db/registry.db']
 
         # CA-47142: preserve v6 cache
-        self.restore_list += [{'src': 'var/xapi/lpe-cache', 'dst': 'var/lib/xcp/lpe-cache'}]
+        restore_list += [{'src': 'var/xapi/lpe-cache', 'dst': 'var/lib/xcp/lpe-cache'}]
 
         # CP-2056: preserve RRDs etc
-        self.restore_list += [{'src': 'var/xapi/blobs', 'dst': 'var/lib/xcp/blobs'}]
-        self.restore_list += [{'src': 'var/lib/xcp/blobs', 'dst': 'var/lib/xcp/blobs'}]
+        restore_list += [{'src': 'var/xapi/blobs', 'dst': 'var/lib/xcp/blobs'}]
+        restore_list += [{'src': 'var/lib/xcp/blobs', 'dst': 'var/lib/xcp/blobs'}]
 
-        self.restore_list.append('etc/sysconfig/mkinitrd.latches')
+        restore_list.append('etc/sysconfig/mkinitrd.latches')
 
         # EA-1069: Udev network device naming
-        self.restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data'}]
-        self.restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data/.from_install'}]
+        restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data'}]
+        restore_list += [{'dir': 'etc/sysconfig/network-scripts/interface-rename-data/.from_install'}]
 
         # CA-67890: preserve root's ssh state
-        self.restore_list += [{'dir': 'root/.ssh'}]
+        restore_list += [{'dir': 'root/.ssh'}]
 
         # CA-82709: preserve networkd.db for Tampa upgrades
-        self.restore_list.append(constants.NETWORK_DB)
+        restore_list.append(constants.NETWORK_DB)
 
         # CP-9653: preserve Oracle 5 blacklist
-        self.restore_list += ['etc/pygrub/rules.d/oracle-5.6']
+        restore_list += ['etc/pygrub/rules.d/oracle-5.6']
 
         # CA-150889: backup multipath config
-        self.restore_list.append({'src': 'etc/multipath.conf', 'dst': 'etc/multipath.conf.bak'})
+        restore_list.append({'src': 'etc/multipath.conf', 'dst': 'etc/multipath.conf.bak'})
 
-        self.restore_list += ['etc/locale.conf', 'etc/machine-id', 'etc/vconsole.conf']
+        restore_list += ['etc/locale.conf', 'etc/machine-id', 'etc/vconsole.conf']
 
         # CP-12750: Increase log size when dedicated partion is on the disk
-        self.restore_list += ['etc/sysconfig/logrotate']
+        restore_list += ['etc/sysconfig/logrotate']
 
         # CA-195388: Preserve /etc/mdadm.conf across upgrades
-        self.restore_list += ['etc/mdadm.conf']
+        restore_list += ['etc/mdadm.conf']
 
-        self.restore_list += ['var/lib/xcp/verify_certificates']
+        restore_list += ['var/lib/xcp/verify_certificates']
 
         # CP-42523: NRPE service config
-        self.restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
+        restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
 
         # CP-44441: SNMP service config
         # From XS 8.4 SNMP feature is supported, and new file /etc/snmp/snmp.xs.conf is added
@@ -476,12 +476,14 @@ class ThirdGenUpgrader(Upgrader):
         # xapi snmp plugin.
         snmp_xs_conf = 'etc/snmp/snmp.xs.conf'
         if os.path.isfile(os.path.join(src_base, snmp_xs_conf)):
-            self.restore_list += [snmp_xs_conf, 'etc/snmp/snmpd.xs.conf',
-                                  'etc/sysconfig/snmpd', 'var/lib/net-snmp/snmpd.conf']
+            restore_list += [snmp_xs_conf, 'etc/snmp/snmpd.xs.conf',
+                             'etc/sysconfig/snmpd', 'var/lib/net-snmp/snmpd.conf']
 
         # Preserve pool certificates across upgrades
-        self.restore_list += ['etc/stunnel/xapi-pool-ca-bundle.pem', {'dir': 'etc/stunnel/certs-pool'}]
-        self.restore_list += [{'dir': 'etc/stunnel/certs'}]
+        restore_list += ['etc/stunnel/xapi-pool-ca-bundle.pem', {'dir': 'etc/stunnel/certs-pool'}]
+        restore_list += [{'dir': 'etc/stunnel/certs'}]
+
+        return restore_list
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'logs-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, logs_partnum, admin_iface, admin_bridge, admin_config):
