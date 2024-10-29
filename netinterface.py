@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
+import os
+import ipaddress
+import configparser
 
 import util
 import netutil
+from xcp import logger
 
 def getText(nodelist):
     rc = ""
@@ -15,6 +19,13 @@ def getTextOrNone(nodelist):
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
     return rc == "" and None or rc.strip().encode()
+
+
+class CaseConfigParser(configparser.ConfigParser):
+    """ ConfigParser support case sensitive key """
+    def optionxform(self, optionstr):
+        return optionstr
+
 
 class NetInterface:
     """ Represents the configuration of a network interface. """
@@ -137,34 +148,77 @@ class NetInterface:
             bcast = output[10:].strip()
         return bcast
 
-    def writeRHStyleInterface(self, iface):
-        """ Write a RedHat-style configuration entry for this interface to
-        file object f using interface name iface. """
+    @staticmethod
+    def _subnet_mask_to_prefix_length(subnet_mask):
+        # Create an IPv4Network object with the subnet mask
+        network = ipaddress.IPv4Network(f"0.0.0.0/{subnet_mask}")
+        # Return the prefix length
+        return network.prefixlen
 
+    def writeSystemdNetworkdConfig(self, iface):
+        """Write a systemd-networkd configuration for this interface"""
         assert self.modev6 is None
         assert self.mode
+        sysd_netd_path = "/etc/systemd/network"
         iface_vlan = self.getInterfaceName(iface)
 
-        f = open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface_vlan, 'w')
-        f.write("DEVICE=%s\n" % iface_vlan)
-        f.write("ONBOOT=yes\n")
-        if self.mode == self.DHCP:
-            f.write("BOOTPROTO=dhcp\n")
-            f.write("PERSISTENT_DHCLIENT=1\n")
-        else:
-            # CA-11825: broadcast needs to be determined for non-standard networks
-            bcast = self.getBroadcast()
-            f.write("BOOTPROTO=none\n")
-            f.write("IPADDR=%s\n" % self.ipaddr)
-            if bcast is not None:
-                f.write("BROADCAST=%s\n" % bcast)
-            f.write("NETMASK=%s\n" % self.netmask)
-            if self.gateway:
-                f.write("GATEWAY=%s\n" % self.gateway)
-        if self.vlan:
-            f.write("VLAN=yes\n")
-        f.close()
+        logger.debug(f"Configuring {iface} with systemd-networkd")
 
+        network_conf = CaseConfigParser()
+        # Match section, match by Name
+        network_conf["Match"] = {}
+        network_conf["Match"]["Name"] = iface_vlan
+        # Network section
+        # NOTE: Network section append last, to hold future VLANs
+        # This order is preserved by configparser since 3.8
+        network_conf["Network"] = {}
+        if self.mode == self.DHCP:
+            network_conf["Network"]["DHCP"] = "yes"
+        else:
+            prefixlen = NetInterface._subnet_mask_to_prefix_length(self.netmask)
+            network_conf["Network"]["Address"] = f"{self.ipaddr}/{prefixlen}"
+            network_conf["Network"]["Gateway"] = f"{self.gateway}"
+
+        iface_network_path = os.path.join(sysd_netd_path, f"{iface_vlan}.network")
+        # VLAN should be configured After hosting interface, getNetifList ensured that
+        if os.path.exists(iface_network_path):
+            logger.warning(f"Overiding existing configuration: {iface_network_path}")
+        with open(iface_network_path, "w", encoding="utf-8") as f:
+            network_conf.write(f)
+
+        if self.vlan:
+            # If this is a vlan, need extra configuration
+            # - Setup .netdev configuration for the vlan interface
+            # - Set VLAN in [Network] section of hosting interface
+
+            netdev_conf = CaseConfigParser()
+            # DetDev section
+            netdev_conf["NetDev"] = {}
+            netdev_conf["NetDev"]["Name"] = iface_vlan
+            netdev_conf["NetDev"]["Kind"] = "vlan"
+            # VLAN section
+            netdev_conf["VLAN"] = {}
+            netdev_conf["VLAN"]["Id"] = str(self.vlan)
+            netdev_conf_path = os.path.join(sysd_netd_path, f"{iface_vlan}.netdev")
+            with open(netdev_conf_path, "w", encoding="utf-8") as f:
+                netdev_conf.write(f)
+
+            hosting_iface_network_path = os.path.join(sysd_netd_path, f"{iface}.network")
+            if os.path.exists(hosting_iface_network_path):
+                # Just append VLAN to ending, which is in [Network] section
+                with open(hosting_iface_network_path, 'a', encoding="utf-8") as f:
+                    f.write(f"VLAN={iface_vlan}\n")
+            else:
+                # The hosting interface just used to host the vlan
+                logger.debug("Found vlan {iface_vlan} with unconfigured hosting interface")
+                hosting_conf = CaseConfigParser()
+                hosting_conf["Match"] = {}
+                hosting_conf["Match"]["Name"] = iface
+                # NOTE: Network section append last, to hold future VLANs
+                hosting_conf["Network"] = {}
+                hosting_conf["Network"]["VLAN"] = iface_vlan
+                with open(hosting_iface_network_path, "w", encoding="utf-8") as f:
+                    hosting_conf.write(f)
 
     def waitUntilUp(self, iface):
         if not self.isStatic():

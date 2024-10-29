@@ -64,7 +64,7 @@ def getNetifList(include_vlan=False):
 
 def writeNetInterfaceFiles(configuration):
     for iface in configuration:
-        configuration[iface].writeRHStyleInterface(iface)
+        configuration[iface].writeSystemdNetworkdConfig(iface)
 
 # writes DNS server entries to a resolver file given a network configuration object
 # list
@@ -84,6 +84,15 @@ def writeResolverFile(configuration, filename):
 
 interface_up = {}
 
+def reloadSystemdNetworkdService(timeout=20):
+    """ Reload systemd-networkd service """
+    util.runCmd2(["systemctl", "restart", "systemd-networkd"])
+    # systemd return immediately, wait until network is up
+    ret = util.runCmd2(["/usr/lib/systemd/systemd-networkd-wait-online", f"--timeout={timeout}"])
+    if ret:
+        LOG.error(f"Timeout {timeout} waiting for network online")
+    return ret
+
 # simple wrapper for calling the local ifup script:
 def splitInterfaceVlan(interface):
     if "." in interface:
@@ -94,12 +103,12 @@ def ifup(interface):
     device, vlan = splitInterfaceVlan(interface)
     assert device in getNetifList()
     interface_up[interface] = True
-    return util.runCmd2(['ifup', interface])
+    return util.runCmd2(['networkctl', 'up', interface])
 
 def ifdown(interface):
     if interface in interface_up:
         del interface_up[interface]
-    return util.runCmd2(['ifdown', interface])
+    return util.runCmd2(['networkctl', 'down', interface])
 
 def ipaddr(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
@@ -112,8 +121,8 @@ def ipaddr(interface):
             return m.group(1)
     return None
 
-# work out if an interface is up:
 def interfaceUp(interface):
+# work out if an interface is up:
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
     if rc != 0:
         return False
