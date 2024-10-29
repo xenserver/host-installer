@@ -1,7 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
+import os
+import ipaddress
 
 import util
-import netutil
+import xcp.logger as LOG
 
 def getText(nodelist):
     rc = ""
@@ -137,34 +139,64 @@ class NetInterface:
             bcast = output[10:].strip()
         return bcast
 
-    def writeRHStyleInterface(self, iface):
-        """ Write a RedHat-style configuration entry for this interface to
-        file object f using interface name iface. """
+    @staticmethod
+    def _subnet_mask_to_prefix_length(subnet_mask):
+        # Create an IPv4Network object with the subnet mask
+        network = ipaddress.IPv4Network(f"0.0.0.0/{subnet_mask}")
+        # Return the prefix length
+        return network.prefixlen
 
+    def writeSystemdNetworkdConfig(self, iface):
+        """Write a systemd-networkd configuration for this interface"""
         assert self.modev6 is None
         assert self.mode
+        sysd_netd_path = "/etc/systemd/network"
         iface_vlan = self.getInterfaceName(iface)
 
-        f = open('/etc/sysconfig/network-scripts/ifcfg-%s' % iface_vlan, 'w')
-        f.write("DEVICE=%s\n" % iface_vlan)
-        f.write("ONBOOT=yes\n")
-        if self.mode == self.DHCP:
-            f.write("BOOTPROTO=dhcp\n")
-            f.write("PERSISTENT_DHCLIENT=1\n")
-        else:
-            # CA-11825: broadcast needs to be determined for non-standard networks
-            bcast = self.getBroadcast()
-            f.write("BOOTPROTO=none\n")
-            f.write("IPADDR=%s\n" % self.ipaddr)
-            if bcast is not None:
-                f.write("BROADCAST=%s\n" % bcast)
-            f.write("NETMASK=%s\n" % self.netmask)
-            if self.gateway:
-                f.write("GATEWAY=%s\n" % self.gateway)
-        if self.vlan:
-            f.write("VLAN=yes\n")
-        f.close()
+        LOG.debug(f"Configuring {iface} with systemd-networkd")
 
+        config = ["[Match]", f"Name={iface_vlan}", "", "[Network]"]
+        if self.mode == self.DHCP:
+            config.append("DHCP=yes")
+        else:
+            prefixlen = NetInterface._subnet_mask_to_prefix_length(self.netmask)
+            config.append(f"Address={self.ipaddr}/{prefixlen}")
+            config.append(f"Gateway={self.gateway}")
+
+        config.append("")  # Add ending empty line
+        config = "\n".join(config)
+
+        iface_network_path = os.path.join(sysd_netd_path, f"{iface_vlan}.network")
+        # VLAN should be configured After hosting interface, getNetifList ensured that
+        if os.path.exists(iface_network_path):
+            LOG.warning(f"Overiding existing configuration: {iface_network_path}")
+        with open(iface_network_path, "w", encoding="utf-8") as f:
+            f.write(config)
+
+        if self.vlan:
+            # If this is a vlan, need extra configuration
+            # - Setup .netdev configuration for the vlan interface
+            # - Set VLAN in [Network] section of hosting interface
+
+            netdev_conf = ["[NetDev]", f"Name={iface_vlan}", "Kind=vlan", "",
+                           "[VLAN]", f"Id={self.vlan}", ""]
+            netdev_conf = "\n".join(netdev_conf)
+            netdev_conf_path = os.path.join(sysd_netd_path, f"{iface_vlan}.netdev")
+            with open(netdev_conf_path, "w", encoding="utf-8") as f:
+                f.write(netdev_conf)
+
+            hosting_iface_network_path = os.path.join(sysd_netd_path, f"{iface}.network")
+            if os.path.exists(hosting_iface_network_path):
+                # Just append VLAN to ending, which is in [Network] section
+                with open(hosting_iface_network_path, 'a', encoding="utf-8") as f:
+                    f.write(f"VLAN={iface_vlan}\n")
+            else:
+                # The hosting interface just used to host the vlan
+                LOG.info("Found vlan {iface_vlan} with unconfigured hosting interface")
+                hosting_conf = "\n".join(["[Match]", f"Name={iface}", "",
+                                          "[Network]", f"VLAN={iface_vlan}", ""])
+                with open(hosting_iface_network_path, "w", encoding="utf-8") as f:
+                    f.write(hosting_conf)
 
     def waitUntilUp(self, iface):
         if not self.isStatic():
