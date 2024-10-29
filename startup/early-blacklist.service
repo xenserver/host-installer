@@ -1,0 +1,9 @@
+[Unit]
+Description=Enable some devices previously disabled
+Before=multi-user.target
+Before=graphical.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/xensource/installer/early-blacklist

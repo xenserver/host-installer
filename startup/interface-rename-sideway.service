@@ -1,0 +1,10 @@
+[Unit]
+Description=Prepare for interface rename
+Before=multi-user.target
+Before=graphical.target
+Before=network-pre.target
+
+[Service]
+ExecStart=/opt/xensource/installer/interface-rename-sideway
+RemainAfterExit=yes
+Type=oneshot

@@ -286,6 +286,9 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         ifaceName = conf_dict['config'].getInterfaceName(conf_dict['interface'])
         netutil.ifdown(ifaceName)
 
+        # Restart systemd-networkd serivce to apply the configuration
+        netutil.reloadSystemdNetworkdService()
+
         # check that we have *some* network:
         if netutil.ifup(ifaceName) != 0 or not netutil.interfaceUp(ifaceName):
             tui.progress.clearModelessDialog()
