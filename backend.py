@@ -527,6 +527,8 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
 def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
+    (PRIMARY, BACKUP, STORAGE, BOOT, LOGS, SWAP) = list(range(6))
+
     primary_part = 1
     if existing:
         # upgrade, use existing partitioning scheme
@@ -534,15 +536,15 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
 
         primary_part = tool.partitionNumber(existing.root_device)
 
+        part_nums = list(range(primary_part, primary_part+6))
+
         # Determine target install's boot mode and boot partition number
         target_boot_mode = TARGET_BOOT_MODE_LEGACY
         if existing.boot_device:
-            boot_partnum = tool.partitionNumber(existing.boot_device)
-            boot_part = tool.getPartition(boot_partnum)
+            part_nums[BOOT] = tool.partitionNumber(existing.boot_device)
+            boot_part = tool.getPartition(part_nums[BOOT])
             if 'id' in boot_part and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT:
                 target_boot_mode = TARGET_BOOT_MODE_UEFI
-        else:
-            boot_partnum = primary_part + 3
 
         if (target_boot_mode == TARGET_BOOT_MODE_UEFI and not constants.UEFI_INSTALLER) or \
                 (target_boot_mode == TARGET_BOOT_MODE_LEGACY and constants.UEFI_INSTALLER):
@@ -552,11 +554,10 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
         logger.log("Upgrading, target_boot_mode: %s" % target_boot_mode)
 
         # Return install mode and numbers of primary, backup, SR, boot, log and swap partitions
-        storage_partition = tool.getPartition(primary_part+2)
-        if storage_partition:
-            return (target_boot_mode, primary_part, primary_part+1, primary_part+2, boot_partnum, primary_part+4, primary_part+5)
-        else:
-            return (target_boot_mode, primary_part, primary_part+1, 0, boot_partnum, primary_part+4, primary_part+5)
+        storage_partition = tool.getPartition(part_nums[STORAGE])
+        if not storage_partition:
+            part_nums[STORAGE] = 0
+        return tuple([target_boot_mode] + part_nums)
 
     tool = PartitionTool(disk)
 
@@ -576,17 +577,18 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
         if primary_part > 2:
             raise RuntimeError("Installer only supports a single Utility Partition at partition 1, but found Utility Partitions at %s" % str(utilparts))
 
-    sr_part = -1
-    if create_sr_part:
-        sr_part = primary_part+2
+    part_nums = list(range(primary_part, primary_part+6))
 
-    boot_part = max(primary_part + 1, sr_part) + 1
+    if not create_sr_part:
+        part_nums[STORAGE] = -1
+
+    part_nums[BOOT] = max(primary_part + 1, part_nums[STORAGE]) + 1
 
     target_boot_mode = TARGET_BOOT_MODE_UEFI if constants.UEFI_INSTALLER else TARGET_BOOT_MODE_LEGACY
 
     logger.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
-    return (target_boot_mode, primary_part, primary_part + 1, sr_part, boot_part, primary_part + 4, primary_part + 5)
+    return tuple([target_boot_mode] + part_nums)
 
 def removeBlockingVGs(disks):
     for vg in diskutil.findProblematicVGs(disks):
