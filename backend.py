@@ -588,6 +588,9 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
     if preserve_first_partition == 'true':
+        utilparts = tool.utilityPartitions()
+        if len(utilparts) == 0:
+            raise RuntimeError("Installer only supports a single Utility Partition at partition 1, but there is no Utility Partitions")
         primary_part += 1
     elif preserve_first_partition == constants.PRESERVE_IF_UTILITY:
         utilparts = tool.utilityPartitions()
