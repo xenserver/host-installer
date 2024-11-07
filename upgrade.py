@@ -418,7 +418,6 @@ class ThirdGenUpgrader(Upgrader):
 
         restore_list += [constants.XAPI_DB, 'etc/xensource/license']
         restore_list += [constants.CLUSTERD_CONF]
-        restore_list.append({'src': constants.OLD_XAPI_DB, 'dst': constants.XAPI_DB})
         restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
 
         restore_list += ['etc/xensource/syslog.conf']

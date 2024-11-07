@@ -138,7 +138,6 @@ INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
 NETWORK_DB = "var/lib/xcp/networkd.db"
 NETWORKD_DB = "usr/bin/networkd_db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
-OLD_XAPI_DB = 'var/xapi/state.db'
 XAPI_DB = 'var/lib/xcp/state.db'
 CLUSTERD_CONF = 'var/opt/xapi-clusterd/db'
 
