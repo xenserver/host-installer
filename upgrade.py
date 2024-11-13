@@ -79,6 +79,27 @@ class Upgrader(object):
         completeUpgrade(). """
         return []
 
+    def handleRestoreList(self, src_base, restore_list, restore_file):
+        for f in restore_list:
+            if isinstance(f, str):
+                restore_file(src_base, f, None)
+            elif isinstance(f, dict):
+                if 'src' in f:
+                    assert 'dst' in f
+                    restore_file(src_base, f['src'], f['dst'])
+                elif 'dir' in f:
+                    pat = f.get('re', None)
+                    src_dir = os.path.join(src_base, f['dir'])
+                    if os.path.exists(src_dir):
+                        if pat is not None:
+                            # filter here (though should ideally let restore_file do it)
+                            for ff in os.listdir(src_dir):
+                                fn = os.path.join(f['dir'], ff)
+                                if pat.match(fn):
+                                    restore_file(src_base, fn, None)
+                        else:
+                            restore_file(src_base, f['dir'], None)
+
     completeUpgradeArgs = ['mounts', 'primary-disk', 'backup-partnum']
     def completeUpgrade(self, mounts, target_disk, backup_partnum):
         """ Write any data back into the new filesystem as needed to follow
@@ -166,34 +187,23 @@ class Upgrader(object):
             else:
                 logger.log("WARNING: /%s did not exist in the backup image." % f)
 
-        backup_volume = partitionDevice(target_disk, backup_partnum)
-        tds = util.TempMount(backup_volume, 'upgrade-src-', options=['ro'])
+        tds = None
+        if backup_partnum <= 0:
+            src_base = "/tmp/fs_backup"
+        else:
+            backup_volume = partitionDevice(target_disk, backup_partnum)
+            tds = util.TempMount(backup_volume, 'upgrade-src-', options=['ro'])
+            src_base = tds.mount_point
+
         try:
-            restore_list = self.buildRestoreList(tds.mount_point)
-            init_id_maps(tds.mount_point, mounts['root'])
+            restore_list = self.buildRestoreList(src_base)
+            init_id_maps(src_base, mounts['root'])
 
             logger.log("Restoring preserved files")
-            for f in restore_list:
-                if isinstance(f, str):
-                    restore_file(tds.mount_point, f)
-                elif isinstance(f, dict):
-                    if 'src' in f:
-                        assert 'dst' in f
-                        restore_file(tds.mount_point, f['src'], f['dst'])
-                    elif 'dir' in f:
-                        pat = f.get('re', None)
-                        src_dir = os.path.join(tds.mount_point, f['dir'])
-                        if os.path.exists(src_dir):
-                            if pat is not None:
-                                # filter here (though should ideally let restore_file do it)
-                                for ff in os.listdir(src_dir):
-                                    fn = os.path.join(f['dir'], ff)
-                                    if pat.match(fn):
-                                        restore_file(tds.mount_point, fn)
-                            else:
-                                restore_file(tds.mount_point, f['dir'])
+            self.handleRestoreList(src_base, restore_list, restore_file)
         finally:
-            tds.unmount()
+            if tds is not None:
+                tds.unmount()
 
 
 class ThirdGenUpgrader(Upgrader):
@@ -228,9 +238,13 @@ class ThirdGenUpgrader(Upgrader):
             raise RuntimeError("Util partition detected on DOS partition type, upgrade forbidden.")
 
     convertTargetStateChanges = []
-    convertTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'backup-partnum']
-    def convertTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, backup_partnum):
+    convertTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'backup-partnum', 'target-platform']
+    def convertTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, backup_partnum, target_platform):
         if not self.safe2mbrupgrade:
+            return
+
+        # SDX 8900 we keep old data
+        if target_platform == 'sdx8900':
             return
 
         tool = PartitionTool(primary_disk)
@@ -320,8 +334,8 @@ class ThirdGenUpgrader(Upgrader):
 
 
     prepTargetStateChanges = []
-    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'backup-partnum']
-    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, backup_partnum):
+    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'backup-partnum', 'target-platform']
+    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum, backup_partnum, target_platform):
         """ Modify partition layout prior to installation. """
 
         tool = PartitionTool(primary_disk, constants.PARTITION_GPT)
@@ -337,7 +351,24 @@ class ThirdGenUpgrader(Upgrader):
 
         self.testUpgradeForbidden(tool)
 
-        if self.safe2upgrade and logs_partition is None:
+        if target_platform == 'sdx8900':
+            # Create new root partition using old root
+            tool.deletePartition(primary_partnum)
+            if backup_partnum <= 0:
+                tool.deletePartitionIfPresent(primary_partnum + 1)
+            tool.deletePartitionIfPresent(boot_partnum)
+
+            order = primary_partnum
+
+            # Create new root partition
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, order=order, number=primary_partnum)
+
+            # Create boot partition
+            start = tool.partitionStart(primary_partnum) + constants.root_size * 2**20
+            tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, startBytes=start, number=boot_partnum)
+
+            tool.commit(log=True)
+        elif self.safe2upgrade and logs_partition is None:
             # Rename old dom0 and Boot (if any) partitions (10 and 11 are temporary number which let us create
             # dom0 and Boot partitions using the same numbers)
             tool.renamePartition(srcNumber=primary_partnum, destNumber=10, overwrite=False)
@@ -415,14 +446,49 @@ class ThirdGenUpgrader(Upgrader):
                     return
             raise RuntimeError("Old partition layout is unsupported, run prepare_host_upgrade plugin and try again")
 
-    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum', 'primary-partnum']
+    def backupFilesToTemp(self, progress_callback, target_disk, boot_device):
+
+        progress_callback(10)
+
+        # copy the files across:
+        primary_fs = util.TempMount(self.source.root_device, 'primary-', options=['ro'], boot_device=boot_device)
+        backup_dir = "/tmp/fs_backup"
+
+        files_list = ['etc/passwd', 'etc/group']
+        def restore_file(src_base, f, d):
+            src = os.path.join(src_base, f)
+            if os.path.exists(src):
+                files_list.append(f)
+
+        try:
+            os.mkdir(backup_dir, 0o755)
+
+            restore_list = self.buildRestoreList(primary_fs.mount_point)
+
+            self.handleRestoreList(primary_fs.mount_point, restore_list, restore_file)
+            logger.log("File list is:\n\t%s" % '\n\t'.join(files_list))
+            if util.runCmd2("tar -C '%s' -c -T - | tar -C '%s' -x" % (primary_fs.mount_point, backup_dir), inputtext='\n'.join(files_list)) != 0:
+                raise RuntimeError("Backup failed")
+            progress_callback(100)
+
+            # save the GPT table
+            rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_dir, '.xen-gpt.bin'), target_disk], with_stderr=True)
+            if rc != 0:
+                raise RuntimeError("Failed to save partition layout: %s" % err)
+        finally:
+            primary_fs.unmount()
+
+    doBackupArgs = ['primary-disk', 'backup-partnum', 'boot-partnum', 'storage-partnum', 'logs-partnum', 'primary-partnum', 'target-platform']
     doBackupStateChanges = []
-    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum, primary_partnum):
+    def doBackup(self, progress_callback, target_disk, backup_partnum, boot_partnum, storage_partnum, logs_partnum, primary_partnum, target_platform):
 
         tool = PartitionTool(target_disk)
         boot_part = tool.getPartition(boot_partnum)
         boot_device = partitionDevice(target_disk, boot_partnum) if boot_part else None
         logs_partition = tool.getPartition(logs_partnum)
+
+        if target_platform == 'sdx8900':
+            return self.backupFilesToTemp(progress_callback, target_disk, boot_device)
 
         self.testUpgradeForbidden(tool)
 

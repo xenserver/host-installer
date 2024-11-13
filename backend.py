@@ -570,6 +570,12 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
         storage_partition = tool.getPartition(part_nums[STORAGE])
         if not storage_partition:
             part_nums[STORAGE] = 0
+
+        if target_platform == 'sdx8900':
+            part_nums[BACKUP] = 0
+            part_nums[LOGS] = 0
+            part_nums[SWAP] = 0
+
         return tuple([target_boot_mode] + part_nums)
 
     tool = PartitionTool(disk)
