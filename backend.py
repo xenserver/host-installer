@@ -106,7 +106,7 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'),
+        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary', 'target-platform'),
             ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
         ]
 
@@ -531,10 +531,16 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
 # based on options passed and status of disk (like partition to retain).
 # This should be used for upgrade or install, not for restore.
 # Returns 'target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum'
-def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
+def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part, target_platform):
     logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
 
     (PRIMARY, BACKUP, STORAGE, BOOT, LOGS, SWAP) = list(range(6))
+
+    if target_platform == 'sdx8900':
+        constants.boot_size = 2
+        # old total size minus boot and 1mb for alignment
+        constants.root_size = constants.root_mbr_size_old + constants.backup_size_old - \
+                              (constants.boot_size + 1)
 
     primary_part = 1
     if existing:
@@ -594,6 +600,11 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
 
     logger.log("Fresh install, target_boot_mode: %s" % target_boot_mode)
 
+    if target_platform == 'sdx8900':
+        part_nums[BACKUP] = 0
+        part_nums[LOGS] = 0
+        part_nums[SWAP] = 0
+
     return tuple([target_boot_mode] + part_nums)
 
 def removeBlockingVGs(disks):
@@ -640,14 +651,14 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
     # Otherwise start the partition following the utility partition.
     if logs_partnum > 0:
         if order == 1:
-            tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, startBytes=2**20, number=logs_partnum, order=order)
         else:
-            tool.createPartition(tool.ID_LINUX, sizeBytes=logs_size * 2**20, number=logs_partnum, order=order)
+            tool.createPartition(tool.ID_LINUX, sizeBytes=constants.logs_size * 2**20, number=logs_partnum, order=order)
         order += 1
 
     # Create backup partition
     if backup_partnum > 0:
-        tool.createPartition(tool.ID_LINUX, sizeBytes=backup_size * 2**20, number=backup_partnum, order=order)
+        tool.createPartition(tool.ID_LINUX, sizeBytes=constants.backup_size * 2**20, number=backup_partnum, order=order)
         order += 1
 
     # Create dom0 partition
@@ -656,14 +667,14 @@ def writeDom0DiskPartitions(disk, target_boot_mode, boot_partnum, primary_partnu
 
     # Create Boot partition
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
-        tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
+        tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, order=order)
     else:
-        tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=boot_size * 2**20, number=boot_partnum, order=order)
+        tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, order=order)
     order += 1
 
     # Create swap partition
     if swap_partnum > 0:
-        tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=swap_size * 2**20, number=swap_partnum, order=order)
+        tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum, order=order)
         order += 1
 
     # Create LVM partition
