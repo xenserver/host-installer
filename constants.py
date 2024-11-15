@@ -32,10 +32,6 @@ BOOT_LOCATION_PARTITION = "partition"
 # to the MBR (applies to legacy mode with DOS partition type only).
 LBA_PARTITION_MIN = 63
 
-# target boot mode:
-TARGET_BOOT_MODE_LEGACY = "legacy"
-TARGET_BOOT_MODE_UEFI = "uefi"
-
 # first partition preservation:
 PRESERVE_IF_UTILITY = "if-utility"
 UTILITY_PARTLABEL = "DELLUTILITY"
