@@ -229,8 +229,8 @@ class ThirdGenUpgrader(Upgrader):
             raise RuntimeError("Upgrade from a DOS partition type is not supported.")
 
     prepTargetStateChanges = []
-    prepTargetArgs = ['primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']
-    def prepareTarget(self, progress_callback, primary_disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum):
+    prepTargetArgs = ['primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum']
+    def prepareTarget(self, progress_callback, primary_disk, boot_partnum, primary_partnum, logs_partnum, swap_partnum, storage_partnum):
         """ Modify partition layout prior to installation. """
 
         tool = PartitionTool(primary_disk, constants.PARTITION_GPT)
@@ -256,10 +256,7 @@ class ThirdGenUpgrader(Upgrader):
             # Create new bigger dom0 partition
             tool.createPartition(tool.ID_LINUX, sizeBytes=constants.root_size * 2**20, number=primary_partnum, label=constants.rootpart_label)
             # Create Boot partition
-            if target_boot_mode == constants.TARGET_BOOT_MODE_UEFI:
-                tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, label=constants.bootpart_label)
-            else:
-                tool.createPartition(tool.ID_BIOS_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, label=constants.bootpart_label)
+            tool.createPartition(tool.ID_EFI_BOOT, sizeBytes=constants.boot_size * 2**20, number=boot_partnum, label=constants.bootpart_label)
             # Create swap partition
             tool.createPartition(tool.ID_LINUX_SWAP, sizeBytes=constants.swap_size * 2**20, number=swap_partnum, label=constants.swappart_label)
             # Create storage LVM partition
