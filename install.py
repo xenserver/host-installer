@@ -87,6 +87,10 @@ def fixMpathResults(results):
     return results
 
 def go(ui, args, answerfile_address, answerfile_script):
+    logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
+    if not constants.UEFI_INSTALLER:
+        raise RuntimeError("Installer does not support legacy boot. Boot in UEFI mode instead.")
+
     extra_repo_defs = []
     results = {
         'keymap': None,
