@@ -44,7 +44,6 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
     boot_part = tool.getPartition(boot_partnum)
     boot_device = partitionDevice(disk, boot_partnum) if boot_part else None
-    efi_boot = boot_part and boot_part['id'] == GPTPartitionTool.ID_EFI_BOOT
 
     # determine current location of bootloader
     current_location = 'unknown'
@@ -83,22 +82,20 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             except OSError as e:
                 raise RuntimeError("Failed to format logs filesystem (%s): %s" % (fs_type, e))
 
-        if efi_boot:
-            try:
-                util.mkfs('vfat', boot_device)
-            except Exception as e:
-                raise RuntimeError("Failed to create boot filesystem: %s" % e)
+        try:
+            util.mkfs('vfat', boot_device)
+        except Exception as e:
+            raise RuntimeError("Failed to create boot filesystem: %s" % e)
 
         # mount restore partition:
         dest_fs = util.TempMount(restore_partition, 'restore-dest-')
         efi_mounted = False
         try:
             mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            if efi_boot:
-                mounts['esp'] = os.path.join(dest_fs.mount_point, 'boot', 'efi')
-                os.makedirs(mounts['esp'])
-                util.mount(boot_device, mounts['esp'])
-                efi_mounted = True
+            mounts['esp'] = os.path.join(dest_fs.mount_point, 'boot', 'efi')
+            os.makedirs(mounts['esp'])
+            util.mount(boot_device, mounts['esp'])
+            efi_mounted = True
 
             # copy files from the backup partition to the restore partition:
             objs = [x for x in os.listdir(backup_fs.mount_point) if x not in ['lost+found', '.xen-backup-partition', '.xen-gpt.bin']]
@@ -135,18 +132,10 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
             util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
             util.bindMount("/proc", "%s/proc" % dest_fs.mount_point)
-            if boot_config.src_fmt == 'grub2':
-                if efi_boot:
-                    branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
-                    branding['product-brand'] = branding['PRODUCT_BRAND']
-                    backend.setEfiBootEntry(mounts, disk, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
-                else:
-                    if location == constants.BOOT_LOCATION_MBR:
-                        backend.installGrub2(mounts, disk, False)
-                    else:
-                        backend.installGrub2(mounts, restore_partition, True)
-            else:
-                backend.installExtLinux(mounts, disk, probePartitioningScheme(disk), location)
+
+            branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
+            branding['product-brand'] = branding['PRODUCT_BRAND']
+            backend.setEfiBootEntry(mounts, disk, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
@@ -164,7 +153,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
     if not label:
         raise RuntimeError("Failed to find label required for root filesystem.")
-    if efi_boot and not bootlabel:
+    if not bootlabel:
         raise RuntimeError("Failed to find label required for boot filesystem.")
 
     if util.runCmd2(['e2label', restore_partition, label]) != 0:

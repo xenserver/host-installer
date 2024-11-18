@@ -523,11 +523,6 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
 # This should be used for upgrade or install, not for restore.
 # Returns 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum'
 def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part):
-    logger.log("Installer booted in %s mode" % ("UEFI" if constants.UEFI_INSTALLER else "legacy"))
-    # XS9 only supports UEFI mode
-    if not constants.UEFI_INSTALLER:
-        raise RuntimeError("Installer did NOT booted in UEFI mode, please check the config.")
-
     primary_part = 1
     if existing:
         # upgrade, use existing partitioning scheme
@@ -1122,42 +1117,6 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
                             "-L", branding['product-brand'], "-l", '\\' + efi.replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
     check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
-
-def installGrub2(mounts, disk, force):
-    if force:
-        rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", "--force", disk], with_stderr=True)
-    else:
-        rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/grub-install", "--target=i386-pc", disk], with_stderr=True)
-    if rc != 0:
-        raise RuntimeError("Failed to install bootloader: %s" % err)
-
-def installExtLinux(mounts, disk, location=constants.BOOT_LOCATION_MBR):
-
-    # As of v4.02 syslinux installs comboot modules under /boot/extlinux/.
-    # However we continue to copy the ones we need to /boot so we can write the config file there.
-    # We need to do this because old installers are needed to restore old XS images from the backup
-    # partition, and these need to read the config on the current partition.  Oops.
-    # This also means we avoid find and fix all the other scripts which assume extlinux.conf is under /boot.
-
-    rc, err = util.runCmd2(["chroot", mounts['root'], "/sbin/extlinux", "--install", "/boot"], with_stderr=True)
-    if rc != 0:
-        raise RuntimeError("Failed to install bootloader: %s" % err)
-
-    for m in ["mboot", "menu", "chain"]:
-        if not os.path.exists("%s/%s.c32" % (mounts['boot'], m)):
-            os.link("%s/extlinux/%s.c32" % (mounts['boot'], m), "%s/%s.c32" % (mounts['boot'], m))
-
-    # must be able to restore pre-6.0 systems
-    base_dir = mounts['root'] + "/usr/share/syslinux"
-    if not os.path.exists(base_dir):
-        base_dir = mounts['root']+"/usr/lib/syslinux"
-    if location == constants.BOOT_LOCATION_MBR:
-        mbr = base_dir + "/mbr.bin"
-
-        # Write image to MBR
-        logger.log("Installing %s to %s" % (mbr, disk))
-        assert os.path.exists(mbr)
-        assert util.runCmd2(["dd", "if=%s" % mbr, "of=%s" % disk]) == 0
 
 ##########
 # mounting and unmounting of various volumes

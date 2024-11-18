@@ -63,6 +63,12 @@ class ExistingInstallation:
         self.mount_state()
         result = True
         try:
+            tool = PartitionTool(self.primary_disk)
+            boot_partnum = tool.partitionNumber(self.boot_device)
+            boot_part = tool.getPartition(boot_partnum)
+            if 'id' not in boot_part or boot_part['id'] != GPTPartitionTool.ID_EFI_BOOT:
+                result = False
+                logger.log("Boot partition is not set up for UEFI mode or missing EFI partition ID.")
             # CA-38459: handle missing firstboot directory e.g. Rio
             if os.path.exists(self.join_state_path('etc/firstboot.d/state')):
                 firstboot_files = [ f for f in os.listdir(self.join_state_path('etc/firstboot.d')) \

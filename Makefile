@@ -85,7 +85,5 @@ install:
 
 	patch < bootloader/grub-usb.patch $(DESTDIR)$(EFI_DIR)/grub-usb.cfg
 
-	$(INSTALL) -D -m644 bootloader/isolinux.cfg $(DESTDIR)/boot/isolinux/isolinux.cfg
-
 	printf "echo Skipping initrd creation in the installer\nexit 0\n" \
 	    > $(DESTDIR)/etc/dracut.conf.d/installer.conf
