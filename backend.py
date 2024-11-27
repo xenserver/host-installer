@@ -187,8 +187,7 @@ def getFinalisationSequence(ans):
                                'branding', 'net-admin-configuration', 'host-config', 'install-type'), []),
         Task(writeXencommons, A(ans, 'control-domain-uuid', 'mounts'), []),
         Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
-        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
-                              'fcoe-interfaces'), []),
+        Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk',
                                   'boot-partnum', 'primary-partnum', 'branding',
@@ -825,13 +824,22 @@ def createDom0DiskFilesystems(install_type, disk, boot_partnum, primary_partnum,
             finally:
                 mount.unmount()
 
-def __mkinitrd(mounts, partition, package, kernel_version, fcoe_interfaces):
+#pylint: disable=consider-using-f-string
+def _generateBFS(mounts, primary_disk): #pylint: disable=invalid-name
+    rv, wwid, err = util.runCmd2(["chroot", mounts["root"], "/usr/lib/udev/scsi_id",
+                               "-g", primary_disk], with_stdout=True, with_stderr=True)
+    if rv != 0:
+        raise RuntimeError("Failed to whitelist %s with error: %s" % (primary_disk, err) )
+
+    # Remove ending line breaker
+    wwid = wwid.strip()
+
+    util.runCmd2(["chroot", mounts["root"], "/usr/sbin/multipath", "-a", wwid])
+
+def __mkinitrd(mounts, primary_disk, partition, kernel_version):
     if isDeviceMapperNode(partition):
-        # Generate a valid multipath configuration for the initrd
-        action = 'generate-fcoe' if fcoe_interfaces else 'generate-bfs'
-        if util.runCmd2(['chroot', mounts['root'],
-                         '/etc/init.d/sm-multipath', action]) != 0:
-            raise RuntimeError("Failed to generate multipath configuration")
+        # Generate a valid multipath configuration
+        _generateBFS(mounts, primary_disk)
 
     # Run dracut inside dom0 chroot
     output_file = os.path.join("/boot", "initrd-%s.img" % kernel_version)
@@ -933,7 +941,7 @@ def configureISCSI(mounts, primary_disk):
     if isDeviceMapperNode(primary_disk):
         adjustISCSITimeoutForFile("%s/etc/iscsi/iscsid.conf" % mounts['root'])
 
-def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
+def mkinitrd(mounts, primary_disk, primary_partnum):
     xen_version = getXenVersion(mounts['root'])
     if xen_version is None:
         raise RuntimeError("Unable to determine Xen version.")
@@ -943,7 +951,7 @@ def mkinitrd(mounts, primary_disk, primary_partnum, fcoe_interfaces):
     partition = partitionDevice(primary_disk, primary_partnum)
 
 
-    __mkinitrd(mounts, partition, 'kernel-xen', xen_kernel_version, fcoe_interfaces)
+    __mkinitrd(mounts, primary_disk, partition, xen_kernel_version)
 
 def prepFallback(mounts, primary_disk, primary_partnum):
     kernel_version =  getKernelVersion(mounts['root'])
