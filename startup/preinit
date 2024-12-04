@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: GPL-2.0-only
 
-. /etc/init.d/installer-functions
+. /opt/xensource/installer/functions
 
 # Test if started by systemd (or recursively by preinit)
 if [ "$1" == "--" ] ; then
