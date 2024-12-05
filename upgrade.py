@@ -477,11 +477,6 @@ class ThirdGenUpgrader(Upgrader):
             if util.runCmd2("tar -C '%s' -c -T - | tar -C '%s' -x" % (primary_fs.mount_point, backup_dir), inputtext='\n'.join(files_list)) != 0:
                 raise RuntimeError("Backup failed")
             progress_callback(100)
-
-            # save the GPT table
-            rc, err = util.runCmd2(["sgdisk", "-b", os.path.join(backup_dir, '.xen-gpt.bin'), target_disk], with_stderr=True)
-            if rc != 0:
-                raise RuntimeError("Failed to save partition layout: %s" % err)
         finally:
             primary_fs.unmount()
 
