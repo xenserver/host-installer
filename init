@@ -64,8 +64,8 @@ def configureNetworking(ui, device, config):
     netutil.writeNetInterfaceFiles(netcfg)
     netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
-    # Restart systemd-networkd serivce to apply the configuration
-    netutil.reloadSystemdNetworkdService()
+    # Reload network to apply the configuration
+    netutil.reloadNetwork()
 
     iface_to_start = []
     if device == 'all':
