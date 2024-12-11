@@ -63,15 +63,15 @@ install:
 	    $(DESTDIR)/etc/dracut.conf.d \
 	    $(DESTDIR)/etc/systemd/system/systemd-udevd.d
 
-	$(INSTALL) -m755 startup/interface-rename-sideway startup/early-blacklist $(DESTDIR)/$(INSTALLER_DIR)
+	$(INSTALL) -m755 startup/interface-rename-sideway $(DESTDIR)/$(INSTALLER_DIR)
 	$(INSTALL) -m644 startup/functions $(DESTDIR)/$(INSTALLER_DIR)
-	$(INSTALL) -m644 startup/early-blacklist.conf startup/bnx2x.conf $(DESTDIR)/etc/modprobe.d/
+	$(INSTALL) -m644 startup/bnx2x.conf $(DESTDIR)/etc/modprobe.d/
 	$(INSTALL) -m644 startup/blacklist $(DESTDIR)/etc/modprobe.d/installer-blacklist.conf
 	$(INSTALL) -m644 startup/modprobe.mlx4 $(DESTDIR)/etc/modprobe.d/mlx4.conf
 	$(INSTALL) -m644 startup/iscsi-modules $(DESTDIR)/etc/modules-load.d/iscsi.conf
 	$(INSTALL) -m755 startup/preinit startup/S05ramdisk $(DESTDIR)/$(INSTALLER_DIR)/
 	$(INSTALL) -m644 startup/systemd-udevd_depmod.conf $(DESTDIR)/etc/systemd/system/systemd-udevd.d/installer.conf
-	$(INSTALL) -m644 startup/early-blacklist.service startup/interface-rename-sideway.service $(DESTDIR)/$(SERVICE_DIR)
+	$(INSTALL) -m644 startup/interface-rename-sideway.service $(DESTDIR)/$(SERVICE_DIR)
 
  # Generate a multipath configuration from sm's copy, removing
  # the blacklist and blacklist_exception sections.
