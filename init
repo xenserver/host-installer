@@ -61,11 +61,8 @@ def configureNetworking(ui, device, config):
             netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr,
                                      vlan=config_dict['vlan'])
 
-    netutil.writeNetInterfaceFiles(netcfg)
     netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
 
-    # Reload network to apply the configuration
-    netutil.reloadNetwork()
 
     iface_to_start = []
     if device == 'all':
@@ -83,6 +80,10 @@ def configureNetworking(ui, device, config):
     for i in iface_to_start:
         netutil.ifup(netcfg[i].getInterfaceName(i))
         netcfg[i].waitUntilUp(i)
+        netcfg[i].writeSystemdNetworkdConfig(i)
+
+    # Reload network to apply the configuration
+    netutil.reloadNetwork()
 
     if ui:
         ui.progress.clearModelessDialog()
