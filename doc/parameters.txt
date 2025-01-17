@@ -143,12 +143,14 @@ Installer
     Retrieve script, run it and use the output of it as an answerfile.
 
 
-  --answerfile_device[D]=eth|mac|all | --network_device=eth|mac|all
+  --network_device=eth|mac|all
+  --answerfile_device=eth|mac|all [D]
 
-    Bring up networking on the given interface to allow access to
-    answerfiles.
+    Bring up networking on the given interface, notably to be able to
+    connect to the machine while being installed (also see `sshpassword`).
 
-    Default: all
+    Default: "all" when a non-file:// URL is specified for one of the
+    three answerfile options above, "" otherwise.
 
 
   --map_netdev=eth:d|s:mac|pci[[index]]|ppn
