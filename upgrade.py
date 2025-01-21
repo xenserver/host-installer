@@ -151,9 +151,9 @@ class Upgrader(object):
 
         # Copy attributes from a path in a source root to another path in a
         # destination root. 
-        # - The ownership is copied such that it is notaffected by changes 
-        #   in the underlying uid/gid. Or it's set to the specified.
-        # - The mode is set to the specified.
+        # - The ownership is copied such that it is not affected by changes 
+        #   in the underlying uid/gid. Or it's set to the specified one.
+        # - The mode is set to the specified one if present.
         def copy_attributes(src_root, src_path, dst_root, dst_path, attr=None):
             dst_f = '%s/%s' % (dst_root, dst_path)
 
