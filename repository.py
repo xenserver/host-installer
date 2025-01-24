@@ -783,7 +783,7 @@ def findRepositoriesOnMedia(drivers=False):
 def installFromYum(targets, mounts, progress_callback, cachedir):
         # Use a temporary file to avoid deadlocking
         stderr = tempfile.TemporaryFile()
-        dnf_cmd = ['dnf', '--releasever=/', '-c', '/root/yum.conf',
+        dnf_cmd = ['dnf', '--releasever=/', '--config=/root/yum.conf',
                        '--installroot', mounts['root'],
                        'install', '-y'] + targets
         logger.log("Running : %s" % ' '.join(dnf_cmd))
