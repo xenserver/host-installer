@@ -829,7 +829,7 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
             logger.log("DNF exited with %d" % rv)
             raise ErrorInstallingPackage("Error installing packages")
 
-        shutil.rmtree(os.path.join(mounts['root'], cachedir))
+        shutil.rmtree(os.path.join(mounts['root'], cachedir), ignore_errors=True)
 
 def installFromRepos(progress_callback, repos, mounts):
     """Install from a stacked set of repositories"""
