@@ -4,9 +4,6 @@ INSTALLER_DIR = /opt/xensource/installer
 EFI_DIR = /EFI/xenserver
 SERVICE_DIR = usr/lib/systemd/system
 
-# root of a tree with sm.rpm unpacked
-SM_ROOTDIR =
-
 INSTALL = install
 
 install:
@@ -73,10 +70,10 @@ install:
 	$(INSTALL) -m644 startup/systemd-udevd_depmod.conf $(DESTDIR)/etc/systemd/system/systemd-udevd.d/installer.conf
 	$(INSTALL) -m644 startup/interface-rename-sideway.service $(DESTDIR)/$(SERVICE_DIR)
 
- # Generate a multipath configuration from sm's copy, removing
+ # Generate a multipath configuration from the installed copy, removing
  # the blacklist and blacklist_exception sections.
 	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)yes/\1no/' \
-	    < $(SM_ROOTDIR)/etc/multipath.xenserver/multipath.conf \
+	    < /etc/multipath.conf \
 	    > $(DESTDIR)/etc/multipath.conf.disabled
 
  # bootloader files
