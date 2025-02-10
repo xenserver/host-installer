@@ -1044,6 +1044,12 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  root=constants.rootfs_label%disk_label_suffix)
         boot_config.append("safe", e)
 
+    e = bootloader.MenuEntry(hypervisor="", hypervisor_args="", kernel="/boot/memtest86+x64.efi",
+                            kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                            initrd="", title="Memtest86+ (UEFI)",
+                            root=constants.rootfs_label%disk_label_suffix)
+    boot_config.append("memtest", e)
+
     e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.gz",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                              kernel="/boot/vmlinuz-fallback",
