@@ -88,7 +88,7 @@ def reloadNetwork(timeout=20):
     """ Use networkctl to reload the configuration """
     util.runCmd2(["networkctl", "reload"])
     # Command return immediately, wait until network is up
-    ret = util.runCmd2(["/usr/lib/systemd/systemd-networkd-wait-online", f"--timeout={timeout}"])
+    ret = util.runCmd2(["/usr/lib/systemd/systemd-networkd-wait-online", "--ipv4", f"--timeout={timeout}"])
     if ret:
         LOG.error(f"Timeout {timeout} waiting for network online")
     return ret
