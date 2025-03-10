@@ -97,6 +97,10 @@ reposdir=/tmp/repos
 history_record=false
 """ % cachedir
 
+def _quoteDnfString(s):
+    return '"' + s.replace('\\', '\\\\').replace('\"', '\\"') + '"'
+
+
 _yumRepositoryId = 1
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
@@ -191,10 +195,10 @@ baseurl=%s
 """ % url.getPlainURL())
             username = url.getUsername()
             if username is not None:
-                yum_conf.write("username=%s\n" % (url.getUsername(),))
+                yum_conf.write("username=%s\n" % _quoteDnfString(username))
             password = url.getPassword()
             if password is not None:
-                yum_conf.write("password=%s\n" % (url.getPassword(),))
+                yum_conf.write("password=%s\n" % _quoteDnfString(password))
             repo_config = self._repo_config()
             if repo_config is not None:
                 yum_conf.write(repo_config)
@@ -422,10 +426,10 @@ baseurl=%s
 """ % url.getPlainURL())
                 username = url.getUsername()
                 if username is not None:
-                    yum_conf.write("username=%s\n" % (url.getUsername(),))
+                    yum_conf.write("username=%s\n" % _quoteDnfString(username))
                 password = url.getPassword()
                 if password is not None:
-                    yum_conf.write("password=%s\n" % (url.getPassword(),))
+                    yum_conf.write("password=%s\n" % _quoteDnfString(password))
 
             # Check that the drivers group exists in the repo.
             rv, out = util.runCmd2(['yum', '-c', '/root/yum.conf',
@@ -851,10 +855,10 @@ baseurl=%s
 """ % (repo.identifier(), repo.identifier(), url.getPlainURL()))
                 username = url.getUsername()
                 if username is not None:
-                    yum_conf.write("username=%s\n" % (url.getUsername(),))
+                    yum_conf.write("username=%s\n" % _quoteDnfString(username))
                 password = url.getPassword()
                 if password is not None:
-                    yum_conf.write("password=%s\n" % (url.getPassword(),))
+                    yum_conf.write("password=%s\n" % _quoteDnfString(password))
                 repo_config = repo._repo_config()
                 if repo_config is not None:
                     yum_conf.write(repo_config)
