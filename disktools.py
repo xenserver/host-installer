@@ -804,11 +804,12 @@ class DOSPartitionTool(PartitionToolBase):
         for line in out.split("\n"):
             if line == '' or line[0] == '#':
                 pass # Skip comments and blank lines
-            elif state == 0:
-                if line != 'unit: sectors':
-                    raise Exception("Expecting 'unit: sectors' but got '"+line+"'")
+            elif state == 0 and line == 'unit: sectors':
                 state += 1
             elif state == 1:
+                infos = line.split(': ', 1)
+                if len(infos) > 1 and infos[0] in ['sector-size']:
+                    continue
                 matches = re.match(r'(.*?)\s*:\s*start=\s*(\d+),\s*size=\s*(\d+),\s*Id=\s*(\w+)\s*(,\s*bootable)?', line)
                 if matches:
                     idt = int(matches.group(4), 16) # Base 16
@@ -833,6 +834,8 @@ class DOSPartitionTool(PartitionToolBase):
                         'active': active,
                         'hidden': hidden
                         }
+        if state != 1:
+            raise Exception("Expected 'unit: sectors' line")
         return partitions
 
     def commitActivePartitiontoDisk(self, part_num):
