@@ -479,7 +479,7 @@ class ThirdGenUpgrader(Upgrader):
         backup_dir = "/tmp/fs_backup"
 
         files_list = ['etc/passwd', 'etc/group']
-        def restore_file(src_base, f, d):
+        def restore_file(src_base, f, d=None, attr=None):
             src = os.path.join(src_base, f)
             if os.path.exists(src):
                 files_list.append(f)
