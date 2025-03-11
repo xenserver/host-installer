@@ -310,7 +310,7 @@ class MainYumRepository(YumRepositoryWithInfo):
             try:
                 infh = self._accessor.openAddress(keyfile)
                 key_path = os.path.join('/root', os.path.basename(keyfile))
-                outfh = open(key_path, "w")
+                outfh = open(key_path, "wb")
                 outfh.write(infh.read())
                 return """
 gpgcheck=1
