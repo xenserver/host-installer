@@ -261,7 +261,7 @@ def fetchFile(source, dest):
             url = URL(source)
             if url.getScheme() in ['http', 'https'] and url.getUsername(): # Auth HTTP(s)
                 passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
-                passman.add_password(None, url.getHostname(), url.getUsername(), url.getPassword())
+                passman.add_password(None, url.getBaseURL(), url.getUsername(), url.getPassword())
                 handler = urllib2.HTTPBasicAuthHandler(passman)
                 urllib2.install_opener(urllib2.build_opener(handler))
                 request = url.getPlainURL()
@@ -438,3 +438,10 @@ class URL(object):
             assert self.password is None
 
             return self.url
+
+    def getBaseURL(self):
+        """Get the URL with schema and network location without username/password."""
+
+        url = self.getPlainURL()
+        parts = urllib.parse.urlsplit(url)
+        return urllib.parse.urlunsplit(urllib.parse.SplitResult(parts.scheme, parts.netloc, '', '', ''))
