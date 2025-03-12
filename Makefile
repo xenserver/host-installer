@@ -3,6 +3,8 @@ DESTDIR =
 INSTALLER_DIR = /opt/xensource/installer
 EFI_DIR = /EFI/xenserver
 SERVICE_DIR = usr/lib/systemd/system
+# multipath.conf to be taken as a base
+XS_MPATH_CONF = /etc/multipath.conf
 
 INSTALL = install
 
@@ -73,7 +75,7 @@ install:
  # Generate a multipath configuration from the installed copy, removing
  # the blacklist and blacklist_exception sections.
 	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)yes/\1no/' \
-	    < /etc/multipath.conf \
+	    < $(XS_MPATH_CONF) \
 	    > $(DESTDIR)/etc/multipath.conf.disabled
 
  # bootloader files
