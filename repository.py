@@ -636,10 +636,10 @@ class URLAccessor(Accessor):
             username = self._url.getUsername()
             if username is not None:
                 logger.log("Using basic HTTP authentication")
-                hostname = self._url.getHostname()
+                baseUrl = self._url.getBaseURL()
                 password = self._url.getPassword()
                 self.passman = urllib.request.HTTPPasswordMgrWithDefaultRealm()
-                self.passman.add_password(None, hostname, username, password)
+                self.passman.add_password(None, baseUrl, username, password)
                 self.authhandler = urllib.request.HTTPBasicAuthHandler(self.passman)
                 self.opener = urllib.request.build_opener(self.authhandler)
                 urllib.request.install_opener(self.opener)
