@@ -809,7 +809,10 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
                 progress_callback(10 + int((count * 80.0) / total))
 
         while True:
-            line = p.stdout.readline()
+            try:
+                line = p.stdout.readline()
+            except UnicodeDecodeError as e:
+                continue
             if not line:
                 break
             line = line.rstrip()
