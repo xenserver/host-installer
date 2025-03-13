@@ -791,11 +791,23 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
                        '--installroot', mounts['root'],
                        'install', '-y'] + targets
         logger.log("Running : %s" % ' '.join(dnf_cmd))
-        p = subprocess.Popen(dnf_cmd, stdout=subprocess.PIPE, stderr=stderr, universal_newlines=True)
+        p = subprocess.Popen(dnf_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
         count = 0
         total = 0
         verify_count = 0
         progressLine = re.compile('.*?(\d+)/(\d+)$')
+        progressLineV5 = re.compile(r'^\[ *(\d+)/(\d+)\] (Installing|Upgrading) ')
+
+        def updateInstallProgress(m):
+            nonlocal total
+            nonlocal count
+            if m is not None:
+                count = int(m.group(1))
+                total = int(m.group(2))
+            if total > 0:
+                # installation, from 10% to 90%
+                progress_callback(10 + int((count * 80.0) / total))
+
         while True:
             line = p.stdout.readline()
             if not line:
@@ -813,16 +825,15 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
             elif line.startswith('Installing : ') or line.startswith('Updating : '):
                 count += 1
                 m = progressLine.match(line)
-                if m is not None:
-                    count = int(m.group(1))
-                    total = int(m.group(2))
-                if total > 0:
-                    # installation, from 10% to 90%
-                    progress_callback(10 + int((count * 80.0) / total))
+                updateInstallProgress(m)
             elif line.startswith('Verifying : '):
                 verify_count += 1
                 # verification, from 90% to 100%
                 progress_callback(90 + int((verify_count * 10.0) / total))
+            else:
+                m = progressLineV5.match(line)
+                total = 0
+                updateInstallProgress(m)
         rv = p.wait()
         stderr.seek(0)
         stderr = stderr.read()
