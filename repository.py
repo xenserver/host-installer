@@ -797,7 +797,10 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
         verify_count = 0
         progressLine = re.compile('.*?(\d+)/(\d+)$')
         while True:
-            line = p.stdout.readline()
+            try:
+                line = p.stdout.readline()
+            except:
+                continue
             if not line:
                 break
             line = line.rstrip()
