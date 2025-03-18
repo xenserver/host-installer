@@ -1,0 +1,351 @@
+# https://packaging.python.org/en/latest/specifications/pyproject-toml/
+[project]
+name = "host-installer"
+requires-python = ">=3.6.0"
+license = {file = "LICENSE"}
+keywords = ["xenserver", "xen-project", "Xen", "hypervisor"]
+maintainers = [
+    {name = "Frediano Ziglio"},
+    {name = "Gerald Elder-Vass"},
+    {name = "Ross Lagerwall"},
+]
+# https://pypi.org/classifiers/
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: POSIX :: Linux :: XenServer Dom0",
+    "Operating System :: POSIX :: Linux :: XCP-ng Dom0",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = [
+    "xcp @  git+https://github.com/xenserver/python-libs.git@master"
+
+    # Snack is a Python binding for Newt, it is not on pypi:
+    # Newt is the console UI framework used in Redhat console applications:
+    # "snack", # Debian: "python3-newt". Upstream source:
+    # https://pagure.io/newt/blob/master/f/snack.py
+]
+
+[project.urls]
+homepage = "https://github.com/xenserver/host-installer"
+repository = "https://github.com/xenserver/host-installer"
+
+
+# ---------------------------------------------------------------------------------
+# In case of using the black code formatter (or darker to format only changes),
+# this sets the line line length to use. 88 is the standard of black that has
+# been established on very large codebases black is used on:
+# ---------------------------------------------------------------------------------
+
+[tool.black]
+line-length = 88
+
+# ---------------------------------------------------------------------------------
+# The matching configuration for isort in case of using it for consistent imports:
+# ---------------------------------------------------------------------------------
+
+[tool.isort]
+line_length = 88
+py_version = 36
+profile = "black"
+combine_as_imports = true
+ensure_newline_before_comments = false
+
+# -----------------------------------------------------------------------------
+# Mypy static analysis - https://mypy.readthedocs.io/en/stable/config_file.html
+# -----------------------------------------------------------------------------
+
+[tool.mypy]
+files = [
+     "*.py",
+]
+pretty = true
+mypy_path = "."
+error_summary = true
+strict_equality = true
+show_error_codes = true
+show_error_context = true
+show_error_code_links = true
+# Check the contents of untyped functions in all modules by default:
+check_untyped_defs = true
+scripts_are_modules = true
+python_version = "3.11"
+warn_return_any = true
+warn_unreachable = true
+warn_unused_configs = true
+warn_redundant_casts = true
+disallow_any_explicit = false
+disallow_any_generics = true
+disallow_any_unimported = true
+disallow_subclassing_any = true
+disable_error_code = [
+    "assignment",
+    "name-defined",
+    "union-attr",
+    "import-not-found",
+    "index",
+    "explicit-override",
+    "misc",
+    "arg-type",
+    "call-overload",
+    "no-untyped-call",
+    "no-untyped-def",
+    "return-value",
+    "import-untyped",
+    "var-annotated",
+    # "attr-defined",
+]
+
+
+[[tool.mypy.overrides]]
+module = ["diskutil"]
+disable_error_code = [
+    "comparison-overlap",  # FIXME: str compared to major device numbers integers
+    "operator",  # FIXME: likewise, but also other warnings
+]
+
+[[tool.mypy.overrides]]
+module = ["install", "tui.installer.screens"]
+disable_error_code = [
+    "truthy-function",  # FIXME: if get_type: is used where get_type is never false/none.
+    "str-format", # FIXME: Not all arguments converted using %s during string formatting
+    "operator",
+]
+
+[[tool.mypy.overrides]]
+module = ["answerfile"]
+disable_error_code = [
+    # List item 2 has incompatible type "tuple[str, str]"; expected "tuple[str, int]"
+    "list-item",
+]
+
+[[tool.mypy.overrides]]
+module = ["upgrade"]
+disable_error_code = [
+    "list-item",  # var used as str and list: incompatible type "dict[str, str]"; expected "str"
+    "override",
+    "type-arg",
+]
+
+[[tool.mypy.overrides]]
+module = ["repository", "fcoeutil"]
+disable_error_code = [
+    "has-type",
+    "call-arg",
+    "type-arg",
+    "unreachable",  # FIXME: unreachable code to be fixed
+    "operator",
+]
+
+
+[[tool.mypy.overrides]]
+module = ["generalui", "init"]
+disable_error_code = [
+    # init: note: In function "main":
+    # init:130: error: If x = b'abc' then "%s" % x produces "b'abc'", not "abc". If
+    # this is desired behavior use "%r" % x. Otherwise, decode the bytes
+    # [str-bytes-safe]
+    #         logger.log("Installer Version %s" % (installer_version,))
+    # "str-bytes-safe",
+    "unreachable",  # FIXME: unreachable code to be fixed
+]
+
+
+# -----------------------------------------------------------------------------
+# Pylint - https://pylint.pycqa.org/en/latest/technical_reference/features.html
+# -----------------------------------------------------------------------------
+
+[tool.pylint.design]
+max-branches = 43                  # perfmon has 43 branches in a function
+
+
+[tool.pylint.messages_control]
+disable = [
+
+    #
+    # Consider to fix these when lines with these are changed,
+    # so they are not disabled by default:
+    #
+
+    #
+    # Unused code
+    #
+    "unused-argument",  # allocCancel not used
+    "unused-variable",
+    "unused-import",
+
+    "bad-indentation",
+    "trailing-newlines",
+    "trailing-whitespace",
+
+    "superfluous-parens",
+
+    "ungrouped-imports",
+    "consider-using-from-import",
+
+    "using-constant-test",
+    "reimported",
+    "anomalous-backslash-in-string",
+    "inconsistent-return-statements",
+    "unidiomatic-typecheck",
+    
+    "multiple-statements",
+    "chained-comparison",
+    "line-too-long",
+
+    "redefined-outer-name",
+    "undefined-variable",   # from the use of urllib2 (which does not exist in py3)
+    "unnecessary-lambda",
+    "unnecessary-lambda-assignment",
+    "pointless-string-statement",
+    # "unknown-option-value",
+    "singleton-comparison",
+
+    #
+    # Those should be fixed by using isort:
+    #
+    "multiple-imports",
+    "wildcard-import",
+    "wrong-import-order",
+    "wrong-import-position",
+
+    #
+    # Stylistic recommendations
+    #
+    "consider-using-in",
+    "consider-using-max-builtin",
+    "consider-using-min-builtin",
+    "consider-using-enumerate",
+    "consider-using-ternary",
+    "consider-using-dict-items",
+    "consider-using-set-comprehension",
+    "consider-iterating-dictionary",
+    "consider-using-generator",
+    "simplify-boolean-expression",
+    "assignment-from-none",
+    "possibly-used-before-assignment",
+    "arguments-differ",
+    "arguments-renamed",
+
+    "unused-wildcard-import",  # This could be a false positive, so be careful.
+
+    #
+    # Usually it's a good idea to add some module, cass and function docstrings
+    #
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+
+    #
+    # Suggested cleanups
+    #
+    "fixme",
+    "redefined-builtin",            # Redefines of "help"
+
+    #
+    # Fixing them is best done during a later code cleanup:
+    #
+
+    "attribute-defined-outside-init",  # Careful: Code make check if the attr exists!
+    "global-statement",
+    "cyclic-import",
+    "broad-exception-caught",
+    "broad-exception-raised",
+    "bare-except",
+    "raise-missing-from",
+    "dangerous-default-value",
+    "cell-var-from-loop",
+    "missing-parentheses-for-call-in-test",
+    "super-init-not-called",
+    "unbalanced-tuple-unpacking",
+    "used-before-assignment",
+    "global-variable-not-assigned",
+    "global-variable-undefined",
+    "consider-using-with",         # but like with, best done during code cleanup phase
+    "duplicate-code",              # likewise. This is a code cleanup task
+    "import-error",                # pylint does not do inter-procedural analysis
+    "invalid-name",                # doesn't conform to snake_case naming style
+    "no-member",                   # Existing code breaches this, not part of cleanup
+    "protected-access",            # Best done during the code cleanup phase
+    "super-with-arguments",        # Consider using Python 3 style super(no args) calls
+    "too-few-public-methods",      # Some classes only overload private methods, is fine
+    "too-many-branches",           # Existing code breaches this, not part of cleanup
+    "too-many-arguments",          # Likewise, not part of cleanup
+    "too-many-positional-arguments",# Likewise, not part of cleanup
+    "too-many-lines",              # Likewise, not part of cleanup
+    "too-many-locals",             # Likewise, not part of cleanup
+    "too-many-nested-blocks",
+    "too-many-instance-attributes",
+    "too-many-public-methods",
+    "too-many-statements",         # Likewise, not part of cleanup
+
+    #
+    # Superfluous cleanups that might hurt code formatting if changed:
+    #
+    "no-else-break",               # else clauses after breaks
+    "no-else-return",              # else clauses after returns
+    "no-else-raise",               # else clauses after raises
+
+    #
+    # Skip those until Python2 support is obsolete
+    #
+    "unspecified-encoding",
+    "useless-object-inheritance",  # Needed when using Python2
+    "no-staticmethod-decorator",
+    "no-classmethod-decorator",
+    "consider-using-f-string",     # f-strings are in Python 3.6 but not in Python2
+]
+
+
+# -----------------------------------------------------------------------------
+# Pyright is the static analysis behind the VSCode Python extension / Pylance
+# https://microsoft.github.io/pyright/#/configuration
+# It is not used in pre-commit or github CI yet. Add defaults so VSCode does
+# not suggest to code make changes that only work for latest Python versions:
+# -----------------------------------------------------------------------------
+[tool.pyright]
+pythonVersion        = "3.6"
+extraPaths = ["."]
+include = [
+    "*.py",
+    "tui/*.py",
+]
+exclude = [
+    "tui/installer/screens.py",
+    "tui/installer/__init__.py",
+]
+pythonPlatform = "Linux"
+reportFunctionMemberAccess = true
+reportGeneralTypeIssues = "warning"
+reportOptionalMemberAccess = "information"
+reportPrivateUsage = true
+reportCallIssue = "information"
+reportIndexIssue = "information"
+reportPropertyTypeMismatch = true
+reportMissingImports = "information"
+reportUndefinedVariable = "information"
+reportPossiblyUnboundVariable = "information"
+reportIncompatibleMethodOverride = "warning"
+reportAssignmentType = "warning"
+
+# -----------------------------------------------------------------------------
+# pytype: Google's static type analyzer - https://google.github.io/pytype/
+# -----------------------------------------------------------------------------
+
+[tool.pytype]
+pythonpath = "."
+platform = "linux"
+inputs = ["."]
+disable = [
+    # Reduce noise from python scripts(import yum, xenfsimage, xcp, urlgrabber)
+    "import-error",
+    "pyi-error",
+    "name-error",  # util.py fetchFile: Name 'urllib2' is not defined",
+
+    # Other warnings that may be looked at:
+
+    "signature-mismatch",  # Two functions are missing a default argument
+    "wrong-arg-types",  # Likely needs fixes for Python3
+    "module-attr",  # Remove call to deleted function diskutil.rfc4173_to_disk
+    "attribute-error",
+    "unsupported-operands",
+]

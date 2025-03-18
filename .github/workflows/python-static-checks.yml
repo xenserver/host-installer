@@ -1,0 +1,104 @@
+#--------------------------------------------------------------------------------------
+# This GitHub Actions workflow can be run locally using https://github.com/nektos/act
+#
+# act normally uses docker, but it can also be run using podman on Fedora 37:
+# dnf install act-cli podman
+# podman system service -t 0 &
+# act --bind --container-daemon-socket $XDG_RUNTIME_DIR/podman/podman.sock -W .github/workflows/main.yml
+#--------------------------------------------------------------------------------------
+name: "Python code checks"
+#
+# The GitHub events that trigger this workflow:
+# Checks can be skipped by adding "skip-checks: true" to a commit message,
+# or requested by adding "request-checks: true" if disabled by default for pushes:
+# https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks#skipping-and-requesting-checks-for-individual-commits
+#
+on: [pull_request]
+
+#
+# Cancel a currently running workflow from the same PR, branch or tag
+# when a new workflow is triggered:
+# https://stackoverflow.com/questions/66335225/how-to-cancel-previous-runs-in-the-pr-when-you-push-new-commitsupdate-the-curre
+#
+concurrency:
+  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+
+jobs:
+  python-test:
+    name: Python tests
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      pull-requests: write # allow commenting on the PR
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # To check which files changed: origin/master..HEAD
+
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+          cache: 'pip' # caching pip dependencies
+
+
+      - uses: actions/cache@v4
+        name: Setup cache for running pre-commit fast
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+
+
+      - run: echo "::add-matcher::.github/workflows/python-warning-matcher.json"
+        name: "Setup GitHub for reporting Python warnings as annotations in pull request code review"
+
+
+      - run: pip install mypy types-simplejson git+https://github.com/xenserver/python-libs.git@master
+        name: "Install types-simplejson and xcp-python-libs for mypy"
+
+
+      # https://github.com/tsuyoshicho/action-mypy:
+      - uses: tsuyoshicho/action-mypy@v5
+        with:
+          github_token: ${{ secrets.github_token }}
+          install_types: false
+          output_json: true
+          # reviewdog reporters: github-pr-check,github-check,github-pr-review]
+          reporter: github-pr-review
+          fail_on_error: false
+          mypy_flags: "--config=ci/mypy-for-changes.ini"
+          # Change reporter level if you needed: info,warning,error
+          level: error
+
+
+      - uses: dciborow/action-pylint@0.1.1
+        name: Run pylint PR review and add annotations to PR using the GitHub Checks API
+        with:
+          github_token: ${{ secrets.github_token }}
+          # reviewdog reporters: github-pr-check,github-check,github-pr-review]
+          reporter: github-pr-review
+          level: error
+          fail_on_error: false
+
+
+      - uses: jordemort/action-pyright@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }} # You need this
+          reporter: github-pr-review
+          lib: true
+
+
+      - uses: pre-commit/action@v3.0.1
+        name: Run pre-commit checks (mypy, pylint, pytype) to ensure local checks continue to pass
+        env:
+          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          extra_args: --all-files --verbose --hook-stage commit
