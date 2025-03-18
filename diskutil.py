@@ -289,9 +289,9 @@ def getDiskBlockSize(dev):
         dev = '/dev/' + dev
     if isDeviceMapperNode(dev):
         return getDiskBlockSize(getDeviceSlaves(dev)[0])
-    if dev.startswith("/dev/"):
-        dev = re.match("/dev/(.*)", dev).group(1)
-    dev = dev.replace("/", "!")
+
+    realpath = os.path.realpath(dev)
+    dev = os.path.basename(realpath)
     return int(__readOneLineFile__("/sys/block/%s/queue/logical_block_size"
                                    % dev))
 
