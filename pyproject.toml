@@ -321,8 +321,14 @@ reportPrivateUsage = true
 reportCallIssue = "information"
 reportIndexIssue = "information"
 reportPropertyTypeMismatch = true
-reportMissingImports = "information"
-reportUndefinedVariable = "information"
+# This check appears to be too strict and triggers many warnings:
+reportArgumentType = "none"
+# Many missing imports due to not yet having a stub for version.py yet:
+reportMissingImports = "none"
+# Likewise, this is due to 'from version and snack import *':
+reportUndefinedVariable = "none"
+# from version and snack import * is normal practise in host-installer...:
+reportWildcardImportFromLibrary = "none"
 reportPossiblyUnboundVariable = "information"
 reportIncompatibleMethodOverride = "warning"
 reportAssignmentType = "warning"

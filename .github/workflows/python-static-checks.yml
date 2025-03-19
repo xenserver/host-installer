@@ -73,10 +73,11 @@ jobs:
           output_json: true
           # reviewdog reporters: github-pr-check,github-check,github-pr-review]
           reporter: github-pr-review
-          fail_on_error: false
+          # https://lornajane.net/posts/2024/reviewdog-filter-settings-with-github-actions
+          # Use filter_mode: nofilter to test the action works and adds review comments
+          # Note: GitHub Actions only adds 10 annotations per level to code review:
+          filter_mode: nofilter
           mypy_flags: "--config=ci/mypy-for-changes.ini"
-          # Change reporter level if you needed: info,warning,error
-          level: error
 
 
       - uses: dciborow/action-pylint@0.1.1
@@ -85,15 +86,23 @@ jobs:
           github_token: ${{ secrets.github_token }}
           # reviewdog reporters: github-pr-check,github-check,github-pr-review]
           reporter: github-pr-review
-          level: error
-          fail_on_error: false
+          # https://lornajane.net/posts/2024/reviewdog-filter-settings-with-github-actions
+          # Use filter_mode: nofilter to test the action works and adds review comments
+          # Note: GitHub Actions only adds 10 annotations per level to code review:
+          filter_mode: nofilter
 
 
       - uses: jordemort/action-pyright@v1
+        name: Run pyright PR review and add annotations to PR using the GitHub Checks API
+        continue-on-error: true
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }} # You need this
           reporter: github-pr-review
           lib: true
+          # https://lornajane.net/posts/2024/reviewdog-filter-settings-with-github-actions
+          # Use filter_mode: nofilter to test the action works and adds review comments
+          # Note: GitHub Actions only adds 10 annotations per level to code review:
+          filter_mode: nofilter
 
 
       - uses: pre-commit/action@v3.0.1
