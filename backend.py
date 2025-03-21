@@ -1304,7 +1304,7 @@ def configureCC(mounts):
     with open(CC_FIREWALL_CONF, 'rb') as conf:
         rules = conf.read()
     with open(os.path.join(mounts['root'], 'etc', 'sysconfig', 'iptables'), 'wb') as out:
-        out.write(rules.replace('@SSH_RULE@', ssh_rule))
+        out.write(rules.replace(b'@SSH_RULE@', ssh_rule.encode()))
 
 def writeResolvConf(mounts, hn_conf, ns_conf):
     (manual_hostname, hostname) = hn_conf
