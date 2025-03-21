@@ -81,7 +81,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             try:
                 util.mkfs(restore_fs_type, logs_partition)
             except OSError as e:
-                raise RuntimeError("Failed to format logs filesystem (%s): %s" % (fs_type, e))
+                raise RuntimeError("Failed to format logs filesystem (%s): %s" % (restore_fs_type, e))
 
         try:
             util.mkfs('vfat', boot_device)
