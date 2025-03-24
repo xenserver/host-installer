@@ -45,13 +45,13 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                len(answers['backups']) == 0
 
     def upgrade_but_no_settings_predicate(answers):
-        return answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
+        return answers['install-type'] == constants.INSTALL_TYPE_UPGRADE and \
             ('installation-to-overwrite' not in answers or \
                  not answers['installation-to-overwrite'].settingsAvailable())
 
     has_multiple_nics = lambda a: len(a['network-hardware'].keys()) > 1
 
-    is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
+    is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_UPGRADE
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
     is_not_restore_fn = lambda a: a['install-type'] != constants.INSTALL_TYPE_RESTORE
 

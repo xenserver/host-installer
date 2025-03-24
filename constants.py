@@ -12,7 +12,7 @@ EXIT_USER_CANCEL = 2
 
 # install types:
 INSTALL_TYPE_FRESH = "fresh"
-INSTALL_TYPE_REINSTALL = "reinstall"
+INSTALL_TYPE_UPGRADE = "upgrade"
 INSTALL_TYPE_RESTORE = "restore"
 
 # sr types:

@@ -150,7 +150,7 @@ class Answerfile:
     def parseUpgrade(self):
         results = {}
 
-        results['install-type'] = INSTALL_TYPE_REINSTALL
+        results['install-type'] = INSTALL_TYPE_UPGRADE
         results['preserve-settings'] = True
         results['backup-existing-installation'] = True
         results.update(self.parseExistingInstallation())
