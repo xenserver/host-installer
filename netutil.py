@@ -51,15 +51,13 @@ def getNetifList(include_vlan=False):
     allNetifs = os.listdir("/sys/class/net")
 
     def ethfilter(interface, include_vlan):
-        return interface.startswith("eth") and (interface.isalnum() or
+        return interface != "lo" and (interface.isalnum() or
                                     (include_vlan and "." in interface))
 
-    def rankValue(ethx):
-        iface, vlan = splitInterfaceVlan(ethx)
-        return (int(iface.strip('eth'))*10000 + (int(vlan) if vlan else -1))
-
     relevant = [x for x in allNetifs if ethfilter(x, include_vlan)]
-    relevant.sort(key=lambda ethx: rankValue(ethx))
+    # We just need to make sure vlan comes after its hosting interface
+    # for systemd interface configuration
+    relevant.sort()
     return relevant
 
 def writeNetInterfaceFiles(configuration):
@@ -256,22 +254,54 @@ class NetDevices:
 import xcp.logger as LOG
 from xcp.pci import VALID_SBDFI
 from xcp.net.mac import VALID_COLON_MAC
-from xcp.net.ip import ip_link_set_name
-from xcp.net.ifrename.logic import rename, VALID_ETH_NAME
-from xcp.net.ifrename.macpci import MACPCI
-from xcp.net.ifrename.static import StaticRules
-from xcp.net.ifrename.dynamic import DynamicRules
-from xcp.net.ifrename.util import niceformat
 
-static_rules = StaticRules()
-dynamic_rules = DynamicRules()
-
-RX_ETH = VALID_ETH_NAME
 RX_MAC = VALID_COLON_MAC
 RX_PCI = VALID_SBDFI
-RX_PPN = re.compile(r"^(?:em\d+|pci\d+p\d+)$")
 
-def parse_arg(arg):
+interface_rules = []
+
+class Rule:
+    #pylint: disable=too-few-public-methods
+    """ Class for a interface rule"""
+    def __init__(self, slot, method, interface):
+        self.slot = int(slot)
+        self.method = method
+        self.interface = interface
+
+    def __str__(self):
+        return f'{self.slot}:{self.method}="{self.interface}"'
+
+    def __eq__(self, other):
+        # One postion can have only one interface
+        return (self.slot == other.slot and self.method == other.method
+               and self.interface == other.interface)
+
+    def __lt__(self, other):
+        return self.slot < other.slot
+
+
+def parse_interface_slot(rule):
+    """
+    Parse target slot and interface from rule
+    return:
+        Success: (slot, interface)
+        Fail: (None, None)
+    """
+    sep = ":"
+    split = rule.split(sep, 1)
+    if len(split) != 2:
+        LOG.warning(f"Invalid device mapping {rule} - Ignoring")
+        return None, None
+    target, remaining = split
+    target = target.lstrip("eth")
+    if not target.isnumeric():
+        LOG.warning(f"{target} slot is NOT a number, Ignoring")
+        return None, None
+    if remaining.startswith("s:") or remaining.startswith("d:"):
+        remaining = remaining.split(sep, 1)[1]
+    return target, remaining
+
+def parse_rule(rule):
     """
     Takes list from the code which parses the installer commandline.
     Returns a tupe:
@@ -279,122 +309,41 @@ def parse_arg(arg):
     or None if the parse was not successful
     """
 
-    split = arg.split(":", 2)
-
-    if len(split) != 3:
-        LOG.warning("Invalid device mapping '%s' - Ignoring" % (arg,))
-        return
-
-    eth, sd, val = split
-
-    if RX_ETH.match(eth) is None:
-        LOG.warning("'%s' is not a valid device name - Ignoring" % (eth,))
-        return
-
-    if sd not in ['s', 'd']:
-        LOG.warning("'%s' is not valid to distinguish between static/dynamic rules" % (sd,))
-        return
-
-    if sd == 's':
-        formulae = static_rules.formulae
-    else:
-        formulae = dynamic_rules.formulae
-
-    if len(val) < 2:
-        LOG.warning("'%s' is not a valid mapping target - Ignoring" % (val,))
-        return
+    slot, val = parse_interface_slot(rule)
+    if slot is None:
+        return None
 
     if val[0] == '"' and val[-1] == '"':
-        formulae[eth] = ('label', val[1:-1])
-    elif RX_MAC.match(val) is not None:
-        formulae[eth] = ('mac', val.lower())
-    elif RX_PCI.match(val) is not None:
-        formulae[eth] = ('pci', val.lower())
-    elif RX_PPN.match(val) is not None:
-        formulae[eth] = ('ppn', val.lower())
-    else:
-        LOG.warning("'%s' is not a recognised mapping target - Ignoring" % (val,))
+        return Rule(slot, "label", val[1:-1])
+    if RX_MAC.match(val) is not None:
+        return Rule(slot, "mac", val.lower())
+    if RX_PCI.match(val) is not None:
+        return Rule(slot, "pci", val.lower())
+    LOG.warning(f"'{val}' is not a valid interface format label|mac|pci, Ignoring")
+    return None
 
-
-def remap_netdevs(remap_list):
-
-    # # rename everything sideways to safe faffing with temp renanes
-    # for x in ( x for x in os.listdir("/sys/class/net/") if x[:3] == "eth" ):
-    #     util.runCmd2(['ip', 'link', 'set', x, 'name', 'side-'+x])
-
+def generate_interface_rules(remap_list):
+    """
+    Generate interface rules basing on remap_list
+    """
+    interface_rules.clear()
     for cmd in remap_list:
-        parse_arg(cmd)
+        rule = parse_rule(cmd)
+        if rule is None:
+            continue
+        exists = [r for r in interface_rules if r.slot == rule.slot]
+        if exists:
+            LOG.warning(f"Position for {rule} already occupied by {exists}, Ignoring")
+            continue
+        interface_rules.append(rule)
+    interface_rules.sort()
 
-    # Grab the current state from biosdevname
-    current_eths = all_devices_all_names()
-    current_state = []
-
-    for nic in current_eths:
-        eth = current_eths[nic]
-
-        if not ( "BIOS device" in eth and
-                 "Kernel name" in eth and
-                 "Assigned MAC" in eth and
-                 "Bus Info" in eth and
-                 "all_ethN" in eth["BIOS device"] and
-                 "physical" in eth["BIOS device"]
-                  ):
-            LOG.error("Interface information for '%s' from biosdevname is "
-                      "incomplete; Discarding."
-                      % (eth.get("Kernel name", "Unknown"),))
-
-        try:
-            current_state.append(
-                MACPCI(eth["Assigned MAC"],
-                       eth["Bus Info"],
-                       kname=eth["Kernel name"],
-                       order=int(eth["BIOS device"]["all_ethN"][3:]),
-                       ppn=eth["BIOS device"]["physical"],
-                       label=eth.get("SMBIOS Label", "")
-                       ))
-        except Exception as e:
-            LOG.error("Can't generate current state for interface '%s' - "
-                      "%s" % (eth, e))
-    current_state.sort()
-
-    LOG.debug("Current state = %s" % (niceformat(current_state),))
-
-    static_rules.generate(current_state)
-    dynamic_rules.generate(current_state)
-
-    static_eths = [ x.tname for x in static_rules.rules ]
-    last_boot = [ x for x in dynamic_rules.rules if x.tname not in static_eths ]
-
-    LOG.debug("StaticRules Formulae = %s" % (niceformat(static_rules.formulae),))
-    LOG.debug("StaticRules Rules = %s" % (niceformat(static_rules.rules),))
-    LOG.debug("DynamicRules Lastboot = %s" % (niceformat(last_boot),))
-
-    # Invoke the renaming logic
-    try:
-        transactions = rename(static_rules=static_rules.rules,
-                              cur_state=current_state,
-                              last_state=last_boot,
-                              old_state=[])
-    except Exception as e:
-        LOG.critical("Problem from rename logic: %s.  Giving up" % (e,))
-        return
-
-    # Apply transactions, or explicitly state that there are none
-    if len (transactions):
-        for src, dst in transactions:
-            ip_link_set_name(src, dst)
-    else:
-        LOG.info("No transactions.  No need to rename any nics")
-
-
-    # Regenerate dynamic configuration
-    def macpci_as_list(x):
-        return [str(x.mac), str(x.pci), x.tname]
-
-    new_lastboot = list(map(macpci_as_list, current_state))
-    dynamic_rules.lastboot = new_lastboot
-
-    LOG.info("All done ordering the network devices")
+def save_inteface_rules(path):
+    """ save interface_rules to path"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w', encoding="utf-8") as file:
+        for rule in interface_rules:
+            file.write(f"{rule}\n")
 
 def disable_ipv6_module(root):
     # Disable IPv6 loading by default.
