@@ -67,9 +67,8 @@ def configureNetworking(ui, device, config):
     iface_to_start = []
     if device == 'all':
         iface_to_start.extend(list(netcfg.keys()))
-    elif device.startswith('eth'):
-        if device in nethw:
-            iface_to_start.append(device)
+    elif device in nethw:
+        iface_to_start.append(device)
     else:
         # MAC address
         matching_list = [x for x in nethw.values() if x.hwaddr == device]
@@ -195,12 +194,8 @@ def main(args):
         logger.log("Loading keymap %s" % kmap)
         util.runCmd2(["/bin/loadkeys", kmap])
 
-    # Always sanitise netdevs - it generates
-    # data for later in the install
-    # CA-60620 - dont try and run remap_netdevs in the codepath where we are
-    # running several concurrent instances.  It causes fun with competing
-    # /sbin/ip renames
-    netutil.remap_netdevs(netdev_map)
+    # Generate interface order rules, which will be saved later
+    netutil.generate_interface_rules(netdev_map)
 
     # Attaches iSCSI disks listed in iSCSI Boot Firmware Tables.  This may
     # reserve NICs and so should be called before netutil.scanConfiguration
