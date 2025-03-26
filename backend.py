@@ -1440,6 +1440,8 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
 
 
     network_scripts_dir = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts')
+    if not os.path.exists(network_scripts_dir):
+        os.makedirs(network_scripts_dir, exist_ok=True)
 
     # remove any files that may be present in the filesystem already,
     # particularly those created by kudzu:
@@ -1459,9 +1461,6 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     lo.write("NAME=loopback\n")
     lo.close()
 
-    save_dir = os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'initial-ifcfg')
-    util.assertDir(save_dir)
-
     # now we need to write /etc/sysconfig/network
     nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
     nfd.write("NETWORKING=yes\n")
@@ -1475,19 +1474,8 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     nfd.write('NTPSERVERARGS="iburst prefer"\n')
     nfd.close()
 
-    # EA-1069 - write static-rules.conf and dynamic-rules.conf
-    if not os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/')):
-        os.makedirs(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/'), 0o775)
-
-    netutil.static_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')
-    netutil.static_rules.save()
-    netutil.static_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/static-rules.conf')
-    netutil.static_rules.save()
-
-    netutil.dynamic_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json')
-    netutil.dynamic_rules.save()
-    netutil.dynamic_rules.path = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/.from_install/dynamic-rules.json')
-    netutil.dynamic_rules.save()
+    netutil.save_inteface_rules(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR,
+                                             "initial_network_device_rules.conf"))
 
 def writeXencommons(controlID, mounts):
     with open(os.path.join(mounts['root'], constants.XENCOMMONS_FILE), "r") as f:
