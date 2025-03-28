@@ -7,7 +7,6 @@ import uicontroller
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
 import netutil
-import repository
 import constants
 import upgrade
 import product

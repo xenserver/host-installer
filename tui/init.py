@@ -11,7 +11,6 @@ from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS
 import tui.network
 import tui.progress
 import tui.repo
-import repository
 import snackutil
 
 def get_keymap():
