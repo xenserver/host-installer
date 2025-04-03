@@ -162,9 +162,9 @@ Installer
     - eth: literal string "eth", has no meaning, just for backward compatibility
     - X: number, starting from 0,  the expected order of this interface
     - d|s: has no meaning, just for backward compatibility
-    - mac: valid Mac address
+    - mac: valid MAC address
     - pci: valid PCI address. An index of 0 is implied when one is not provided
-    - label: valid interface name, it needs to be quoted to distinguish from other kind and take priority than others
+    - label: valid interface name. A string is taken as label if it does not contains `:` or quoted
 
 
   --network_config=dhcp[:vlan=vlan]|static:ip=ip;netmask=netmask[;gateway=gw][;dns=dns1[,dns2]][;domain=domain][;vlan=vlan]
