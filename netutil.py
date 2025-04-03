@@ -315,6 +315,9 @@ def parse_rule(rule):
 
     if val[0] == '"' and val[-1] == '"':
         return Rule(slot, "label", val[1:-1])
+    if ":" not in val:
+        # Can't be a valid mac or pci, take it as label
+        return Rule(slot, "label", val.lower())
     if RX_MAC.match(val) is not None:
         return Rule(slot, "mac", val.lower())
     if RX_PCI.match(val) is not None:

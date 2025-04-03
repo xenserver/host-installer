@@ -49,6 +49,16 @@ class TestInterfaceRules(unittest.TestCase):
         self.assertEqual(rule1, rule2)
         self.assertEqual(rule1, rule3)
 
+    def test_rule_without_colon_taken_as_label(self):
+        """interface without colon take as label"""
+        rule1 = parse_rule("1:ens2")
+        self.assertEqual(rule1, Rule(1, "label", "ens2"))
+
+    def test_rule_with_quote_take_as_label(self):
+        """interface quoted should taken as label"""
+        rule1 = parse_rule('1:"ens2"')
+        self.assertEqual(rule1, Rule(1, "label", "ens2"))
+
     def test_rule_type(self):
         """
         rule type (dynamic|static) just ignored
