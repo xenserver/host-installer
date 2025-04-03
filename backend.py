@@ -1439,40 +1439,10 @@ def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf
     # Clean install only below this point
 
 
-    network_scripts_dir = os.path.join(mounts['root'], 'etc/sysconfig/network-scripts')
-    if not os.path.exists(network_scripts_dir):
-        os.makedirs(network_scripts_dir, exist_ok=True)
-
-    # remove any files that may be present in the filesystem already,
-    # particularly those created by kudzu:
-    network_scripts = os.listdir(network_scripts_dir)
-    for s in network_scripts:
-        if s.startswith('ifcfg-'):
-            os.unlink(os.path.join(network_scripts_dir, s))
-
-    # write the configuration file for the loopback interface
-    lo = open(os.path.join(network_scripts_dir, 'ifcfg-lo'), 'w')
-    lo.write("DEVICE=lo\n")
-    lo.write("IPADDR=127.0.0.1\n")
-    lo.write("NETMASK=255.0.0.0\n")
-    lo.write("NETWORK=127.0.0.0\n")
-    lo.write("BROADCAST=127.255.255.255\n")
-    lo.write("ONBOOT=yes\n")
-    lo.write("NAME=loopback\n")
-    lo.close()
-
-    # now we need to write /etc/sysconfig/network
-    nfd = open("%s/etc/sysconfig/network" % mounts["root"], "w")
-    nfd.write("NETWORKING=yes\n")
     if admin_config.modev6:
-        nfd.write("NETWORKING_IPV6=yes\n")
         util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'ip6tables'])
     else:
-        nfd.write("NETWORKING_IPV6=no\n")
         netutil.disable_ipv6_module(mounts["root"])
-    nfd.write("IPV6_AUTOCONF=no\n")
-    nfd.write('NTPSERVERARGS="iburst prefer"\n')
-    nfd.close()
 
     netutil.save_inteface_rules(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR,
                                              "initial_network_device_rules.conf"))
