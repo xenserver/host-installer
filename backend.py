@@ -1506,12 +1506,6 @@ def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, l
     inv.write("CONTROL_DOMAIN_UUID='%s'\n" % controlID)
     inv.write("DOM0_MEM='%d'\n" % host_config['dom0-mem'])
     inv.write("DOM0_VCPUS='%d'\n" % host_config['dom0-vcpus'])
-    inv.write("MANAGEMENT_INTERFACE='%s'\n" % admin_bridge)
-    # Default to IPv4 unless we have only got an IPv6 admin interface
-    if ((not admin_config.mode) and admin_config.modev6):
-        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv6'\n")
-    else:
-        inv.write("MANAGEMENT_ADDRESS_TYPE='IPv4'\n")
     if constants.CC_PREPARATIONS and install_type == constants.INSTALL_TYPE_FRESH:
         inv.write("CC_PREPARATIONS='true'\n")
     inv.close()
