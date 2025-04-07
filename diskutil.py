@@ -284,6 +284,8 @@ def getDiskDeviceSize(dev):
     elif os.path.exists("/sys/block/%s/size" % dev):
         return int(__readOneLineFile__("/sys/block/%s/size" % dev))
 
+    return 0
+
 def getDiskBlockSize(dev):
     if not dev.startswith("/dev/"):
         dev = '/dev/' + dev
