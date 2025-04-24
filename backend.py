@@ -105,10 +105,15 @@ def getPrepSequence(ans, interactive):
     seq = [
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
+        Task(util.randomLabelStr, As(ans), ['disk-label-suffix'])]
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
+        seq.append(Task(setupSWRAIDDevice, A(ans, 'primary-disk', 'physical-disks'), []))
+
+    seq.append(
         Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary', 'target-platform'),
-            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
-        ]
+            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum'])
+        )
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
         seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
@@ -526,6 +531,23 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     # now turn on the ntp service:
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
+
+# Setup a new SW RAID device using mdadm
+# The primary-disk (/dev/md*) is built from the physical disks provided in the answerfile
+def setupSWRAIDDevice(primary_disk, physical_disks):
+    # Stop the multi-device if it exists
+    if os.path.exists(primary_disk):
+        util.runCmd2(['mdadm', '--stop', primary_disk])
+
+    # Zero any superblocks on the physical disks
+    for disk in physical_disks:
+        util.runCmd2(['mdadm', '--zero-superblock', disk])
+
+    # Create multi-device with physical disks
+    # Apply a timeout as the mdadm command can hang waiting for user input in some cases
+    rc = util.runCmd2(['timeout', '60s', 'mdadm', '--create', primary_disk, '--name=XenServer', '--metadata=1.0', '--level=mirror', '--raid-devices=2', physical_disks[0], physical_disks[1]])
+    if rc != 0:
+        raise RuntimeError("Failed to create SWRAID device: '%s' from devices: '%s' & '%s'" % (primary_disk, physical_disks[0], physical_disks[1]))
 
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
