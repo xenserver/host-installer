@@ -187,6 +187,17 @@ Format of 'source' and 'driver-source'
 
         Default: if-utility
 
+      swraid=bool
+
+        Use Linux Software RAID for the primary-disk at RAID level 1 (mirror).
+
+        This option requires exactly two devices to be specified in the text
+        of the primary-disk element. Devices should be comma separated.
+        The first device will be treated as the original, the second device will
+        mirror the first.
+
+        Default: False
+
 
   <guest-disks>
     <guest-disk>dev</guest-disk>*
