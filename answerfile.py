@@ -319,6 +319,7 @@ class Answerfile:
                 raise AnswerfileException("swraid primary-disk requires exactly two physical disks")
         else:
             results['primary-disk'] = normalize_disk(getText(node))
+            results['physical-disks'] = [results['primary-disk']]
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
                                        default=True)
