@@ -807,6 +807,8 @@ def release_ibft_disks():
 def is_raid(disk):
     return disk in getMdNodes()
 
+def stopSWRAID(device):
+    util.runCmd2(["mdadm", "--stop", device])
 
 def dev_from_devpath(devpath):
     """Returns the dev number of the device as a tuple."""
