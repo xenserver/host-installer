@@ -193,3 +193,7 @@ except IOError:
 # Error partitioning disk as in use
 PARTITIONING_ERROR = \
 	'The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation'
+
+# SW RAID query interval
+swraid_query_interval = 10  # seconds
+
