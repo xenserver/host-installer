@@ -312,7 +312,7 @@ class Answerfile:
         results['swraid'] = getBoolAttribute(node, ['swraid'], default=False)
 
         if results['swraid']:
-            results['primary-disk'] = "/dev/md0"
+            results['primary-disk'] = ""  # Populated with disk-label-suffix during installer prep
             results['physical-disks'] = [normalize_disk(disk) for disk in getText(node).split(",")]
 
             if len(results['physical-disks']) != 2:

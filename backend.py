@@ -105,24 +105,31 @@ def getPrepSequence(ans, interactive):
     seq = [
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary', 'target-platform'),
-            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
+        Task(util.randomLabelStr, As(ans), ['disk-label-suffix'])
         ]
+
+    if not interactive:
+        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH:
+        seq.append(Task(removeBlockingVGs, As(ans, 'guest-disks'), []))
+
+        if ans['swraid']:
+            seq.append(Task(setupSWRAIDDevice, A(ans, 'disk-label-suffix', 'physical-disks'), ['primary-disk']))
+
+    seq += [
+        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary', 'target-platform'),
+            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum'])]
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
         seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
     elif ans['ntp-config-method'] == "none":
         seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
 
-    if not interactive:
-        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
             Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end'),[]),
-            ]
-        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
+            Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), [])]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(convertTarget,
@@ -531,6 +538,31 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     # now turn on the ntp service:
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
+
+# Setup a new SW RAID device using mdadm
+# The primary-disk (/dev/md/*) is built from the physical disks provided in the answerfile
+def setupSWRAIDDevice(disk_label_suffix, physical_disks):
+    primary_disk = "/dev/md/xs-" + disk_label_suffix
+
+    # Stop the multi-device if it exists
+    if os.path.exists(primary_disk):
+        util.runCmd2(['mdadm', '--stop', primary_disk])
+
+    # Zero any superblocks on the physical disks
+    for disk in physical_disks:
+        util.runCmd2(['mdadm', '--zero-superblock', disk])
+
+    # Create multi-device with the first physical disk
+    rc = util.runCmd2(['mdadm', '--create', primary_disk, '--name=XenServer', '--metadata=1.0', '--level=mirror', '--raid-devices=2', '--run', physical_disks[0], 'missing'])
+    if rc != 0:
+        raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
+
+    # Add second disk to SW RAID device
+    rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
+    if rc != 0:
+        raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
+
+    return os.path.realpath(primary_disk)
 
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
