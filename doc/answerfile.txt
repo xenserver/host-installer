@@ -196,6 +196,8 @@ Format of 'source' and 'driver-source'
         The first device will be treated as the original, the second device will
         mirror the first.
 
+        The resulting multidevice will be /dev/md/xs-<disk-label-suffix>.
+
         Default: False
 
 

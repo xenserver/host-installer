@@ -106,23 +106,29 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'),
-            ['primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
         ]
+
+    if not interactive:
+        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH:
+        seq.append(Task(removeBlockingVGs, As(ans, 'guest-disks'), []))
+
+        if ans['swraid']:
+            seq.append(Task(setupSWRAIDDevice, A(ans, 'disk-label-suffix', 'physical-disks', 'guest-disks'), ['primary-disk', 'guest-disks']))
+
+    seq.append(Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'),
+            ['primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']))
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
         seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
     elif ans['ntp-config-method'] == "none":
         seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
 
-    if not interactive:
-        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
             Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end'),[]),
-            ]
-        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
+            Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), [])]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if 'backup-existing-installation' in ans and ans['backup-existing-installation']:
@@ -146,7 +152,7 @@ def getPrepSequence(ans, interactive):
                         pass_progress_callback=True))
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix', 'fs-type'), []),
-        Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup'), ['mounts', 'cleanup']),
+        Task(mountVolumes, A(ans, 'primary-disk', 'physical-disks', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'swraid'), ['mounts', 'cleanup']),
         ]
     return seq
 
@@ -191,10 +197,9 @@ def getFinalisationSequence(ans):
         Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk',
-                                  'boot-partnum', 'primary-partnum', 'branding',
-                                  'disk-label-suffix', 'bootloader-location', 'write-boot-entry', 'install-type',
-                                  'serial-console', 'boot-serial', 'host-config'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
+                                  'disk-label-suffix', 'bootloader-location',
+                                  'serial-console', 'boot-serial', 'host-config',), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive=True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -217,11 +222,22 @@ def getFinalisationSequence(ans):
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
+    if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
+        # Once the SWRAID Sync has completed, we must umount the volumes to ensure page writes don't get stuck in the cache
+        seq += [
+            Task(waitForSWRAIDSync, A(ans, 'primary-disk'), []),
+            Task(umountVolumes, A(ans, 'primary-disk', 'mounts', 'cleanup'), ['cleanup']),
+            Task(diskutil.stopSWRAID, A(ans, 'primary-disk'), []),
+            Task(mountVolumes, A(ans, 'primary-disk', 'physical-disks', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'swraid'), ['mounts', 'cleanup']),
+        ]
+
+    seq.append(Task(writeBootEntries, A(ans, 'write-boot-entry', 'mounts', 'physical-disks', 'boot-partnum', 'install-type', 'branding'), []))
+
     # run the users's scripts
     seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
 
-    seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
-    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum', 'logs-partnum'), []))
+    seq.append(Task(umountVolumes, A(ans, 'primary-disk', 'mounts', 'cleanup'), ['cleanup']))
+    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum', 'logs-partnum', 'swraid'), []))
 
     return seq
 
@@ -519,6 +535,42 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     # now turn on the ntp service:
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
+
+# Setup a new SW RAID device using mdadm
+# The primary-disk (/dev/md/*) is built from the physical disks provided in the answerfile
+def setupSWRAIDDevice(disk_label_suffix, physical_disks, guest_disks):
+    primary_disk = "/dev/md/xs-" + disk_label_suffix
+
+    # Stop the multi-device if it exists
+    if os.path.exists(primary_disk):
+        diskutil.stopSWRAID(primary_disk)
+
+    # Zero any superblocks on the physical disks
+    for disk in physical_disks:
+        util.runCmd2(['mdadm', '--zero-superblock', disk])
+
+    # Create multi-device with the first physical disk
+    rc = util.runCmd2(['mdadm', '--create', primary_disk, '--metadata=1.0', '--level=mirror', '--raid-devices=2', '--run', physical_disks[0], 'missing'])
+    if rc != 0:
+        raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
+
+    # Add second disk to SW RAID device
+    rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
+    if rc != 0:
+        raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
+
+    with open('/proc/sys/dev/raid/speed_limit_max', 'w') as speed_file:
+        speed_file.write(str(constants.swraid_speed_write_max))
+
+    primary_disk = os.path.realpath(primary_disk)
+
+    # Update guest-disks
+    if any(disk in physical_disks for disk in guest_disks):
+        guest_disks = [disk for disk in guest_disks if disk not in physical_disks]
+        guest_disks.append(primary_disk)
+
+
+    return primary_disk, guest_disks
 
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
@@ -1080,8 +1132,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         e.entry_format = Grub2Format.XEN_BOOT
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
-                      disk_label_suffix, location, write_boot_entry, install_type, serial=None,
+def installBootLoader(mounts, disk, primary_partnum,
+                      disk_label_suffix, location, serial=None,
                       boot_serial=None, host_config=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
@@ -1105,8 +1157,6 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
         boot_config.commit()
 
     root_partition = partitionDevice(disk, primary_partnum)
-    if write_boot_entry:
-        setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
 
 def check_efibootmgr_err(rc, err, install_type, err_type):
     if rc != 0:
@@ -1147,10 +1197,20 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     clearEfiBootEntries(mounts, install_type, branding)
     addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
 
+def writeBootEntries(write_boot_entry, mounts, disks, boot_partnum, install_type, branding):
+    if write_boot_entry:
+        clearEfiBootEntries(mounts, install_type, branding)
+
+        for disk in disks:
+            addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
+
 ##########
 # mounting and unmounting of various volumes
 
-def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, cleanup):
+def mountVolumes(primary_disk, physical_disks, boot_partnum, primary_partnum, logs_partnum, cleanup, swraid):
+    if swraid:
+        util.runCmd2(['mdadm', '--assemble', primary_disk, physical_disks[0], physical_disks[1]])
+
     mounter = DeviceMounter()
     mounter.mount()
 
@@ -1200,7 +1260,7 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
 
     return mounts, new_cleanup
 
-def umountVolumes(mounts, cleanup, force=False):
+def umountVolumes(disk, mounts, cleanup, force=False):
     def filterCleanup(operation):
         return (not operation[0].startswith("umount-%s" % mounts['root']) and
                 not operation[0].startswith("umount-%s" % os.path.join(mounts['root'], 'mnt')) and
@@ -1221,6 +1281,7 @@ def umountVolumes(mounts, cleanup, force=False):
 
     util.umount(mounts['root'])
     cleanup = list(filter(filterCleanup, cleanup))
+
     return cleanup
 
 ##########
@@ -1602,12 +1663,30 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
         chrootcmd.extend(cmdparams)
         util.runCmd2(chrootcmd, with_stdout=True)
 
+def waitForSWRAIDSync(primary_disk):
+    while not isSWRAIDSyncd(primary_disk):
+        time.sleep(constants.swraid_query_interval)
+
+def isSWRAIDSyncd(primary_disk):
+    try:
+        with open('/sys/block/%s/md/sync_completed' % primary_disk.split("/")[-1]) as sync_file:
+            out = sync_file.read()
+
+        return out.strip() == "none"
+    except Exception as ex:
+        logger.log("Failed to check if SWRAID device is sync'd due to: " + str(ex))
+        return False
+
+
 ################################################################################
 # OTHER HELPERS
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
-def writeLog(primary_disk, primary_partnum, logs_partnum):
+def writeLog(primary_disk, primary_partnum, logs_partnum, swraid=False):
+    if swraid:
+        util.runCmd2(['mdadm', '--assemble', '--scan'])
+
     tool = PartitionTool(primary_disk)
 
     logs_partition = tool.getPartition(logs_partnum)

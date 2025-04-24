@@ -318,7 +318,7 @@ class Answerfile:
         results['swraid'] = getBoolAttribute(node, ['swraid'], default=False)
 
         if results['swraid']:
-            results['primary-disk'] = "/dev/md0"
+            results['primary-disk'] = ""  # Populated with disk-label-suffix during installer prep
             results['physical-disks'] = [normalize_disk(disk) for disk in getText(node).split(",")]
 
             if len(results['physical-disks']) != 2:
@@ -337,10 +337,10 @@ class Answerfile:
         # Guest disk(s) (Local SR)
         guest_disks = set()
         if inc_primary:
-            guest_disks.add(results['primary-disk'])
+            guest_disks = guest_disks.union(results['physical-disks'])
         for node in getElementsByTagName(self.top_node, ['guest-disk']):
             guest_disks.add(normalize_disk(getText(node)))
-        results['sr-on-primary'] = results['primary-disk'] in guest_disks
+        results['sr-on-primary'] = any(disk in guest_disks for disk in results['physical-disks'])
         results['guest-disks'] = list(guest_disks)
 
         sr_type_mapping = []
