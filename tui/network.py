@@ -275,10 +275,6 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
         netutil.writeNetInterfaceFiles(
             {conf_dict['interface']: conf_dict['config']}
             )
-        netutil.writeResolverFile(
-            {conf_dict['interface']: conf_dict['config']},
-            '/etc/resolv.conf'
-            )
         tui.progress.showMessageDialog(
             "Networking",
             "Configuring network interface, please wait...",

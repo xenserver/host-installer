@@ -66,21 +66,6 @@ def writeNetInterfaceFiles(configuration):
     for iface in configuration:
         configuration[iface].writeSystemdNetworkdConfig(iface)
 
-# writes DNS server entries to a resolver file given a network configuration object
-# list
-def writeResolverFile(configuration, filename):
-    outfile = open(filename, 'a')
-
-    for iface in configuration:
-        settings = configuration[iface]
-        if settings.isStatic() and settings.dns:
-            if settings.dns:
-                for server in settings.dns:
-                    outfile.write("nameserver %s\n" % server)
-            if settings.domain:
-                outfile.write("search %s\n" % settings.domain)
-
-    outfile.close()
 
 interface_up = {}
 
