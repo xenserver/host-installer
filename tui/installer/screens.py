@@ -18,6 +18,7 @@ import socket
 import product
 import upgrade
 import netutil
+import dmvdata
 
 from snack import *
 
@@ -29,6 +30,7 @@ import tui.fcoe
 
 from netinterface import NetInterface
 
+dmv_data_provider = None
 
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
@@ -448,6 +450,181 @@ The backup will be placed on the backup partition of the destination disk (%s), 
 
     answers['backup-existing-installation'] = (button == 'yes')
     return RIGHT_FORWARDS
+
+def dmv_more_info(context):
+    global dmv_data_provider
+
+    if not context: return True
+
+    itemtype, item = dmv_data_provider.queryDriversOrVariant(context)
+    if itemtype == "variants" or itemtype == "unknown":
+        return True
+
+    tui.update_help_line([' ', ' '])
+    
+    if itemtype == "drivers":
+        l = []
+        l.append( ("Type:", item.type) )
+        l.append( ("Friendly name:", item.friendly_name) )
+        l.append( ("Description:", item.description) )
+        l.append( ("Info:", item.info) )
+        l.append( ("Version", item.getVersion()) )
+        l.append( ("Selected:", item.getSelectedText()) )
+        l.append( ("Active:", item.getActiveText()) )
+        for label in item.getHumanDeviceLabel():
+            l.append( ("Hardware:", label) )
+        snackutil.ListDialog(tui.screen, "Driver Details", l) 
+    elif itemtype == "variant":
+        snackutil.TableDialog(tui.screen, "Variant Details", ("Driver:", item.drvname),
+                          ("Variant:", item.oemtype),
+                          ("Version:", item.version),
+                          ("Hardware Present:", item.getHardwarePresentText()),
+                          ("Priority:", item.getPriorityText()),
+                          ("Status:", item.status)) 
+
+    tui.screen.popHelpLine()
+    return True
+
+# driver multi version screen:
+def dmv_screen(answers):
+    global dmv_data_provider
+
+    drivers = []
+    hw_present_drivers = []
+    if not dmv_data_provider:
+        #dmv_data_provider = dmvdata.getMockDMVData()
+        dmv_data_provider = dmvdata.getRealDMVData()
+        drivers = dmv_data_provider.getDriversData()
+        for d in drivers:
+            logger.log("driver: %s" % d.getHumanDriverLabel())
+            logger.log("device list:")
+            for l in d.getHumanDeviceLabel():
+                logger.log(l)
+            logger.log("variants:")
+            for v in d.variants:
+                logger.log(v)
+            logger.log("")
+
+    if "hardware-present-multiversion-drivers" in answers:
+        hw_present_drivers = answers["hardware-present-multiversion-drivers"]
+    else:
+        hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+        answers["hardware-present-multiversion-drivers"] = hw_present_drivers
+
+    entries = []
+    for d in hw_present_drivers:
+        label = d.getHumanDriverLabel()
+        entries.append( (label, d) )
+
+    selected_variants = []
+    if "selected-multiversion-drivers" in answers:
+        selected_variants = answers['selected-multiversion-drivers']
+        for choice in selected_variants:
+            logger.log("previously selected multiversion driver: %s" % choice)
+
+    if len(selected_variants) == 0:
+        selected_variants = dmv_data_provider.chooseDefaultDriverVariants(hw_present_drivers)
+        for v in selected_variants:
+            logger.log("selected-default-driver-variants: %s" % v)
+
+    text = TextboxReflowed(54, "Select device drivers for the following hardware devices. If hardware is not present, its drivers are not shown.")
+    buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
+    scroll, _ = snackutil.scrollHeight(6, len(entries))
+    cbt = CheckboxTree(6, scroll)
+    drv_index = 0
+    for (c_text, driver) in entries:
+        cbt.append(c_text, driver)
+        for v in driver.getDriversVariants():
+            label, variant = v
+            variantSelected = 0
+            if variant in selected_variants:
+                variantSelected = 1
+            cbt.addItem(label, (drv_index, snackArgs['append']), variant, selected = variantSelected)
+        drv_index += 1
+
+    gf = GridFormHelp(tui.screen, 'Select Driver', 'dmv:info1', 1, 6)
+    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 3, growx=1)
+    gf.addHotKey('F5')
+    gf.draw()
+
+    tui.update_help_line([None, "<F5> more info"])
+
+    loop = True
+    while loop:
+        rc = gf.run()
+        if rc == 'F5':
+            dmv_more_info(cbt.getCurrent())
+        else:
+            loop = False
+    tui.screen.popWindow()
+    tui.screen.popHelpLine()
+
+    button = buttons.buttonPressed(rc)
+    if button is None or button == 'back': return LEFT_BACKWARDS
+
+    for choice in cbt.getSelection():
+        logger.log("new selected multiversion driver: %s" % choice)
+    answers['selected-multiversion-drivers'] = cbt.getSelection()
+    if len(answers['selected-multiversion-drivers']) == 0:
+        label = "Select Driver"
+        text = "No drivers selected? Go back to driver selection"
+        ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
+        return REPEAT_STEP
+    return RIGHT_FORWARDS
+
+def confirm_dmv_selection(answers):
+    global dmv_data_provider
+
+    variants = answers['selected-multiversion-drivers']
+    entries = []
+    title = "Confirm Drivers Selection"
+    text = ""
+    if len(variants) == 0:
+        text = "No drivers selected? You can select drivers when your system comes online after host installation.\n\nContinue or go back to driver selection"
+        button = snackutil.ButtonChoiceWindowEx(
+            tui.screen, title, text,
+            ['Ok', 'Back'], width=60, default=1, help='dmv:info2')
+
+        if button is None or button == 'back': return LEFT_BACKWARDS
+        return RIGHT_FORWARDS
+    else:
+        got, drvname = dmv_data_provider.sameDriverMultiVariantsSelected(variants)
+        if not got:
+            text = "The listed drivers are selected to take effect on %s soon after selection and upon first boot after host installation." % MY_PRODUCT_BRAND
+            for item in variants:
+                entries.append( (item.getHumanVariantLabel(), item) )
+
+            scroll, height = snackutil.scrollHeight(6, len(entries))
+            (button, choice) = snackutil.ListboxChoiceWindowEx(
+                tui.screen, title, text,
+                entries,
+                ['Ok', 'Back'], 60, scroll, height, None, help='dmv:info3',
+                hotkeys={})
+
+            if button is None or button == 'back': return LEFT_BACKWARDS
+
+            choices = []
+            for item in variants:
+                logger.log("select and enable variant %s for driver %s." % (item.oemtype, item.drvname))
+                choices.append((item.drvname, item.oemtype))
+            failures = dmv_data_provider.selectMultiDriverVariants(choices)
+            if len(failures) == 0:
+                logger.log("succeed to select and enable all driver variants.")
+            else:
+                for driver_name, variant_name in failures:
+                    logger.log("fail to select and enable variant %s for driver %s." % (item.oemtype, item.drvname))
+            return RIGHT_FORWARDS
+        else:
+            title = "Warning"
+            text = "Only one variant of driver %s can be selected, but multiple variants of driver %s are selected." % (drvname, drvname)
+            button = snackutil.ButtonChoiceWindowEx(
+                    tui.screen, title, text,
+                    ['Back'], width=60, default=0, help='dmv:info4')
+
+            if button is None or button == 'back': return LEFT_BACKWARDS
+            return RIGHT_FORWARDS
 
 def eula_screen(answers):
     eula_file = open(constants.EULA_PATH, 'r')
