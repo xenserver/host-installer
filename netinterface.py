@@ -177,7 +177,10 @@ class NetInterface:
         else:
             prefixlen = NetInterface._subnet_mask_to_prefix_length(self.netmask)
             network_conf["Network"]["Address"] = f"{self.ipaddr}/{prefixlen}"
-            network_conf["Network"]["Gateway"] = f"{self.gateway}"
+            network_conf["Network"]["Gateway"] = self.gateway
+            if self.dns:
+                for dns_server in self.dns:
+                    network_conf["Network"]["DNS"] = dns_server
 
         iface_network_path = os.path.join(sysd_netd_path, f"{iface_vlan}.network")
         # VLAN should be configured After hosting interface, getNetifList ensured that
