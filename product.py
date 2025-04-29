@@ -362,6 +362,22 @@ class ExistingInstallation:
             except:
                 pass
 
+            results['corosync-version'] = None
+            try:
+                if os.path.exists(self.join_state_path(constants.COROSYNC_CONF)):
+                    with open(self.join_state_path(constants.COROSYNC_CONF), 'r', encoding='utf-8') as f:
+                        for line in f:
+                            if 'transport: udpu' in line:
+                                results['corosync-version'] = 2
+                                logger.log("Corosync transport is udpu, corosync version 2")
+                                break
+                            if 'transport: knet' in line:
+                                results['corosync-version'] = 3
+                                logger.log("Corosync transport is knet, corosync version 3")
+                                break
+            except:
+                pass
+
         finally:
             self.unmount_state()
 
