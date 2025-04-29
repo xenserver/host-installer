@@ -124,6 +124,7 @@ INVENTORY_FILE = "etc/xensource-inventory"
 XENCOMMONS_FILE = "etc/sysconfig/xencommons"
 OLD_BLOB_DIRECTORY = "var/xapi/blobs"
 BLOB_DIRECTORY = "var/lib/xcp/blobs"
+COROSYNC_CONF = "etc/corosync/corosync.conf"
 
 MAIN_REPOSITORY_NAME = 'xcp:main'
 MAIN_XS_REPOSITORY_NAME = 'xs:main'
