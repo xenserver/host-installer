@@ -32,6 +32,12 @@ from netinterface import NetInterface
 
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
+sr_overwrite_msg = """The selected disk, {}, contains a storage repository. The storage repository may currently be used by other hosts.
+
+Selecting Yes will permanently erase the storage reposory and any virtual machine disks it contains.
+
+Are you sure you want to continue?"""
+
 def selectDefault(key, entries):
     """ Given a list of (text, key) and a key to select, returns the appropriate
     text,key pair, or None if not in entries. """
@@ -567,7 +573,6 @@ def select_primary_disk(answers):
     diskEntries = sorted_disk_list()
 
     entries = []
-    target_is_sr = {}
     min_primary_disk_size = constants.min_primary_disk_size
 
     for de in diskEntries:
@@ -577,11 +582,6 @@ def select_primary_disk(answers):
                        (de, diskutil.blockSizeToGBSize(size), min_primary_disk_size))
             continue
 
-        # determine current usage
-        target_is_sr[de] = False
-        disk = diskutil.probeDisk(de)
-        if disk.storage[0]:
-            target_is_sr[de] = True
         e = (diskutil.getHumanDiskLabel(de), de)
         entries.append(e)
 
@@ -613,13 +613,20 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
 
     tui.screen.popHelpLine()
 
-    # entry contains the 'de' part of the tuple passed in
-    answers['primary-disk'] = entry
-
-    if 'installation-to-overwrite' in answers:
-        answers['target-is-sr'] = target_is_sr[answers['primary-disk']]
-
     if button == 'back': return LEFT_BACKWARDS
+
+    # entry contains the 'de' part of the tuple passed in
+    # determine current usage
+    disk = diskutil.probeDisk(entry)
+    if disk.storage[0]:
+        val = snackutil.ButtonChoiceWindowEx(tui.screen,
+            "Confirm Disk Erasure",
+            sr_overwrite_msg.format(diskutil.getHumanDiskLabel(entry, short=True)),
+            ['Yes', 'No'], default=1)
+        if val == 'no':
+            return REPEAT_STEP
+
+    answers['primary-disk'] = entry
 
     # Warn the user if a utility partition is detected. Give them option to
     # cancel the install.
@@ -712,6 +719,16 @@ def select_guest_disks(answers):
     button = buttons.buttonPressed(rc)
 
     if button == 'back': return LEFT_BACKWARDS
+
+    for i in cbt.getSelection():
+        disk = diskutil.probeDisk(i)
+        if disk.storage[0]:
+            val = snackutil.ButtonChoiceWindowEx(tui.screen,
+                               "Confirm Disk Erasure",
+                               sr_overwrite_msg.format(diskutil.getHumanDiskLabel(i, short=True)),
+                               ['Yes', 'No'], default=1)
+            if val == 'no':
+                return REPEAT_STEP
 
     answers['guest-disks'] = cbt.getSelection()
     answers['sr-on-primary'] = answers['primary-disk'] in answers['guest-disks']
