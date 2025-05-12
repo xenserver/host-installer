@@ -356,3 +356,13 @@ def disable_ipv6_module(root):
     dv6fd.write("alias net-pf-10 off\n")
     dv6fd.close()
 
+
+from xcp.net.ifrename.dynamic import DynamicRules
+
+def net_devs_of_last_boot(file_path):
+    dynamic_rules = DynamicRules(file_path)
+    if not dynamic_rules.load_and_parse():
+        LOG.warning(f"Failed to parse the interface-rename dynamic rules.")
+        return []
+    else:
+        return [(d.tname, d.mac.as_string(sep=":")) for d in dynamic_rules.lastboot]
