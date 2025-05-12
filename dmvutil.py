@@ -243,3 +243,11 @@ def sameDriverMultiVariantsSelected(variants):
             if item1.drvname == item2.drvname:
                 return (True, item1.drvname)
     return (False, "")
+
+def getDriverVariantByName(drivers, drvname, oemtype):
+    for d in drivers:
+        if d.drvname == drvname:
+            for v in d.variants:
+                if v.oemtype == oemtype:
+                    return v
+    return None
