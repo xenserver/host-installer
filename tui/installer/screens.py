@@ -491,8 +491,10 @@ def dmv_screen(answers):
 
     drivers = []
     hw_present_drivers = []
+    if not "selected-multiversion-drivers" in answers:
+        answers['selected-multiversion-drivers'] = []
+
     if not dmv_data_provider:
-        #dmv_data_provider = dmvdata.getMockDMVData()
         dmv_data_provider = dmvdata.getRealDMVData()
         drivers = dmv_data_provider.getDriversData()
         for d in drivers:
@@ -505,11 +507,10 @@ def dmv_screen(answers):
                 logger.log(v)
             logger.log("")
 
-    if "hardware-present-multiversion-drivers" in answers:
-        hw_present_drivers = answers["hardware-present-multiversion-drivers"]
-    else:
-        hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
-        answers["hardware-present-multiversion-drivers"] = hw_present_drivers
+    # skip the ui rendering
+    hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+    if len(hw_present_drivers) == 0:
+        return RIGHT_FORWARDS
 
     entries = []
     for d in hw_present_drivers:
@@ -517,10 +518,11 @@ def dmv_screen(answers):
         entries.append( (label, d) )
 
     selected_variants = []
-    if "selected-multiversion-drivers" in answers:
-        selected_variants = answers['selected-multiversion-drivers']
-        for choice in selected_variants:
-            logger.log("previously selected multiversion driver: %s" % choice)
+    for drvname, oemtype in answers['selected-multiversion-drivers']:
+        logger.log("previously selected multiversion driver: %s %s" % (drvname, oemtype))
+        v = dmv_data_provider.getDriverVariantByName(drvname, oemtype)
+        if v:
+            selected_variants.append(v)
 
     if len(selected_variants) == 0:
         selected_variants = dmv_data_provider.chooseDefaultDriverVariants(hw_present_drivers)
@@ -564,9 +566,10 @@ def dmv_screen(answers):
     button = buttons.buttonPressed(rc)
     if button is None or button == 'back': return LEFT_BACKWARDS
 
-    for choice in cbt.getSelection():
-        logger.log("new selected multiversion driver: %s" % choice)
-    answers['selected-multiversion-drivers'] = cbt.getSelection()
+    answers['selected-multiversion-drivers'] = []
+    for variant in cbt.getSelection():
+        logger.log("new selected multiversion driver: %s" % variant)
+        answers['selected-multiversion-drivers'].append((variant.drvname, variant.oemtype))
     if len(answers['selected-multiversion-drivers']) == 0:
         label = "Select Driver"
         text = "No drivers selected? Go back to driver selection"
@@ -577,17 +580,25 @@ def dmv_screen(answers):
 def confirm_dmv_selection(answers):
     global dmv_data_provider
 
-    variants = answers['selected-multiversion-drivers']
+    variants = []
+    choices = answers['selected-multiversion-drivers']
+    for drvname, oemtype in choices:
+        v = dmv_data_provider.getDriverVariantByName(drvname, oemtype)
+        if v:
+            variants.append(v)
+
     entries = []
     title = "Confirm Drivers Selection"
     text = ""
     if len(variants) == 0:
-        text = "No drivers selected? You can select drivers when your system comes online after host installation.\n\nContinue or go back to driver selection"
-        button = snackutil.ButtonChoiceWindowEx(
-            tui.screen, title, text,
-            ['Ok', 'Back'], width=60, default=1, help='dmv:info2')
+        #text = "No drivers selected? You can select drivers when your system comes online after host installation.\n\nContinue or go back to driver selection"
+        #button = snackutil.ButtonChoiceWindowEx(
+        #    tui.screen, title, text,
+        #    ['Ok', 'Back'], width=60, default=1, help='dmv:info2')
 
-        if button is None or button == 'back': return LEFT_BACKWARDS
+        #if button is None or button == 'back': return LEFT_BACKWARDS
+
+        # skip the ui rendering
         return RIGHT_FORWARDS
     else:
         got, drvname = dmv_data_provider.sameDriverMultiVariantsSelected(variants)
@@ -605,10 +616,8 @@ def confirm_dmv_selection(answers):
 
             if button is None or button == 'back': return LEFT_BACKWARDS
 
-            choices = []
-            for item in variants:
-                logger.log("select and enable variant %s for driver %s." % (item.oemtype, item.drvname))
-                choices.append((item.drvname, item.oemtype))
+            for drvname, oemtype in choices:
+                logger.log("select and enable variant %s for driver %s." % (oemtype, drvname))
             failures = dmv_data_provider.selectMultiDriverVariants(choices)
             if len(failures) == 0:
                 logger.log("succeed to select and enable all driver variants.")

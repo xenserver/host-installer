@@ -198,6 +198,7 @@ def getFinalisationSequence(ans):
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         Task(writei18n, A(ans, 'mounts'), []),
         Task(configureMCELog, A(ans, 'mounts'), []),
+        Task(writeDMVSelections, A(ans, 'mounts', 'selected-multiversion-drivers'), []),
         ]
 
     # on fresh installs, prepare the storage repository as required:
@@ -1563,6 +1564,16 @@ def touchSshAuthorizedKeys(mounts):
     fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
     fh.close()
 
+def writeDMVSelections(mounts, selected_multiversion_drivers):
+    for driver_name, variant_name in selected_multiversion_drivers:
+        logger.log("write variant %s selection for driver %s." % (variant_name, driver_name))
+
+        cmdstring = "driver-tool|-s|-n|%s|-v|%s" % (driver_name, variant_name)
+        chrootcmd = ['chroot', mounts['root']]
+        chrootcmd.extend(cmdstring.split('|'))
+        rc, out = util.runCmd2(chrootcmd, with_stdout=True)
+        if rc != 0:
+            logger.log(out)
 
 ################################################################################
 # OTHER HELPERS

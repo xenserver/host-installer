@@ -37,6 +37,9 @@ class DriverMultiVersionData:
     def queryDriversOrVariant(self, context):
         return dmvutil.queryDriversOrVariant(context)
 
+    def getDriverVariantByName(self, drvname, oemtype):
+        return dmvutil.getDriverVariantByName(self.drivers, drvname, oemtype)
+
     def sameDriverMultiVariantsSelected(self, variants):
         return dmvutil.sameDriverMultiVariantsSelected(variants)
 

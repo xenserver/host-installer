@@ -79,6 +79,11 @@ if __name__ == '__main__':
         print("got")
     print("")
 
+    colorTextOutput("red_bold", "===== get a variant =====")
+    variant = mockdata.getDriverVariantByName("igb", "dell")
+    print(variant)
+    print("")
+
     colorTextOutput("white_bold", "===== hardware list =====")
     hardware_list = dmvdata.getRealHardwareList()
     print(hardware_list)
