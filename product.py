@@ -268,9 +268,20 @@ class ExistingInstallation:
                 if not d.get('interfaces') and 'parent' in d:
                     p = fetchIfaceInfoFromNetworkdbAsDict(d['parent'])
                     d['interfaces'] = p['interfaces']
+                    d['hwaddrs'] = p.get('hwaddrs')
 
                 results['net-admin-bridge'] = mgmt_iface
-                results['net-admin-interface'] = d.get('interfaces').split(',')[0]
+                hwaddrs = d.get('hwaddrs')
+                if hwaddrs:
+                    net_admin_ifaces = []
+                    nics = [(name, netutil.getHWAddr(name)) for name in netutil.getNetifList()]
+                    for mac in hwaddrs.lower().split(','):
+                        net_admin_ifaces.extend([name for (name, hwaddr) in nics if mac == hwaddr])
+                    if not net_admin_ifaces:
+                        raise SettingsNotAvailable("Could not find any net admin interface")
+                    results['net-admin-interface'] = net_admin_ifaces[0]
+                else:
+                    results['net-admin-interface'] = d.get('interfaces').split(',')[0]
 
                 if_hwaddr = netutil.getHWAddr(results['net-admin-interface'])
 
