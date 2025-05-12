@@ -506,12 +506,6 @@ class ThirdGenUpgrader(Upgrader):
         print("UPGRADE=true", file=state)
         state.close()
 
-        # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
-        if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
-            # CA-82901 - convert any old style ppn referenced to new style ppn references
-            util.runCmd2(['sed', r's/pci\([0-9]\+p[0-9]\+\)/p\1/g', '-i',
-                          os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')])
-
         net_dict = util.readKeyValueFile(os.path.join(mounts['root'], 'etc/sysconfig/network'))
         if net_dict.get('NETWORKING_IPV6', 'no') == 'no':
             nfd = open(os.path.join(mounts['root'], 'etc/sysconfig/network'), 'a')
