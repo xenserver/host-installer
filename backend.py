@@ -9,6 +9,7 @@ import subprocess
 import datetime
 import re
 import tempfile
+import json
 
 import repository
 import generalui
@@ -186,7 +187,15 @@ def getRepoSequence(ans, repos):
     return seq
 
 def getFinalisationSequence(ans):
-    seq = [
+    seq = []
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
+        seq += [
+            Task(waitForSWRAIDSyncComplete, A(ans, 'primary-disk'), []),
+            Task(waitForPartitionTableSyncComplete, A(ans, 'primary-disk', 'physical-disks'), [])
+        ]
+
+    seq += [
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -563,6 +572,28 @@ def setupSWRAIDDevice(disk_label_suffix, physical_disks):
         raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
 
     return os.path.realpath(primary_disk)
+
+# Wait for SW RAID device sync to complete
+def waitForSWRAIDSyncComplete(primary_disk):
+    while not isSWRAIDSyncd(primary_disk):
+        time.sleep(constants.swraid_query_interval)
+
+def isSWRAIDSyncd(primary_disk):
+    rc, out = util.runCmd2(['cat', '/sys/block/%s/md/sync_completed' % primary_disk.split("/")[-1]], with_stdout=True)
+    return out.strip() == "none"  # sync_completed shows 'none' when 100% complete
+
+# Wait for SW RAID devices to sync newly written Partition Tables
+def waitForPartitionTableSyncComplete(primary_disk, physical_disks):
+    primary_tool = PartitionTool(primary_disk)
+    primary_partitions_json = json.dumps(primary_tool.partitionTable())
+
+    for disk in physical_disks:
+        disk_tool = PartitionTool(disk)
+        disk_partitions = disk_tool.partitionTable()
+
+        while json.dumps(disk_partitions) != primary_partitions_json:
+            time.sleep(constants.swraid_query_interval)
+            disk_partitions = disk_tool.partitionTable()
 
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
