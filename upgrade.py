@@ -487,6 +487,34 @@ class ThirdGenUpgrader(Upgrader):
         return restore_list
 
     completeUpgradeArgs = ['mounts', 'installation-to-overwrite', 'primary-disk', 'backup-partnum', 'logs-partnum', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration']
+
+    def convert_interface_rename_data(self, src_file_path, dest_file_path):
+        """
+        Convert data of interface-rename to the data consumed by networkd.
+        """
+        net_devs = netutil.net_devs_of_last_boot(src_file_path)
+        if net_devs is None:
+            logger.error('Failed to parse the interface-rename dynamic rules.')
+            return False
+        else:
+            pattern = r'eth(\d+)'
+            lines = []
+            for (name, mac) in net_devs:
+                match = re.search(pattern, name)
+                if match:
+                    position = match.group(1)
+                    line = f"{position}:mac=\"{mac}\"\n"
+                    logger.log(f"Converted interface-rename data: {line}")
+                    lines += line
+                else:
+                    logger.error(f'Network device name {name} is not like ethN.')
+                    return False
+
+            with open(dest_file_path, mode='w', encoding='utf-8') as f:
+                f.writelines(lines)
+
+            return True
+
     def completeUpgrade(self, mounts, prev_install, target_disk, backup_partnum, logs_partnum, admin_iface, admin_bridge, admin_config):
 
         util.assertDir(os.path.join(mounts['root'], "var/lib/xcp"))
@@ -503,11 +531,23 @@ class ThirdGenUpgrader(Upgrader):
         print("UPGRADE=true", file=state)
         state.close()
 
-        # The existence of the static-rules.conf is used to detect upgrade from Boston or newer
-        if os.path.exists(os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')):
-            # CA-82901 - convert any old style ppn referenced to new style ppn references
-            util.runCmd2(['sed', r's/pci\([0-9]\+p[0-9]\+\)/p\1/g', '-i',
-                          os.path.join(mounts['root'], 'etc/sysconfig/network-scripts/interface-rename-data/static-rules.conf')])
+        interface_rename_dir = os.path.join(
+            mounts['root'],
+            'etc/sysconfig/network-scripts/interface-rename-data/'
+        )
+        src_file_path = os.path.join(interface_rename_dir, 'dynamic-rules.json')
+        dest_file_path = os.path.join(
+            mounts['root'],
+            constants.FIRSTBOOT_DATA_DIR,
+            'initial_network_device_rules.conf'
+        )
+        if os.path.exists(src_file_path):
+            if self.convert_interface_rename_data(src_file_path, dest_file_path):
+                logger.log(f'Removing {interface_rename_dir} ...')
+                shutil.rmtree(interface_rename_dir)
+            else:
+                logger.error('Cannot convert interface-rename data.')
+                raise RuntimeError('Cannot convert interface-rename data.')
 
         net_dict = util.readKeyValueFile(os.path.join(mounts['root'], 'etc/sysconfig/network'))
         if net_dict.get('NETWORKING_IPV6', 'no') == 'no':
