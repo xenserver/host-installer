@@ -707,13 +707,6 @@ def disk_more_info(context):
         usage = "%s installation" % MY_PRODUCT_BRAND
     elif disk.storage[0]:
         usage = 'VM storage'
-    else:
-        # Determine disk is being used as an LVM SR with no partitioning
-        rv, out = util.runCmd2([ 'pvs', context, '-o', 'vg_name', '--noheadings' ], with_stdout=True)
-        if rv == 0:
-            vg_name = out.strip()
-            if vg_name.startswith('VG_XenStorage-'):
-                usage = 'VM Storage'
 
     tui.update_help_line([' ', ' '])
     snackutil.TableDialog(tui.screen, "Details", ("Disk:", diskutil.getHumanDiskName(context)),
