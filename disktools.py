@@ -185,6 +185,8 @@ class LVMTool:
             if name.startswith('/dev/dm-'):
                 n = int(name[8:])
                 pv['pv_name'] = getDeviceMapperNode(n)
+            elif name.startswith('/dev/disk/by-id/dm-name-'):
+                pv['pv_name'] = name.replace('/dev/disk/by-id/dm-name-', '/dev/mapper/')
 
     @classmethod
     def decodeSegmentRange(cls, segRange):
