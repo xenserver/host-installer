@@ -191,7 +191,7 @@ def getFinalisationSequence(ans):
 
     if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
         seq += [
-            Task(waitForSWRAIDSyncComplete, A(ans, 'primary-disk'), []),
+            Task(addSecondSWRAIDDevice, A(ans, 'primary-disk', 'physical-disks'), []),
             Task(waitForPartitionTableSyncComplete, A(ans, 'primary-disk', 'physical-disks'), [])
         ]
 
@@ -566,15 +566,15 @@ def setupSWRAIDDevice(disk_label_suffix, physical_disks):
     if rc != 0:
         raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
 
+    return os.path.realpath(primary_disk)
+
+# Wait for SW RAID device sync to complete
+def addSecondSWRAIDDevice(primary_disk, physical_disks):
     # Add second disk to SW RAID device
     rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
     if rc != 0:
         raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
 
-    return os.path.realpath(primary_disk)
-
-# Wait for SW RAID device sync to complete
-def waitForSWRAIDSyncComplete(primary_disk):
     while not isSWRAIDSyncd(primary_disk):
         time.sleep(constants.swraid_query_interval)
 
