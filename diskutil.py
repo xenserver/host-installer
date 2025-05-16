@@ -500,6 +500,10 @@ def log_available_disks():
         if len(dom0disks) == 0:
             logger.log("Unable to find a suitable disk (with a size greater than %dGB) to install to." % constants.min_primary_disk_size)
 
+def isGFS2Filesystem(device):
+    _, out = util.runCmd2(['blkid', '-s', 'TYPE', '-o', 'value', device], with_stdout=True)
+    return out.strip() == 'gfs2'
+
 class Disk:
     def __init__(self, device):
         self.device = device
@@ -515,6 +519,7 @@ class Disk:
 INSTALL_RETAIL = 1
 STORAGE_LVM = 1
 STORAGE_OTHER = 2
+STORAGE_GFS2 = 3
 
 def probeDisk(device):
     """Examines device and reports the apparent presence of a XenServer installation and/or related usage
@@ -525,14 +530,14 @@ def probeDisk(device):
         boot is a tuple of True or False and the partition device
         root is a tuple of None or INSTALL_RETAIL and the partition device
         state is a tuple of True or False and the partition device
-        storage is a tuple of None, STORAGE_LVM or STORAGE_OTHER and the partition device
+        storage is a tuple of None, STORAGE_LVM, STORAGE_GFS2 or STORAGE_OTHER and the partition device
         logs is a tuple of True or False and the partition device
         swap is a tuple of True or False and the partition device
     """
 
     logger.debug("probeDisk(%r)", device)
     disk = Disk(device)
-    possible_srs = []
+    possible_srs = set()
 
     tool = PartitionTool(device)
     tool.dump()
@@ -553,12 +558,11 @@ def probeDisk(device):
                 disk.state = (True, part_device)
                 if num + 2 in tool.partitions:
                     # George Retail and earlier didn't use the correct id for SRs
-                    possible_srs = [num+2]
+                    possible_srs.add(tool._partitionDevice(num + 2))
             elif label and label.startswith(constants.logsfs_label_prefix):
                 disk.logs = (True, part_device)
         elif part['id'] == tool.ID_LINUX_LVM:
-            if num not in possible_srs:
-                possible_srs.append(num)
+            possible_srs.add(part_device)
         elif part['id'] == tool.ID_LINUX_SWAP:
             disk.swap = (True, part_device)
         elif part['id'] == GPTPartitionTool.ID_EFI_BOOT or part['id'] == GPTPartitionTool.ID_BIOS_BOOT:
@@ -566,10 +570,12 @@ def probeDisk(device):
         else:
             logger.info("part %s has unknown id: %s", num, part)
 
-    lv_tool = len(possible_srs) and LVMTool()
-    for num in possible_srs:
-        part_device = tool._partitionDevice(num)
+    # The entire device may be used as an SR unpartitioned
+    if len(list(tool.items())) == 0:
+        possible_srs.add(device)
 
+    lv_tool = len(possible_srs) and LVMTool()
+    for part_device in possible_srs:
         if lv_tool.isPartitionConfig(part_device):
             disk.state = (True, part_device)
         elif lv_tool.isPartitionSR(part_device):
@@ -578,6 +584,8 @@ def probeDisk(device):
                 disk.storage = (STORAGE_OTHER, part_device)
             else:
                 disk.storage = (STORAGE_LVM, part_device)
+        elif isGFS2Filesystem(part_device):
+            disk.storage = (STORAGE_GFS2, part_device)
 
     logger.log('Probe of %s found boot=%s root=%s disk.state=%s storage=%s logs=%s' %
                   (device, str(disk.boot), str(disk.root), str(disk.state), str(disk.storage), str(disk.logs)))
