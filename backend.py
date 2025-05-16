@@ -9,6 +9,7 @@ import subprocess
 import datetime
 import re
 import tempfile
+import json
 
 import repository
 import generalui
@@ -105,24 +106,31 @@ def getPrepSequence(ans, interactive):
     seq = [
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
-        Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary', 'target-platform'),
-            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
+        Task(util.randomLabelStr, As(ans), ['disk-label-suffix'])
         ]
+
+    if not interactive:
+        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH:
+        seq.append(Task(removeBlockingVGs, As(ans, 'guest-disks'), []))
+
+        if ans['swraid']:
+            seq.append(Task(setupSWRAIDDevice, A(ans, 'disk-label-suffix', 'physical-disks'), ['primary-disk']))
+
+    seq += [
+        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary', 'target-platform'),
+            ['target-boot-mode', 'primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum'])]
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
         seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
     elif ans['ntp-config-method'] == "none":
         seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
 
-    if not interactive:
-        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
             Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'target-boot-mode', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end'),[]),
-            ]
-        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
+            Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), [])]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         seq.append(Task(convertTarget,
@@ -179,7 +187,15 @@ def getRepoSequence(ans, repos):
     return seq
 
 def getFinalisationSequence(ans):
-    seq = [
+    seq = []
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
+        seq += [
+            Task(addSecondSWRAIDDevice, A(ans, 'primary-disk', 'physical-disks'), []),
+            Task(waitForPartitionTableSyncComplete, A(ans, 'primary-disk', 'physical-disks'), [])
+        ]
+
+    seq += [
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -197,7 +213,7 @@ def getFinalisationSequence(ans):
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
                               'fcoe-interfaces'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk',
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'physical-disks',
                                   'boot-partnum', 'primary-partnum', 'target-boot-mode', 'branding',
                                   'disk-label-suffix', 'bootloader-location', 'write-boot-entry', 'install-type',
                                   'serial-console', 'boot-serial', 'host-config', 'fcoe-interfaces'), []),
@@ -531,6 +547,53 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     # now turn on the ntp service:
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
+
+# Setup a new SW RAID device using mdadm
+# The primary-disk (/dev/md/*) is built from the physical disks provided in the answerfile
+def setupSWRAIDDevice(disk_label_suffix, physical_disks):
+    primary_disk = "/dev/md/xs-" + disk_label_suffix
+
+    # Stop the multi-device if it exists
+    if os.path.exists(primary_disk):
+        util.runCmd2(['mdadm', '--stop', primary_disk])
+
+    # Zero any superblocks on the physical disks
+    for disk in physical_disks:
+        util.runCmd2(['mdadm', '--zero-superblock', disk])
+
+    # Create multi-device with the first physical disk
+    rc = util.runCmd2(['mdadm', '--create', primary_disk, '--name=XenServer', '--metadata=1.0', '--level=mirror', '--raid-devices=2', '--run', physical_disks[0], 'missing'])
+    if rc != 0:
+        raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
+
+    return os.path.realpath(primary_disk)
+
+# Wait for SW RAID device sync to complete
+def addSecondSWRAIDDevice(primary_disk, physical_disks):
+    # Add second disk to SW RAID device
+    rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
+    if rc != 0:
+        raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
+
+    while not isSWRAIDSyncd(primary_disk):
+        time.sleep(constants.swraid_query_interval)
+
+def isSWRAIDSyncd(primary_disk):
+    rc, out = util.runCmd2(['cat', '/sys/block/%s/md/sync_completed' % primary_disk.split("/")[-1]], with_stdout=True)
+    return out.strip() == "none"  # sync_completed shows 'none' when 100% complete
+
+# Wait for SW RAID devices to sync newly written Partition Tables
+def waitForPartitionTableSyncComplete(primary_disk, physical_disks):
+    primary_tool = PartitionTool(primary_disk)
+    primary_partitions_json = json.dumps(primary_tool.partitionTable())
+
+    for disk in physical_disks:
+        disk_tool = PartitionTool(disk)
+        disk_partitions = disk_tool.partitionTable()
+
+        while json.dumps(disk_partitions) != primary_partitions_json:
+            time.sleep(constants.swraid_query_interval)
+            disk_partitions = disk_tool.partitionTable()
 
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
@@ -1097,7 +1160,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  root=constants.rootfs_label%disk_label_suffix)
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_mode, branding,
+def installBootLoader(mounts, disk, physical_disks, boot_partnum, primary_partnum, target_boot_mode, branding,
                       disk_label_suffix, location, write_boot_entry, install_type, serial=None,
                       boot_serial=None, host_config=None, fcoe_interface=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
@@ -1127,7 +1190,7 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
     root_partition = partitionDevice(disk, primary_partnum)
     if target_boot_mode == TARGET_BOOT_MODE_UEFI:
         if write_boot_entry:
-            setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
+            setEfiBootEntry(mounts, physical_disks, boot_partnum, install_type, branding)
     else:
         if location == constants.BOOT_LOCATION_MBR:
             installGrub2(mounts, disk, False)
@@ -1149,7 +1212,7 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
         new.close()
         shutil.move('/tmp/inittab', "%s/etc/inittab" % mounts['root'])
 
-def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
+def setEfiBootEntry(mounts, physical_disks, boot_partnum, install_type, branding):
     def check_efibootmgr_err(rc, err, install_type, err_type):
         if rc != 0:
             if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
@@ -1180,10 +1243,11 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
         efi = "EFI/xenserver/grubx64.efi"
     else:
         raise RuntimeError("Failed to find EFI loader")
-    rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
-                            "-L", branding['product-brand'], "-l", '\\' + efi.replace('/', '\\'),
-                            "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
-    check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
+    for disk in physical_disks:
+        rc, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr", "-c",
+                                "-L", branding['product-brand'], "-l", '\\' + efi.replace('/', '\\'),
+                                "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
+        check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry for %s" % disk)
 
 def installGrub2(mounts, disk, force):
     if force:
