@@ -1149,15 +1149,14 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, target_boot_m
         new.close()
         shutil.move('/tmp/inittab', "%s/etc/inittab" % mounts['root'])
 
-def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
-    def check_efibootmgr_err(rc, err, install_type, err_type):
-        if rc != 0:
-            if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
-                logger.error("%s: %s" % (err_type, err))
-            else:
-                raise RuntimeError("%s: %s" % (err_type, err))
+def check_efibootmgr_err(rc, err, install_type, err_type):
+    if rc != 0:
+        if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
+            logger.error("%s: %s" % (err_type, err))
+        else:
+            raise RuntimeError("%s: %s" % (err_type, err))
 
-    # First remove existing entries
+def clearEfiBootEntries(mounts, install_type, branding):
     rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
     check_efibootmgr_err(rc, err, install_type, "Failed to list efi boot entries")
 
@@ -1173,7 +1172,7 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
             check_efibootmgr_err(rc, err, install_type,
                                  "Failed to remove efi boot entry %r" % (line,))
 
-    # Then add a new one
+def addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     if os.path.exists(os.path.join(mounts['esp'], 'EFI/xenserver/shimx64.efi')):
         efi = "EFI/xenserver/shimx64.efi"
     elif os.path.exists(os.path.join(mounts['esp'], 'EFI/xenserver/grubx64.efi')):
@@ -1184,6 +1183,10 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
                             "-L", branding['product-brand'], "-l", '\\' + efi.replace('/', '\\'),
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
     check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
+
+def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
+    clearEfiBootEntries(mounts, install_type, branding)
+    addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
 
 def installGrub2(mounts, disk, force):
     if force:
