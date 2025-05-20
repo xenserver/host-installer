@@ -445,7 +445,7 @@ def findProblematicVGs(disks):
         except:
             # CA-35020: whole disk
             device = pv['pv_name']
-        vgdiskmap[pv['vg_name']].append(device)
+        vgdiskmap[pv['vg_name']].append(os.path.realpath(device))
 
     # for each VG, map the disk list to a boolean list saying whether that
     # disk is in the set we're installing to:

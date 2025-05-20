@@ -288,7 +288,7 @@ class LVMTool:
         """ Returns the PV record for a given device (partition), or None if there is no PV
         for that device."""
         for pv in self.pvs:
-            if pv['pv_name'] == device:
+            if os.path.samefile(pv['pv_name'], device):
                 return pv
         return None
 
@@ -335,7 +335,8 @@ class LVMTool:
         the volume group that it's in starts with vgPrefix"""
         retVal = None
         for pv in self.pvs:
-            if pv['pv_name'].startswith(devicePrefix) and pv['vg_name'].startswith(vgPrefix):
+            pv_path = os.path.realpath(pv['pv_name'])
+            if pv_path.startswith(devicePrefix) and pv['vg_name'].startswith(vgPrefix):
                 retVal = pv['pv_name']
                 break
         return retVal
@@ -376,7 +377,7 @@ class LVMTool:
         lvsToDelete = []
 
         for pv in self.pvs:
-            if pv['pv_name'] == device:
+            if os.path.samefile(pv['pv_name'], device):
                 pvsToDelete.append(pv['pv_name'])
                 vgsToDelete.append(pv['vg_name'])
 
