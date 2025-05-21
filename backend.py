@@ -549,8 +549,16 @@ def setupSWRAIDDevice(disk_label_suffix, physical_disks, guest_disks):
     for disk in physical_disks:
         util.runCmd2(['mdadm', '--zero-superblock', disk])
 
+    # Limit SWRAID size to 95%
+    rc, out = util.runCmd2(['blockdev', '--getsize64', physical_disks[0]], with_stdout=True)
+    if rc != 0:
+        raise RuntimeError("Failed to determine size of block device: '%s'" % physical_disks[0])
+
+    sizeGB = int(out.strip()) / (1024 ** 3)
+    swraidSizeGB = int(sizeGB * 0.95)
+
     # Create multi-device with the first physical disk
-    rc = util.runCmd2(['mdadm', '--create', primary_disk, '--metadata=1.0', '--level=mirror', '--raid-devices=2', '--run', physical_disks[0], 'missing'])
+    rc = util.runCmd2(['mdadm', '--create', primary_disk, '--size=%sG' % swraidSizeGB, '--metadata=1.0', '--level=mirror', '--raid-devices=2', '--run', physical_disks[0], 'missing'])
     if rc != 0:
         raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
 
