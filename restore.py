@@ -201,6 +201,31 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                 (tool, restore_partition) = restore_partitions()
                 dest_fs = util.TempMount(restore_partition, 'restore-dest-')
 
+            if diskutil.is_raid(disk_device):
+                backend.waitForSWRAIDSync(disk_device)
+
+                # umount and re-mount partitions to flush the cache
+                # umount all partitions first before re-mounting
+                util.umount(mounts['esp'])
+                dest_fs.unmount()
+
+                # Restart the SW RAID device
+                physical_disks = diskutil.getSWRAIDDevices(disk_device)
+                if len(physical_disks) == 0:
+                    raise RuntimeError("Failed to identify physical devices of SWRAID device: %s" % disk_device)
+
+                assembleCommand = ["mdadm", "--assemble", "--run", disk_device, physical_disks[0]]
+                if len(physical_disks) == 2:
+                    assembleCommand.append(physical_disks[1])
+
+                diskutil.stopSWRAID(disk_device)
+                if util.runCmd2(assembleCommand) != 0:
+                    raise RuntimeError("Failed to re-assemble SWRAID device: %s" % disk_device)
+
+                dest_fs = util.TempMount(restore_partition, 'restore-dest-')
+                os.makedirs(mounts['esp'])
+                util.mount(boot_device, mounts['esp'])
+
             # prepare extra mounts for installing bootloader:
             util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
             util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
@@ -208,15 +233,15 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
             # restore boot loader
             if boot_config.src_fmt == 'grub2':
-                if efi_boot:
-                    branding = dict(inventory)
-                    branding['product-brand'] = branding['PRODUCT_BRAND']
-                    backend.setEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
-                else:
-                    if location == constants.BOOT_LOCATION_MBR:
-                        backend.installGrub2(mounts, disk_device, False)
-                    else:
-                        backend.installGrub2(mounts, restore_partition, True)
+                branding = dict(inventory)
+                branding['product-brand'] = branding['PRODUCT_BRAND']
+
+                physical_disks = [disk_device]
+                if diskutil.is_raid(disk_device):
+                    physical_disks = diskutil.getSWRAIDDevices(disk_device)
+
+                target_boot_mode = constants.TARGET_BOOT_MODE_UEFI if efi_boot else constants.TARGET_BOOT_MODE_LEGACY
+                backend.writeBootEntries(True, mounts, physical_disks, restore_partition, boot_partnum, target_boot_mode, constants.INSTALL_TYPE_RESTORE, branding, location)
             else:
                 backend.installExtLinux(mounts, disk_device, probePartitioningScheme(disk_device), location)
         finally:
