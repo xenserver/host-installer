@@ -483,13 +483,16 @@ class LVMTool:
         pprint(self.__dict__)
 
 def diskDevice(partitionDevice):
-    matches = re.match(r'(.+)(p?|(-part))\d+$', partitionDevice)
-    if matches:
-        return matches.group(1)
-    matches = re.match(r'(.+\D)\d+$', partitionDevice)
-    if not matches:
-        raise Exception("Could not determine disk device for device '"+partitionDevice+"'")
-    return matches.group(1)
+    # There are three cases:
+    # 1) "p" and a number added, e.g. nvme1n1p3 which happens when the parent device
+    #    ends in a number
+    # 2) "-part" and a number added, e.g. scsi-36f4ee08074d4d5002e3ec9f12273e1c0-part3
+    # 3) Just a number added, e.g. sda3, sdp3
+    m = re.match(r'((?P<case1>.+?\d+)p\d+$)|((?P<case2>.+?)-part\d+$)|((?P<case3>.+\D)\d+$)', partitionDevice)
+    if m:
+        return m.group('case1') or m.group('case2') or m.group('case3')
+
+    raise Exception("Could not determine disk device for device '%s'" % partitionDevice)
 
 def determineMidfix(device):
     DISK_PREFIX = '/dev/'
