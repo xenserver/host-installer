@@ -61,9 +61,6 @@ def configureNetworking(ui, device, config):
             netcfg[i] = NetInterface(NetInterface.DHCP, nethw[i].hwaddr,
                                      vlan=config_dict['vlan'])
 
-    netutil.writeResolverFile(netcfg, '/etc/resolv.conf')
-
-
     iface_to_start = []
     if device == 'all':
         iface_to_start.extend(list(netcfg.keys()))

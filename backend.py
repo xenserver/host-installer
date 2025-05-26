@@ -956,10 +956,10 @@ def mkinitrd(mounts, primary_disk, primary_partnum):
 def prepFallback(mounts, primary_disk, primary_partnum):
     kernel_version =  getKernelVersion(mounts['root'])
 
-    # Copy /boot/xen-xxxx.gz to /boot/xen-fallback.gz
-    xen_gz = os.path.realpath(mounts['root'] + "/boot/xen.gz")
-    src = os.path.join(mounts['root'], "boot", os.path.basename(xen_gz))
-    dst = os.path.join(mounts['root'], 'boot/xen-fallback.gz')
+    # Copy /boot/xen-xxxx.efi to /boot/xen-fallback.efi
+    xen_efi = os.path.realpath(mounts['root'] + "/boot/xen.efi")
+    src = os.path.join(mounts['root'], "boot", os.path.basename(xen_efi))
+    dst = os.path.join(mounts['root'], 'boot/xen-fallback.efi')
     shutil.copyfile(src, dst)
 
     # Copy /boot/vmlinuz-yyyy to /boot/vmlinuz-fallback
@@ -1016,7 +1016,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         for interface in fcoe_interfaces:
             common_kernel_params += " fcoe=%s:%s" % (netutil.getHWAddr(interface), 'nodcb' if fcoeutil.hw_lldp_capable(interface) else 'dcb')
 
-    e = bootloader.MenuEntry(hypervisor="/boot/xen.gz",
+    e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
@@ -1027,7 +1027,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     if serial:
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
 
-        e = bootloader.MenuEntry(hypervisor="/boot/xen.gz",
+        e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                                  hypervisor_args=' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
@@ -1036,7 +1036,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
-        e = bootloader.MenuEntry(hypervisor="/boot/xen.gz",
+        e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                                  hypervisor_args=' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args=' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
@@ -1050,7 +1050,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                             root=constants.rootfs_label%disk_label_suffix)
     boot_config.append("memtest", e)
 
-    e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.gz",
+    e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                              kernel="/boot/vmlinuz-fallback",
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
@@ -1059,7 +1059,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                              root=constants.rootfs_label%disk_label_suffix)
     boot_config.append("fallback", e)
     if serial:
-        e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.gz",
+        e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
                                  hypervisor_args=' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel="/boot/vmlinuz-fallback",
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),

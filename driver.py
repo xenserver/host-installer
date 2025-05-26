@@ -11,9 +11,6 @@ import tui.installer.screens
 import tui.progress
 import util
 
-# backend
-import repository
-
 # general
 from version import *
 from xcp import logger

@@ -7,7 +7,6 @@ import uicontroller
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
 import netutil
-import repository
 import constants
 import upgrade
 import product
@@ -88,6 +87,13 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                 answers['installation-to-overwrite'].settingsAvailable():
             settings = answers['installation-to-overwrite'].readSettings()
         return 'ha-armed' in settings and settings['ha-armed']
+    
+    def corosync2_was_in_use(answers):
+        settings = {}
+        if 'installation-to-overwrite' in answers and \
+                answers['installation-to-overwrite'].settingsAvailable():
+            settings = answers['installation-to-overwrite'].readSettings()
+        return 'corosync-version' in settings and settings['corosync-version'] == 2
 
     def out_of_order_pool_upgrade_fn(answers):
         if (
@@ -142,6 +148,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              predicates=[lambda _:len(results['upgradeable-products']) > 0 or len(results['backups']) > 0]),
         Step(uis.upgrade_settings_warning,
              predicates=[upgrade_but_no_settings_predicate]),
+        Step(uis.migrate_to_corosync3_check,
+             predicates=[is_reinstall_fn, preserve_settings, corosync2_was_in_use]),
         Step(uis.ha_master_upgrade,
              predicates=[is_reinstall_fn, ha_enabled]),
         Step(uis.remind_driver_repos,

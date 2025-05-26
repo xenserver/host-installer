@@ -340,6 +340,18 @@ def master_not_upgraded(answers):
     if button == 'back': return LEFT_BACKWARDS
     return EXIT
 
+def migrate_to_corosync3_check(answers):
+    button = ButtonChoiceWindow(
+        tui.screen,
+        "Corosync 2 Is In Use",
+        "This host uses version 2 of Corosync. This version is obsoleted by version 3 in the next XenServer release. Before upgrading, perform a manual migration from Corosync version 2 to Corosync version 3.",
+        ['Cancel', 'Back'],
+        width=60, help='corosync2'
+        )
+
+    if button == 'back': return LEFT_BACKWARDS
+    return EXIT
+
 def upgrade_settings_warning(answers):
     button = ButtonChoiceWindow(
         tui.screen,
