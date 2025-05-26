@@ -434,6 +434,7 @@ def getHumanDiskLabel(disk, short=False):
 # groups that will cause a problem if we install XE to those disks:
 def findProblematicVGs(disks):
     real_disks = [os.path.realpath(d) for d in disks]
+    logger.log('Find problematic VGs of disks %s, real paths %s' % (disks, real_disks))
 
     # which disks are the volume groups on?
     vgdiskmap = {}
@@ -452,6 +453,7 @@ def findProblematicVGs(disks):
     vgusedmap = {}
     for vg in vgdiskmap:
         vgusedmap[vg] = [disk in real_disks for disk in vgdiskmap[vg]]
+    logger.log('vgusedmap %s' % vgusedmap)
 
     # now, a VG is problematic if it its vgusedmap entry contains a mixture
     # of True and False.  If it's entirely True or entirely False, that's OK:
