@@ -603,7 +603,7 @@ def confirm_dmv_selection(answers):
     else:
         got, drvname = dmv_data_provider.sameDriverMultiVariantsSelected(variants)
         if not got:
-            text = "The listed drivers are selected to take effect on %s soon after selection and upon first boot after host installation." % MY_PRODUCT_BRAND
+            text = "The listed drivers have been selected to take effect on %s soon after selection and upon first boot after host installation." % MY_PRODUCT_BRAND
             for item in variants:
                 entries.append( (item.getHumanVariantLabel(), item) )
 
@@ -627,7 +627,7 @@ def confirm_dmv_selection(answers):
             return RIGHT_FORWARDS
         else:
             title = "Warning"
-            text = "Only one variant of driver %s can be selected, but multiple variants of driver %s are selected." % (drvname, drvname)
+            text = "Only one variant of driver %s can be selected, but multiple variants of driver %s have been selected." % (drvname, drvname)
             button = snackutil.ButtonChoiceWindowEx(
                     tui.screen, title, text,
                     ['Back'], width=60, default=0, help='dmv:info4')
