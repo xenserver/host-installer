@@ -487,7 +487,7 @@ def diskDevice(partitionDevice):
     #    ends in a number
     # 2) "-part" and a number added, e.g. scsi-36f4ee08074d4d5002e3ec9f12273e1c0-part3
     # 3) Just a number added, e.g. sda3, sdp3
-    m = re.match(r'((?P<case1>.+?\d+)p\d+$)|((?P<case2>.+?)-part\d+$)|((?P<case3>.+\D)\d+$)', partitionDevice)
+    m = re.match(r'((?P<case1>.+?\d+)p\d+$)|((?P<case2>.+?)-part\d+$)|((?P<case3>[^\d\-]+)\d+$)', partitionDevice)
     if m:
         return m.group('case1') or m.group('case2') or m.group('case3')
 
