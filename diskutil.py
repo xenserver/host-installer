@@ -560,6 +560,7 @@ def probeDisk(device):
     if len(list(tool.items())) == 0:
         possible_srs.add(device)
 
+    srs = []
     lv_tool = len(possible_srs) and LVMTool()
     for part_device in possible_srs:
         if lv_tool.isPartitionConfig(part_device):
@@ -567,11 +568,17 @@ def probeDisk(device):
         elif lv_tool.isPartitionSR(part_device):
             pv = lv_tool.deviceToPVOrNone(part_device)
             if pv is not None and pv['vg_name'].startswith(lv_tool.VG_OTHER_SR_PREFIX):
-                disk.storage = (STORAGE_OTHER, part_device)
+                srs.append((STORAGE_OTHER, part_device))
             else:
-                disk.storage = (STORAGE_LVM, part_device)
+                srs.append((STORAGE_LVM, part_device))
         elif isGFS2Filesystem(part_device):
-            disk.storage = (STORAGE_GFS2, part_device)
+            srs.append((STORAGE_GFS2, part_device))
+
+    if len(srs) > 1:
+        logger.info(f'Probe of {device} found multiple SRs: {srs}')
+        raise Exception(f'Cannot handle multiple SRs on a device: {device}')
+    elif srs:
+        disk.storage = srs[0]
 
     logger.log('Probe of %s found boot=%s root=%s disk.state=%s storage=%s logs=%s' %
                   (device, str(disk.boot), str(disk.root), str(disk.state), str(disk.storage), str(disk.logs)))
