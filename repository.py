@@ -393,6 +393,8 @@ class DriverUpdateYumRepository(UpdateYumRepository):
 
     INFO_FILENAME = "update.xml"
     _cachedir = 'run/yuminstaller'
+    # output of `dnf group list`, in format of 'ID  Name Installed'
+    group_id_pat = re.compile(r'^(\S+)')
     _yum_conf = """[main]
 cachedir=/%s
 keepcache=0
@@ -433,10 +435,12 @@ baseurl=%s
                     yum_conf.write("password=%s\n" % _quoteDnfString(password))
 
             # Check that the drivers group exists in the repo.
-            rv, out = util.runCmd2(['yum', '-c', '/root/yum.conf',
-                                    'group', 'summary', 'drivers'], with_stdout=True)
-            if rv == 0 and 'Groups: 1\n' in out.strip():
-                return True
+            rv, out = util.runCmd2(['dnf', '--config=/root/yum.conf',
+                                    'group', 'list'], with_stdout=True)
+            if rv == 0:
+                lines = out.strip().splitlines()
+                ids = [mth.group(1) for line in lines if (mth := cls.group_id_pat.match(line))]
+                return "drivers" in ids
 
         return False
 
