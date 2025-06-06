@@ -1,0 +1,4 @@
+*.pyc
+ifcfg-*
+installer.log
+resolv.conf
