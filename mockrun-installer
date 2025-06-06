@@ -500,6 +500,24 @@ def mock_os_path_exists(path):
 
 os.path.exists = mock_os_path_exists
 
+#
+
+def mocked_hardware_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+
+    realfname = fname           # default
+
+    if fname.startswith('/sys/hypervisor/'):
+        realfname = MOCKDATA + fname
+
+    if realfname != fname:
+        logger.debug("redirecting open() to %r" % (realfname,))
+
+    return open(realfname, mode, *args, **kwargs)
+
+import hardware
+hardware.open = mocked_hardware_open
+
 ####
 
 from xcp import logger
