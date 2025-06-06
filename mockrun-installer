@@ -162,7 +162,14 @@ def mocked_runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None
         # return (0, "") # standard ISO without linstor
         # return (0, "10:1.21.0-1.el7\n0:1.29.0-1.el7_9\n")
         # return (0, "0:1.21.0-1.el7\n")
-        return (0, "0:1.29.0-2.el7_9\n")
+        # return (0, "0:1.29.0-2.el7_9\n")
+        return (0, "0:1.29.0-1.el7_9\n")
+
+    if command == ['repoquery', '-c', '/root/yum-repoquery.conf', '--qf', '%{evr}', 'xapi-core']:
+        logger.log("faking %s" % (command,))
+        # return (0, "0:24.39.1-1.3.xcpng8.3\n")
+        return (0, "0:25.6.0-1.7-xcpng8.3\n")
+        # return (0, "0:25.11.0-1.xs8\n")
 
     raise RuntimeError("mockrun runCmd2 command not specified: {!r}{}{}".format(
         command, " with_stdout" if with_stdout else "", " with_stderr" if with_stderr else ""))
@@ -294,6 +301,10 @@ def mock_readSettings(self):
 
         # 'linstor-version': None,
         'linstor-version': "1.29.0-1.el7_9",
+
+        # 'xapi-version': "24.39.1-1.3.xcpng8.3",
+        'xapi-version': "0:25.6.0-1.7-xcpng8.3",
+        # 'xapi-version': "25.11.0-1.xs8"
     }
 
 def mock_is_rootfs_uefi(mount_point):
