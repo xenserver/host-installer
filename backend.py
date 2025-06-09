@@ -1191,10 +1191,10 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
     return mounts, new_cleanup
 
 def umountVolumes(mounts, cleanup, force=False):
-    def filterCleanup(tag, _, __):
-        return (not tag.startswith("umount-%s" % mounts['root']) and
-                not tag.startswith("umount-%s" % os.path.join(mounts['root'], 'mnt')) and
-                not tag.startswith("umount-%s" % mounts['boot']))
+    def filterCleanup(operation):
+        return (not operation[0].startswith("umount-%s" % mounts['root']) and
+                not operation[0].startswith("umount-%s" % os.path.join(mounts['root'], 'mnt')) and
+                not operation[0].startswith("umount-%s" % mounts['boot']))
 
     util.umount(os.path.join(mounts['root'], 'mnt'))
     util.umount(constants.EXTRA_SCRIPTS_DIR)
