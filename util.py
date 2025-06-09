@@ -373,6 +373,19 @@ def setLocalTime(timestring, timezone=None):
 
     assert runCmd2("date --set='%s'" % timestring) == 0
 
+def getSWRAIDDevices(device):
+    rc, out = runCmd2(['mdadm', '--detail', '--scan', '--verbose', device], with_stdout=True)
+    if rc != 0:
+        raise RunetimeError("Failed to query SWRAID device for physical disks: '%s'" % device)
+
+    for line in out.splitlines():
+        logger.log(line)
+        if line.strip().startswith("devices="):
+            return line.split("=")[1].strip().split(",")
+
+    raise RuntimeError("Failed to identify SWRAID devices")
+
+
 class URL(object):
     """A wrapper around a URL string.
 

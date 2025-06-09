@@ -213,7 +213,12 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                 if efi_boot:
                     branding = dict(inventory)
                     branding['product-brand'] = branding['PRODUCT_BRAND']
-                    backend.setEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
+                    backend.clearEfiBootEntries(mounts, constants.INSTALL_TYPE_RESTORE, branding)
+                    if disk_device.startswith('/dev/md'):  # Using SWRAID
+                        physical_disks = util.getSWRAIDDevices(disk_device)
+                        mounts = backend.completeSWRAID(mounts, disk_device, physical_disks, True, constants.INSTALL_TYPE_RESTORE, branding, boot_partnum, -1, -1, constants.TARGET_BOOT_MODE_UEFI, remount=False)
+                    else:
+                        backend.addEfiBootEntry(mounts, disk_device, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
                 else:
                     if location == constants.BOOT_LOCATION_MBR:
                         backend.installGrub2(mounts, disk_device, False)
@@ -225,7 +230,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             util.umount("%s/proc" % dest_fs.mount_point)
             util.umount("%s/sys" % dest_fs.mount_point)
             util.umount("%s/dev" % dest_fs.mount_point)
-            if efi_mounted:
+            if efi_mounted and 'esp' in mounts:
                 util.umount(mounts['esp'])
             dest_fs.unmount()
     finally:
