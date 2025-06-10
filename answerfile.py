@@ -72,6 +72,7 @@ class Answerfile:
         logger.log("Processing XML answerfile setup.")
         results = {}
         results.update(self.parseDriverSource())
+        results.update(self.parseDriverMultiVersion())
         results.update(self.parseFCoEInterface())
         results.update(self.parseUIConfirmationPrompt())
 
@@ -287,6 +288,19 @@ class Answerfile:
                 address = util.URL(address)
 
             results['extra-repos'].append((rtype, address))
+        return results
+
+    def parseDriverMultiVersion(self):
+        results = {}
+        results['selected-multiversion-drivers'] = []
+        elements = getElementsByTagName(self.top_node, ['selected-multiversion-drivers'])
+        if len(elements) > 0:
+            node = elements[0]
+            drivers = node.getElementsByTagName("driver")
+            for driver in drivers:
+                drvname = driver.getAttribute("name")
+                variant = driver.firstChild.nodeValue if driver.firstChild else ""
+                results['selected-multiversion-drivers'].append((drvname, variant))
         return results
 
     def parseDisks(self):
