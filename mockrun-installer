@@ -157,7 +157,7 @@ def mocked_runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None
     if command == ['uuidgen']:
         return (0, "40987587-a9d0-44ae-a7bc-d9fd21850b7c")
 
-    if command == ['repoquery', '-c', '/root/yum-repoquery.conf', '--qf', '%{evr}', 'linstor-satellite']:
+    if command == ['repoquery', '-c', '/root/yum-repoquery.conf', '--qf', '%{evr}', 'linstor-satellite', '--show-duplicates']:
         logger.log("faking %s" % (command,))
         # return (0, "") # standard ISO without linstor
         # return (0, "10:1.21.0-1.el7\n0:1.29.0-1.el7_9\n")
