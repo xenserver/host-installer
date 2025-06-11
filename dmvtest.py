@@ -2,7 +2,7 @@
 
 # SPDX-License-Identifier: GPL-2.0-only
 
-import dmvdata
+import dmvutil
 
 def colorTextOutput(color, text):
     COLORS = {
@@ -25,8 +25,95 @@ def colorTextOutput(color, text):
     }
     print(f"{'%s'}%s{COLORS['reset']}" % (COLORS[color], text))
 
+def getMockHardwareList():
+    device_driver_map = {
+        "igb": ["Intel I350 Gigabit Ethernet Controller",
+                "Intel 82575 and 82576 Gigabit Ethernet controller"],
+        "ice": ["Intel E810 Ethernet Controller"],
+        "fnic": ["Cisco UCS VIC Fibre Channel over Ethernet HBA"]
+    }
+    return device_driver_map
+
+def getMockDMVList():
+    jsondata = '''
+    {
+        "protocol": {
+            "version": 0.1
+        },
+        "operation": {
+            "reboot": false
+        },
+        "drivers": {
+            "igb": {
+                "type": "network",
+                "friendly_name": "Intel Gigabit Ethernet Controller",
+                "description": "intel-igb",
+                "info": "igb",
+                "selected": null,
+                "active": null,
+                "variants": {
+                    "generic": {
+                        "version": "5.17.5",
+                        "hardware_present": true,
+                        "priority": 30,
+                        "status": "production"
+                    },
+                    "dell": {
+                        "version": "5.17.5",
+                        "hardware_present": false,
+                        "priority": 40,
+                        "status": "production"
+                    }
+                }
+            },
+            "ice": {
+                "type": "network",
+                "friendly_name": "Intel E810 Series Devices Drivers",
+                "description": "intel-ice",
+                "info": "ice",
+                "selected": "supermicro",
+                "active": null,
+                "variants": {
+                    "generic": {
+                        "version": "1.15.5",
+                        "hardware_present": true,
+                        "priority": 50,
+                        "status": "production"
+                    },
+                    "supermicro": {
+                        "version": "1.15.5",
+                        "hardware_present": true,
+                        "priority": 30,
+                        "status": "production"
+                    }
+                }
+            },
+            "fnic": {
+                "type": "storage",
+                "friendly_name": "Cisco UCS VIC Fibre Channel",
+                "description": "cisco-fnic",
+                "info": "fnic",
+                "selected": "generic",
+                "active": null,
+                "variants": {
+                    "generic": {
+                        "version": "3.18.2",
+                        "hardware_present": true,
+                        "priority": 50,
+                        "status": "production"
+                    } 
+                }
+            }
+        }
+    }
+    '''
+    return jsondata
+
+def getMockDMVData():
+    return dmvutil.DriverMultiVersionData(getMockDMVList(), getMockHardwareList())
+
 if __name__ == '__main__':
-    mockdata = dmvdata.getMockDMVData()
+    mockdata = getMockDMVData()
     colorTextOutput("red_bold", "===== dump mock dmv data =====")
     drivers = mockdata.getDriversData()
     for d in drivers:
@@ -85,11 +172,11 @@ if __name__ == '__main__':
     print("")
 
     colorTextOutput("white_bold", "===== hardware list =====")
-    hardware_list = dmvdata.getRealHardwareList()
+    hardware_list = dmvutil.getHardwareList()
     print(hardware_list)
     print("")
 
-    realdata = dmvdata.getRealDMVData()
+    realdata = dmvutil.getDMVData()
     colorTextOutput("cyan_bold", "===== dump real dmv data =====")
     drivers = realdata.getDriversData()
     for d in drivers:

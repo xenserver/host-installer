@@ -18,7 +18,7 @@ import socket
 import product
 import upgrade
 import netutil
-import dmvdata
+import dmvutil
 
 from snack import *
 
@@ -495,7 +495,7 @@ def dmv_screen(answers):
         answers['selected-multiversion-drivers'] = []
 
     if not dmv_data_provider:
-        dmv_data_provider = dmvdata.getRealDMVData()
+        dmv_data_provider = dmvutil.getDMVData()
         drivers = dmv_data_provider.getDriversData()
         for d in drivers:
             logger.log("driver: %s" % d.getHumanDriverLabel())
@@ -591,13 +591,6 @@ def confirm_dmv_selection(answers):
     title = "Confirm Drivers Selection"
     text = ""
     if len(variants) == 0:
-        #text = "No drivers selected? You can select drivers when your system comes online after host installation.\n\nContinue or go back to driver selection"
-        #button = snackutil.ButtonChoiceWindowEx(
-        #    tui.screen, title, text,
-        #    ['Ok', 'Back'], width=60, default=1, help='dmv:info2')
-
-        #if button is None or button == 'back': return LEFT_BACKWARDS
-
         # skip the ui rendering
         return RIGHT_FORWARDS
     else:
@@ -623,10 +616,10 @@ def confirm_dmv_selection(answers):
                 logger.log("succeed to select and enable all driver variants.")
             else:
                 for driver_name, variant_name in failures:
-                    logger.log("fail to select and enable variant %s for driver %s." % (item.oemtype, item.drvname))
+                    logger.log("fail to select and enable variant %s for driver %s." % (variant_name, driver_name))
             return RIGHT_FORWARDS
         else:
-            title = "Warning"
+            title = "Error"
             text = "Only one variant of driver %s can be selected, but multiple variants of driver %s have been selected." % (drvname, drvname)
             button = snackutil.ButtonChoiceWindowEx(
                     tui.screen, title, text,

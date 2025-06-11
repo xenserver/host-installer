@@ -4,6 +4,11 @@
 
 import re
 import os
+import itertools
+import json
+from json.decoder import JSONDecodeError
+import util
+from xcp import logger
 
 class PciDevice:
     def __init__(self, pci_id, devclass, vendor_id, device_id, driver):
@@ -32,7 +37,7 @@ class DriverVariant:
         self.status = varinfo["status"]
 
     def __repr__(self):
-        return "<%s variant: %s (%s)>" % (self.drvname, self.oemtype, self.version)
+        return f"Driver: {self.drvname}-{self.oemtype} {self.version} {self.status}"
 
     def getHumanVariantLabel(self):
         template = "Driver: {name}-{oemtype} {version} {status}"
@@ -41,18 +46,13 @@ class DriverVariant:
                                status=self.status)
 
     def getHardwarePresentText(self):
-        if self.hardware_present:
-            return "Yes"
-        return "No"
+        return "Yes" if self.hardware_present else "No"
 
     def getPriorityText(self):
         return str(self.priority)
 
-class Drivers:
+class Driver:
     def __init__(self, drvname, drvinfo=None):
-        def sortKey(e):
-            return e.oemtype
-
         self.drvname = drvname
         self.type = ""
         self.friendly_name = ""
@@ -62,7 +62,7 @@ class Drivers:
         self.active = None
         self.variants = []
         self.devices = []
-        if drvinfo != None:
+        if drvinfo:
             self.type = drvinfo["type"]
             self.friendly_name = drvinfo["friendly_name"]
             self.description = drvinfo["description"]
@@ -71,17 +71,27 @@ class Drivers:
             self.active = drvinfo["active"]
             for vartype, varinfo in drvinfo["variants"].items():
                 self.variants.append(DriverVariant(drvname, vartype, varinfo))
-            self.variants.sort(key=sortKey)
+            self.variants.sort(key=lambda v: v.oemtype)
+
+    @classmethod
+    def cloneDriver(self, driver):
+        d = self(driver.drvname)
+        d.type = driver.type
+        d.friendly_name = driver.friendly_name
+        d.description = driver.description
+        d.info = driver.info
+        d.selected = driver.selected
+        d.active = driver.active
+        return d
 
     def __repr__(self):
-        return "<drivers: %s (%s)>" % (self.friendly_name, self.description)
+        return "<driver: %s (%s)>" % (self.friendly_name, self.description)
 
     def setDeviceList(self, devices):
         self.devices = devices
 
     def getHumanDriverLabel(self):
-        template = "{friendly_name} ({info})"
-        return template.format(friendly_name=self.friendly_name, info=self.info)
+        return f"{self.friendly_name} {self.info}"
 
     def getHumanDeviceLabel(self):
         labels = []
@@ -103,7 +113,7 @@ class Drivers:
             variants.append((label, variant))
         return variants
 
-    def selectVariantByDefault(self):
+    def selectDefaultVariant(self):
         variant = None
         l = [float(v.priority) for v in self.variants]
         if len(l) > 0:
@@ -129,7 +139,7 @@ def readPciDriver(pci_id):
     # some devices like ACPI, PCI bridge
     return None
 
-def filterDeviceRcv(pci_device):
+def filterDeviceRev(pci_device):
     filtered_text = re.sub(r'\(rev\s+\w+\)', '', pci_device).strip()
     return filtered_text
 
@@ -148,32 +158,44 @@ def getDeviceDriverMap(pci_dev_list):
 
 def parsePCIData(pcilist):
     pci_dev_list = []
+    expression = r'''
+        ^
+        (?P<address>\S+)             # PCI address (0000:00:00.0)
+        \s+
+        "(?P<class>[^"]*)"           # Device class (Host bridge)
+        \s+
+        "(?P<vendor>[^"]*)"          # Vendor (Intel Corporation)
+        \s+
+        "(?P<device>[^"]*)"          # Device name (Device 1234)
+        \s*
+        (?:-(?P<revision>\S+))?      # Optional revision (-r06)
+        \s*
+        (?: "(?P<subvendor>[^"]*)")? # Optional subvendor (Dell)
+        \s*
+        (?: "(?P<subdevice>[^"]*)")? # Optional subdevice (Device abcd)
+        $
+    '''
+    pattern = re.compile(expression, re.VERBOSE | re.MULTILINE)
     for device in pcilist.split("\n"):
-        pattern = re.compile(
-            r'^(?P<slot>\S+)\s+(?P<class>.+?):\s+(?P<vendor>.+?)\s+(?P<device>.+?)(?: \((?P<rev>\w+)\))?$')
         for match in pattern.finditer(device):
             pci_info = match.groupdict()
-            pci_slot = pci_info["slot"]
+            pci_slot = pci_info["address"]
             devclass = pci_info["class"]
             vendor_id = pci_info["vendor"]
-            device_id = filterDeviceRcv(pci_info["device"])
-            rev = pci_info["rev"]
+            device_id = filterDeviceRev(pci_info["device"])
+            rev = pci_info["revision"]
 
-            pci_id = "0000:" + pci_slot
-            driver = readPciDriver(pci_id)
+            driver = readPciDriver(pci_slot)
             if driver:
-                pci_dev = PciDevice(pci_id, devclass, vendor_id, device_id, driver)
+                pci_dev = PciDevice(pci_slot, devclass, vendor_id, device_id, driver)
                 pci_dev_list.append(pci_dev)
     return getDeviceDriverMap(pci_dev_list)
 
 def parseDMVJsonData(dmvlist, device_driver_map):
-    def sortKey(e):
-        return e.type
-
     drivers = []
     for name, info in dmvlist.items():
-        drivers.append(Drivers(name, info))
-    drivers.sort(key=sortKey)
+        drivers.append(Driver(name, info))
+    drivers.sort(key=lambda e: e.type)
 
     for drvname, devlist in device_driver_map.items():
         for driver in drivers:
@@ -181,42 +203,32 @@ def parseDMVJsonData(dmvlist, device_driver_map):
                 driver.setDeviceList(devlist)
     return drivers
 
-def cloneDriverWithoutVariants(olddrv, newdrv):
-    newdrv.type = olddrv.type
-    newdrv.friendly_name = olddrv.friendly_name
-    newdrv.description = olddrv.description
-    newdrv.info = olddrv.info
-    newdrv.selected = olddrv.selected
-    newdrv.active = olddrv.active
-
-def getHardwarePresentDrivers(drivers):
+def getHardwarePresentDrivers(drivers, name=None):
     hw_present_drivers = []
     for d in drivers:
-        driver = Drivers(d.drvname)
-        cloneDriverWithoutVariants(d, driver)
-        driver.variants = list(filter(lambda x:x.hardware_present, d.variants))
-        driver.setDeviceList(d.devices)
-        if len(driver.variants) > 0:
-            hw_present_drivers.append(driver)
-    return hw_present_drivers
-
-def getHardwarePresentDriver(drivers, name):
-    hw_present_drivers = None
-    for d in drivers:
-        if d.drvname == name:
-            driver = Drivers(d.drvname)
-            cloneDriverWithoutVariants(d, driver)
+        interest = True
+        if name != None:
+            if d.drvname != name:
+                interest = False
+        if interest:
+            driver = Driver.cloneDriver(d)
             driver.variants = list(filter(lambda x:x.hardware_present, d.variants))
             driver.setDeviceList(d.devices)
             if len(driver.variants) > 0:
-                hw_present_drivers = driver
+                hw_present_drivers.append(driver)
     return hw_present_drivers
+
+def getHardwarePresentDriver(drivers, name):
+    drivers = getHardwarePresentDrivers(drivers, name)
+    if len(drivers) > 0:
+        return drivers[0]
+    return None
 
 def chooseDefaultDriverVariants(drivers):
     variants = []
     for d in drivers:
-        v = d.selectVariantByDefault()
-        if v != None:
+        v = d.selectDefaultVariant()
+        if v:
             variants.append(v)
     return variants
 
@@ -227,7 +239,7 @@ def querySingleVariant(context):
     return context
 
 def queryDriversOrVariant(context):
-    if isinstance(context, Drivers):
+    if isinstance(context, Driver):
         return ("drivers", context)
     elif isinstance(context, list):
         return ("variants", queryMultipleVariants(context))
@@ -236,12 +248,9 @@ def queryDriversOrVariant(context):
     return ("unknown", None)
 
 def sameDriverMultiVariantsSelected(variants):
-    for i in range(0, len(variants)):
-        item1 = variants[i]
-        a = variants[i+1:len(variants)]
-        for item2 in a:
-            if item1.drvname == item2.drvname:
-                return (True, item1.drvname)
+    for drvname, group in itertools.groupby(variants, lambda x: x.drvname):
+        if len(list(group)) > 1:
+            return (True, drvname)
     return (False, "")
 
 def getDriverVariantByName(drivers, drvname, oemtype):
@@ -251,3 +260,86 @@ def getDriverVariantByName(drivers, drvname, oemtype):
                 if v.oemtype == oemtype:
                     return v
     return None
+
+class DriverMultiVersionData:
+    def __init__(self, dmv_jsondata, hardware_info):
+        self.dmv_jsondata = dmv_jsondata
+        self.device_driver_map = hardware_info
+
+        dmvjson = None
+        dmvlist = None
+        try:
+            dmvjson = json.loads(dmv_jsondata)
+        except JSONDecodeError as e:
+            raise e
+        if not "drivers" in dmvjson:
+            raise RuntimeError("Invalid output from driver-tool")
+        dmvlist = dmvjson["drivers"]
+        self.drivers = parseDMVJsonData(dmvlist, hardware_info)
+        self.hw_present_drivers = getHardwarePresentDrivers(self.drivers)
+
+    def getDriversData(self):
+        return self.drivers
+
+    def getHardwarePresentDrivers(self):
+        return self.hw_present_drivers
+
+    def getHardwarePresentDriver(self, drvname):
+        return getHardwarePresentDriver(self.hw_present_drivers, drvname)
+
+    def queryDriversOrVariant(self, context):
+        return queryDriversOrVariant(context)
+
+    def getDriverVariantByName(self, drvname, oemtype):
+        return getDriverVariantByName(self.drivers, drvname, oemtype)
+
+    def sameDriverMultiVariantsSelected(self, variants):
+        return sameDriverMultiVariantsSelected(variants)
+
+    def chooseDefaultDriverVariants(self, drivers = None):
+        if not drivers:
+            drivers = self.hw_present_drivers
+        return chooseDefaultDriverVariants(drivers)
+
+    def selectSingleDriverVariant(self, driver_name, variant_name):
+        cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
+        rc, out = util.runCmd2(cmdparams, with_stdout=True)
+        if rc != 0:
+            return False
+
+        util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+
+        rc, out = util.runCmd2(['modprobe', driver_name], with_stdout=True)
+        if rc != 0:
+            return False
+        return True
+
+    def selectMultiDriverVariants(self, choices):
+        failures = []
+        for driver_name, variant_name in choices:
+            ret = self.selectSingleDriverVariant(driver_name, variant_name)
+            if not ret:
+                failures.append((driver_name, variant_name))
+        return failures
+
+def getDMVList():
+    rc, out = util.runCmd2(['driver-tool', '-l'], with_stdout=True)
+    if rc != 0:
+        return None
+    return out
+
+def getHardwareList():
+    rc, out = util.runCmd2(['lspci', '-mm', '-D'], with_stdout=True)
+    if rc != 0:
+        return None
+    return parsePCIData(out)
+
+def getDMVData():
+    dmvlist = getDMVList()
+    if not dmvlist:
+        raise RuntimeError("Failed to execute 'driver-tool -l'")
+    devlist = getHardwareList()
+    if not devlist:
+        raise RuntimeError("Failed to execute 'lspci'")
+    logger.log(devlist)
+    return DriverMultiVersionData(dmvlist, devlist)
