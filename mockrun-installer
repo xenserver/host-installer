@@ -1,0 +1,545 @@
+#!/usr/bin/env python2
+
+# Runs in XCP-ng 8.3 build env container
+# Requires packages: python2-newt xcp-python-libs python2-simplejson pyOpenSSL python-six
+
+import os
+import sys
+import tempfile
+from types import ModuleType
+
+MOUNTPOINT_PRIMARY = MOUNTPOINT_BACKUP = MOUNTPOINT_ROOT = MOUNTPOINT_STATE = ''
+
+### install stubs before imports get a chance to use them
+
+# python-xen is not easily available everywhere
+
+mocked_xen = ModuleType("xen")
+sys.modules["xen"] = mocked_xen
+mocked_xen.lowlevel = ModuleType("lowlevel")
+sys.modules["xen.lowlevel"] = mocked_xen.lowlevel
+mocked_xen.lowlevel.xc = ModuleType("xc")
+sys.modules["xen.lowlevel.xc"] = mocked_xen.lowlevel.xc
+
+class mocked_xc(object):
+    def physinfo(self):
+        return dict(
+            total_memory=1024*1024, # KB
+            nr_cpus=1,
+        )
+    def xeninfo(self):
+        return None
+
+mocked_xen.lowlevel.xc.xc = mocked_xc
+
+# the (in)famous branding
+
+mocked_branding = ModuleType("branding")
+mocked_branding.PRODUCT_NAME = 'xenenterprise'
+mocked_branding.PRODUCT_BRAND = 'Mocked XCP-ng'
+mocked_branding.BRAND_SERVER = 'Mocked XCP-ng'
+mocked_branding.PLATFORM_NAME = "XCP"
+mocked_branding.COPYRIGHT_YEARS = "1970-2023"
+mocked_branding.COMPANY_NAME_LEGAL = 'Guys in a Garage'
+mocked_branding.BRAND_GUEST = 'Virtual Machine'
+mocked_branding.BRAND_GUESTS = 'Virtual Machines'
+mocked_branding.BRAND_CONSOLE = "Admin Console"
+
+# mocked_branding.PRODUCT_VERSION_TEXT = "8.2"
+# mocked_branding.PLATFORM_VERSION = '3.2.1'
+
+mocked_branding.PRODUCT_VERSION_TEXT = "8.3"
+mocked_branding.PLATFORM_VERSION = '3.4.1'
+
+# for installer proper
+sys.modules["version"] = mocked_branding
+# for xcp.*
+sys.modules["branding"] = mocked_branding
+
+#
+
+import constants
+
+constants.EULA_PATH = "/etc/motd"
+constants.UEFI_INSTALLER = True
+
+#
+
+import util
+
+# mock running individual commands, for those functions where other
+# side-effects besides running the command makes it hard to properly
+# stub them, or when stubbing once here avoids stubbing many other
+# places
+def mocked_runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None):
+    if command[0] in ("lsmod", "/sbin/udevadm", "ifdown", "ifup"):
+        assert not with_stdout and not with_stderr
+        logger.log("Mocking {}".format(command))
+        return 0
+
+    if command[0:2] in (['sgdisk', '--zap-all'],
+                        ['mdadm', '--zero-superblock']):
+        assert not with_stdout and not with_stderr
+        logger.log("Mocking {}".format(command))
+        return 0
+
+    if command[0:2] == ['mdadm', '--create']:
+        assert with_stdout and with_stderr
+        logger.log("Mocking {}".format(command))
+        for arg in reversed(command):
+            if arg.startswith("--"): # seen all disks already
+                break
+            assert arg.startswith("/dev")
+            MOCKED_DISKLIST.remove(os.path.basename(arg))
+        MOCKED_DISKLIST.append("md127")
+        return (0, "mocked stdout", "mocked stderr")
+
+    if command[0] == '/bin/mount':
+        if command[1:3] == ['-o', 'ro']:
+            device, mountpoint = command[3:5]
+            global MOUNTPOINT_PRIMARY
+            if mountpoint.startswith('/tmp/primary-'):
+                MOUNTPOINT_PRIMARY = mountpoint
+                logger.log("faking mount of /dev/sda1 on %s" % (mountpoint,))
+                return (0, "mocked stdout", "mocked stderr")
+
+        device, mountpoint = command[1:3]
+        if device == '/dev/sda1':
+            global MOUNTPOINT_ROOT, MOUNTPOINT_STATE
+            if mountpoint.startswith('/tmp/mocked-root-'):
+                MOUNTPOINT_ROOT = mountpoint
+                logger.log("faking mount of %s on %s" % (device, mountpoint))
+                return (0, "mocked stdout", "mocked stderr")
+            if mountpoint.startswith('/tmp/mocked-state-'):
+                MOUNTPOINT_STATE = mountpoint
+                logger.log("faking mount of %s on %s" % (device, mountpoint))
+                return (0, "mocked stdout", "mocked stderr")
+            if mountpoint == '/tmp/root':
+                #MOUNTPOINT_ROOT = mountpoint
+                logger.log("faking mount of %s on %s" % (device, mountpoint))
+                return (0, "mocked stdout", "mocked stderr")
+
+        if device == '/dev/sda2':
+            global MOUNTPOINT_BACKUP
+            if mountpoint.startswith('/tmp/backup-'):
+                MOUNTPOINT_BACKUP = mountpoint
+                logger.log("faking mount of %s on %s" % (device, mountpoint))
+                return (0, "mocked stdout", "mocked stderr")
+
+        raise RuntimeError("unhandled mount command %s", command)
+
+    if command[0:2] == ['/bin/umount', '-d']:
+        if command[2] == MOUNTPOINT_ROOT:
+            logger.log("faking umount of %s" % (command[2],))
+            return (0, "mocked stdout", "mocked stderr")
+        if command[2] == MOUNTPOINT_STATE:
+            logger.log("faking umount of %s" % (command[2],))
+            return (0, "mocked stdout", "mocked stderr")
+        if command[2] == MOUNTPOINT_PRIMARY:
+            logger.log("faking umount of %s" % (command[2],))
+            return (0, "mocked stdout", "mocked stderr")
+        if command[2] == MOUNTPOINT_BACKUP:
+            logger.log("faking umount of %s" % (command[2],))
+            return (0, "mocked stdout", "mocked stderr")
+
+    if command[0:2] == ['wipefs', '-a']:
+        logger.log("faking wipefs of %s" % (command[2],))
+        return (0, "mocked stderr")
+
+    if command[0] in ['mkfs.ext3', 'mkfs.vfat']:
+        logger.log("faking mkfs of %s" % (command[1],))
+        return (0, "mocked stderr")
+
+    if command[0:2] == ['sgdisk', '-b']:
+        logger.log("faking %s" % (command,))
+        return (0, "mocked stderr")
+
+    if command == ['uuidgen']:
+        return (0, "40987587-a9d0-44ae-a7bc-d9fd21850b7c")
+
+    if command == ['repoquery', '-c', '/root/yum-repoquery.conf', '--qf', '%{evr}', 'linstor-satellite', '--show-duplicates']:
+        logger.log("faking %s" % (command,))
+        # return (0, "") # standard ISO without linstor
+        # return (0, "10:1.21.0-1.el7\n0:1.29.0-1.el7_9\n")
+        # return (0, "0:1.21.0-1.el7\n")
+        # return (0, "0:1.29.0-2.el7_9\n")
+        return (0, "0:1.29.0-1.el7_9\n")
+
+    if command == ['repoquery', '-c', '/root/yum-repoquery.conf', '--qf', '%{evr}', 'xapi-core']:
+        logger.log("faking %s" % (command,))
+        # return (0, "0:24.39.1-1.3.xcpng8.3\n")
+        return (0, "0:25.6.0-1.7-xcpng8.3\n")
+        # return (0, "0:25.11.0-1.xs8\n")
+
+    raise RuntimeError("mockrun runCmd2 command not specified: {!r}{}{}".format(
+        command, " with_stdout" if with_stdout else "", " with_stderr" if with_stderr else ""))
+
+util.runCmd2 = mocked_runCmd2
+
+#
+
+import xcp.net.biosdevname
+import disktools
+
+def mocked_all_devices_all_names():
+    devs = [
+        {"Kernel name": "eth99",
+         "Assigned MAC": "00:11:22:33:44:55",
+        },
+        {"Kernel name": "eth98",
+         "Assigned MAC": "00:11:22:33:44:66",
+        },
+    ]
+    return {dev["Kernel name"]: dev
+            for dev in devs}
+
+def mocked_lvmtool_readInfo(self, info):
+    return []
+
+def mocked_getMpathNodes():
+    return []
+
+def mocked_gpt_readDiskDetails(self):
+    self.sectorSize        = 512
+    self.sectorExtent      = 1024**3
+    self.sectorFirstUsable = 34
+    self.sectorLastUsable  = self.sectorExtent - 34
+
+def mocked_probePartitioningScheme(device):
+    return constants.PARTITION_GPT
+
+def mocked_gpt_partitionTable(self):
+    # logger.log('Stubbing no partition table on disk %s.' % self.device)
+    # return {}
+
+    return {
+        1: dict(start=0, size=18874368, partlabel="root foo",
+                id=disktools.GPTPartitionTool.ID_LINUX),
+        2: dict(start=18874368, size=18874368, partlabel="backup",
+                id=disktools.GPTPartitionTool.ID_LINUX),
+        # 3: local SR
+        4: dict(start=0, size=524288, partlabel="boot",
+                id=disktools.GPTPartitionTool.ID_EFI_BOOT),
+        5: dict(start=0, size=4194304, partlabel="logs foo",
+                id=disktools.GPTPartitionTool.ID_LINUX),
+        6: dict(start=0, size=1048576, partlabel="swap",
+                id=disktools.GPTPartitionTool.ID_LINUX_SWAP),
+    }
+
+xcp.net.biosdevname.all_devices_all_names = mocked_all_devices_all_names
+disktools.LVMTool.readInfo = mocked_lvmtool_readInfo
+disktools.getMpathNodes = mocked_getMpathNodes
+disktools.probePartitioningScheme = mocked_probePartitioningScheme
+disktools.GPTPartitionTool.readDiskDetails = mocked_gpt_readDiskDetails
+disktools.GPTPartitionTool.partitionTable = mocked_gpt_partitionTable
+
+#
+
+import diskutil
+
+# modifiable by RAID building
+MOCKED_DISKLIST = ['sda',
+                   # 'sdb', 'sdc',
+                   ]
+
+def mocked_getDiskList():
+    return MOCKED_DISKLIST
+
+def mocked_getPartitionList():
+    return []
+
+def mocked_getDiskDeviceVendor(dev):
+    return "Vendor of {}".format(dev)
+def mocked_getDiskDeviceModel(dev):
+    return "Model of {}".format(dev)
+def mocked_getDiskSerialNumber(dev):
+    return "12345"
+def mocked_getDiskDeviceSize(dev):
+    return 1024**3
+
+def mocked_log_available_disks():
+    logger.log("not logging disks, yw")
+
+def mocked_readExtPartitionLabel(partition):
+    return {
+        "/dev/sda1": "root-foo",
+        "/dev/sda5": "logs-foo",
+    }.get(partition, None)
+
+diskutil.getDiskList = mocked_getDiskList
+diskutil.getPartitionList = mocked_getPartitionList
+
+diskutil.getDiskDeviceVendor = mocked_getDiskDeviceVendor
+diskutil.getDiskDeviceModel = mocked_getDiskDeviceModel
+diskutil.getDiskSerialNumber = mocked_getDiskSerialNumber
+diskutil.getDiskDeviceSize = mocked_getDiskDeviceSize
+
+diskutil.log_available_disks = mocked_log_available_disks
+
+diskutil.readExtPartitionLabel = mocked_readExtPartitionLabel
+
+#
+
+import product
+
+def mock_mount_root(self, ro=True, boot_device=None):
+    # FIXME need boot_device?
+    self.root_fs = util.TempMount(device="/dev/sda1",
+                                  tmp_prefix="/tmp/mocked-root-")
+
+def mock_mount_state(self, ro=True, boot_device=None):
+    # FIXME need boot_device?
+    self.state_fs = util.TempMount(device="/dev/sda1",
+                                   tmp_prefix="/tmp/mocked-state-")
+
+def mock_readSettings(self):
+    return {
+        'master': True,
+        'ntp-config-method': 'dhcp',
+        'host-config': {},
+        'repo-list': [],
+
+        # 'linstor-version': None,
+        'linstor-version': "1.29.0-1.el7_9",
+
+        # 'xapi-version': "24.39.1-1.3.xcpng8.3",
+        'xapi-version': "0:25.6.0-1.7-xcpng8.3",
+        # 'xapi-version': "25.11.0-1.xs8"
+    }
+
+def mock_is_rootfs_uefi(mount_point):
+    return True
+
+def mock_product_readKeyValueFile(filename, allowed_keys=None, strip_quotes=True):
+    if filename.startswith("/tmp/mocked-root-") and filename.endswith("/etc/xensource-inventory"):
+        return dict(
+            PRODUCT_NAME='xenenterprise',
+            PRODUCT_BRAND='Mocked XCP-ng',
+            PRODUCT_VERSION_TEXT="8.2",
+            PRODUCT_VERSION="8.2.1",
+            PLATFORM_VERSION="3.2.1",
+
+            INSTALLATION_UUID="cab6b1c5-ffb5-491e-897d-9606437c1699",
+            CONTROL_DOMAIN_UUID="3620ec67-d002-41b2-a5a5-c12abe7c3ad3",
+        )
+    raise RuntimeError("readKeyValueFile on unknown filename %r" % (filename,))
+
+product.ExistingRetailInstallation.mount_root = mock_mount_root
+product.ExistingInstallation.mount_state = mock_mount_state
+product.ExistingInstallation._readSettings = mock_readSettings
+product.is_rootfs_uefi = mock_is_rootfs_uefi
+product.util.readKeyValueFile = mock_product_readKeyValueFile
+
+#
+
+import upgrade
+
+def mocked_upgrade_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+
+    realfname = fname           # default
+
+    if fname.startswith(MOUNTPOINT_PRIMARY + '/'):
+        if fname == MOUNTPOINT_PRIMARY + "/etc/xensource/xapi-ssl.pem":
+            realfname = MOCKDATA + "/etc/xensource/xapi-ssl.pem"
+
+    if fname.startswith(MOUNTPOINT_BACKUP + '/'):
+        if fname == MOUNTPOINT_BACKUP + "/.xen-backup-partition":
+            realfname = MOCKDATA + "/emptyfile"
+
+    if realfname != fname:
+        logger.debug("redirecting open() to %r" % (realfname,))
+
+    return open(realfname, mode, *args, **kwargs)
+
+upgrade.open = mocked_upgrade_open
+
+#
+
+import repository
+
+def mocked_repository_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+
+    realfname = fname           # default
+
+    if fname == "/root/yum.conf":
+        tmpfile = tempfile.NamedTemporaryFile(mode=mode, delete=False,
+                                              suffix=".conf", prefix="yum-")
+        logger.debug("redirecting open() to %r" % (tmpfile.name,))
+        return tmpfile
+    if fname == "/root/RPM-GPG-KEY-xcpng":
+        tmpfile = tempfile.NamedTemporaryFile(mode=mode, delete=False,
+                                              prefix="RPM-GPG-KEY-")
+        logger.debug("redirecting open() to %r" % (tmpfile.name,))
+        return tmpfile
+
+    return open(realfname, mode, *args, **kwargs)
+
+def mocked_disableInitrdCreation(self, root):
+    logger.log("faking disableInitrdCreation")
+
+repository.open = mocked_repository_open
+repository.MainYumRepository.disableInitrdCreation = mocked_disableInitrdCreation
+
+#
+
+import netutil
+
+def mocked_networkingUp():
+    return False
+
+def mocked_getNetifList(include_vlan=False):
+    return mocked_all_devices_all_names().keys()
+
+def mocked_interfaceUp(interface):
+    logger.debug("mocked_interfaceUp({}): telling YES".format(interface))
+    return True
+
+def mocked_netutil_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+    if fname == '/etc/resolv.conf':
+        fname = 'resolv.conf'
+
+    return open(fname, mode, *args, **kwargs)
+
+netutil.networkingUp = mocked_networkingUp
+netutil.getNetifList = mocked_getNetifList
+netutil.interfaceUp = mocked_interfaceUp
+
+netutil.open = mocked_netutil_open
+
+#
+
+import netinterface
+
+# Prevent patching of netinterface.open to later contaminate modules
+# that blindly import everything from there including our patched open,
+# by making sure those blind "import *" run before we patch.  Yuck.
+import answerfile, product, upgrade, tui.network
+
+def mocked_netinterface_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+
+    realfname = fname           # default
+
+    if fname.startswith(MOUNTPOINT_PRIMARY + '/'):
+        if fname == MOUNTPOINT_PRIMARY + "/etc/xensource/xapi-ssl.pem":
+            realfname = MOCKDATA + "/etc/xensource/xapi-ssl.pem"
+
+    elif fname.startswith('/etc/sysconfig/network-scripts/ifcfg-'):
+        realfname = os.path.basename(fname)
+
+    if realfname != fname:
+        logger.debug("redirecting open() to %r" % (realfname,))
+
+    return open(realfname, mode, *args, **kwargs)
+
+netinterface.open = mocked_netinterface_open
+
+#
+
+import generalui
+
+def mocked_getTimeZoneRegions():
+    return ['Europe', 'Mars']
+def mocked_getTimeZoneCities(desired_region):
+    return ['Paris', 'Tokyo']
+
+generalui.getTimeZoneRegions = mocked_getTimeZoneRegions
+generalui.getTimeZoneCities = mocked_getTimeZoneCities
+
+#
+
+import backend
+
+def mocked_setTimeNTP(ntp_servers, ntp_config_method):
+    logger.log("faking setTimeNTP")
+def mocked_createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
+    logger.log("faking createDom0DiskFilesystems")
+
+def mocked_mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, cleanup, target_boot_mode):
+    logger.log("faking mountVolumes")
+    mounts = {'root': '/tmp/root',
+              'boot': '/tmp/root/boot',
+              'esp': '/tmp/root/boot/efi',
+              'logs': '/tmp/root/var/log',
+              }
+    return mounts, list(cleanup)
+
+def mocked_umountVolumes(mounts, cleanup, force=False):
+    logger.log("faking umountVolumes")
+
+backend.setTimeNTP = mocked_setTimeNTP
+backend.createDom0DiskFilesystems = mocked_createDom0DiskFilesystems
+backend.mountVolumes = mocked_mountVolumes
+backend.umountVolumes = mocked_umountVolumes
+
+#
+
+original_os_path_exists = os.path.exists;
+
+def mock_os_path_exists(path):
+    exists = None
+    if path in ( # force exists
+            # MOUNTPOINT_STATE + "/etc/firstboot.d/state",
+            MOUNTPOINT_STATE + "/var/lib/misc/ran-network-init",
+            MOUNTPOINT_STATE + "/var/lib/misc/ran-storage-init",
+    ):
+        exists = True
+    elif path in ( # force NOT exists
+        '/titi',
+    ):
+        exists = False
+    if exists is not None:
+        logger.debug("faking os.path.exists(%s) == %s" % (path, exists))
+        return exists
+    else:
+        logger.debug("NOT faking os.path.exists(%s)" % (path,))
+        return original_os_path_exists(path)
+
+os.path.exists = mock_os_path_exists
+
+#
+
+def mocked_hardware_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+
+    realfname = fname           # default
+
+    if fname.startswith('/sys/hypervisor/'):
+        realfname = MOCKDATA + fname
+
+    if realfname != fname:
+        logger.debug("redirecting open() to %r" % (realfname,))
+
+    return open(realfname, mode, *args, **kwargs)
+
+import hardware
+hardware.open = mocked_hardware_open
+
+####
+
+from xcp import logger
+
+import install
+import tui
+import util
+
+def main(args):
+    logger.openLog("installer.log", logger.logging.DEBUG)
+    global MOCKDATA
+    MOCKDATA = os.path.join(os.path.dirname(sys.argv[0]), "mockrun-data")
+    logger.log("Starting user interface")
+    tui.init_ui()
+
+    # answerfile = "file:///data/src/host-installer/doc/answerfile.xml"
+    answerfile = None
+
+    status = install.go(tui, args, answerfile, None)
+    logger.log("Shutting down user interface")
+    tui.end_ui()
+    return status
+
+if __name__ == "__main__":
+    sys.exit(main(util.splitArgs(sys.argv[1:], array_args=('--extrarepo'))))
