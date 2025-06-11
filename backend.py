@@ -24,7 +24,7 @@ import init_constants
 import scripts
 import xcp.bootloader as bootloader
 import netinterface
-import dmvdata
+import dmvutil
 import tui.repo
 import xcp.dom0
 from xcp import logger
@@ -1570,7 +1570,7 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
     if len(selected_multiversion_drivers) == 0:
         logger.log("we got empty driver variants selection.")
 
-        dmv_data_provider = dmvdata.getRealDMVData()
+        dmv_data_provider = dmvutil.getDMVData()
         # if we got empty selection we need more log data to see devices and
         # drivers that we have
         drivers = dmv_data_provider.getDriversData()
@@ -1590,12 +1590,10 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
     for driver_name, variant_name in selected_multiversion_drivers:
         logger.log("write variant %s selection for driver %s." % (variant_name, driver_name))
 
-        cmdstring = "driver-tool|-s|-n|%s|-v|%s" % (driver_name, variant_name)
+        cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
         chrootcmd = ['chroot', mounts['root']]
-        chrootcmd.extend(cmdstring.split('|'))
-        rc, out = util.runCmd2(chrootcmd, with_stdout=True)
-        if rc != 0:
-            logger.log(out)
+        chrootcmd.extend(cmdparams)
+        util.runCmd2(chrootcmd, with_stdout=True)
 
 ################################################################################
 # OTHER HELPERS
