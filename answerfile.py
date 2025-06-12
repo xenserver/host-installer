@@ -309,8 +309,17 @@ class Answerfile:
                                                              ('no', 'false'),
                                                              ('if-utility', PRESERVE_IF_UTILITY)],
                                                             default='if-utility')
-        primary_disk = normalize_disk(getText(node))
-        results['primary-disk'] = primary_disk
+        results['swraid'] = getBoolAttribute(node, ['swraid'], default=False)
+
+        if results['swraid']:
+            results['primary-disk'] = ""  # Populated with disk-label-suffix during installer prep
+            results['physical-disks'] = [normalize_disk(disk) for disk in getText(node).split(",")]
+
+            if len(results['physical-disks']) != 2:
+                raise AnswerfileException("swraid primary-disk requires exactly two physical disks")
+        else:
+            results['primary-disk'] = normalize_disk(getText(node))
+            results['physical-disks'] = [results['primary-disk']]
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
                                        default=True)
@@ -319,10 +328,10 @@ class Answerfile:
         # Guest disk(s) (Local SR)
         guest_disks = set()
         if inc_primary:
-            guest_disks.add(primary_disk)
+            guest_disks = guest_disks.union(results['physical-disks'])
         for node in getElementsByTagName(self.top_node, ['guest-disk']):
             guest_disks.add(normalize_disk(getText(node)))
-        results['sr-on-primary'] = results['primary-disk'] in guest_disks
+        results['sr-on-primary'] = any(disk in guest_disks for disk in results['physical-disks'])
         results['guest-disks'] = list(guest_disks)
 
         sr_type_mapping = []
