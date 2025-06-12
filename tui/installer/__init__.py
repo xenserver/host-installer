@@ -138,6 +138,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     seq = [
         Step(uis.welcome_screen),
+        Step(uis.dmv_screen),
+        Step(uis.confirm_dmv_selection),
         Step(uis.eula_screen),
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],

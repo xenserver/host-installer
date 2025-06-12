@@ -24,6 +24,7 @@ import init_constants
 import scripts
 import xcp.bootloader as bootloader
 import netinterface
+import dmvutil
 import tui.repo
 import xcp.dom0
 from xcp import logger
@@ -198,6 +199,7 @@ def getFinalisationSequence(ans):
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         Task(writei18n, A(ans, 'mounts'), []),
         Task(configureMCELog, A(ans, 'mounts'), []),
+        Task(writeDMVSelections, A(ans, 'mounts', 'selected-multiversion-drivers'), []),
         ]
 
     # on fresh installs, prepare the storage repository as required:
@@ -1563,6 +1565,35 @@ def touchSshAuthorizedKeys(mounts):
     fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
     fh.close()
 
+def writeDMVSelections(mounts, selected_multiversion_drivers):
+    # select the default driver variants
+    if len(selected_multiversion_drivers) == 0:
+        logger.log("we got empty driver variants selection.")
+
+        dmv_data_provider = dmvutil.getDMVData()
+        # if we got empty selection we need more log data to see devices and
+        # drivers that we have
+        drivers = dmv_data_provider.getDriversData()
+        for d in drivers:
+            logger.log("driver: %s" % d.getHumanDriverLabel())
+            logger.log("device list:")
+            for l in d.getHumanDeviceLabel():
+                logger.log(l)
+            logger.log("variants:")
+            for v in d.variants:
+                logger.log(v)
+            logger.log("")
+
+        selected_multiversion_drivers = dmv_data_provider.chooseDefaultDriverVariants()
+        logger.log("pass default driver variants to driver-tool.")
+
+    for driver_name, variant_name in selected_multiversion_drivers:
+        logger.log("write variant %s selection for driver %s." % (variant_name, driver_name))
+
+        cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
+        chrootcmd = ['chroot', mounts['root']]
+        chrootcmd.extend(cmdparams)
+        util.runCmd2(chrootcmd, with_stdout=True)
 
 ################################################################################
 # OTHER HELPERS
