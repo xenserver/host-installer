@@ -1366,6 +1366,22 @@ def getMdNodes():
         pass
     return nodes
 
+def getMdDevicesUsing(physical_disks):
+    nodes = []
+    disks = list(map(os.path.basename, physical_disks))
+    try:
+        with open('/proc/mdstat') as fh:
+            for line in fh:
+                line = line.rstrip()
+                if not ' : ' in line:
+                    continue
+                l = line.split(None, 3)
+                if l[2] == 'active' and any(" %s[" % disk in line for disk in disks):
+                    nodes.append('/dev/' + l[0])
+    except IOError:
+        pass
+    return nodes
+
 
 class DeviceMounter:
     class Mount:
