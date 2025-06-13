@@ -559,6 +559,10 @@ def setupSWRAIDDevice(disk_label_suffix, physical_disks, guest_disks):
     if os.path.exists(primary_disk):
         diskutil.stopSWRAID(primary_disk)
 
+    # Stop any multi-devices using the physical disks we require
+    for device in getMdDevicesUsing(physical_disks):
+        diskutil.stopSWRAID(device)
+
     # Zero any superblocks on the physical disks
     for disk in physical_disks:
         util.runCmd2(['mdadm', '--zero-superblock', disk])
