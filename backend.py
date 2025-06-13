@@ -593,6 +593,8 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
     if preserve_first_partition == 'true':
+        if tool.getPartition(1):  # If no first partition
+            raise RuntimeError("No first partition to preserve")
         primary_part += 1
     elif preserve_first_partition == constants.PRESERVE_IF_UTILITY:
         utilparts = tool.utilityPartitions()
