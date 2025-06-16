@@ -151,7 +151,6 @@ def getDeviceDriverMap(pci_dev_list):
             l = device_driver_map[driver]
             if pci_dev.getHumanDevLabel() not in l:
                 l.append(pci_dev.getHumanDevLabel())
-            device_driver_map[driver] = l
         else:
             device_driver_map[driver] = [pci_dev.getHumanDevLabel()]
     return device_driver_map
@@ -314,7 +313,7 @@ class DriverMultiVersionData:
             return False
         return True
 
-    def selectMultiDriverVariants(self, choices):
+    def applyDriverVariants(self, choices):
         failures = []
         for driver_name, variant_name in choices:
             ret = self.selectSingleDriverVariant(driver_name, variant_name)
@@ -343,3 +342,14 @@ def getDMVData():
         raise RuntimeError("Failed to execute 'lspci'")
     logger.log(devlist)
     return DriverMultiVersionData(dmvlist, devlist)
+
+def logDriverVariants(drivers):
+    for d in drivers:
+        logger.log("driver: %s" % d.getHumanDriverLabel())
+        logger.log("device list:")
+        for l in d.getHumanDeviceLabel():
+            logger.log(l)
+        logger.log("variants:")
+        for v in d.variants:
+            logger.log(v)
+        logger.log("")

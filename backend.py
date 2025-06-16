@@ -1574,15 +1574,7 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
         # if we got empty selection we need more log data to see devices and
         # drivers that we have
         drivers = dmv_data_provider.getDriversData()
-        for d in drivers:
-            logger.log("driver: %s" % d.getHumanDriverLabel())
-            logger.log("device list:")
-            for l in d.getHumanDeviceLabel():
-                logger.log(l)
-            logger.log("variants:")
-            for v in d.variants:
-                logger.log(v)
-            logger.log("")
+        dmvutil.logDriverVariants(drivers)
 
         selected_multiversion_drivers = dmv_data_provider.chooseDefaultDriverVariants()
         logger.log("pass default driver variants to driver-tool.")
