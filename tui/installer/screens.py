@@ -491,21 +491,13 @@ def dmv_screen(answers):
 
     drivers = []
     hw_present_drivers = []
-    if not "selected-multiversion-drivers" in answers:
+    if "selected-multiversion-drivers" not in answers:
         answers['selected-multiversion-drivers'] = []
 
     if not dmv_data_provider:
         dmv_data_provider = dmvutil.getDMVData()
         drivers = dmv_data_provider.getDriversData()
-        for d in drivers:
-            logger.log("driver: %s" % d.getHumanDriverLabel())
-            logger.log("device list:")
-            for l in d.getHumanDeviceLabel():
-                logger.log(l)
-            logger.log("variants:")
-            for v in d.variants:
-                logger.log(v)
-            logger.log("")
+        dmvutil.logDriverVariants(drivers)
 
     # skip the ui rendering
     hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
@@ -611,12 +603,18 @@ def confirm_dmv_selection(answers):
 
             for drvname, oemtype in choices:
                 logger.log("select and enable variant %s for driver %s." % (oemtype, drvname))
-            failures = dmv_data_provider.selectMultiDriverVariants(choices)
+            failures = dmv_data_provider.applyDriverVariants(choices)
             if len(failures) == 0:
                 logger.log("succeed to select and enable all driver variants.")
             else:
                 for driver_name, variant_name in failures:
-                    logger.log("fail to select and enable variant %s for driver %s." % (variant_name, driver_name))
+                    logger.log("fail to select or enable variant %s for driver %s." % (variant_name, driver_name))
+                ButtonChoiceWindow(
+                        tui.screen,
+                        "Problem Loading Driver Variant",
+                        "Setup was unable to activate driver variant.",
+                        ['Ok']
+                        )
             return RIGHT_FORWARDS
         else:
             title = "Error"
