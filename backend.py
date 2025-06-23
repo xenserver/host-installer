@@ -1243,10 +1243,6 @@ def addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
     check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
 
-def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
-    clearEfiBootEntries(mounts, install_type, branding)
-    addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
-
 def writeBootEntries(write_boot_entry, mounts, disks, primary_partnum, boot_partnum, target_boot_mode, install_type, branding, location):
     if target_boot_mode == TARGET_BOOT_MODE_UEFI and write_boot_entry:
         clearEfiBootEntries(mounts, install_type, branding)
