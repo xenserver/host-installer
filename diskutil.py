@@ -404,6 +404,18 @@ def getMdDeviceName(disk):
 
     return disk
 
+def getSWRAIDDevices(device):
+    rc, out = util.runCmd2(['mdadm', '--detail', '--scan', '--verbose', device], with_stdout=True)
+    if rc != 0:
+        raise RuntimeError("Failed to query SWRAID device for physical disks: '%s'" % device)
+
+    for line in out.splitlines():
+        line = line.strip()
+        if line.startswith("devices="):
+            return line.split("=")[1].strip().split(",")
+
+    raise RuntimeError("Failed to identify SWRAID devices")
+
 def getHumanDiskName(disk):
 
     # For Multipath nodes return info about 1st slave

@@ -297,6 +297,11 @@ def get_installation_type(answers):
         if 'primary-disk' not in answers:
             answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
 
+            if diskutil.is_raid(answers['primary-disk']):
+                answers['physical-disks'] = diskutil.getSWRAIDDevices(answers['primary-disk'])
+            else:
+                answers['physical-disks'] = [answers['primary-disk']]
+
         for k in ['guest-disks', 'default-sr-uuid']:
             if k in answers:
                 del answers[k]
@@ -803,6 +808,10 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
             return REPEAT_STEP
 
     answers['primary-disk'] = entry
+    if diskutil.is_raid(entry):
+        answers['physical-disks'] = diskutil.getSWRAIDDevices(entry)
+    else:
+        answers['physical-disks'] = [entry]
 
     # Warn the user if a utility partition is detected. Give them option to
     # cancel the install.

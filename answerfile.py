@@ -226,6 +226,11 @@ class Answerfile:
         disk = disktools.getMpathMasterOrDisk(disk)
         logger.log('Primary disk: ' + disk)
         results['primary-disk'] = disk
+        results['physical-disks'] = [disk]
+
+        if diskutil.is_raid(disk):
+            results['physical-disks'] = diskutil.getSWRAIDDevices(disk)
+            logger.log('Physical disks: ' + str(results['physical-disks']))
 
         results['fs-type'] = getStrAttribute(inst[0], ['fs-type'], default=default_rootfs_type)
         if results['fs-type'] not in allowed_rootfs_types:
