@@ -335,6 +335,7 @@ def performInstallation(answers, ui_package, interactive):
         'host-config': {},
         'write-boot-entry': True,
         'target-platform': None,
+        'swraid': False,
     }
 
     # update the settings:
