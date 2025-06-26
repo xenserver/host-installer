@@ -123,7 +123,7 @@ def getPrepSequence(ans, interactive):
             Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end'),[]),
             ]
         seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
-    elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
+    elif ans['install-type'] == INSTALL_TYPE_UPGRADE:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if 'backup-existing-installation' in ans and ans['backup-existing-installation']:
             seq.append(Task(doBackup,
@@ -214,7 +214,7 @@ def getFinalisationSequence(ans):
     if ans['ntp-config-method'] != "none":
         seq.append(Task(configureNTP, A(ans, 'mounts', 'ntp-config-method', 'ntp-servers'), []))
     # complete upgrade if appropriate:
-    if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+    if ans['install-type'] == constants.INSTALL_TYPE_UPGRADE:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
     # run the users's scripts
@@ -1109,7 +1109,7 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
 def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     def check_efibootmgr_err(rc, err, install_type, err_type):
         if rc != 0:
-            if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
+            if install_type in (INSTALL_TYPE_UPGRADE, INSTALL_TYPE_RESTORE):
                 logger.error("%s: %s" % (err_type, err))
             else:
                 raise RuntimeError("%s: %s" % (err_type, err))
