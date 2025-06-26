@@ -324,7 +324,11 @@ def get_installation_type(answers):
         answers['preserve-settings'] = preservable
         if 'primary-disk' not in answers:
             answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
-            answers['physical-disks'] = [answers['primary-disk']]
+
+            if diskutil.is_raid(entry):
+                answers['physical-disks'] = diskutil.getSWRAIDDevices(entry)
+            else:
+                answers['physical-disks'] = [answers['primary-disk']]
 
         for k in ['guest-disks', 'default-sr-uuid']:
             if k in answers:
@@ -616,7 +620,10 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
 
     # entry contains the 'de' part of the tuple passed in
     answers['primary-disk'] = entry
-    answers['physical-disks'] = [entry]
+    if diskutil.is_raid(entry):
+        answers['physical-disks'] = diskutil.getSWRAIDDevices(entry)
+    else:
+        answers['physical-disks'] = [entry]
 
     if 'installation-to-overwrite' in answers:
         answers['target-is-sr'] = target_is_sr[answers['primary-disk']]
