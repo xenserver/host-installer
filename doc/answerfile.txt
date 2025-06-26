@@ -49,6 +49,7 @@ Elements common to all answerfiles, both 'installation' and 'restore'
     where stage is one of:
 
       installation-start (new in 6.0)
+      packages-installed
       filesystem-populated
       installation-complete
 
@@ -61,6 +62,8 @@ Elements common to all answerfiles, both 'installation' and 'restore'
     stage. Args passed to the script:
 
       installation-start - None
+
+      packages-installed - mnt (mount point of root filesystem)
 
       filesystem-populated - mnt (mount point of root filesystem)
 
