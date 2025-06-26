@@ -606,10 +606,9 @@ def findXenSourceProducts():
     installs = []
 
     for disk_device in diskutil.getQualifiedDiskList():
-        disk = diskutil.probeDisk(disk_device)
-
         inst = None
         try:
+            disk = diskutil.probeDisk(disk_device)
             if disk.root[0] == diskutil.INSTALL_RETAIL:
                 inst = ExistingRetailInstallation(disk_device, disk.boot[1], disk.root[1], disk.state[1], disk.storage)
         except Exception as e:
