@@ -320,7 +320,7 @@ def performInstallation(answers, ui_package, interactive):
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
                             'xen-cpuid-masks': [] }
-    defaults = { 'branding': {}, 'host-config': {}, 'write-boot-entry': True }
+    defaults = { 'branding': {}, 'host-config': {}, 'write-boot-entry': True, 'swraid': False }
 
     # update the settings:
     if answers['preserve-settings'] == True:
