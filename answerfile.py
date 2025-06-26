@@ -237,6 +237,11 @@ class Answerfile:
         disk = disktools.getMpathMasterOrDisk(disk)
         logger.log('Primary disk: ' + disk)
         results['primary-disk'] = disk
+        results['physical-disks'] = [disk]
+
+        if diskutil.is_raid(disk):
+            results['physical-disks'] = diskutil.getSWRAIDDevices(disk)
+            logger.log('Physical disks: ' + str(results['physical-disks']))
 
         installations = product.findXenSourceProducts()
         installations = [x for x in installations if x.primary_disk == disk or diskutil.idFromPartition(x.primary_disk) == disk]
