@@ -485,6 +485,21 @@ def dmv_more_info(context):
     tui.screen.popHelpLine()
     return True
 
+def dmv_check_selection(answers):
+    global dmv_data_provider
+
+    hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+    labels = list(map(lambda x:x.drvname, hw_present_drivers))
+
+    choices = answers['selected-multiversion-drivers']
+    for drvname, _ in choices:
+        if drvname in labels:
+            labels.remove(drvname)
+
+    if len(labels) > 0:
+        return (False, labels)
+    return (True, [])
+
 # driver multi version screen:
 def dmv_screen(answers):
     global dmv_data_provider
@@ -567,6 +582,14 @@ def dmv_screen(answers):
         text = "No drivers selected? Go back to driver selection"
         ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
         return REPEAT_STEP
+    else:
+        ret, drvnames = dmv_check_selection(answers)
+        if not ret:
+            label = "Select Driver"
+            message = ','.join(drvnames)
+            text = "Zero selection for drivers %s? Go back to driver selection" % message
+            ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
+            return REPEAT_STEP
     return RIGHT_FORWARDS
 
 def confirm_dmv_selection(answers):
