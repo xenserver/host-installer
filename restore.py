@@ -90,13 +90,12 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
         # mount restore partition:
         dest_fs = util.TempMount(restore_partition, 'restore-dest-')
-        efi_mounted = False
         try:
-            mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            mounts['esp'] = os.path.join(dest_fs.mount_point, 'boot', 'efi')
+            mounts = {'root': dest_fs.mount_point,
+                        'boot': os.path.join(dest_fs.mount_point, 'boot')}
+                        'esp': os.path.join(dest_fs.mount_point, 'boot', 'efi')}
             os.makedirs(mounts['esp'])
             util.mount(boot_device, mounts['esp'])
-            efi_mounted = True
 
             # copy files from the backup partition to the restore partition:
             objs = [x for x in os.listdir(backup_fs.mount_point) if x not in ['lost+found', '.xen-backup-partition', '.xen-gpt.bin']]
@@ -146,8 +145,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             util.umount("%s/proc" % dest_fs.mount_point)
             util.umount("%s/sys" % dest_fs.mount_point)
             util.umount("%s/dev" % dest_fs.mount_point)
-            if efi_mounted:
-                util.umount(mounts['esp'])
+            util.umount(mounts['esp'])
             dest_fs.unmount()
     finally:
         backup_fs.unmount()
