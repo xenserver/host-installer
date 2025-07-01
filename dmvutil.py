@@ -169,6 +169,8 @@ def parsePCIData(pcilist):
         \s*
         (?:-(?P<revision>\S+))?      # Optional revision (-r06)
         \s*
+        (?:-(?P<progif>\S+))?        # Optional programming interface (-p00)
+        \s*
         (?: "(?P<subvendor>[^"]*)")? # Optional subvendor (Dell)
         \s*
         (?: "(?P<subdevice>[^"]*)")? # Optional subdevice (Device abcd)
@@ -182,7 +184,6 @@ def parsePCIData(pcilist):
             devclass = pci_info["class"]
             vendor_id = pci_info["vendor"]
             device_id = filterDeviceRev(pci_info["device"])
-            rev = pci_info["revision"]
 
             driver = readPciDriver(pci_slot)
             if driver:
