@@ -470,6 +470,9 @@ class ThirdGenUpgrader(Upgrader):
         # CP-42523: NRPE service config
         restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
 
+        # CA-413319 Preserve console timeout config
+        restore_list += ['etc/profile.d/console_timeout.sh']
+
         # CP-44441: SNMP service config
         # From XS 8.4 SNMP feature is supported, and new file /etc/snmp/snmp.xs.conf is added
         # into dom0, the file can be treated as the feature flag. Host installer must not
