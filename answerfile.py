@@ -137,6 +137,7 @@ class Answerfile:
         results.update(self.parseNSConfig())
         self.parseTimeConfig(results)
         results.update(self.parseKeymap())
+        results.update(self.parseSSHMode())
         results.update(self.parseServices())
 
         return results
@@ -483,6 +484,17 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['ui-confirmation-prompt'])
         if len(nodes) > 0:
             results['ui-confirmation-prompt'] = bool(getText(nodes[0]))
+        return results
+
+    def parseSSHMode(self):
+        results = {}
+        nodes = getElementsByTagName(self.top_node, ['ssh-mode'])
+        if len(nodes) > 0:
+            ssh_mode = getText(nodes[0]).lower()
+            if ssh_mode not in ('on', 'off', 'auto'):
+                logger.log("Invalid ssh-mode %s specified in answerfile." % ssh_mode)
+                ssh_mode = None
+            results['ssh-mode'] = ssh_mode
         return results
 
     def parseServices(self):
