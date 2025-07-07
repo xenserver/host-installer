@@ -103,6 +103,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'services': { s: None for s in constants.SERVICES }, # default state for services, example {'sshd': None}
         'preserve-first-partition': constants.PRESERVE_IF_UTILITY,
         'fs-type': constants.default_rootfs_type,
+        'ssh-mode': None,  # default SSH mode (no specific configuration)
         }
     suppress_extra_cd_dialog = False
     serial_console = None

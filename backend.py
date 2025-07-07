@@ -182,6 +182,7 @@ def getFinalisationSequence(ans):
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
         Task(writeFstab, A(ans, 'mounts', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix', 'fs-type'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
+        Task(configureSSHMode, A(ans, 'mounts', 'ssh-mode'), []),
         Task(configureCC, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'logs-partnum', 'boot-partnum', 'swap-partnum', 'storage-partnum',
@@ -1279,6 +1280,34 @@ def writeFstab(mounts, primary_disk, logs_partnum, swap_partnum, disk_label_suff
             fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_file))
     if logs_partition:
         fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, fs_type))
+
+def configureSSHMode(mounts, ssh_mode):
+    """Configure SSH mode according to answerfile settings."""
+
+    if ssh_mode is None or ssh_mode not in ['auto', 'on', 'off']:
+        return
+
+    logger.log("Configuring SSH mode: %s" % ssh_mode)
+
+    ssh_auto_mode_conf_path = os.path.join(mounts['root'], 'etc/xapi.conf.d/ssh-auto-mode.conf.extra')
+    conf_dir = os.path.dirname(ssh_auto_mode_conf_path)
+    util.assertDir(conf_dir)
+
+    if ssh_mode == 'auto':
+        with open(ssh_auto_mode_conf_path, 'w') as f:
+            f.write('ssh-auto-mode=true\n')
+        logger.log("SSH auto-mode enabled")
+    else:
+        with open(ssh_auto_mode_conf_path, 'w') as f:
+            f.write('ssh-auto-mode=false\n')
+
+        # Enable or disable SSH service based on mode
+        if ssh_mode == 'on':
+            util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'sshd.service'])
+            logger.log("SSH service enabled")
+        elif ssh_mode == 'off':
+            util.runCmd2(['chroot', mounts['root'], 'systemctl', 'disable', 'sshd.service'])
+            logger.log("SSH service disabled")
 
 def enableAgent(mounts, network_backend, services):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
