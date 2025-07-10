@@ -18,6 +18,7 @@ import socket
 import product
 import upgrade
 import netutil
+import dmvutil
 
 from snack import *
 
@@ -29,6 +30,7 @@ import tui.fcoe
 
 from netinterface import NetInterface
 
+dmv_data_provider = None
 
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
@@ -449,6 +451,204 @@ The backup will be placed on the backup partition of the destination disk (%s), 
     answers['backup-existing-installation'] = (button == 'yes')
     return RIGHT_FORWARDS
 
+def dmv_more_info(context):
+    global dmv_data_provider
+
+    if not context: return True
+
+    itemtype, item = dmv_data_provider.queryDriversOrVariant(context)
+    if itemtype == "variants" or itemtype == "unknown":
+        return True
+
+    tui.update_help_line([' ', ' '])
+    
+    if itemtype == "drivers":
+        l = []
+        l.append( ("Type:", item.type) )
+        l.append( ("Friendly name:", item.friendly_name) )
+        l.append( ("Description:", item.description) )
+        l.append( ("Info:", item.info) )
+        l.append( ("Version", item.getVersion()) )
+        l.append( ("Selected:", item.getSelectedText()) )
+        l.append( ("Active:", item.getActiveText()) )
+        for label in item.getHumanDeviceLabel():
+            l.append( ("Hardware:", label) )
+        snackutil.ListDialog(tui.screen, "Driver Details", l) 
+    elif itemtype == "variant":
+        snackutil.TableDialog(tui.screen, "Variant Details", ("Driver:", item.drvname),
+                          ("Variant:", item.oemtype),
+                          ("Version:", item.version),
+                          ("Hardware Present:", item.getHardwarePresentText()),
+                          ("Priority:", item.getPriorityText()),
+                          ("Status:", item.status)) 
+
+    tui.screen.popHelpLine()
+    return True
+
+def dmv_check_selection(answers):
+    global dmv_data_provider
+
+    hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+    labels = list(map(lambda x:x.drvname, hw_present_drivers))
+
+    choices = answers['selected-multiversion-drivers']
+    for drvname, _ in choices:
+        if drvname in labels:
+            labels.remove(drvname)
+
+    if len(labels) > 0:
+        return (False, labels)
+    return (True, [])
+
+# driver multi version screen:
+def dmv_screen(answers):
+    global dmv_data_provider
+
+    drivers = []
+    hw_present_drivers = []
+    if "selected-multiversion-drivers" not in answers:
+        answers['selected-multiversion-drivers'] = []
+
+    if not dmv_data_provider:
+        dmv_data_provider = dmvutil.getDMVData()
+        drivers = dmv_data_provider.getDriversData()
+        dmvutil.logDriverVariants(drivers)
+
+    # skip the ui rendering
+    hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+    if len(hw_present_drivers) == 0:
+        return RIGHT_FORWARDS
+
+    entries = []
+    for d in hw_present_drivers:
+        label = d.getHumanDriverLabel()
+        entries.append( (label, d) )
+
+    selected_variants = []
+    for drvname, oemtype in answers['selected-multiversion-drivers']:
+        logger.log("previously selected multiversion driver: %s %s" % (drvname, oemtype))
+        v = dmv_data_provider.getDriverVariantByName(drvname, oemtype)
+        if v:
+            selected_variants.append(v)
+
+    if len(selected_variants) == 0:
+        selected_variants = dmv_data_provider.chooseDefaultDriverVariants(hw_present_drivers)
+        for v in selected_variants:
+            logger.log("selected-default-driver-variants: %s" % v)
+
+    text = TextboxReflowed(54, "Select device drivers for the following hardware devices. If hardware is not present, its drivers are not shown.")
+    buttons = ButtonBar(tui.screen, [('Ok', 'ok'), ('Back', 'back')])
+    scroll, _ = snackutil.scrollHeight(6, len(entries))
+    cbt = CheckboxTree(6, scroll)
+    drv_index = 0
+    for (c_text, driver) in entries:
+        cbt.append(c_text, driver)
+        for v in driver.getDriversVariants():
+            label, variant = v
+            variantSelected = 0
+            if variant in selected_variants:
+                variantSelected = 1
+            cbt.addItem(label, (drv_index, snackArgs['append']), variant, selected = variantSelected)
+        drv_index += 1
+
+    gf = GridFormHelp(tui.screen, 'Select Driver', 'dmv:info1', 1, 6)
+    gf.add(text, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(cbt, 0, 1, padding=(0, 0, 0, 1))
+    gf.add(buttons, 0, 3, growx=1)
+    gf.addHotKey('F5')
+    gf.draw()
+
+    tui.update_help_line([None, "<F5> more info"])
+
+    loop = True
+    while loop:
+        rc = gf.run()
+        if rc == 'F5':
+            dmv_more_info(cbt.getCurrent())
+        else:
+            loop = False
+    tui.screen.popWindow()
+    tui.screen.popHelpLine()
+
+    button = buttons.buttonPressed(rc)
+    if button is None or button == 'back': return LEFT_BACKWARDS
+
+    answers['selected-multiversion-drivers'] = []
+    for variant in cbt.getSelection():
+        logger.log("new selected multiversion driver: %s" % variant)
+        answers['selected-multiversion-drivers'].append((variant.drvname, variant.oemtype))
+    if len(answers['selected-multiversion-drivers']) == 0:
+        label = "Select Driver"
+        text = "No drivers selected? Go back to driver selection"
+        ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
+        return REPEAT_STEP
+    else:
+        ret, drvnames = dmv_check_selection(answers)
+        if not ret:
+            label = "Select Driver"
+            message = ','.join(drvnames)
+            text = "Zero selection for drivers %s? Go back to driver selection" % message
+            ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
+            return REPEAT_STEP
+    return RIGHT_FORWARDS
+
+def confirm_dmv_selection(answers):
+    global dmv_data_provider
+
+    variants = []
+    choices = answers['selected-multiversion-drivers']
+    for drvname, oemtype in choices:
+        v = dmv_data_provider.getDriverVariantByName(drvname, oemtype)
+        if v:
+            variants.append(v)
+
+    entries = []
+    title = "Confirm Drivers Selection"
+    text = ""
+    if len(variants) == 0:
+        # skip the ui rendering
+        return RIGHT_FORWARDS
+    else:
+        got, drvname = dmv_data_provider.sameDriverMultiVariantsSelected(variants)
+        if not got:
+            text = "The listed drivers have been selected to take effect on %s soon after selection and upon first boot after host installation." % MY_PRODUCT_BRAND
+            for item in variants:
+                entries.append( (item.getHumanVariantLabel(), item) )
+
+            scroll, height = snackutil.scrollHeight(6, len(entries))
+            (button, choice) = snackutil.ListboxChoiceWindowEx(
+                tui.screen, title, text,
+                entries,
+                ['Ok', 'Back'], 60, scroll, height, None, help='dmv:info3',
+                hotkeys={})
+
+            if button is None or button == 'back': return LEFT_BACKWARDS
+
+            for drvname, oemtype in choices:
+                logger.log("select and enable variant %s for driver %s." % (oemtype, drvname))
+            failures = dmv_data_provider.applyDriverVariants(choices)
+            if len(failures) == 0:
+                logger.log("succeed to select and enable all driver variants.")
+            else:
+                for driver_name, variant_name in failures:
+                    logger.log("fail to select or enable variant %s for driver %s." % (variant_name, driver_name))
+                ButtonChoiceWindow(
+                        tui.screen,
+                        "Problem Loading Driver Variant",
+                        "Setup was unable to activate driver variant.",
+                        ['Ok']
+                        )
+            return RIGHT_FORWARDS
+        else:
+            title = "Error"
+            text = "Only one variant of driver %s can be selected, but multiple variants of driver %s have been selected." % (drvname, drvname)
+            button = snackutil.ButtonChoiceWindowEx(
+                    tui.screen, title, text,
+                    ['Back'], width=60, default=0, help='dmv:info4')
+
+            if button is None or button == 'back': return LEFT_BACKWARDS
+            return RIGHT_FORWARDS
+
 def eula_screen(answers):
     eula_file = open(constants.EULA_PATH, 'r')
     eula = " ".join(eula_file.readlines())
@@ -530,13 +730,6 @@ def disk_more_info(context):
         usage = "%s installation" % MY_PRODUCT_BRAND
     elif disk.storage[0]:
         usage = 'VM storage'
-    else:
-        # Determine disk is being used as an LVM SR with no partitioning
-        rv, out = util.runCmd2([ 'pvs', context, '-o', 'vg_name', '--noheadings' ], with_stdout=True)
-        if rv == 0:
-            vg_name = out.strip()
-            if vg_name.startswith('VG_XenStorage-'):
-                usage = 'VM Storage'
 
     tui.update_help_line([' ', ' '])
     snackutil.TableDialog(tui.screen, "Details", ("Disk:", diskutil.getHumanDiskName(context)),
@@ -552,13 +745,24 @@ def disk_more_info(context):
 def sorted_disk_list(): # Smallest to largest, then alphabetical
     return sorted(diskutil.getQualifiedDiskList(), key=lambda disk: (len(disk), disk))
 
+def confirm_disk_erase(disk):
+    sr_overwrite_msg = """The selected disk, {}, contains a storage repository. The storage repository may currently be used by other hosts.
+
+Selecting Yes will permanently erase the storage repository and any virtual machine disks it contains.
+
+Are you sure you want to continue?"""
+
+    return snackutil.ButtonChoiceWindowEx(tui.screen,
+        "Confirm Disk Erasure",
+        sr_overwrite_msg.format(diskutil.getHumanDiskLabel(disk, short=True)),
+        ['Yes', 'No'], default=1)
+
 # select drive to use as the Dom0 disk:
 def select_primary_disk(answers):
     button = None
     diskEntries = sorted_disk_list()
 
     entries = []
-    target_is_sr = {}
     min_primary_disk_size = constants.min_primary_disk_size
 
     for de in diskEntries:
@@ -568,11 +772,6 @@ def select_primary_disk(answers):
                        (de, diskutil.blockSizeToGBSize(size), min_primary_disk_size))
             continue
 
-        # determine current usage
-        target_is_sr[de] = False
-        disk = diskutil.probeDisk(de)
-        if disk.storage[0]:
-            target_is_sr[de] = True
         e = (diskutil.getHumanDiskLabel(de), de)
         entries.append(e)
 
@@ -604,13 +803,16 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
 
     tui.screen.popHelpLine()
 
-    # entry contains the 'de' part of the tuple passed in
-    answers['primary-disk'] = entry
-
-    if 'installation-to-overwrite' in answers:
-        answers['target-is-sr'] = target_is_sr[answers['primary-disk']]
-
     if button == 'back': return LEFT_BACKWARDS
+
+    # entry contains the 'de' part of the tuple passed in
+    # determine current usage
+    disk = diskutil.probeDisk(entry)
+    if disk.storage[0]:
+        if confirm_disk_erase(entry) == 'no':
+            return REPEAT_STEP
+
+    answers['primary-disk'] = entry
 
     # Warn the user if a utility partition is detected. Give them option to
     # cancel the install.
@@ -703,6 +905,16 @@ def select_guest_disks(answers):
     button = buttons.buttonPressed(rc)
 
     if button == 'back': return LEFT_BACKWARDS
+
+    for i in cbt.getSelection():
+        # The user has already confirmed the primary disk
+        if i == answers['primary-disk']:
+            continue
+
+        disk = diskutil.probeDisk(i)
+        if disk.storage[0]:
+            if confirm_disk_erase(i) == 'no':
+                return REPEAT_STEP
 
     answers['guest-disks'] = cbt.getSelection()
     answers['sr-on-primary'] = answers['primary-disk'] in answers['guest-disks']

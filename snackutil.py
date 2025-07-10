@@ -182,7 +182,7 @@ def clearModelessDialog(screen):
     screen.popWindow()
 
 def TableDialog(screen, title, *table):
-    wrap_value = 35
+    wrap_value = 40
 
     gf = GridFormHelp(screen, title, None, 1, 2)
     bb = ButtonBar(screen, [ 'Ok' ])
@@ -194,14 +194,50 @@ def TableDialog(screen, title, *table):
             max_label = len(label)
         if len(value) > max_value:
             max_value = len(value)
-    if max_label > 15:
-        max_label = 15
+    if max_label > 20:
+        max_label = 20
     if max_value > wrap_value:
         max_value = wrap_value
 
     grid = Grid(2, len(table))
     row = 0
     for label, value in table:
+        grid.setField(Textbox(max_label+1, 1, label), 0, row, anchorLeft=1, anchorTop=1)
+        if len(value) > wrap_value:
+            tb = TextboxReflowed(wrap_value, value)
+        else:
+            tb = Textbox(max_value+1, 1, value)
+        grid.setField(tb, 1, row, anchorLeft=1)
+        row += 1
+
+    gf.add(grid, 0, 0, padding=(0, 0, 0, 1))
+    gf.add(bb, 0, 1, growx=1)
+
+    gf.runOnce()
+
+def ListDialog(screen, title, mylist):
+    wrap_value = 60
+
+    gf = GridFormHelp(screen, title, None, 1, 2)
+    bb = ButtonBar(screen, [ 'Ok' ])
+
+    max_label = 0
+    max_value = 0
+    for item in mylist:
+        label, value = item
+        if len(label) > max_label:
+            max_label = len(label)
+        if len(value) > max_value:
+            max_value = len(value)
+    if max_label > 30:
+        max_label = 30
+    if max_value > wrap_value:
+        max_value = wrap_value
+
+    grid = Grid(2, len(mylist))
+    row = 0
+    for item in mylist:
+        label, value = item
         grid.setField(Textbox(max_label+1, 1, label), 0, row, anchorLeft=1, anchorTop=1)
         if len(value) > wrap_value:
             tb = TextboxReflowed(wrap_value, value)

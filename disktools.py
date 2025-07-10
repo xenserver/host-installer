@@ -287,7 +287,7 @@ class LVMTool:
         """ Returns the PV record for a given device (partition), or None if there is no PV
         for that device."""
         for pv in self.pvs:
-            if pv['pv_name'] == device:
+            if os.path.samefile(pv['pv_name'], device):
                 return pv
         return None
 
@@ -334,7 +334,8 @@ class LVMTool:
         the volume group that it's in starts with vgPrefix"""
         retVal = None
         for pv in self.pvs:
-            if pv['pv_name'].startswith(devicePrefix) and pv['vg_name'].startswith(vgPrefix):
+            pv_path = os.path.realpath(pv['pv_name'])
+            if pv_path.startswith(devicePrefix) and pv['vg_name'].startswith(vgPrefix):
                 retVal = pv['pv_name']
                 break
         return retVal
@@ -375,7 +376,7 @@ class LVMTool:
         lvsToDelete = []
 
         for pv in self.pvs:
-            if pv['pv_name'] == device:
+            if os.path.samefile(pv['pv_name'], device):
                 pvsToDelete.append(pv['pv_name'])
                 vgsToDelete.append(pv['vg_name'])
 
@@ -481,13 +482,16 @@ class LVMTool:
         pprint(self.__dict__)
 
 def diskDevice(partitionDevice):
-    matches = re.match(r'(.+)(p?|(-part))\d+$', partitionDevice)
-    if matches:
-        return matches.group(1)
-    matches = re.match(r'(.+\D)\d+$', partitionDevice)
-    if not matches:
-        raise Exception("Could not determine disk device for device '"+partitionDevice+"'")
-    return matches.group(1)
+    # There are three cases:
+    # 1) "p" and a number added, e.g. nvme1n1p3 which happens when the parent device
+    #    ends in a number
+    # 2) "-part" and a number added, e.g. scsi-36f4ee08074d4d5002e3ec9f12273e1c0-part3
+    # 3) Just a number added, e.g. sda3, sdp3
+    m = re.match(r'((?P<case1>.+?\d+)p\d+$)|((?P<case2>.+?)-part\d+$)|((?P<case3>[^\d\-]+)\d+$)', partitionDevice)
+    if m:
+        return m.group('case1') or m.group('case2') or m.group('case3')
+
+    raise Exception("Could not determine disk device for device '%s'" % partitionDevice)
 
 def determineMidfix(device):
     DISK_PREFIX = '/dev/'

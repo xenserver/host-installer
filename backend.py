@@ -24,6 +24,7 @@ import init_constants
 import scripts
 import xcp.bootloader as bootloader
 import netinterface
+import dmvutil
 import tui.repo
 import xcp.dom0
 from xcp import logger
@@ -173,6 +174,7 @@ def getRepoSequence(ans, repos):
 
 def getFinalisationSequence(ans):
     seq = [
+        Task(scripts.run_scripts, lambda a: ['packages-installed',  a['mounts']['root']], []),
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
@@ -198,6 +200,7 @@ def getFinalisationSequence(ans):
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
         Task(writei18n, A(ans, 'mounts'), []),
         Task(configureMCELog, A(ans, 'mounts'), []),
+        Task(writeDMVSelections, A(ans, 'mounts', 'selected-multiversion-drivers'), []),
         ]
 
     # on fresh installs, prepare the storage repository as required:
@@ -549,6 +552,8 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
     if preserve_first_partition == 'true':
+        if tool.getPartition(1):  # If no first partition
+            raise RuntimeError("No first partition to preserve")
         primary_part += 1
     elif preserve_first_partition == constants.PRESERVE_IF_UTILITY:
         utilparts = tool.utilityPartitions()
@@ -845,10 +850,15 @@ def __mkinitrd(mounts, primary_disk, partition, kernel_version):
     except:
         pass
 
-    cmd = ['dracut', '-f', output_file, kernel_version]
+    cmd = ['dracut', '--verbose', '-f', output_file, kernel_version]
 
     if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
         raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
+
+    # CA-412051: debug logging, will revert in future
+    util.runCmd2(['chroot', mounts['root'], 'ldd', '/usr/sbin/init'])
+    util.runCmd2(['chroot', mounts['root'], 'rpm', '-ql', 'systemd'])
+    util.runCmd2(['chroot', mounts['root'], 'lsinitrd', output_file])
 
 def getXenVersion(rootfs_mount):
     """ Return the xen version by interogating the package version in the chroot """
@@ -1506,6 +1516,27 @@ def touchSshAuthorizedKeys(mounts):
     fh = open("%s/root/.ssh/authorized_keys" % mounts['root'], 'a')
     fh.close()
 
+def writeDMVSelections(mounts, selected_multiversion_drivers):
+    # select the default driver variants
+    if len(selected_multiversion_drivers) == 0:
+        logger.log("we got empty driver variants selection.")
+
+        dmv_data_provider = dmvutil.getDMVData()
+        # if we got empty selection we need more log data to see devices and
+        # drivers that we have
+        drivers = dmv_data_provider.getDriversData()
+        dmvutil.logDriverVariants(drivers)
+
+        selected_multiversion_drivers = dmv_data_provider.chooseDefaultDriverVariants()
+        logger.log("pass default driver variants to driver-tool.")
+
+    for driver_name, variant_name in selected_multiversion_drivers:
+        logger.log("write variant %s selection for driver %s." % (variant_name, driver_name))
+
+        cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
+        chrootcmd = ['chroot', mounts['root']]
+        chrootcmd.extend(cmdparams)
+        util.runCmd2(chrootcmd, with_stdout=True)
 
 ################################################################################
 # OTHER HELPERS
