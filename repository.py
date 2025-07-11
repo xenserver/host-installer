@@ -8,6 +8,7 @@ import hashlib
 import tempfile
 import urllib.request, urllib.parse
 import ftplib
+import signal
 import subprocess
 import re
 import gzip
@@ -850,7 +851,10 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
         rv = p.wait()
 
         if rv:
-            logger.log("DNF exited with %d" % rv)
+            if rv > 0:
+                logger.log("DNF exited with %d" % rv)
+            else:
+                logger.log("DNF killed by signal: %s" % (signal.strsignal(-rv),))
             raise ErrorInstallingPackage("Error installing packages")
 
         shutil.rmtree(os.path.join(mounts['root'], cachedir), ignore_errors=True)
