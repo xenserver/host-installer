@@ -834,7 +834,10 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
             logger.log("YUM stderr: %s" % stderr.strip())
 
         if rv:
-            logger.log("Yum exited with %d" % rv)
+            if rv > 0:
+                logger.log("Yum exited with %d" % rv)
+            else:
+                logger.log("Yum killed by signal %d" % -rv)
             raise ErrorInstallingPackage("Error installing packages")
 
         shutil.rmtree(os.path.join(mounts['root'], cachedir))
