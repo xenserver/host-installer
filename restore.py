@@ -153,7 +153,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
         dest_fs = util.TempMount(restore_partition, 'restore-dest-')
         try:
             mounts = {'root': dest_fs.mount_point,
-                        'boot': os.path.join(dest_fs.mount_point, 'boot')}
+                        'boot': os.path.join(dest_fs.mount_point, 'boot'),
                         'esp': os.path.join(dest_fs.mount_point, 'boot', 'efi')}
             os.makedirs(mounts['esp'])
             util.mount(boot_device, mounts['esp'])
