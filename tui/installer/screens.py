@@ -232,7 +232,7 @@ def get_installation_type(answers):
     entries.append( ("Perform clean installation", None) )
 
     # default value?
-    if 'install-type' in answers and answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+    if 'install-type' in answers and answers['install-type'] == constants.INSTALL_TYPE_UPGRADE:
         default = selectDefault(answers['installation-to-overwrite'], entries)
     elif 'install-type' in answers and answers['install-type'] == constants.INSTALL_TYPE_RESTORE:
         default = selectDefault(answers['backup-to-restore'], entries)
@@ -301,7 +301,7 @@ def get_installation_type(answers):
         if 'installation-to-overwrite' in answers:
             del answers['installation-to-overwrite']
     elif isinstance(entry[0], product.ExistingInstallation):
-        answers['install-type'] = constants.INSTALL_TYPE_REINSTALL
+        answers['install-type'] = constants.INSTALL_TYPE_UPGRADE
         answers['installation-to-overwrite'], preservable = entry
         answers['preserve-settings'] = preservable
         if 'primary-disk' not in answers:
@@ -990,7 +990,7 @@ def confirm_installation(answers):
                 term = 'disks'
             disks_used = generalui.makeHumanList(disks)
             text2 = "Please confirm you wish to proceed: all data on %s %s will be destroyed!" % (term, disks_used)
-        elif answers['install-type'] == constants.INSTALL_TYPE_REINSTALL:
+        elif answers['install-type'] == constants.INSTALL_TYPE_UPGRADE:
             if answers['primary-disk'] == answers['installation-to-overwrite'].primary_disk:
                 text2 = "The installation will be performed over %s" % str(answers['installation-to-overwrite'])
             else:

@@ -44,13 +44,13 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
                len(answers['backups']) == 0
 
     def upgrade_but_no_settings_predicate(answers):
-        return answers['install-type'] == constants.INSTALL_TYPE_REINSTALL and \
+        return answers['install-type'] == constants.INSTALL_TYPE_UPGRADE and \
             ('installation-to-overwrite' not in answers or \
                  not answers['installation-to-overwrite'].settingsAvailable())
 
     has_multiple_nics = lambda a: len(a['network-hardware'].keys()) > 1
 
-    is_reinstall_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_REINSTALL
+    is_upgrade_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_UPGRADE
     is_clean_install_fn = lambda a: a['install-type'] == constants.INSTALL_TYPE_FRESH
     is_not_restore_fn = lambda a: a['install-type'] != constants.INSTALL_TYPE_RESTORE
 
@@ -153,17 +153,17 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.migrate_to_corosync3_check,
              predicates=[is_reinstall_fn, preserve_settings, corosync2_was_in_use]),
         Step(uis.ha_master_upgrade,
-             predicates=[is_reinstall_fn, ha_enabled]),
+             predicates=[is_upgrade_fn, ha_enabled]),
         Step(uis.remind_driver_repos,
-             predicates=[is_reinstall_fn, preserve_settings]),
+             predicates=[is_upgrade_fn, preserve_settings]),
         Step(uis.backup_existing_installation,
-             predicates=[is_reinstall_fn, optional_backup]),
+             predicates=[is_upgrade_fn, optional_backup]),
         Step(uis.force_backup_screen,
-             predicates=[is_reinstall_fn, requires_backup]),
+             predicates=[is_upgrade_fn, requires_backup]),
         Step(uis.select_primary_disk,
              predicates=[is_clean_install_fn]),
         Step(uis.repartition_existing,
-             predicates=[is_reinstall_fn, requires_repartition]),
+             predicates=[is_upgrade_fn, requires_repartition]),
         Step(uis.select_guest_disks,
              predicates=[is_clean_install_fn]),
         Step(uis.get_sr_type,
