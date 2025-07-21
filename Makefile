@@ -22,8 +22,7 @@ install:
 	        constants.py \
 	        disktools.py \
 	        diskutil.py \
-		dmvutil.py \
-	        driver.py \
+	        dmvutil.py \
 	        fcoeutil.py \
 	        generalui.py \
 	        hardware.py \

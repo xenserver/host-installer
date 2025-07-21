@@ -25,7 +25,6 @@ from snack import *
 import tui
 import tui.network
 import tui.progress
-import driver
 import tui.fcoe
 
 from netinterface import NetInterface
@@ -45,65 +44,16 @@ def selectDefault(key, entries):
 
 # welcome screen:
 def welcome_screen(answers):
-    driver_answers = {'driver-repos': []}
-
-    tui.update_help_line([None, "<F9> load driver"])
-
-    def load_driver(driver_answers):
-        tui.screen.popHelpLine()
-        tui.update_help_line([None, ' '])
-        drivers = driver.doInteractiveLoadDriver(tui, driver_answers)
-        logger.log(drivers)
-        logger.log(driver_answers)
-        if drivers[0]:
-            if 'extra-repos' not in answers: answers['extra-repos'] = []
-            answers['extra-repos'].append(drivers)
-        return True
-
-    global loop
-    global popup
-    loop = True
-
-    def fn9():
-        global loop
-        global popup
-        loop = True
-        popup = 'driver'
-        return False
-
-    def fn10():
-        global loop
-        global popup
-        loop = True
-        popup = 'storage'
-        return False
-
-    while loop:
-        loop = False
-        popup = None
-        driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
-
-        button = snackutil.ButtonChoiceWindowEx(tui.screen,
+    answers['network-hardware'] = netutil.scanConfiguration()
+    button = snackutil.ButtonChoiceWindow(tui.screen,
                                 "Welcome to %s Setup" % MY_PRODUCT_BRAND,
                                 """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
 
 Please make sure you have backed up any data you wish to preserve before proceeding.
-
-To load a device driver press <F9>.
-To setup advanced storage classes press <F10>.
 """ % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND),
-                                ['Ok', 'Reboot'], width=60, help="welcome",
-                                hotkeys={'F9': fn9, 'F10': fn10})
-        if popup == 'driver':
-            load_driver(driver_answers)
-            tui.update_help_line([None, "<F9> load driver"])
-        elif popup == 'storage':
-            tui.fcoe.select_fcoe_ifaces(answers)
-            tui.update_help_line([None, "<F9> load driver"])
+                                ['Ok', 'Cancel Installation'], width = 60)
 
-    tui.screen.popHelpLine()
-
-    if button == 'reboot':
+    if button == 'cancel installation':
         return EXIT
 
     logger.log("Waiting for partitions to appear...")
@@ -136,10 +86,9 @@ To setup advanced storage classes press <F10>.
         text_short = "interfaces"
     if label:
         text = """This host does not appear to have any %s.
-
-If %s are present you may need to load a device driver on the previous screen for them to be detected.""" % (text, text_short)
-        ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
-        return REPEAT_STEP
+Please check if %s are present and retry.""" % (text, text_short)
+        ButtonChoiceWindow(tui.screen, label, text, ["Cancel"], width=48)
+        return EXIT
 
     return RIGHT_FORWARDS
 
