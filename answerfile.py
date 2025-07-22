@@ -73,7 +73,6 @@ class Answerfile:
         results = {}
         results.update(self.parseDriverSource())
         results.update(self.parseDriverMultiVersion())
-        results.update(self.parseFCoEInterface())
         results.update(self.parseUIConfirmationPrompt())
 
         return results
@@ -361,31 +360,6 @@ class Answerfile:
                                       % (", ".join(large_block_disks), sr_type))
 
         results['sr-type'] = sr_type
-
-        return results
-
-    def parseFCoEInterface(self):
-        results = {}
-        nethw = netutil.scanConfiguration()
-
-        for interface in getElementsByTagName(self.top_node, ['fcoe-interface']):
-            if_hwaddr = None
-            if 'fcoe-interfaces' not in results:
-                results['fcoe-interfaces'] = []
-
-            if_name = getStrAttribute(interface, ['name'])
-            if if_name and if_name in nethw:
-                if_hwaddr = nethw[if_name].hwaddr
-            else:
-                if_hwaddr = getStrAttribute(interface, ['hwaddr'])
-                if if_hwaddr:
-                    matching_list = [x for x in list(nethw.values()) if x.hwaddr == if_hwaddr.lower()]
-                    if len(matching_list) == 1:
-                        if_name = matching_list[0].name
-            if not if_name and not if_hwaddr:
-                 raise AnswerfileException("<fcoe-interface> tag must have one of 'name' or 'hwaddr'")
-
-            results['fcoe-interfaces'].append(if_name)
 
         return results
 

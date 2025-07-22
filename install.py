@@ -34,9 +34,6 @@ import xelogging
 import scripts
 from xcp import logger
 
-# fcoe
-import fcoeutil
-
 def main(args):
     ui = tui
     logger.log("Starting user interface")
@@ -187,9 +184,6 @@ def go(ui, args, answerfile_address, answerfile_script):
                     for media, address in results['extra-repos']:
                         for r in repository.repositoriesFromDefinition(media, address, drivers=True):
                             r.installPackages(lambda x: (), {'root': '/'})
-
-                if 'fcoe-interfaces' in results:
-                    fcoeutil.start_fcoe(results['fcoe-interfaces'])
 
                 util.runCmd2(util.udevsettleCmd())
                 time.sleep(1)
