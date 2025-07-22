@@ -14,7 +14,6 @@ import xelogging
 import util
 import diskutil
 from disktools import *
-import fcoeutil
 import netutil
 import shutil
 import constants
@@ -194,7 +193,7 @@ def getFinalisationSequence(ans):
         Task(installBootLoader, A(ans, 'mounts', 'primary-disk',
                                   'boot-partnum', 'primary-partnum', 'branding',
                                   'disk-label-suffix', 'bootloader-location', 'write-boot-entry', 'install-type',
-                                  'serial-console', 'boot-serial', 'host-config', 'fcoe-interfaces'), []),
+                                  'serial-console', 'boot-serial', 'host-config'), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive=True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -993,7 +992,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
         raise RuntimeError("Failed to generate fallback initrd")
 
 
-def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
+def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog dom0_max_vcpus=1-%d" % host_config['dom0-vcpus']
@@ -1021,10 +1020,6 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
 
     if diskutil.is_raid(primary_disk):
         common_kernel_params += " rd.auto"
-
-    if fcoe_interfaces:
-        for interface in fcoe_interfaces:
-            common_kernel_params += " fcoe=%s:%s" % (netutil.getHWAddr(interface), 'nodcb' if fcoeutil.hw_lldp_capable(interface) else 'dcb')
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
@@ -1080,7 +1075,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
 
 def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
                       disk_label_suffix, location, write_boot_entry, install_type, serial=None,
-                      boot_serial=None, host_config=None, fcoe_interface=None):
+                      boot_serial=None, host_config=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
     if host_config:
@@ -1098,7 +1093,7 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
             raise RuntimeError("Unable to determine kernel version.")
         buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config,
                             serial, boot_serial, host_config, disk,
-                            disk_label_suffix, fcoe_interface)
+                            disk_label_suffix)
         util.assertDir(os.path.dirname(fn))
         boot_config.commit()
 
