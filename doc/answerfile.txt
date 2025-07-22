@@ -83,12 +83,6 @@ Elements common to all answerfiles, both 'installation' and 'restore'
     Replaced by <script stage="installation-complete">
 
 
-  <fcoe-interface name="eth"/> | <fcoe-interface hwaddr="mac"/>*
-
-    Specifies interfaces to run Fibre Channel over Ethernet VLAN
-    Discovery on.
-
-
   <ui-confirmation-prompt>bool</ui-confirmation-prompt>?
 
     Request confirmation from user about formatting the harddisk,
