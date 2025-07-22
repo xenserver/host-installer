@@ -23,6 +23,7 @@ import upgrade
 import init_constants
 import scripts
 import xcp.bootloader as bootloader
+from xcp.bootloader import Grub2Format
 import netinterface
 import dmvutil
 import tui.repo
@@ -1031,7 +1032,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
                              initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND,
-                             root=constants.rootfs_label%disk_label_suffix)
+                             root=constants.rootfs_label%disk_label_suffix,
+                             entry_format=Grub2Format.XEN_BOOT)
     boot_config.append("xe", e)
     boot_config.default = "xe"
     if serial:
@@ -1042,7 +1044,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" (Serial)",
-                                 root=constants.rootfs_label%disk_label_suffix)
+                                 root=constants.rootfs_label%disk_label_suffix,
+                                 entry_format=Grub2Format.XEN_BOOT)
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
@@ -1051,13 +1054,13 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args=' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" in Safe Mode",
-                                 root=constants.rootfs_label%disk_label_suffix)
+                                 root=constants.rootfs_label%disk_label_suffix,
+                                 entry_format=Grub2Format.XEN_BOOT)
         boot_config.append("safe", e)
 
-    e = bootloader.MenuEntry(hypervisor="", hypervisor_args="", kernel="/boot/memtest86+x64.efi",
-                            kernel_args="",
-                            initrd="", title="Memtest86+ (UEFI)",
-                            root=constants.rootfs_label%disk_label_suffix)
+    e = bootloader.MenuEntry(kernel="/boot/memtest86+x64.efi", title="Memtest86+ (UEFI)",
+                             root=constants.rootfs_label%disk_label_suffix,
+                             entry_format=Grub2Format.LINUX)
     boot_config.append("memtest", e)
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
@@ -1066,7 +1069,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              initrd="/boot/initrd-fallback.img",
                              title="%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
-                             root=constants.rootfs_label%disk_label_suffix)
+                             root=constants.rootfs_label%disk_label_suffix,
+                             entry_format=Grub2Format.XEN_BOOT)
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
@@ -1075,7 +1079,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-fallback.img",
                                  title="%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
-                                 root=constants.rootfs_label%disk_label_suffix)
+                                 root=constants.rootfs_label%disk_label_suffix,
+                                 entry_format=Grub2Format.XEN_BOOT)
         boot_config.append("fallback-serial", e)
 
 def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
