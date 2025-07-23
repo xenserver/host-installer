@@ -153,7 +153,7 @@ class Upgrader(object):
             if not d: d = f
             src = os.path.join(src_base, f)
             dst = os.path.join(mounts['root'], d)
-            if os.path.exists(src):
+            if os.path.lexists(src):
                 logger.log("Restoring /%s" % f)
                 util.assertDir(os.path.dirname(dst))
                 # copy file/folder and try to preserve all attributes
@@ -523,6 +523,9 @@ class ThirdGenUpgrader(Upgrader):
         # Preserve pool certificates across upgrades
         restore_list += ['etc/stunnel/xapi-pool-ca-bundle.pem', {'dir': 'etc/stunnel/certs-pool'}]
         restore_list += ['etc/stunnel/xapi-stunnel-ca-bundle.pem', {'dir': 'etc/stunnel/certs'}]
+
+        # XAPI firewall-port plugin
+        restore_list += ['etc/sysconfig/iptables']
 
         return restore_list
 
