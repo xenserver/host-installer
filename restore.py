@@ -25,7 +25,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
     tool = PartitionTool(disk)
     dsk = diskutil.probeDisk(disk)
     create_sr_part = dsk.storage[0] is not None
-    boot_partnum, primary_partnum, backup_partnum, logs_partnum, swap_partnum, _ = backend.partitionTargetDisk(disk, None, constants.PRESERVE_IF_UTILITY, create_sr_part)
+    primary_partnum, backup_partnum, _, boot_partnum, logs_partnum, swap_partnum = backend.partitionTargetDisk(disk, None, constants.PRESERVE_IF_UTILITY, create_sr_part)
 
     backup_fs = util.TempMount(backup.partition, 'backup-', options=['ro'])
     inventory = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE), strip_quotes=True)
@@ -90,13 +90,12 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
         # mount restore partition:
         dest_fs = util.TempMount(restore_partition, 'restore-dest-')
-        efi_mounted = False
         try:
-            mounts = {'root': dest_fs.mount_point, 'boot': os.path.join(dest_fs.mount_point, 'boot')}
-            mounts['esp'] = os.path.join(dest_fs.mount_point, 'boot', 'efi')
+            mounts = {'root': dest_fs.mount_point,
+                        'boot': os.path.join(dest_fs.mount_point, 'boot'),
+                        'esp': os.path.join(dest_fs.mount_point, 'boot', 'efi')}
             os.makedirs(mounts['esp'])
             util.mount(boot_device, mounts['esp'])
-            efi_mounted = True
 
             # copy files from the backup partition to the restore partition:
             objs = [x for x in os.listdir(backup_fs.mount_point) if x not in ['lost+found', '.xen-backup-partition', '.xen-gpt.bin']]
@@ -129,6 +128,33 @@ def restoreFromBackup(backup, progress=lambda x: ()):
                     if m:
                         bootlabel = m.group(1)
 
+            if diskutil.is_raid(disk):
+                backend.waitForSWRAIDSync(disk)
+
+                # umount and re-mount partitions to flush the cache
+                # umount all partitions first before re-mounting
+                util.umount(mounts['esp'])
+                dest_fs.unmount()
+
+                # Restart the SW RAID device
+                physical_disks = diskutil.getSWRAIDDevices(disk)
+                if len(physical_disks) == 0:
+                    raise RuntimeError("Failed to identify physical devices of SWRAID device: %s" % disk)
+
+                assembleCommand = ["mdadm", "--assemble", "--run", disk, physical_disks[0]]
+                if len(physical_disks) == 2:
+                    assembleCommand.append(physical_disks[1])
+
+                diskutil.stopSWRAID(disk)
+                if util.runCmd2(assembleCommand) != 0:
+                    raise RuntimeError("Failed to re-assemble SWRAID device: %s" % disk)
+
+                dest_fs = util.TempMount(restore_partition, 'restore-dest-')
+                os.makedirs(mounts['esp'])
+                util.mount(boot_device, mounts['esp'])
+            else:
+                physical_disks = [disk]
+
             # prepare extra mounts for installing bootloader:
             util.bindMount("/dev", "%s/dev" % dest_fs.mount_point)
             util.bindMount("/sys", "%s/sys" % dest_fs.mount_point)
@@ -136,7 +162,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
 
             branding = util.readKeyValueFile(os.path.join(backup_fs.mount_point, constants.INVENTORY_FILE))
             branding['product-brand'] = branding['PRODUCT_BRAND']
-            backend.setEfiBootEntry(mounts, disk, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
+            backend.writeBootEntries(True, mounts, physical_disks, boot_partnum, constants.INSTALL_TYPE_RESTORE, branding)
 
             # restore bootloader configuration
             dst_file = boot_config.src_file.replace(backup_fs.mount_point, dest_fs.mount_point, 1)
@@ -146,8 +172,7 @@ def restoreFromBackup(backup, progress=lambda x: ()):
             util.umount("%s/proc" % dest_fs.mount_point)
             util.umount("%s/sys" % dest_fs.mount_point)
             util.umount("%s/dev" % dest_fs.mount_point)
-            if efi_mounted:
-                util.umount(mounts['esp'])
+            util.umount(mounts['esp'])
             dest_fs.unmount()
     finally:
         backup_fs.unmount()
