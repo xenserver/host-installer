@@ -180,6 +180,7 @@ INIT_SERVICE_FILES = [
 # optional features
 FEATURES_DIR = "/etc/xensource/features"
 HAS_SUPPLEMENTAL_PACKS = os.path.exists(os.path.join(FEATURES_DIR, "supplemental-packs"))
+HAS_DRIVER_DISKS = os.path.exists(os.path.join(FEATURES_DIR, "driver-disks"))
 SR_TYPE_LARGE_BLOCK = None
 try:
     with open(os.path.join(FEATURES_DIR, "large-block-capable-sr-type")) as f:
