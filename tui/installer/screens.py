@@ -46,7 +46,8 @@ def selectDefault(key, entries):
 def welcome_screen(answers):
     driver_answers = {'driver-repos': []}
 
-    tui.update_help_line([None, "<F9> load driver"])
+    if constants.HAS_DRIVER_DISKS:
+        tui.update_help_line([None, "<F9> load driver"])
 
     def load_driver(driver_answers):
         tui.screen.popHelpLine()
@@ -70,17 +71,22 @@ def welcome_screen(answers):
     while loop:
         loop = False
         driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
+        welcome_text = """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
+
+Please make sure you have backed up any data you wish to preserve before proceeding.
+""" % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND)
+        if constants.HAS_DRIVER_DISKS:
+            welcome_text += "\nTo load a device driver press <F9>.\n"
+
+        hotkeys = {}
+        if constants.HAS_DRIVER_DISKS:
+            hotkeys = {'F9': fn9}
 
         button = snackutil.ButtonChoiceWindowEx(tui.screen,
                                 "Welcome to %s Setup" % MY_PRODUCT_BRAND,
-                                """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
-
-Please make sure you have backed up any data you wish to preserve before proceeding.
-
-To load a device driver press <F9>.
-""" % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND),
+                                welcome_text,
                                 ['Ok', 'Reboot'], width=60, help="welcome",
-                                hotkeys={'F9': fn9})
+                                hotkeys=hotkeys)
         if loop:
             load_driver(driver_answers)
             tui.update_help_line([None, "<F9> load driver"])

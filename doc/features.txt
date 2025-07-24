@@ -15,6 +15,13 @@ Currently available feature flags are:
     This only impacts the UI, the <source> answerfile construct still
     allows to include supplemental packs without this feature flag.
 
+  driver-disks
+
+    Allows users to load additional drivers in the installer environment.
+    - When enabled, an <F9> hotkey will appear on the welcome screen
+    to access this feature.
+    - When disabled, the hotkey and related UI will not be shown.
+
   large-block-capable-sr-type
 
     Allow the use of an SR type for local storage that (unlike "lvm" and
