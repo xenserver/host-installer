@@ -1579,7 +1579,9 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
         drivers = dmv_data_provider.getDriversData()
         dmvutil.logDriverVariants(drivers)
 
-        selected_multiversion_drivers = dmv_data_provider.chooseDefaultDriverVariants()
+        selected_variants = dmv_data_provider.chooseDefaultDriverVariants()
+        for variant in selected_variants:
+            selected_multiversion_drivers.append((variant.drvname, variant.oemtype))
         logger.log("pass default driver variants to driver-tool.")
 
     for driver_name, variant_name in selected_multiversion_drivers:
