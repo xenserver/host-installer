@@ -193,14 +193,6 @@ class Answerfile:
 
         results.update(self.parseSource())
 
-        nodes = getElementsByTagName(self.top_node, ['network-backend'])
-        if len(nodes) > 0:
-            network_backend = getText(nodes[0])
-            if network_backend == NETWORK_BACKEND_BRIDGE:
-                results['network-backend'] = NETWORK_BACKEND_BRIDGE
-            elif network_backend in [NETWORK_BACKEND_VSWITCH, NETWORK_BACKEND_VSWITCH_ALT]:
-                results['network-backend'] = NETWORK_BACKEND_VSWITCH
-
         nodes = getElementsByTagName(self.top_node, ['bootloader'])
         if len(nodes) > 0:
             results['bootloader-location'] = getMapAttribute(nodes[0], ['location'],
