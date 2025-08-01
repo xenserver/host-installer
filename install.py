@@ -129,7 +129,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             suppress_extra_cd_dialog = True
         elif opt == "--cc-preparations":
             constants.CC_PREPARATIONS = True
-            results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
         elif opt == "--mount":
             disktools.DeviceMounter.addMountPoints(val)
 
