@@ -1,0 +1,22 @@
+{
+  "_comment1": "This is a problem matcher for the warnings output from python tools",
+  "_comment2": "It matches the output of the python warnings and displays them in GitHub Actions",
+  "_comment3": "The pattern is set to match the output of the warnings from the python tools",
+  "_comment4": "The file, line, code, and message are set to match the output of the warnings",
+  "_comment5": "The severity is set to warning to display the warnings in GitHub Actions",
+  "problemMatcher": [
+        {
+            "owner": "python-warnings",
+            "severity": "warning",
+            "pattern": [
+                {
+                    "regexp": "^.*/host-installer/(.+):([0-9]*):(.*):(.*)$",
+                    "file": 1,
+                    "line": 2,
+                    "code": 3,
+                    "message": 4
+                }
+            ]
+        }
+  ]
+}
