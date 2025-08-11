@@ -59,6 +59,7 @@ install:
 	    $(DESTDIR)/etc/modprobe.d \
 	    $(DESTDIR)/etc/modules-load.d \
 	    $(DESTDIR)/etc/dracut.conf.d \
+	    $(DESTDIR)/etc/systemd/system/sshd.service.d \
 	    $(DESTDIR)/etc/systemd/system/systemd-udevd.d
 
 	$(INSTALL) -m755 startup/interface-rename-sideway $(DESTDIR)/$(INSTALLER_DIR)
@@ -70,6 +71,7 @@ install:
 	$(INSTALL) -m755 startup/preinit startup/S05ramdisk $(DESTDIR)/$(INSTALLER_DIR)/
 	$(INSTALL) -m644 startup/systemd-udevd_depmod.conf $(DESTDIR)/etc/systemd/system/systemd-udevd.d/installer.conf
 	$(INSTALL) -m644 startup/interface-rename-sideway.service $(DESTDIR)/$(SERVICE_DIR)
+	$(INSTALL) -m644 startup/sshd_installer.conf $(DESTDIR)/etc/systemd/system/sshd.service.d/
 
  # Generate a multipath configuration from the installed copy, removing
  # the blacklist and blacklist_exception sections.
