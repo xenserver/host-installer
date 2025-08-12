@@ -433,11 +433,10 @@ class ThirdGenUpgrader(Upgrader):
         restore_list += ['var/lib/pbis/db/registry.db']
 
         # CA-47142: preserve v6 cache
-        restore_list += [{'src': 'var/xapi/lpe-cache', 'dst': 'var/lib/xcp/lpe-cache'}]
+        restore_list += ['var/lib/xcp/lpe-cache']
 
         # CP-2056: preserve RRDs etc
-        restore_list += [{'src': 'var/xapi/blobs', 'dst': 'var/lib/xcp/blobs'}]
-        restore_list += [{'src': 'var/lib/xcp/blobs', 'dst': 'var/lib/xcp/blobs'}]
+        restore_list += ['var/lib/xcp/blobs']
 
         restore_list.append('etc/sysconfig/mkinitrd.latches')
 
@@ -465,7 +464,8 @@ class ThirdGenUpgrader(Upgrader):
         # CA-195388: Preserve /etc/mdadm.conf across upgrades
         restore_list += ['etc/mdadm.conf']
 
-        restore_list += ['var/lib/xcp/verify_certificates']
+        # CA-413099: Preserve /var/lib/xcp/verify-certificates for certificates checking enable/disable status
+        restore_list += ['var/lib/xcp/verify-certificates']
 
         # CP-42523: NRPE service config
         restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
