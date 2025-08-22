@@ -924,15 +924,10 @@ def __mkinitrd(mounts, primary_disk, partition, kernel_version):
     except:
         pass
 
-    cmd = ['dracut', '--verbose', '-f', output_file, kernel_version]
+    cmd = ['dracut', '-f', output_file, kernel_version]
 
     if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
         raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
-
-    # CA-412051: debug logging, will revert in future
-    util.runCmd2(['chroot', mounts['root'], 'ldd', '/usr/sbin/init'])
-    util.runCmd2(['chroot', mounts['root'], 'rpm', '-ql', 'systemd'])
-    util.runCmd2(['chroot', mounts['root'], 'lsinitrd', output_file])
 
 def getXenVersion(rootfs_mount):
     """ Return the xen version by interogating the package version in the chroot """
