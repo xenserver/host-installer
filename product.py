@@ -291,6 +291,19 @@ class ExistingInstallation:
                     d['interfaces'] = p['interfaces']
                     d['hwaddrs'] = p.get('hwaddrs')
 
+                interface_rename_file = self.join_state_path(
+                    "etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json"
+                )
+                if os.path.exists(interface_rename_file):
+                    net_devs = netutil.net_devs_of_last_boot(interface_rename_file)
+                    logger.log(f"Network devices found from rename data: {net_devs}")
+                    names = d.get('interfaces').split(',')
+                    dev_dict = dict(net_devs)
+                    d['hwaddrs'] = ','.join([dev_dict[name] for name in names if name in dev_dict])
+                    logger.log(f"Mapped interfaces {d['interfaces']} to MAC addresses {d['hwaddrs']}")
+                else:
+                    logger.log("interface-rename_data not found, use networkd_db output hwaddrs")
+
                 results['net-admin-bridge'] = mgmt_iface
                 hwaddrs = d.get('hwaddrs')
                 if hwaddrs:
