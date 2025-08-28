@@ -5,7 +5,10 @@ import configparser
 
 import util
 import netutil
+import random
+import string
 from xcp import logger
+import constants
 
 def getText(nodelist):
     rc = ""
@@ -13,12 +16,16 @@ def getText(nodelist):
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
     return rc.strip().encode()
+
 def getTextOrNone(nodelist):
     rc = ""
     for node in nodelist:
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
     return rc == "" and None or rc.strip().encode()
+
+def random_string(size=10):
+    return "".join(random.choices(string.ascii_letters, k=size))
 
 
 class CaseConfigParser(configparser.ConfigParser):
@@ -107,7 +114,18 @@ class NetInterface:
         return retval
 
     def getInterfaceName(self, iface):
-        return ("%s.%d" % (iface, self.vlan)) if self.vlan else iface
+        if not self.vlan:
+            return iface
+
+        # linux kernel has limitation for the interface name length, 1 for the "." in the middle
+        max_host_interface_length = constants.INTERFACE_NAME_LENGTH_MAX - constants.VLAN_LENGTH_MAX - 1;
+        if len(iface) <= max_host_interface_length:
+            return f"{iface}.{self.vlan}"
+        else:
+            name = f"{random_string(max_host_interface_length)}.{self.vlan}"
+            logger.log(f"Generated {name} for {iface}.{self.vlan}")
+            return name
+
 
     def addIPv6(self, modev6, ipv6addr=None, ipv6gw=None):
         assert modev6 is None or modev6 == self.Static or modev6 == self.DHCP or modev6 == self.Autoconf
@@ -162,7 +180,7 @@ class NetInterface:
         sysd_netd_path = "/etc/systemd/network"
         iface_vlan = self.getInterfaceName(iface)
 
-        logger.debug(f"Configuring {iface} with systemd-networkd")
+        logger.log(f"Configuring {iface} with systemd-networkd")
 
         network_conf = CaseConfigParser()
         # Match section, match by Name
@@ -213,7 +231,7 @@ class NetInterface:
                     f.write(f"VLAN={iface_vlan}\n")
             else:
                 # The hosting interface just used to host the vlan
-                logger.debug("Found vlan {iface_vlan} with unconfigured hosting interface")
+                logger.log(f"Found vlan {iface_vlan} with unconfigured hosting interface")
                 hosting_conf = CaseConfigParser()
                 hosting_conf["Match"] = {}
                 hosting_conf["Match"]["Name"] = iface

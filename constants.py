@@ -160,6 +160,11 @@ MPATH_ISCSI_TIMEOUT = 15
 
 ISCSI_NODES = 'var/lib/iscsi/nodes'
 
+# interface length limitation from linux kernel (16-1), refer to dev_valid_name in kernel source
+INTERFACE_NAME_LENGTH_MAX = 15
+# max length of vlan ID
+VLAN_LENGTH_MAX = 4
+
 # prepare configuration for common criteria security
 CC_PREPARATIONS = False
 CC_FIREWALL_CONF = '/opt/xensource/installer/common_criteria_firewall_rules'
