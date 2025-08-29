@@ -74,8 +74,6 @@ def configureNetworking(ui, device, config):
             iface_to_start.append(devname)
 
     for i in iface_to_start:
-        netutil.ifup(netcfg[i].getInterfaceName(i))
-        netcfg[i].waitUntilUp(i)
         netcfg[i].writeSystemdNetworkdConfig(i)
 
     # Reload network to apply the configuration
