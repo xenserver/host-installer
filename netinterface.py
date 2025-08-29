@@ -223,16 +223,6 @@ class NetInterface:
                 with open(hosting_iface_network_path, "w", encoding="utf-8") as f:
                     hosting_conf.write(f)
 
-    def waitUntilUp(self, iface):
-        if not self.isStatic():
-            return True
-        if not self.gateway:
-            return True
-
-        rc = util.runCmd2(['/usr/sbin/arping', '-f', '-w', '120', '-I',
-                           self.getInterfaceName(iface), self.gateway])
-        return rc == 0
-
     @staticmethod
     def getModeStr(mode):
         if mode == NetInterface.Static:
