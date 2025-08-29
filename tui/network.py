@@ -280,13 +280,12 @@ def requireNetworking(answers, defaults=None, msg=None, keys=['net-admin-interfa
             "Configuring network interface, please wait...",
             )
         ifaceName = conf_dict['config'].getInterfaceName(conf_dict['interface'])
-        netutil.ifdown(ifaceName)
 
         # Reload network to apply the configuration
         netutil.reloadNetwork()
 
         # check that we have *some* network:
-        if netutil.ifup(ifaceName) != 0 or not netutil.interfaceUp(ifaceName):
+        if not netutil.interfaceUp(ifaceName):
             tui.progress.clearModelessDialog()
             tui.progress.OKDialog("Networking", "The network still does not appear to be active.  Please check your settings, and try again.")
             direction = REPEAT_STEP

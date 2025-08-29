@@ -64,9 +64,6 @@ def writeNetInterfaceFiles(configuration):
     for iface in configuration:
         configuration[iface].writeSystemdNetworkdConfig(iface)
 
-
-interface_up = {}
-
 def reloadNetwork(timeout=20):
     """ Use networkctl to reload the configuration """
     util.runCmd2(["networkctl", "reload"])
@@ -75,23 +72,6 @@ def reloadNetwork(timeout=20):
     if ret:
         LOG.error(f"Timeout {timeout} waiting for network online")
     return ret
-
-# simple wrapper for calling the local ifup script:
-def splitInterfaceVlan(interface):
-    if "." in interface:
-        return interface.split(".", 1)
-    return interface, None
-
-def ifup(interface):
-    device, vlan = splitInterfaceVlan(interface)
-    assert device in getNetifList()
-    interface_up[interface] = True
-    return util.runCmd2(['networkctl', 'up', interface])
-
-def ifdown(interface):
-    if interface in interface_up:
-        del interface_up[interface]
-    return util.runCmd2(['networkctl', 'down', interface])
 
 def ipaddr(interface):
     rc, out = util.runCmd2(['ip', 'addr', 'show', interface], with_stdout=True)
@@ -140,34 +120,6 @@ def networkingUp():
     if rc == 0 and len(out.split('\n')) > 2:
         return True
     return False
-
-# make a string to help users identify a network interface:
-def getPCIInfo(interface):
-    interface, vlan = splitInterfaceVlan(interface)
-    info = "<Information unknown>"
-    devpath = os.path.realpath('/sys/class/net/%s/device' % interface)
-    slot = devpath[len(devpath) - 7:]
-
-    rc, output = util.runCmd2(['lspci', '-i', '/usr/share/misc/pci.ids', '-s', slot], with_stdout=True)
-
-    if rc == 0:
-        info = output.strip('\n')
-
-    cur_if = None
-    pipe = subprocess.Popen(['biosdevname', '-d'], bufsize=1, stdout=subprocess.PIPE, universal_newlines=True)
-    for line in pipe.stdout:
-        l = line.strip('\n')
-        if l.startswith('Kernel name'):
-            cur_if = l[13:]
-        elif l.startswith('PCI Slot') and cur_if == interface and l[16:] != 'embedded':
-            info += "\nSlot "+l[16:]
-    pipe.wait()
-
-    return info
-
-def getDriver(interface):
-    interface, vlan = splitInterfaceVlan(interface)
-    return os.path.basename(os.path.realpath('/sys/class/net/%s/device/driver' % interface))
 
 def __readOneLineFile__(filename):
     f = open(filename)
