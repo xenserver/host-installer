@@ -13,6 +13,7 @@ def getText(nodelist):
         if node.nodeType == node.TEXT_NODE:
             rc = rc + node.data
     return rc.strip().encode()
+
 def getTextOrNone(nodelist):
     rc = ""
     for node in nodelist:
@@ -107,7 +108,12 @@ class NetInterface:
         return retval
 
     def getInterfaceName(self, iface):
-        return ("%s.%d" % (iface, self.vlan)) if self.vlan else iface
+        # interface length limitation from linux kernel (16-1), refer to dev_valid_name in kernel source
+        # .vlanID takes 5, this leaves 10 to prefix
+        INTERFACE_PREFIX_MAX = 10
+        # according to https://www.freedesktop.org/software/systemd/man/latest/systemd.net-naming-scheme.html
+        # The suffix is expected to be identical for different interface
+        return ("%s.%d" % (iface[-INTERFACE_PREFIX_MAX:], self.vlan)) if self.vlan else iface
 
     def addIPv6(self, modev6, ipv6addr=None, ipv6gw=None):
         assert modev6 is None or modev6 == self.Static or modev6 == self.DHCP or modev6 == self.Autoconf
@@ -162,7 +168,7 @@ class NetInterface:
         sysd_netd_path = "/etc/systemd/network"
         iface_vlan = self.getInterfaceName(iface)
 
-        logger.debug(f"Configuring {iface} with systemd-networkd")
+        logger.log(f"Configuring {iface} with systemd-networkd")
 
         network_conf = CaseConfigParser()
         # Match section, match by Name
@@ -213,7 +219,7 @@ class NetInterface:
                     f.write(f"VLAN={iface_vlan}\n")
             else:
                 # The hosting interface just used to host the vlan
-                logger.debug("Found vlan {iface_vlan} with unconfigured hosting interface")
+                logger.log(f"Found vlan {iface_vlan} with unconfigured hosting interface")
                 hosting_conf = CaseConfigParser()
                 hosting_conf["Match"] = {}
                 hosting_conf["Match"]["Name"] = iface
