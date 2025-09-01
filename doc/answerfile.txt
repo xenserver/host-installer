@@ -83,12 +83,6 @@ Elements common to all answerfiles, both 'installation' and 'restore'
     Replaced by <script stage="installation-complete">
 
 
-  <fcoe-interface name="eth"/> | <fcoe-interface hwaddr="mac"/>*
-
-    Specifies interfaces to run Fibre Channel over Ethernet VLAN
-    Discovery on.
-
-
   <ui-confirmation-prompt>bool</ui-confirmation-prompt>?
 
     Request confirmation from user about formatting the harddisk,
@@ -192,6 +186,19 @@ Format of 'source' and 'driver-source'
                            partition label == 'DELLUTILITY' (GPT)
 
         Default: if-utility
+
+      swraid=bool
+
+        Use Linux Software RAID for the primary-disk at RAID level 1 (mirror).
+
+        This option requires exactly two devices to be specified in the text
+        of the primary-disk element. Devices should be comma separated.
+        The first device will be treated as the original, the second device will
+        mirror the first.
+
+        The resulting multidevice will be /dev/md/xs-<disk-label-suffix>.
+
+        Default: False
 
 
   <guest-disks>

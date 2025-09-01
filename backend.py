@@ -14,7 +14,6 @@ import xelogging
 import util
 import diskutil
 from disktools import *
-import fcoeutil
 import netutil
 import shutil
 import constants
@@ -23,6 +22,7 @@ import upgrade
 import init_constants
 import scripts
 import xcp.bootloader as bootloader
+from xcp.bootloader import Grub2Format
 import netinterface
 import dmvutil
 import tui.repo
@@ -106,23 +106,29 @@ def getPrepSequence(ans, interactive):
         Task(util.getUUID, As(ans), ['installation-uuid']),
         Task(util.getUUID, As(ans), ['control-domain-uuid']),
         Task(util.randomLabelStr, As(ans), ['disk-label-suffix']),
-        Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'),
-            ['primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']),
         ]
+
+    if not interactive:
+        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
+
+    if ans['install-type'] == INSTALL_TYPE_FRESH:
+        seq.append(Task(removeBlockingVGs, As(ans, 'guest-disks'), []))
+
+        if ans['swraid']:
+            seq.append(Task(setupSWRAIDDevice, A(ans, 'disk-label-suffix', 'physical-disks', 'guest-disks'), ['primary-disk', 'guest-disks']))
+
+    seq.append(Task(partitionTargetDisk, A(ans, 'primary-disk', 'installation-to-overwrite', 'preserve-first-partition','sr-on-primary'),
+            ['primary-partnum', 'backup-partnum', 'storage-partnum', 'boot-partnum', 'logs-partnum', 'swap-partnum']))
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
         seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
     elif ans['ntp-config-method'] == "none":
         seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
 
-    if not interactive:
-        seq.append(Task(verifyRepos, A(ans, 'sources', 'ui'), []))
     if ans['install-type'] == INSTALL_TYPE_FRESH:
         seq += [
-            Task(removeBlockingVGs, As(ans, 'guest-disks'), []),
             Task(writeDom0DiskPartitions, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'backup-partnum', 'logs-partnum', 'swap-partnum', 'storage-partnum', 'sr-at-end'),[]),
-            ]
-        seq.append(Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), []))
+            Task(writeGuestDiskPartitions, A(ans,'primary-disk', 'guest-disks'), [])]
     elif ans['install-type'] == INSTALL_TYPE_REINSTALL:
         seq.append(Task(getUpgrader, A(ans, 'installation-to-overwrite'), ['upgrader']))
         if 'backup-existing-installation' in ans and ans['backup-existing-installation']:
@@ -146,7 +152,7 @@ def getPrepSequence(ans, interactive):
                         pass_progress_callback=True))
     seq += [
         Task(createDom0DiskFilesystems, A(ans, 'install-type', 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'disk-label-suffix', 'fs-type'), []),
-        Task(mountVolumes, A(ans, 'primary-disk', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup'), ['mounts', 'cleanup']),
+        Task(mountVolumes, A(ans, 'primary-disk', 'physical-disks', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'swraid'), ['mounts', 'cleanup']),
         ]
     return seq
 
@@ -182,6 +188,7 @@ def getFinalisationSequence(ans):
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
         Task(writeFstab, A(ans, 'mounts', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix', 'fs-type'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
+        Task(configureSSHMode, A(ans, 'mounts', 'ssh-mode'), []),
         Task(configureCC, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'logs-partnum', 'boot-partnum', 'swap-partnum', 'storage-partnum',
@@ -191,10 +198,9 @@ def getFinalisationSequence(ans):
         Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
         Task(mkinitrd, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
         Task(prepFallback, A(ans, 'mounts', 'primary-disk', 'primary-partnum'), []),
-        Task(installBootLoader, A(ans, 'mounts', 'primary-disk',
-                                  'boot-partnum', 'primary-partnum', 'branding',
-                                  'disk-label-suffix', 'bootloader-location', 'write-boot-entry', 'install-type',
-                                  'serial-console', 'boot-serial', 'host-config', 'fcoe-interfaces'), []),
+        Task(installBootLoader, A(ans, 'mounts', 'primary-disk', 'primary-partnum',
+                                  'disk-label-suffix', 'bootloader-location',
+                                  'serial-console', 'boot-serial', 'host-config',), []),
         Task(touchSshAuthorizedKeys, A(ans, 'mounts'), []),
         Task(setRootPassword, A(ans, 'mounts', 'root-password'), [], args_sensitive=True),
         Task(setTimeZone, A(ans, 'mounts', 'timezone'), []),
@@ -217,11 +223,22 @@ def getFinalisationSequence(ans):
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
+    if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
+        # Once the SWRAID Sync has completed, we must umount the volumes to ensure page writes don't get stuck in the cache
+        seq += [
+            Task(waitForSWRAIDSync, A(ans, 'primary-disk'), []),
+            Task(umountVolumes, A(ans, 'primary-disk', 'mounts', 'cleanup'), ['cleanup']),
+            Task(diskutil.stopSWRAID, A(ans, 'primary-disk'), []),
+            Task(mountVolumes, A(ans, 'primary-disk', 'physical-disks', 'boot-partnum', 'primary-partnum', 'logs-partnum', 'cleanup', 'swraid'), ['mounts', 'cleanup']),
+        ]
+
+    seq.append(Task(writeBootEntries, A(ans, 'write-boot-entry', 'mounts', 'physical-disks', 'boot-partnum', 'install-type', 'branding'), []))
+
     # run the users's scripts
     seq.append( Task(scripts.run_scripts, lambda a: ['filesystem-populated',  a['mounts']['root']], []) )
 
-    seq.append(Task(umountVolumes, A(ans, 'mounts', 'cleanup'), ['cleanup']))
-    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum', 'logs-partnum'), []))
+    seq.append(Task(umountVolumes, A(ans, 'primary-disk', 'mounts', 'cleanup'), ['cleanup']))
+    seq.append(Task(writeLog, A(ans, 'primary-disk', 'primary-partnum', 'logs-partnum', 'swraid'), []))
 
     return seq
 
@@ -305,7 +322,7 @@ def performInstallation(answers, ui_package, interactive):
     default_host_config = { 'dom0-mem': dom0_mem,
                             'dom0-vcpus': dom0_vcpus,
                             'xen-cpuid-masks': [] }
-    defaults = { 'branding': {}, 'host-config': {}, 'write-boot-entry': True }
+    defaults = { 'branding': {}, 'host-config': {}, 'write-boot-entry': True, 'swraid': False }
 
     # update the settings:
     if answers['preserve-settings'] == True:
@@ -511,6 +528,54 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
     util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
 
+# Setup a new SW RAID device using mdadm
+# The primary-disk (/dev/md/*) is built from the physical disks provided in the answerfile
+def setupSWRAIDDevice(disk_label_suffix, physical_disks, guest_disks):
+    primary_disk = "/dev/md/xs-" + disk_label_suffix
+
+    # Stop the multi-device if it exists
+    if os.path.exists(primary_disk):
+        diskutil.stopSWRAID(primary_disk)
+
+    # Stop any multi-devices using the physical disks we require
+    for device in getMdDevicesUsing(physical_disks):
+        diskutil.stopSWRAID(device)
+
+    # Zero any superblocks on the physical disks
+    for disk in physical_disks:
+        util.runCmd2(['mdadm', '--zero-superblock', disk])
+
+    # Limit SWRAID size to 95%
+    rc, out = util.runCmd2(['blockdev', '--getsize64', physical_disks[0]], with_stdout=True)
+    if rc != 0:
+        raise RuntimeError("Failed to determine size of block device: '%s'" % physical_disks[0])
+
+    sizeGB = int(out.strip()) / (1024 ** 3)
+    swraidSizeGB = int(sizeGB * 0.95)
+
+    # Create multi-device with the first physical disk
+    rc = util.runCmd2(['mdadm', '--create', primary_disk, '--size=%sG' % swraidSizeGB, '--metadata=1.0', '--level=mirror', '--raid-devices=2', '--run', physical_disks[0], 'missing'])
+    if rc != 0:
+        raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
+
+    # Add second disk to SW RAID device
+    rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
+    if rc != 0:
+        raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
+
+    with open('/proc/sys/dev/raid/speed_limit_max', 'w') as speed_file:
+        speed_file.write(str(constants.swraid_speed_write_max))
+
+    primary_disk = os.path.realpath(primary_disk)
+
+    # Update guest-disks
+    if any(disk in physical_disks for disk in guest_disks):
+        guest_disks = [disk for disk in guest_disks if disk not in physical_disks]
+        guest_disks.append(primary_disk)
+
+
+    return primary_disk, guest_disks
+
 # This is attempting to understand the desired layout of the future partitioning
 # based on options passed and status of disk (like partition to retain).
 # This should be used for upgrade or install, not for restore.
@@ -552,7 +617,7 @@ def partitionTargetDisk(disk, existing, preserve_first_partition, create_sr_part
     # Preserve any utility partitions unless user told us to zap 'em
     primary_part = 1
     if preserve_first_partition == 'true':
-        if tool.getPartition(1):  # If no first partition
+        if tool.getPartition(1) is None:  # If no first partition
             raise RuntimeError("No first partition to preserve")
         primary_part += 1
     elif preserve_first_partition == constants.PRESERVE_IF_UTILITY:
@@ -850,15 +915,10 @@ def __mkinitrd(mounts, primary_disk, partition, kernel_version):
     except:
         pass
 
-    cmd = ['dracut', '--verbose', '-f', output_file, kernel_version]
+    cmd = ['dracut', '-f', output_file, kernel_version]
 
     if util.runCmd2(['chroot', mounts['root']] + cmd) != 0:
         raise RuntimeError("Failed to create initrd for %s.  This is often due to using an installer that is not the same version of %s as your installation source." % (kernel_version, MY_PRODUCT_BRAND))
-
-    # CA-412051: debug logging, will revert in future
-    util.runCmd2(['chroot', mounts['root'], 'ldd', '/usr/sbin/init'])
-    util.runCmd2(['chroot', mounts['root'], 'rpm', '-ql', 'systemd'])
-    util.runCmd2(['chroot', mounts['root'], 'lsinitrd', output_file])
 
 def getXenVersion(rootfs_mount):
     """ Return the xen version by interogating the package version in the chroot """
@@ -984,7 +1044,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
         raise RuntimeError("Failed to generate fallback initrd")
 
 
-def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix, fcoe_interfaces):
+def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog dom0_max_vcpus=1-%d" % host_config['dom0-vcpus']
@@ -1013,16 +1073,13 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     if diskutil.is_raid(primary_disk):
         common_kernel_params += " rd.auto"
 
-    if fcoe_interfaces:
-        for interface in fcoe_interfaces:
-            common_kernel_params += " fcoe=%s:%s" % (netutil.getHWAddr(interface), 'nodcb' if fcoeutil.hw_lldp_capable(interface) else 'dcb')
-
     e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
                              initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND,
                              root=constants.rootfs_label%disk_label_suffix)
+    e.entry_format = Grub2Format.XEN_BOOT
     boot_config.append("xe", e)
     boot_config.default = "xe"
     if serial:
@@ -1034,6 +1091,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" (Serial)",
                                  root=constants.rootfs_label%disk_label_suffix)
+        e.entry_format = Grub2Format.XEN_BOOT
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
@@ -1043,12 +1101,14 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  kernel_args=' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" in Safe Mode",
                                  root=constants.rootfs_label%disk_label_suffix)
+        e.entry_format = Grub2Format.XEN_BOOT
         boot_config.append("safe", e)
 
     e = bootloader.MenuEntry(hypervisor="", hypervisor_args="", kernel="/boot/memtest86+x64.efi",
                             kernel_args="",
                             initrd="", title="Memtest86+ (UEFI)",
                             root=constants.rootfs_label%disk_label_suffix)
+    e.entry_format = Grub2Format.LINUX
     boot_config.append("memtest", e)
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
@@ -1058,6 +1118,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                              initrd="/boot/initrd-fallback.img",
                              title="%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
                              root=constants.rootfs_label%disk_label_suffix)
+    e.entry_format = Grub2Format.XEN_BOOT
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
@@ -1067,11 +1128,12 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
                                  initrd="/boot/initrd-fallback.img",
                                  title="%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
                                  root=constants.rootfs_label%disk_label_suffix)
+        e.entry_format = Grub2Format.XEN_BOOT
         boot_config.append("fallback-serial", e)
 
-def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
-                      disk_label_suffix, location, write_boot_entry, install_type, serial=None,
-                      boot_serial=None, host_config=None, fcoe_interface=None):
+def installBootLoader(mounts, disk, primary_partnum,
+                      disk_label_suffix, location, serial=None,
+                      boot_serial=None, host_config=None):
     assert(location in [constants.BOOT_LOCATION_MBR, constants.BOOT_LOCATION_PARTITION])
 
     if host_config:
@@ -1089,23 +1151,20 @@ def installBootLoader(mounts, disk, boot_partnum, primary_partnum, branding,
             raise RuntimeError("Unable to determine kernel version.")
         buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config,
                             serial, boot_serial, host_config, disk,
-                            disk_label_suffix, fcoe_interface)
+                            disk_label_suffix)
         util.assertDir(os.path.dirname(fn))
         boot_config.commit()
 
     root_partition = partitionDevice(disk, primary_partnum)
-    if write_boot_entry:
-        setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
 
-def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
-    def check_efibootmgr_err(rc, err, install_type, err_type):
-        if rc != 0:
-            if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
-                logger.error("%s: %s" % (err_type, err))
-            else:
-                raise RuntimeError("%s: %s" % (err_type, err))
+def check_efibootmgr_err(rc, err, install_type, err_type):
+    if rc != 0:
+        if install_type in (INSTALL_TYPE_REINSTALL, INSTALL_TYPE_RESTORE):
+            logger.error("%s: %s" % (err_type, err))
+        else:
+            raise RuntimeError("%s: %s" % (err_type, err))
 
-    # First remove existing entries
+def clearEfiBootEntries(mounts, install_type, branding):
     rc, out, err = util.runCmd2(["chroot", mounts['root'], "/usr/sbin/efibootmgr"], True, True)
     check_efibootmgr_err(rc, err, install_type, "Failed to list efi boot entries")
 
@@ -1121,7 +1180,7 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
             check_efibootmgr_err(rc, err, install_type,
                                  "Failed to remove efi boot entry %r" % (line,))
 
-    # Then add a new one
+def addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
     if os.path.exists(os.path.join(mounts['esp'], 'EFI/xenserver/shimx64.efi')):
         efi = "EFI/xenserver/shimx64.efi"
     elif os.path.exists(os.path.join(mounts['esp'], 'EFI/xenserver/grubx64.efi')):
@@ -1133,10 +1192,20 @@ def setEfiBootEntry(mounts, disk, boot_partnum, install_type, branding):
                             "-d", disk, "-p", str(boot_partnum)], with_stderr=True)
     check_efibootmgr_err(rc, err, install_type, "Failed to add new efi boot entry")
 
+def writeBootEntries(write_boot_entry, mounts, disks, boot_partnum, install_type, branding):
+    if write_boot_entry:
+        clearEfiBootEntries(mounts, install_type, branding)
+
+        for disk in disks:
+            addEfiBootEntry(mounts, disk, boot_partnum, install_type, branding)
+
 ##########
 # mounting and unmounting of various volumes
 
-def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, cleanup):
+def mountVolumes(primary_disk, physical_disks, boot_partnum, primary_partnum, logs_partnum, cleanup, swraid):
+    if swraid:
+        util.runCmd2(['mdadm', '--assemble', primary_disk, physical_disks[0], physical_disks[1]])
+
     mounter = DeviceMounter()
     mounter.mount()
 
@@ -1186,11 +1255,11 @@ def mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, clea
 
     return mounts, new_cleanup
 
-def umountVolumes(mounts, cleanup, force=False):
-    def filterCleanup(tag, _, __):
-        return (not tag.startswith("umount-%s" % mounts['root']) and
-                not tag.startswith("umount-%s" % os.path.join(mounts['root'], 'mnt')) and
-                not tag.startswith("umount-%s" % mounts['boot']))
+def umountVolumes(disk, mounts, cleanup, force=False):
+    def filterCleanup(operation):
+        return (not operation[0].startswith("umount-%s" % mounts['root']) and
+                not operation[0].startswith("umount-%s" % os.path.join(mounts['root'], 'mnt')) and
+                not operation[0].startswith("umount-%s" % mounts['boot']))
 
     util.umount(os.path.join(mounts['root'], 'mnt'))
     util.umount(constants.EXTRA_SCRIPTS_DIR)
@@ -1207,6 +1276,7 @@ def umountVolumes(mounts, cleanup, force=False):
 
     util.umount(mounts['root'])
     cleanup = list(filter(filterCleanup, cleanup))
+
     return cleanup
 
 ##########
@@ -1270,6 +1340,34 @@ def writeFstab(mounts, primary_disk, logs_partnum, swap_partnum, disk_label_suff
             fstab.write("%s          swap      swap   defaults   0  0\n" % (constants.swap_file))
     if logs_partition:
         fstab.write("LABEL=%s    /var/log         %s     defaults   0  2\n" % (logsfs_label%disk_label_suffix, fs_type))
+
+def configureSSHMode(mounts, ssh_mode):
+    """Configure SSH mode according to answerfile settings."""
+
+    if ssh_mode is None or ssh_mode not in ['auto', 'on', 'off']:
+        return
+
+    logger.log("Configuring SSH mode: %s" % ssh_mode)
+
+    ssh_auto_mode_conf_path = os.path.join(mounts['root'], 'etc/xapi.conf.d/ssh-auto-mode.conf.extra')
+    conf_dir = os.path.dirname(ssh_auto_mode_conf_path)
+    util.assertDir(conf_dir)
+
+    if ssh_mode == 'auto':
+        with open(ssh_auto_mode_conf_path, 'w') as f:
+            f.write('ssh-auto-mode=true\n')
+        logger.log("SSH auto-mode enabled")
+    else:
+        with open(ssh_auto_mode_conf_path, 'w') as f:
+            f.write('ssh-auto-mode=false\n')
+
+        # Enable or disable SSH service based on mode
+        if ssh_mode == 'on':
+            util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'sshd.service'])
+            logger.log("SSH service enabled")
+        elif ssh_mode == 'off':
+            util.runCmd2(['chroot', mounts['root'], 'systemctl', 'disable', 'sshd.service'])
+            logger.log("SSH service disabled")
 
 def enableAgent(mounts, network_backend, services):
     if network_backend == constants.NETWORK_BACKEND_VSWITCH:
@@ -1527,7 +1625,9 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
         drivers = dmv_data_provider.getDriversData()
         dmvutil.logDriverVariants(drivers)
 
-        selected_multiversion_drivers = dmv_data_provider.chooseDefaultDriverVariants()
+        selected_variants = dmv_data_provider.chooseDefaultDriverVariants()
+        for variant in selected_variants:
+            selected_multiversion_drivers.append((variant.drvname, variant.oemtype))
         logger.log("pass default driver variants to driver-tool.")
 
     for driver_name, variant_name in selected_multiversion_drivers:
@@ -1538,12 +1638,30 @@ def writeDMVSelections(mounts, selected_multiversion_drivers):
         chrootcmd.extend(cmdparams)
         util.runCmd2(chrootcmd, with_stdout=True)
 
+def waitForSWRAIDSync(primary_disk):
+    while not isSWRAIDSyncd(primary_disk):
+        time.sleep(constants.swraid_query_interval)
+
+def isSWRAIDSyncd(primary_disk):
+    try:
+        with open('/sys/block/%s/md/sync_completed' % primary_disk.split("/")[-1]) as sync_file:
+            out = sync_file.read()
+
+        return out.strip() == "none"
+    except Exception as ex:
+        logger.log("Failed to check if SWRAID device is sync'd due to: " + str(ex))
+        return False
+
+
 ################################################################################
 # OTHER HELPERS
 
 # This function is not supposed to throw exceptions so that it can be used
 # within the main exception handler.
-def writeLog(primary_disk, primary_partnum, logs_partnum):
+def writeLog(primary_disk, primary_partnum, logs_partnum, swraid=False):
+    if swraid:
+        util.runCmd2(['mdadm', '--assemble', '--scan'])
+
     tool = PartitionTool(primary_disk)
 
     logs_partition = tool.getPartition(logs_partnum)

@@ -346,20 +346,6 @@ class ExistingInstallation:
             except:
                 pass
 
-            try:
-                network_conf = open(self.join_state_path("etc/xensource/network.conf"), 'r')
-                network_backend = network_conf.readline().strip()
-                network_conf.close()
-
-                if network_backend == constants.NETWORK_BACKEND_BRIDGE:
-                    results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
-                elif network_backend in [constants.NETWORK_BACKEND_VSWITCH, constants.NETWORK_BACKEND_VSWITCH_ALT]:
-                    results['network-backend'] = constants.NETWORK_BACKEND_VSWITCH
-                else:
-                    raise SettingsNotAvailable("unknown network backend %s" % network_backend)
-            except:
-                pass
-
             results['master'] = None
             try:
                 pt = open(self.join_state_path("etc/xensource/ptoken"), 'r')
@@ -617,10 +603,9 @@ def findXenSourceProducts():
     installs = []
 
     for disk_device in diskutil.getQualifiedDiskList():
-        disk = diskutil.probeDisk(disk_device)
-
         inst = None
         try:
+            disk = diskutil.probeDisk(disk_device)
             if disk.root[0] == diskutil.INSTALL_RETAIL:
                 inst = ExistingRetailInstallation(disk_device, disk.boot[1], disk.root[1], disk.state[1], disk.storage)
         except Exception as e:

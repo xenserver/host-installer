@@ -73,7 +73,6 @@ class Answerfile:
         results = {}
         results.update(self.parseDriverSource())
         results.update(self.parseDriverMultiVersion())
-        results.update(self.parseFCoEInterface())
         results.update(self.parseUIConfirmationPrompt())
 
         return results
@@ -138,6 +137,7 @@ class Answerfile:
         results.update(self.parseNSConfig())
         self.parseTimeConfig(results)
         results.update(self.parseKeymap())
+        results.update(self.parseSSHMode())
         results.update(self.parseServices())
 
         return results
@@ -194,14 +194,6 @@ class Answerfile:
 
         results.update(self.parseSource())
 
-        nodes = getElementsByTagName(self.top_node, ['network-backend'])
-        if len(nodes) > 0:
-            network_backend = getText(nodes[0])
-            if network_backend == NETWORK_BACKEND_BRIDGE:
-                results['network-backend'] = NETWORK_BACKEND_BRIDGE
-            elif network_backend in [NETWORK_BACKEND_VSWITCH, NETWORK_BACKEND_VSWITCH_ALT]:
-                results['network-backend'] = NETWORK_BACKEND_VSWITCH
-
         nodes = getElementsByTagName(self.top_node, ['bootloader'])
         if len(nodes) > 0:
             results['bootloader-location'] = getMapAttribute(nodes[0], ['location'],
@@ -227,6 +219,11 @@ class Answerfile:
         disk = disktools.getMpathMasterOrDisk(disk)
         logger.log('Primary disk: ' + disk)
         results['primary-disk'] = disk
+        results['physical-disks'] = [disk]
+
+        if diskutil.is_raid(disk):
+            results['physical-disks'] = diskutil.getSWRAIDDevices(disk)
+            logger.log('Physical disks: ' + str(results['physical-disks']))
 
         results['fs-type'] = getStrAttribute(inst[0], ['fs-type'], default=default_rootfs_type)
         if results['fs-type'] not in allowed_rootfs_types:
@@ -316,8 +313,17 @@ class Answerfile:
                                                              ('no', 'false'),
                                                              ('if-utility', PRESERVE_IF_UTILITY)],
                                                             default='if-utility')
-        primary_disk = normalize_disk(getText(node))
-        results['primary-disk'] = primary_disk
+        results['swraid'] = getBoolAttribute(node, ['swraid'], default=False)
+
+        if results['swraid']:
+            results['primary-disk'] = ""  # Populated with disk-label-suffix during installer prep
+            results['physical-disks'] = [normalize_disk(disk) for disk in getText(node).split(",")]
+
+            if len(results['physical-disks']) != 2:
+                raise AnswerfileException("swraid primary-disk requires exactly two physical disks")
+        else:
+            results['primary-disk'] = normalize_disk(getText(node))
+            results['physical-disks'] = [results['primary-disk']]
 
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
                                        default=True)
@@ -329,10 +335,10 @@ class Answerfile:
         # Guest disk(s) (Local SR)
         guest_disks = set()
         if inc_primary:
-            guest_disks.add(primary_disk)
+            guest_disks = guest_disks.union(results['physical-disks'])
         for node in getElementsByTagName(self.top_node, ['guest-disk']):
             guest_disks.add(normalize_disk(getText(node)))
-        results['sr-on-primary'] = results['primary-disk'] in guest_disks
+        results['sr-on-primary'] = any(disk in guest_disks for disk in results['physical-disks'])
         results['guest-disks'] = list(guest_disks)
 
         sr_type_mapping = []
@@ -361,31 +367,6 @@ class Answerfile:
                                       % (", ".join(large_block_disks), sr_type))
 
         results['sr-type'] = sr_type
-
-        return results
-
-    def parseFCoEInterface(self):
-        results = {}
-        nethw = netutil.scanConfiguration()
-
-        for interface in getElementsByTagName(self.top_node, ['fcoe-interface']):
-            if_hwaddr = None
-            if 'fcoe-interfaces' not in results:
-                results['fcoe-interfaces'] = []
-
-            if_name = getStrAttribute(interface, ['name'])
-            if if_name and if_name in nethw:
-                if_hwaddr = nethw[if_name].hwaddr
-            else:
-                if_hwaddr = getStrAttribute(interface, ['hwaddr'])
-                if if_hwaddr:
-                    matching_list = [x for x in list(nethw.values()) if x.hwaddr == if_hwaddr.lower()]
-                    if len(matching_list) == 1:
-                        if_name = matching_list[0].name
-            if not if_name and not if_hwaddr:
-                 raise AnswerfileException("<fcoe-interface> tag must have one of 'name' or 'hwaddr'")
-
-            results['fcoe-interfaces'].append(if_name)
 
         return results
 
@@ -503,6 +484,17 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['ui-confirmation-prompt'])
         if len(nodes) > 0:
             results['ui-confirmation-prompt'] = bool(getText(nodes[0]))
+        return results
+
+    def parseSSHMode(self):
+        results = {}
+        nodes = getElementsByTagName(self.top_node, ['ssh-mode'])
+        if len(nodes) > 0:
+            ssh_mode = getText(nodes[0]).lower()
+            if ssh_mode not in ('on', 'off', 'auto'):
+                logger.log("Invalid ssh-mode %s specified in answerfile." % ssh_mode)
+                ssh_mode = None
+            results['ssh-mode'] = ssh_mode
         return results
 
     def parseServices(self):

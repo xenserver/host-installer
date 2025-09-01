@@ -34,9 +34,6 @@ import xelogging
 import scripts
 from xcp import logger
 
-# fcoe
-import fcoeutil
-
 def main(args):
     ui = tui
     logger.log("Starting user interface")
@@ -103,6 +100,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'services': { s: None for s in constants.SERVICES }, # default state for services, example {'sshd': None}
         'preserve-first-partition': constants.PRESERVE_IF_UTILITY,
         'fs-type': constants.default_rootfs_type,
+        'ssh-mode': None,  # default SSH mode (no specific configuration)
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -132,7 +130,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             suppress_extra_cd_dialog = True
         elif opt == "--cc-preparations":
             constants.CC_PREPARATIONS = True
-            results['network-backend'] = constants.NETWORK_BACKEND_BRIDGE
         elif opt == "--mount":
             disktools.DeviceMounter.addMountPoints(val)
 
@@ -187,9 +184,6 @@ def go(ui, args, answerfile_address, answerfile_script):
                     for media, address in results['extra-repos']:
                         for r in repository.repositoriesFromDefinition(media, address, drivers=True):
                             r.installPackages(lambda x: (), {'root': '/'})
-
-                if 'fcoe-interfaces' in results:
-                    fcoeutil.start_fcoe(results['fcoe-interfaces'])
 
                 util.runCmd2(util.udevsettleCmd())
                 time.sleep(1)

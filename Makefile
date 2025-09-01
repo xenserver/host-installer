@@ -22,9 +22,8 @@ install:
 	        constants.py \
 	        disktools.py \
 	        diskutil.py \
-		dmvutil.py \
+	        dmvutil.py \
 	        driver.py \
-	        fcoeutil.py \
 	        generalui.py \
 	        hardware.py \
 	        init_constants.py \
@@ -45,7 +44,6 @@ install:
 	$(INSTALL) -m644 \
 	        tui/__init__.py \
 	        tui/init.py \
-	        tui/fcoe.py \
 	        tui/network.py \
 	        tui/progress.py \
 	        tui/repo.py \

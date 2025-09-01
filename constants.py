@@ -39,12 +39,8 @@ UTILITY_PARTLABEL = "DELLUTILITY"
 UEFI_INSTALLER = os.path.exists("/sys/firmware/efi")
 
 # network backend types:
-NETWORK_BACKEND_BRIDGE = "bridge"
 NETWORK_BACKEND_VSWITCH = "openvswitch"
 NETWORK_BACKEND_DEFAULT = NETWORK_BACKEND_VSWITCH
-
-# Old name for openvswitch backend, for use in answerfile and on upgrade only
-NETWORK_BACKEND_VSWITCH_ALT = "vswitch"
 
 # error strings:
 def error_string(error, logname, with_hd):
@@ -180,6 +176,7 @@ INIT_SERVICE_FILES = [
 # optional features
 FEATURES_DIR = "/etc/xensource/features"
 HAS_SUPPLEMENTAL_PACKS = os.path.exists(os.path.join(FEATURES_DIR, "supplemental-packs"))
+HAS_DRIVER_DISKS = os.path.exists(os.path.join(FEATURES_DIR, "driver-disks"))
 SR_TYPE_LARGE_BLOCK = None
 try:
     with open(os.path.join(FEATURES_DIR, "large-block-capable-sr-type")) as f:
@@ -192,3 +189,7 @@ except IOError:
 # Error partitioning disk as in use
 PARTITIONING_ERROR = \
 	'The disk appears to be in use and partition changes cannot be applied. Reboot and repeat the installation'
+
+# SW RAID
+swraid_query_interval = 10  # seconds
+swraid_speed_write_max = 5000000

@@ -26,7 +26,6 @@ import tui
 import tui.network
 import tui.progress
 import driver
-import tui.fcoe
 
 from netinterface import NetInterface
 
@@ -47,7 +46,8 @@ def selectDefault(key, entries):
 def welcome_screen(answers):
     driver_answers = {'driver-repos': []}
 
-    tui.update_help_line([None, "<F9> load driver"])
+    if constants.HAS_DRIVER_DISKS:
+        tui.update_help_line([None, "<F9> load driver"])
 
     def load_driver(driver_answers):
         tui.screen.popHelpLine()
@@ -61,44 +61,34 @@ def welcome_screen(answers):
         return True
 
     global loop
-    global popup
     loop = True
 
     def fn9():
         global loop
-        global popup
         loop = True
-        popup = 'driver'
-        return False
-
-    def fn10():
-        global loop
-        global popup
-        loop = True
-        popup = 'storage'
         return False
 
     while loop:
         loop = False
-        popup = None
         driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
+        welcome_text = """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
+
+Please make sure you have backed up any data you wish to preserve before proceeding.
+""" % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND)
+        if constants.HAS_DRIVER_DISKS:
+            welcome_text += "\nTo load a device driver press <F9>.\n"
+
+        hotkeys = {}
+        if constants.HAS_DRIVER_DISKS:
+            hotkeys = {'F9': fn9}
 
         button = snackutil.ButtonChoiceWindowEx(tui.screen,
                                 "Welcome to %s Setup" % MY_PRODUCT_BRAND,
-                                """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
-
-Please make sure you have backed up any data you wish to preserve before proceeding.
-
-To load a device driver press <F9>.
-To setup advanced storage classes press <F10>.
-""" % (MY_PRODUCT_BRAND, MY_PRODUCT_BRAND),
+                                welcome_text,
                                 ['Ok', 'Reboot'], width=60, help="welcome",
-                                hotkeys={'F9': fn9, 'F10': fn10})
-        if popup == 'driver':
+                                hotkeys=hotkeys)
+        if loop:
             load_driver(driver_answers)
-            tui.update_help_line([None, "<F9> load driver"])
-        elif popup == 'storage':
-            tui.fcoe.select_fcoe_ifaces(answers)
             tui.update_help_line([None, "<F9> load driver"])
 
     tui.screen.popHelpLine()
@@ -306,6 +296,11 @@ def get_installation_type(answers):
         answers['preserve-settings'] = preservable
         if 'primary-disk' not in answers:
             answers['primary-disk'] = answers['installation-to-overwrite'].primary_disk
+
+            if diskutil.is_raid(answers['primary-disk']):
+                answers['physical-disks'] = diskutil.getSWRAIDDevices(answers['primary-disk'])
+            else:
+                answers['physical-disks'] = [answers['primary-disk']]
 
         for k in ['guest-disks', 'default-sr-uuid']:
             if k in answers:
@@ -813,6 +808,10 @@ You may need to change your system settings to boot from this disk.""" % (MY_PRO
             return REPEAT_STEP
 
     answers['primary-disk'] = entry
+    if diskutil.is_raid(entry):
+        answers['physical-disks'] = diskutil.getSWRAIDDevices(entry)
+    else:
+        answers['physical-disks'] = [entry]
 
     # Warn the user if a utility partition is detected. Give them option to
     # cancel the install.
