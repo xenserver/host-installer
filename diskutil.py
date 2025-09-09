@@ -207,15 +207,25 @@ def getQualifiedDeviceName(disk):
 
 # Given a partition (e.g. /dev/sda1), get the id symlink:
 def idFromPartition(partition):
-    symlink = None
-    v, out = util.runCmd2(util.udevinfoCmd() + ['-q', 'symlink', '-n', partition], with_stdout=True)
-    prefixes = ['disk/by-id/edd', 'disk/by-id/dm-name-', 'disk/by-id/dm-uuid-', 'disk/by-id/lvm-pv-uuid-', 'disk/by-id/cciss-']
-    if v == 0:
-        for link in out.split():
-            if link.startswith('disk/by-id') and not True in [link.startswith(x) for x in prefixes]:
-                symlink = '/dev/'+link
-                break
-    return symlink
+    v, out = util.runCmd2(util.udevinfoCmd() + ['-q', 'property', '-n', partition],
+                          with_stdout=True)
+    if v != 0:
+        return None
+
+    props = dict(line.split('=', 1) for line in out.splitlines() if '=' in line)
+    prefixes = ['/dev/disk/by-id/edd', '/dev/disk/by-id/dm-name-', '/dev/disk/by-id/dm-uuid-',
+                '/dev/disk/by-id/lvm-pv-uuid-', '/dev/disk/by-id/cciss-']
+    links = list(filter(lambda x: x.startswith('/dev/disk/by-id/') and
+                        not any(x.startswith(p) for p in prefixes), props['DEVLINKS'].split()))
+
+    # CA-416337: Prefer WWN link for NVMe device
+    m = re.match(r'^/dev/nvme\d+n(?P<ns_id>\d+)(?:p(?P<part_id>\d+))?$', props['DEVNAME'])
+    if m and 'ID_WWN' in props:
+        wwn_link = next((x for x in links if props['ID_WWN'] in x), None)
+        if wwn_link:
+            return wwn_link
+
+    return next(iter(links), None)
 
 # Given a id symlink (e.g. /dev/disk/by-id/scsi-...), get the device
 def partitionFromId(symlink):
