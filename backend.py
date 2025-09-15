@@ -567,10 +567,11 @@ def setupSWRAIDDevice(disk_label_suffix, physical_disks, guest_disks):
     if rc != 0:
         raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
 
-    # Add second disk to SW RAID device
-    rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
-    if rc != 0:
-        raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
+    if len(physical_disks) == 2:
+        # Add second disk to SW RAID device
+        rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
+        if rc != 0:
+            raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
 
     with open('/proc/sys/dev/raid/speed_limit_max', 'w') as speed_file:
         speed_file.write(str(constants.swraid_speed_write_max))
@@ -1213,7 +1214,7 @@ def writeBootEntries(write_boot_entry, mounts, disks, boot_partnum, install_type
 
 def mountVolumes(primary_disk, physical_disks, boot_partnum, primary_partnum, logs_partnum, cleanup, swraid):
     if swraid:
-        util.runCmd2(['mdadm', '--assemble', primary_disk, physical_disks[0], physical_disks[1]])
+        util.runCmd2(['mdadm', '--assemble', primary_disk] + physical_disks)
 
     mounter = DeviceMounter()
     mounter.mount()
