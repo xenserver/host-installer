@@ -198,6 +198,8 @@ Format of 'source' and 'driver-source'
         of the primary-disk element. Devices should be comma separated.
         The first device will be treated as the original, the second device will
         mirror the first.
+        At most one device may be "missing" to proceed with a degraded RAID
+        device.
 
         The resulting multidevice will be /dev/md/xs-<disk-label-suffix>.
 
