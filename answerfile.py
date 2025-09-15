@@ -317,11 +317,14 @@ class Answerfile:
         results['swraid'] = getBoolAttribute(node, ['swraid'], default=False)
 
         if results['swraid']:
-            results['primary-disk'] = ""  # Populated with disk-label-suffix during installer prep
-            results['physical-disks'] = [normalize_disk(disk) for disk in getText(node).split(",")]
-
-            if len(results['physical-disks']) != 2:
+            disks = getText(node).split(",")
+            if len(disks) != 2:
                 raise AnswerfileException("swraid primary-disk requires exactly two physical disks")
+            if disks.count("missing") > 1:
+                raise AnswerfileException("swraid primary-disk supports only one missing disk")
+
+            results['primary-disk'] = ""  # Populated with disk-label-suffix during installer prep
+            results['physical-disks'] = [normalize_disk(disk) for disk in disks if disk != "missing"]
         else:
             results['primary-disk'] = normalize_disk(getText(node))
             results['physical-disks'] = [results['primary-disk']]
