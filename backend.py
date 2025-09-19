@@ -1070,6 +1070,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     if "sched-gran" in host_config:
         common_xen_params += " %s" % host_config["sched-gran"]
 
+    # CA-416806: Some kernel mitigations introduce huge performance downgrade, disable as a temp workaround
+    mitigations = "spec_rstack_overflow=off"
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "console=hvc0"
 
@@ -1085,7 +1087,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
-                             kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
+                             kernel_args=' '.join([common_kernel_params, mitigations, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
                              initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND,
                              root=constants.rootfs_label%disk_label_suffix)
     e.entry_format = Grub2Format.XEN_BOOT
@@ -1097,7 +1099,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                                  hypervisor_args=' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
-                                 kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                                 kernel_args=' '.join([common_kernel_params, mitigations, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" (Serial)",
                                  root=constants.rootfs_label%disk_label_suffix)
         e.entry_format = Grub2Format.XEN_BOOT
