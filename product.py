@@ -420,17 +420,10 @@ class ExistingInstallation:
         return results
 
     def _check_dhcp_ntp_status(self):
-        """Validate if DHCP was in use and had provided any NTP servers"""
-        if os.path.exists(self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')) and \
-           not (os.stat(self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')).st_mode & stat.S_IXUSR):
-            # chrony.sh not executable indicates not using DHCP for NTP
-            return False
-
-        for f in glob.glob(self.join_state_path('var/lib/dhclient/chrony.servers.*')):
-            if os.path.getsize(f) > 0:
-                return True
-
-        return False
+        """Validate if DHCP was in use for NTP configuration"""
+        # chrony.sh executable indicates using DHCP for NTP
+        chrony_script = self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')
+        return os.path.exists(chrony_script) and bool(os.stat(chrony_script).st_mode & stat.S_IXUSR)
 
     def mount_boot(self, ro=True):
         opts = None
