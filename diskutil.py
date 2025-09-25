@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 import re, sys
+import os
 import os.path
 import errno
 import constants
@@ -13,6 +14,12 @@ import xcp.logger as logger
 from disktools import *
 import time
 from snackutil import ButtonChoiceWindowEx
+
+MULTIPATH_CONF_D = '/etc/multipath/conf.d'
+MULTIPATH_CONF = '''defaults {
+    find_multipaths greedy
+}
+'''
 
 use_mpath = False
 CDROM_GET_CAPABILITY = 0x5331
@@ -50,8 +57,9 @@ def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
-    if not os.path.exists('/etc/multipath.conf') and os.path.exists('/etc/multipath.conf.disabled'):
-        os.rename('/etc/multipath.conf.disabled', '/etc/multipath.conf')
+    os.makedirs(MULTIPATH_CONF_D, exist_ok=True)
+    with open(os.path.join(MULTIPATH_CONF_D, 'installer.conf'), 'w') as f:
+        f.write(MULTIPATH_CONF)
 
     # launch manually to make possible to wait initialization
     util.runCmd2(["/sbin/multipath", "-v0", "-B"])
