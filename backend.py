@@ -959,12 +959,8 @@ def kernelShortVersion(version):
 def configureSRMultipathing(mounts, primary_disk):
     # Only called on fresh installs:
     # Configure multipathed SRs iff root disk is multipathed
-    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'),'w')
-    if isDeviceMapperNode(primary_disk):
-        fd.write("MULTIPATHING_ENABLED='True'\n")
-    else:
-        fd.write("MULTIPATHING_ENABLED='False'\n")
-    fd.close()
+    with open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'), 'w') as f:
+        f.write("MULTIPATHING_ENABLED='%s'\n" % (isDeviceMapperNode(primary_disk),))
 
 def adjustISCSITimeoutForFile(path):
     iscsiconf = open(path, 'r')
