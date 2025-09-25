@@ -1071,7 +1071,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         common_xen_params += " %s" % host_config["sched-gran"]
 
     # CA-416806: Some kernel mitigations introduce huge performance downgrade, disable as a temp workaround
-    mitigations = "spec_rstack_overflow=off"
+    mitigations = "spec_rstack_overflow=off retbleed=off"
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "console=hvc0"
 
