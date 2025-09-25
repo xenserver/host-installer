@@ -59,6 +59,14 @@ class ExistingInstallation:
     def getInventoryValue(self, k):
         return self.inventory[k]
 
+    def _is_multipathing_enabled(self):
+        with open(self.join_state_path(constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'), 'r') as f:
+            for l in f:
+                if l.startswith('MULTIPATHING_ENABLED='):
+                    return l.strip().split('=')[1].strip("'") == 'True'
+
+        return False
+
     def isUpgradeable(self):
         self.mount_state()
         result = True
@@ -85,6 +93,19 @@ class ExistingInstallation:
                     if not os.path.exists(self.join_state_path(path)):
                         result = False
                         logger.log('Cannot upgrade %s, expected file missing: %s (installation never booted?)' % (self.primary_disk, path))
+
+            # Check for a multipath mismatch between the installation being
+            # probed and how the host installer has set up the primary disk.
+            install_mp = self._is_multipathing_enabled()
+            disk_mp = isDeviceMapperNode(self.primary_disk)
+
+            if install_mp and not disk_mp:
+                logger.error('Installation uses multipath but primary disk does not')
+                result = False
+            if disk_mp and not install_mp:
+                logger.error('Primary disk uses multipath but installation does not')
+                result = False
+
         except Exception:
             result = False
         finally:
