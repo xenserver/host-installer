@@ -50,7 +50,7 @@ def mpath_enable():
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
-    if not os.path.exists('/etc/multipath.conf') and os.path.exists('/etc/multipath.conf.disabled'):
+    if os.path.exists('/etc/multipath.conf.disabled'):
         os.rename('/etc/multipath.conf.disabled', '/etc/multipath.conf')
 
     # launch manually to make possible to wait initialization
