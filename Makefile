@@ -71,7 +71,7 @@ install:
 
  # Generate a multipath configuration from the installed copy, removing
  # the blacklist and blacklist_exception sections.
-	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)yes/\1no/' \
+	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)strict/\1yes/' \
 	    < $(XS_MPATH_CONF) \
 	    > $(DESTDIR)/etc/multipath.conf.disabled
 

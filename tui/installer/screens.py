@@ -512,7 +512,7 @@ def dmv_screen(answers):
     # skip the ui rendering
     hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
     if len(hw_present_drivers) == 0:
-        return RIGHT_FORWARDS
+        return SKIP_SCREEN
 
     entries = []
     for d in hw_present_drivers:
@@ -602,7 +602,7 @@ def confirm_dmv_selection(answers):
     text = ""
     if len(variants) == 0:
         # skip the ui rendering
-        return RIGHT_FORWARDS
+        return SKIP_SCREEN
     else:
         got, drvname = dmv_data_provider.sameDriverMultiVariantsSelected(variants)
         if not got:

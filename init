@@ -110,7 +110,7 @@ def main(args):
     reboot = False
     answerfile_address = None
     answerfile_script = None
-    mpath = False
+    mpath = True
     use_ibft = False
     netdev_map = []
 

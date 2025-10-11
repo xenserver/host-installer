@@ -59,6 +59,14 @@ class ExistingInstallation:
     def getInventoryValue(self, k):
         return self.inventory[k]
 
+    def _is_multipathing_enabled(self):
+        with open(self.join_state_path(constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'), 'r') as f:
+            for l in f:
+                if l.startswith('MULTIPATHING_ENABLED='):
+                    return l.strip().split('=')[1].strip("'") == 'True'
+
+        return False
+
     def isUpgradeable(self):
         self.mount_state()
         result = True
@@ -85,6 +93,19 @@ class ExistingInstallation:
                     if not os.path.exists(self.join_state_path(path)):
                         result = False
                         logger.log('Cannot upgrade %s, expected file missing: %s (installation never booted?)' % (self.primary_disk, path))
+
+            # Check for a multipath mismatch between the installation being
+            # probed and how the host installer has set up the primary disk.
+            install_mp = self._is_multipathing_enabled()
+            disk_mp = isDeviceMapperNode(self.primary_disk)
+
+            if install_mp and not disk_mp:
+                logger.error('Installation uses multipath but primary disk does not')
+                result = False
+            if disk_mp and not install_mp:
+                logger.error('Primary disk uses multipath but installation does not')
+                result = False
+
         except Exception:
             result = False
         finally:
@@ -431,17 +452,10 @@ class ExistingInstallation:
         return results
 
     def _check_dhcp_ntp_status(self):
-        """Validate if DHCP was in use and had provided any NTP servers"""
-        if os.path.exists(self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')) and \
-           not (os.stat(self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')).st_mode & stat.S_IXUSR):
-            # chrony.sh not executable indicates not using DHCP for NTP
-            return False
-
-        for f in glob.glob(self.join_state_path('var/lib/dhclient/chrony.servers.*')):
-            if os.path.getsize(f) > 0:
-                return True
-
-        return False
+        """Validate if DHCP was in use for NTP configuration"""
+        # chrony.sh executable indicates using DHCP for NTP
+        chrony_script = self.join_state_path('etc/dhcp/dhclient.d/chrony.sh')
+        return os.path.exists(chrony_script) and bool(os.stat(chrony_script).st_mode & stat.S_IXUSR)
 
     def mount_boot(self, ro=True):
         opts = None

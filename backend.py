@@ -558,10 +558,11 @@ def setupSWRAIDDevice(disk_label_suffix, physical_disks, guest_disks):
     if rc != 0:
         raise RuntimeError("Failed to create SWRAID device: '%s' from initial device: '%s'" % (primary_disk, physical_disks[0]))
 
-    # Add second disk to SW RAID device
-    rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
-    if rc != 0:
-        raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
+    if len(physical_disks) == 2:
+        # Add second disk to SW RAID device
+        rc = util.runCmd2(['mdadm', '--manage', primary_disk, '--add', physical_disks[1], '--run'])
+        if rc != 0:
+            raise RuntimeError("Failed to add second disk: '%s' to SWRAID device: '%s'" % (physical_disks[1], primary_disk))
 
     with open('/proc/sys/dev/raid/speed_limit_max', 'w') as speed_file:
         speed_file.write(str(constants.swraid_speed_write_max))
@@ -950,12 +951,8 @@ def kernelShortVersion(version):
 def configureSRMultipathing(mounts, primary_disk):
     # Only called on fresh installs:
     # Configure multipathed SRs iff root disk is multipathed
-    fd = open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'),'w')
-    if isDeviceMapperNode(primary_disk):
-        fd.write("MULTIPATHING_ENABLED='True'\n")
-    else:
-        fd.write("MULTIPATHING_ENABLED='False'\n")
-    fd.close()
+    with open(os.path.join(mounts['root'], constants.FIRSTBOOT_DATA_DIR, 'sr-multipathing.conf'), 'w') as f:
+        f.write("MULTIPATHING_ENABLED='%s'\n" % (isDeviceMapperNode(primary_disk),))
 
 def adjustISCSITimeoutForFile(path):
     iscsiconf = open(path, 'r')
@@ -1061,6 +1058,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     if "sched-gran" in host_config:
         common_xen_params += " %s" % host_config["sched-gran"]
 
+    # CA-416806: Some kernel mitigations introduce huge performance downgrade, disable as a temp workaround
+    mitigations = "spec_rstack_overflow=off retbleed=off"
     common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
     kernel_console_params = "console=hvc0"
 
@@ -1076,7 +1075,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                              hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
-                             kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
+                             kernel_args=' '.join([common_kernel_params, mitigations, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
                              initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND,
                              root=constants.rootfs_label%disk_label_suffix)
     e.entry_format = Grub2Format.XEN_BOOT
@@ -1088,7 +1087,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
                                  hypervisor_args=' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
-                                 kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                                 kernel_args=' '.join([common_kernel_params, mitigations, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" (Serial)",
                                  root=constants.rootfs_label%disk_label_suffix)
         e.entry_format = Grub2Format.XEN_BOOT
@@ -1204,7 +1203,7 @@ def writeBootEntries(write_boot_entry, mounts, disks, boot_partnum, install_type
 
 def mountVolumes(primary_disk, physical_disks, boot_partnum, primary_partnum, logs_partnum, cleanup, swraid):
     if swraid:
-        util.runCmd2(['mdadm', '--assemble', primary_disk, physical_disks[0], physical_disks[1]])
+        util.runCmd2(['mdadm', '--assemble', primary_disk] + physical_disks)
 
     mounter = DeviceMounter()
     mounter.mount()
