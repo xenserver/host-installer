@@ -133,6 +133,7 @@ NETWORKD_DB = "usr/bin/networkd_db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"
 XAPI_DB = 'var/lib/xcp/state.db'
 CLUSTERD_CONF = 'var/opt/xapi-clusterd/db'
+INTERFACE_RENAME_DYNAMIC_RULES = 'etc/sysconfig/network-scripts/interface-rename-data/dynamic-rules.json'
 
 POST_INSTALL_SCRIPTS_DIR = "etc/xensource/scripts/install"
 

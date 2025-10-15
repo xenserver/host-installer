@@ -180,11 +180,7 @@ class Upgrader(object):
             src - the mount point of backup partition which contains the interface-rename data.
             dest - the mount point of the root partition of installation.
             """
-            interface_rename_dir = os.path.join(
-                src,
-                'etc/sysconfig/network-scripts/interface-rename-data/'
-            )
-            src_file_path = os.path.join(interface_rename_dir, 'dynamic-rules.json')
+            src_file_path = os.path.join(src, constants.INTERFACE_RENAME_DYNAMIC_RULES)
             dest_file_path = os.path.join(
                 dest,
                 constants.FIRSTBOOT_DATA_DIR,
