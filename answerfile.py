@@ -380,8 +380,11 @@ class Answerfile:
         if_hwaddr = None
 
         if_name = getStrAttribute(node, ['name'])
-        if if_name and if_name in nethw:
-            if_hwaddr = nethw[if_name].hwaddr
+        if if_name:
+            if if_name in nethw:
+                if_hwaddr = nethw[if_name].hwaddr
+            else:
+                raise AnswerfileException("<admin-interface> name '%s' not found on system." % if_name)
         else:
             if_hwaddr = getStrAttribute(node, ['hwaddr'])
             if if_hwaddr:
@@ -389,7 +392,7 @@ class Answerfile:
                 if len(matching_list) == 1:
                     if_name = matching_list[0].name
         if not if_name and not if_hwaddr:
-             raise AnswerfileException("<admin-interface> tag must have one of 'name' or 'hwaddr'")
+            raise AnswerfileException("<admin-interface> tag must have one of 'name' or 'hwaddr'")
 
         results['net-admin-interface'] = if_name
 
