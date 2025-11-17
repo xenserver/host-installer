@@ -505,6 +505,9 @@ class ThirdGenUpgrader(Upgrader):
 
         # CP-42523: NRPE service config
         restore_list += ['etc/nagios/nrpe.cfg', {'dir': 'etc/nrpe.d'}]
+        nrpe_service = 'etc/systemd/system/multi-user.target.wants/nrpe.service'
+        if os.path.islink(os.path.join(src_base, nrpe_service)):
+            restore_list += [nrpe_service]
 
         # CP-44441: SNMP service config
         # From XS 8.4 SNMP feature is supported, and new file /etc/snmp/snmp.xs.conf is added
@@ -515,6 +518,9 @@ class ThirdGenUpgrader(Upgrader):
         if os.path.isfile(os.path.join(src_base, snmp_xs_conf)):
             restore_list += [snmp_xs_conf, 'etc/snmp/snmpd.xs.conf',
                              'etc/sysconfig/snmpd', 'var/lib/net-snmp/snmpd.conf']
+        snmp_service = 'etc/systemd/system/multi-user.target.wants/snmpd.service'
+        if os.path.islink(os.path.join(src_base, snmp_service)):
+            restore_list += [snmp_service]
 
         # Preserve pool certificates across upgrades
         restore_list += ['etc/stunnel/xapi-pool-ca-bundle.pem', {'dir': 'etc/stunnel/certs-pool'}]
