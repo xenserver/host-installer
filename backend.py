@@ -184,7 +184,7 @@ def getFinalisationSequence(ans):
         Task(writeResolvConf, A(ans, 'mounts', 'manual-hostname', 'manual-nameservers'), []),
         Task(writeMachineID, A(ans, 'mounts'), []),
         Task(writeKeyboardConfiguration, A(ans, 'mounts', 'keymap'), []),
-        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
+        Task(configureNetworking, A(ans, 'mounts', 'net-admin-interface', 'net-admin-bridge', 'net-admin-configuration', 'manual-hostname', 'manual-nameservers', 'network-hardware', 'preserve-settings', 'network-backend'), []),
         Task(prepareSwapfile, A(ans, 'mounts', 'primary-disk', 'swap-partnum', 'disk-label-suffix'), []),
         Task(writeFstab, A(ans, 'mounts', 'primary-disk', 'logs-partnum', 'swap-partnum', 'disk-label-suffix', 'fs-type'), []),
         Task(enableAgent, A(ans, 'mounts', 'network-backend', 'services'), []),
@@ -192,7 +192,7 @@ def getFinalisationSequence(ans):
         Task(configureCC, A(ans, 'mounts'), []),
         Task(writeInventory, A(ans, 'installation-uuid', 'control-domain-uuid', 'mounts', 'primary-disk',
                                'backup-partnum', 'logs-partnum', 'boot-partnum', 'swap-partnum', 'storage-partnum',
-                               'guest-disks',
+                               'guest-disks', 'net-admin-bridge',
                                'branding', 'net-admin-configuration', 'host-config', 'install-type'), []),
         Task(writeXencommons, A(ans, 'control-domain-uuid', 'mounts'), []),
         Task(configureISCSI, A(ans, 'mounts', 'primary-disk'), []),
@@ -361,6 +361,15 @@ def performInstallation(answers, ui_package, interactive):
             answers['host-config'][k] = v
     logger.log("UPDATED ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
+
+    # Slight hack: we need to write the bridge name to xensource-inventory
+    # further down; compute it here based on the admin interface name if we
+    # haven't already recorded it as part of reading settings from an upgrade:
+    if answers['install-type'] == INSTALL_TYPE_FRESH:
+        answers['net-admin-bridge'] = ''
+    elif 'net-admin-bridge' not in answers:
+        assert answers['net-admin-interface'].startswith("eth")
+        answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
 
     # perform installation:
     prep_seq = getPrepSequence(answers, interactive)
@@ -1480,7 +1489,7 @@ def setRootPassword(mounts, root_pwd):
         assert pipe.wait() == 0
 
 # write /etc/sysconfig/network-scripts/* files
-def configureNetworking(mounts, admin_iface, admin_config, hn_conf, ns_conf, nethw, preserve_settings, network_backend):
+def configureNetworking(mounts, admin_iface, admin_bridge, admin_config, hn_conf, ns_conf, nethw, preserve_settings, network_backend):
     """ Writes configuration files that the firstboot scripts will consume to
     configure interfaces via the CLI.  Writes a loopback device configuration.
     to /etc/sysconfig/network-scripts, and removes any other configuration
@@ -1556,7 +1565,7 @@ def writeXencommons(controlID, mounts):
         f.write(contents)
 
 def writeInventory(installID, controlID, mounts, primary_disk, backup_partnum, logs_partnum, boot_partnum, swap_partnum,
-                   storage_partnum, guest_disks, branding, admin_config, host_config, install_type):
+                   storage_partnum, guest_disks, admin_bridge, branding, admin_config, host_config, install_type):
     inv = open(os.path.join(mounts['root'], constants.INVENTORY_FILE), "w")
     if 'product-brand' in branding:
        inv.write("PRODUCT_BRAND='%s'\n" % branding['product-brand'])
