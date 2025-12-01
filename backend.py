@@ -363,14 +363,14 @@ def performInstallation(answers, ui_package, interactive):
     logger.log("UPDATED ANSWERS DICTIONARY:")
     prettyLogAnswers(answers)
 
-    # Slight hack: we need to write the bridge name to xensource-inventory
-    # further down; compute it here based on the admin interface name if we
-    # haven't already recorded it as part of reading settings from an upgrade:
+    # For fresh installs, just set net-admin-bridge to empty string, Toolstack
+    # will handle it appropriately.  For upgrade cases, the net-admin-bridge
+    # is copied from the previous inventory file, so just verify that it's
+    # present.
     if answers['install-type'] == INSTALL_TYPE_FRESH:
         answers['net-admin-bridge'] = ''
-    elif 'net-admin-bridge' not in answers:
-        assert answers['net-admin-interface'].startswith("eth")
-        answers['net-admin-bridge'] = "xenbr%s" % answers['net-admin-interface'][3:]
+    if answers['install-type'] == INSTALL_TYPE_REINSTALL and 'net-admin-bridge' not in answers:
+        raise RuntimeError("Missing 'net-admin-bridge' in answers")
 
     # perform installation:
     prep_seq = getPrepSequence(answers, interactive)
