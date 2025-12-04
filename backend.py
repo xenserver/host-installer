@@ -222,8 +222,7 @@ def getFinalisationSequence(ans):
             ]
 
     seq.append(Task(setDHCPNTP, A(ans, "mounts", "ntp-config-method"), []))
-    if ans['ntp-config-method'] != "none":
-        seq.append(Task(configureNTP, A(ans, 'mounts', 'ntp-config-method', 'ntp-servers'), []))
+    seq.append(Task(configureNTP, A(ans, 'mounts', 'ntp-config-method', 'ntp-servers'), []))
     # complete upgrade if appropriate:
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
@@ -547,9 +546,12 @@ def configureNTP(mounts, ntp_config_method, ntp_servers):
     if ntp_config_method in ("dhcp", "manual"):
         rewriteNTPConf(mounts['root'], ntp_servers)
 
-    # now turn on the ntp service:
-    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
-    util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
+    if ntp_config_method != "none":
+        # now turn on the ntp service:
+        util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chronyd'])
+        util.runCmd2(['chroot', mounts['root'], 'systemctl', 'enable', 'chrony-wait'])
+    else:
+        rewriteNTPConf(mounts['root'], [])
 
 # Setup a new SW RAID device using mdadm
 # The primary-disk (/dev/md/*) is built from the physical disks provided in the answerfile
