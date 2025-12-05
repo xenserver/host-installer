@@ -123,7 +123,7 @@ def getPrepSequence(ans, interactive):
 
     if ans['ntp-config-method'] in ("dhcp", "default", "manual"):
         seq.append(Task(setTimeNTP, A(ans, 'ntp-servers', 'ntp-config-method'), []))
-    elif ans['ntp-config-method'] == "none":
+    elif ans['ntp-config-method'] == "none" and ans['install-type'] == INSTALL_TYPE_FRESH:
         seq.append(Task(setTimeManually, A(ans, 'localtime', 'set-time-dialog-dismissed', 'timezone'), []))
 
     if ans['install-type'] == INSTALL_TYPE_FRESH:
