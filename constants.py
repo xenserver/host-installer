@@ -145,6 +145,7 @@ SAFE_2_UPGRADE = "var/preserve/safe2upgrade"
 
 # NTP server domains to treat as 'default' servers
 DEFAULT_NTP_DOMAINS = [".centos.pool.ntp.org", ".xenserver.pool.ntp.org"]
+NUM_DEFAULT_NTP_SERVERS = 4
 
 # timer to exit installer after fatal error
 AUTO_EXIT_TIMER = 10 * 1000
