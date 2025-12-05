@@ -373,6 +373,8 @@ def setLocalTime(timestring, timezone=None):
 
     assert runCmd2("date --set='%s'" % timestring) == 0
 
+def inDefaultNTPDomains(ntpServer):
+    return any(ntpServer.endswith(d) for d in constants.DEFAULT_NTP_DOMAINS)
 
 class URL(object):
     """A wrapper around a URL string.

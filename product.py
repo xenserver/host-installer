@@ -170,20 +170,21 @@ class ExistingInstallation:
             for line in lines:
                 if line.startswith("server "):
                     s = line[7:].split()[0].strip()
-                    if any(s.endswith(d) for d in constants.DEFAULT_NTP_DOMAINS):
-                        continue
                     ntps.append(s)
             results['ntp-servers'] = ntps
             # ntp-config-method should be set as follows:
             # 'dhcp' if dhcp was in use, regardless of server configuration
             # 'manual' if we had existing NTP servers defined (other than default servers)
-            # 'default' if no NTP servers are defined
+            # 'default' if we had only default NTP servers defined
+            # 'none' if no NTP servers are defined
             if self._check_dhcp_ntp_status():
                 results['ntp-config-method'] = 'dhcp'
             elif ntps:
                 results['ntp-config-method'] = 'manual'
+                if len(ntps) == constants.NUM_DEFAULT_NTP_SERVERS and all(util.inDefaultNTPDomains(s) for s in ntps):
+                    results['ntp-config-method'] = 'default'
             else:
-                results['ntp-config-method'] = 'default'
+                results['ntp-config-method'] = 'none'
 
             # keyboard:
             keyboard_dict = {}
