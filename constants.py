@@ -144,6 +144,10 @@ HYPERVISOR_CAPS_FILE = "/sys/hypervisor/properties/capabilities"
 SAFE_2_UPGRADE = "var/preserve/safe2upgrade"
 
 # NTP server domains to treat as 'default' servers
+# legacy default NTP servers:
+# 0.centos.pool.ntp.org, 1.centos.pool.ntp.org, 2.centos.pool.ntp.org, 3.centos.pool.ntp.org are
+# Current default NTP servers:
+# 0.xenserver.pool.ntp.org, 1.xenserver.pool.ntp.org, 2.xenserver.pool.ntp.org, 3.xenserver.pool.ntp.org
 DEFAULT_NTP_DOMAINS = [".centos.pool.ntp.org", ".xenserver.pool.ntp.org"]
 NUM_DEFAULT_NTP_SERVERS = 4
 
