@@ -12,6 +12,7 @@ import random
 import string
 import tempfile
 import errno
+import constants
 from version import *
 from xcp import logger
 
