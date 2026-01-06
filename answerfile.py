@@ -329,6 +329,10 @@ class Answerfile:
             results['primary-disk'] = normalize_disk(getText(node))
             results['physical-disks'] = [results['primary-disk']]
 
+        for disk in results['physical-disks']:
+            if not os.path.exists(disk):
+                raise AnswerfileException("Primary disk %s is missing" % (disk,))
+
         inc_primary = getBoolAttribute(node, ['guest-storage', 'gueststorage'],
                                        default=True)
         results['sr-at-end'] = getBoolAttribute(node, ['sr-at-end'], default=True)
@@ -341,6 +345,10 @@ class Answerfile:
             guest_disks.add(normalize_disk(getText(node)))
         results['sr-on-primary'] = any(disk in guest_disks for disk in results['physical-disks'])
         results['guest-disks'] = list(guest_disks)
+
+        for disk in results['guest-disks']:
+            if not os.path.exists(disk):
+                raise AnswerfileException("Guest disk %s is missing" % (disk,))
 
         sr_type_mapping = []
         for sr_type in SR_TYPE_LVM, SR_TYPE_EXT, SR_TYPE_LARGE_BLOCK:
