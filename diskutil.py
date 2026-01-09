@@ -59,7 +59,7 @@ def mpath_enable():
         os.rename('/etc/multipath.conf.disabled', '/etc/multipath.conf')
 
     # launch manually to make possible to wait initialization
-    util.runCmd2(["/sbin/multipath", "-v0", "-B"])
+    util.runCmd2(["/sbin/multipath", "-v0"])
     time.sleep(1)
     util.runCmd2(util.udevsettleCmd())
 
