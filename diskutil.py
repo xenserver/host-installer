@@ -6,6 +6,7 @@ import errno
 import constants
 import fcntl
 import glob
+import subprocess
 import util
 import netutil
 from util import dev_null
@@ -21,7 +22,11 @@ IBFT_BLOCK_VALID_FLAG = 1 << 0
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
     try:
-        (rc,stdout) = util.runCmd2(["multipathd","-k"], with_stdout=True, inputtext="help")
+        proc = subprocess.Popen(["multipathd", "-k"],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                stdin=subprocess.PIPE, text=True)
+        stdout, stderr = proc.communicate(input="help")
         m=regex.search(stdout)
         return bool(m)
     except:
