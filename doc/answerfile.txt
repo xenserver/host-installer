@@ -5,6 +5,7 @@ Optional features are marked '?'
 Features that can appear zero or more times are marked '*'
 Features that can appear one or more times are marked '+'
 Deprecated features are marked '[D]'
+Boolean values are considered True when set to "yes" or "true", else they are False.
 
 
 Clean install (no backup, no config preservation):
