@@ -1,0 +1,115 @@
+#
+# Configuration of pre-commit, a Python framework for git hooks.
+# pre-commit is run for each git push by GitHub CI. It can run
+# locally as well for early feedback and automatic formatting
+# like trailing whitespace removal (to be configured later):
+#
+## For only installing the package itself, run:
+# pip3 install pre-commit
+#
+## For activating it as a pre-commit and pre-push hook (recommended):
+# pre-commit install --hook-type pre-push --hook-type pre-commit
+#
+## For manually executing the pre-push hook:
+# pre-commit run -av --hook-stage pre-push
+#
+default_stages: [pre-commit, pre-push]
+
+#
+# The pre-commit hooks are defined in this .pre-commit-config.yaml file.
+# The hooks are run in the order they are defined, and if any hook fails,
+# the remaining hooks are not run. The hooks are run in parallel by default.
+# The hooks are run in the pre-commit stage by default.
+#
+repos:
+
+#
+# The local repo is a special repo that is used to define hooks that
+# are not in a separate repository but are defined in this file.
+#
+-   repo: local
+
+    hooks:
+
+    #
+    # The first pre-commit hook:
+    #
+    # Check that the diff to origin/master does not add new mypy warnings:
+    #
+    # Mypy is a static type checker for Python, it is a good idea to run it
+    # and is very fast. It is recommended to run it in CI, but it can be
+    # run locally as well:
+    #
+    -   id: mypy
+        name: check that changes pass mypy
+        types: [python]
+        # This executes the script ci/mypy-for-changes.sh which checks
+        # the diff to origin/master for new mypy warnings.
+        entry: ci/mypy-for-changes.sh
+        # It uses the diff to origin/master to only check the changes
+        # in the current branch. It does not accept a list files with changes:
+        pass_filenames: false
+        # The wrapper script a mypy from its own private Python environment:
+        language: python
+        # The mypy package is installed in the pre-commit environment, along with
+        # the typesched stubs like types-simplejson and the xcp-python-libs package
+        # for improved type checking:
+        additional_dependencies:
+        - mypy
+        - types-simplejson
+        - git+https://github.com/xenserver/python-libs.git@master
+
+    #
+    # The second pre-commit hook:
+    #
+    # Check that the diff to origin/master does not have pylint warnings (that are enabled)
+    -   id: pylint
+        name: check that changes pass pylint
+        types: [python]
+
+        entry: diff-quality --violations=pylint
+            --ignore-whitespace --compare-branch=origin/master
+        # diff-quality uses the diff to origin/master to only check the changes
+        # in the current branch. It does not accept a list files with changes:
+        pass_filenames: false
+
+        # The diff-quality tool is provided by the diff-cover package,
+        # and of course, it needs pylint. Both are installed in the
+        # pre-commit environment and can use the latest versions.
+        language: python
+        additional_dependencies: [diff-cover, pylint]
+
+    #
+    # The third, and last pre-commit hook:
+    #
+    # Check that the tree does not have pytype warnings
+    #
+    # Mypy is a very good static type checker for Python, and even if it
+    # may be slow to initially check all files, subsequent checks should
+    # be a lot faster. It is recommended to run it in CI, but it can be
+    # run locally as well to get early feedback:
+    #
+    # Note: Many of its warnings are currently disabled in in pyproject.toml,
+    # and files can silence warnings with # pytype: disable=module-attr
+    # For more information, see:
+    # https://google.github.io/pytype/user_guide.html#silencing-errors
+    #
+    -   id: pytype
+        name: check that changes pass pytype
+        language: python
+        types: [python]
+        require_serial: true
+        # Use the current pytype tag: https://github.com/google/pytype/tags
+        additional_dependencies: [pytype==2024.10.11]
+
+        # To not run pytype in the commit hook but only in the pre-push hook, use:
+        # stages: [pre-push, manual]
+        # Then, a manual check before attempting to push is done with:
+        # pre-commit run -av --hook-stage pre-push
+
+        # Filter out SyntaxWarnings about invalid escape sequences
+        # that are not real errors, but are reported as such by pytype.
+
+        # They can be fixed by prexing them with "r" to become raw strings (r""),
+        # but there are many of them in the codebase, and they are not real errors:
+        entry: bash -c 'pytype "$@" 2>&1|sed "/SyntaxWarning. invalid escape sequence/,+1d";exit $PIPESTATUS' ''
