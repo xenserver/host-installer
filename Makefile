@@ -72,7 +72,13 @@ install:
  # the blacklist and blacklist_exception sections.
 	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)strict/\1yes/' \
 	    < $(XS_MPATH_CONF) \
-	    > $(DESTDIR)/etc/multipath.conf.disabled
+	    > $(DESTDIR)/etc/multipath.conf.ifmultiple
+
+ # Generate a multipath configuration from the installed copy, removing
+ # the blacklist and blacklist_exception sections.
+	sed 's/\(^[[:space:]]*find_multipaths[[:space:]]*\)strict/\1greedy/' \
+	    < $(XS_MPATH_CONF) \
+	    > $(DESTDIR)/etc/multipath.conf.enabled
 
  # bootloader files
 	$(INSTALL) -D -m644 bootloader/grub.cfg $(DESTDIR)$(EFI_DIR)/grub.cfg

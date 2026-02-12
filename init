@@ -15,6 +15,7 @@ import tui.progress
 
 import install
 import netutil
+from constants import MultipathConfig
 import diskutil
 import disktools
 import util
@@ -109,7 +110,7 @@ def main(args):
     reboot = False
     answerfile_address = None
     answerfile_script = None
-    mpath = True
+    mpath = MultipathConfig.IF_MULTIPLE
     use_ibft = False
     netdev_map = []
 
@@ -149,9 +150,11 @@ def main(args):
             reboot = True
         elif opt == "--device_mapper_multipath":
             if val.lower() in [ "disabled", "false", "0", "no" ]:
-                mpath = False
+                mpath = MultipathConfig.DISABLED
+            elif val.lower() in [ "if-multiple" ]:
+                mpath = MultipathConfig.IF_MULTIPLE
             elif val.lower() in [ "enabled", "true", "1", "yes", "force"]:
-                mpath = True
+                mpath = MultipathConfig.ENABLED
         elif opt == "--use_ibft":
             use_ibft = True
         elif opt == "--map_netdev":
@@ -211,8 +214,8 @@ def main(args):
 
     # Ensure multipath devices are created unless installer is being
     # run with the "--device_mapper_multipath=disabled" option
-    if mpath:
-        diskutil.mpath_enable()
+    if mpath != MultipathConfig.DISABLED:
+        diskutil.mpath_enable(mpath)
 
     if ui:
         netutil.setAllLinksUp()
@@ -227,7 +230,7 @@ def main(args):
         ui.end_ui()
 
     # Bring down multipath devices to ensure they're flushed
-    if mpath:
+    if mpath != MultipathConfig.DISABLED:
         diskutil.mpath_disable()
 
     # Log out of any iSCSI disks
