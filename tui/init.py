@@ -4,7 +4,7 @@ from snack import *
 from version import *
 
 import tui
-import init_constants
+import constants
 import generalui
 import uicontroller
 from uicontroller import SKIP_SCREEN, LEFT_BACKWARDS, RIGHT_FORWARDS
@@ -27,11 +27,11 @@ def get_keymap():
 
 def choose_operation(display_restore):
     entries = [
-        (' * Install or upgrade %s' % BRAND_SERVER, init_constants.OPERATION_INSTALL),
+        (' * Install or upgrade %s' % BRAND_SERVER, constants.OPERATION_INSTALL),
         ]
 
     if display_restore:
-        entries.append( (' * Restore from backup', init_constants.OPERATION_RESTORE) )
+        entries.append( (' * Restore from backup', constants.OPERATION_RESTORE) )
 
     (button, entry) = ListboxChoiceWindow(tui.screen,
                                           "Welcome to %s" % (PRODUCT_BRAND or PLATFORM_NAME),
@@ -42,9 +42,9 @@ def choose_operation(display_restore):
     if button == 'ok' or button is None:
         return entry
     elif button == 'load driver':
-        return init_constants.OPERATION_LOAD_DRIVER
+        return constants.OPERATION_LOAD_DRIVER
     else:
-        return init_constants.OPERATION_REBOOT
+        return constants.OPERATION_REBOOT
 
 def driver_disk_sequence(answers, driver_repos):
     uic = uicontroller

@@ -5,6 +5,15 @@ import string
 import random
 import os.path
 
+OPERATION_REBOOT = -1
+(
+    OPERATION_NONE,
+    OPERATION_INSTALL,
+    OPERATION_UPGRADE,
+    OPERATION_LOAD_DRIVER,
+    OPERATION_RESTORE,
+) = list(range(5))
+
 # exit status
 EXIT_OK = 0
 EXIT_ERROR = 1

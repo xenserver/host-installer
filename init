@@ -14,7 +14,6 @@ import tui.init
 import tui.progress
 
 import install
-import init_constants
 import netutil
 import diskutil
 import disktools

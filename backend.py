@@ -19,7 +19,6 @@ import shutil
 import constants
 import hardware
 import upgrade
-import init_constants
 import scripts
 import xcp.bootloader as bootloader
 from xcp.bootloader import Grub2Format
