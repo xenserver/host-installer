@@ -714,6 +714,14 @@ def dump_ibft():
 
 
 def write_iscsi_records(mounts, primary_disk):
+    # Parameters output by iscsistart from iBFT that are not recognised
+    # by libopeniscsiusr, causing it to reject the entire record file.
+    UNSUPPORTED_PARAMS = (
+        "iface.primary_dns",
+        "iface.secondary_dns",
+        "node.boot_lun",
+    )
+
     record = []
     node_name = node_address = node_port = None
 
@@ -724,6 +732,12 @@ def write_iscsi_records(mounts, primary_disk):
     for line in out.split('\n'):
         line = line.strip()
         if not line:
+            continue
+
+        # Skip parameters not supported by libopeniscsiusr
+        param = line.split('=')[0].strip()
+        if param in UNSUPPORTED_PARAMS:
+            logger.log("Skipping unsupported iSCSI param: %s" % line)
             continue
 
         if line.startswith('node.name = '):
