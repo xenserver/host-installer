@@ -525,6 +525,7 @@ class ThirdGenUpgrader(Upgrader):
         # Preserve pool certificates across upgrades
         restore_list += ['etc/stunnel/xapi-pool-ca-bundle.pem', {'dir': 'etc/stunnel/certs-pool'}]
         restore_list += ['etc/stunnel/xapi-stunnel-ca-bundle.pem', {'dir': 'etc/stunnel/certs'}]
+        restore_list += [{'dir': 'etc/trusted-certs'}]
 
         # XAPI firewall-port plugin
         restore_list += ['etc/sysconfig/iptables']
