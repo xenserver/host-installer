@@ -1052,6 +1052,36 @@ def prepFallback(mounts, primary_disk, primary_partnum):
         raise RuntimeError("Failed to generate fallback initrd")
 
 
+# Kernel drivers known to allocate large amounts of DMA memory during probe,
+# which can cause kdump OOM in the 256 MB crash kernel.  When any PCI device
+# on the host is bound to one of these drivers we increase crashkernel to
+# 512 MB so that the kdump initrd has enough headroom.
+MEMORY_HUNGRY_DRIVERS = [
+    'mlx5_core',
+    'bnxt_en',
+]
+
+CRASHKERNEL_DEFAULT  = 256   # MB – sufficient for most hosts
+CRASHKERNEL_EXTENDED = 512   # MB – for hosts with memory-hungry NIC drivers
+
+def detect_memory_hungry_drivers():
+    """Scan PCI devices for drivers known to consume excessive DMA memory.
+
+    Returns a list of (bdf, driver) tuples for every PCI device whose
+    current driver is in MEMORY_HUNGRY_DRIVERS.
+    """
+    found = []
+    pci_dir = '/sys/bus/pci/devices'
+    if not os.path.isdir(pci_dir):
+        return found
+    for bdf in os.listdir(pci_dir):
+        driver_link = os.path.join(pci_dir, bdf, 'driver')
+        if os.path.islink(driver_link):
+            driver_name = os.path.basename(os.path.realpath(driver_link))
+            if driver_name in MEMORY_HUNGRY_DRIVERS:
+                found.append((bdf, driver_name))
+    return found
+
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix):
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
@@ -1059,7 +1089,18 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     safe_xen_params = ("nosmp noreboot noirqbalance no-mce no-bootscrub "
                        "no-numa no-hap no-mmcfg max_cstate=0 "
                        "nmi=ignore allow_unsafe")
-    xen_mem_params = "crashkernel=256M,below=4G"
+
+    # Increase crashkernel when memory-hungry NIC drivers are present
+    hungry = detect_memory_hungry_drivers()
+    if hungry:
+        crashkernel_mb = CRASHKERNEL_EXTENDED
+        for bdf, drv in hungry:
+            logger.info("Memory-hungry driver detected: %s on %s"
+                        " — using crashkernel=%dM" %
+                        (drv, bdf, crashkernel_mb))
+    else:
+        crashkernel_mb = CRASHKERNEL_DEFAULT
+    xen_mem_params = "crashkernel=%dM,below=4G" % crashkernel_mb
 
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout=True)
