@@ -4,9 +4,11 @@ import re, sys
 import os.path
 import errno
 import constants
+from constants import MultipathConfig
 import fcntl
 import glob
 import subprocess
+import shutil
 import util
 import netutil
 from util import dev_null
@@ -51,12 +53,16 @@ def mpath_part_scan(force=False):
          util.runCmd2(util.udevsettleCmd())
     return ret
 
-def mpath_enable():
+def mpath_enable(mpath_config):
     global use_mpath
     assert 0 == util.runCmd2(['modprobe','dm-multipath'])
 
-    if os.path.exists('/etc/multipath.conf.disabled'):
-        os.rename('/etc/multipath.conf.disabled', '/etc/multipath.conf')
+    if mpath_config == MultipathConfig.ENABLED:
+        shutil.copyfile('/etc/multipath.conf.enabled', '/etc/multipath.conf')
+    elif mpath_config == MultipathConfig.IF_MULTIPLE:
+        shutil.copyfile('/etc/multipath.conf.ifmultiple', '/etc/multipath.conf')
+    else:
+        assert 0
 
     # launch manually to make possible to wait initialization
     util.runCmd2(["/sbin/multipath", "-v0"])
@@ -713,6 +719,14 @@ def dump_ibft():
 
 
 def write_iscsi_records(mounts, primary_disk):
+    # Parameters output by iscsistart from iBFT that are not recognised
+    # by libopeniscsiusr, causing it to reject the entire record file.
+    UNSUPPORTED_PARAMS = (
+        "iface.primary_dns",
+        "iface.secondary_dns",
+        "node.boot_lun",
+    )
+
     record = []
     node_name = node_address = node_port = None
 
@@ -723,6 +737,12 @@ def write_iscsi_records(mounts, primary_disk):
     for line in out.split('\n'):
         line = line.strip()
         if not line:
+            continue
+
+        # Skip parameters not supported by libopeniscsiusr
+        param = line.split('=')[0].strip()
+        if param in UNSUPPORTED_PARAMS:
+            logger.log("Skipping unsupported iSCSI param: %s" % line)
             continue
 
         if line.startswith('node.name = '):

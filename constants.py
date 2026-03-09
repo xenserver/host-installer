@@ -1,9 +1,19 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+from enum import Enum
 import version
 import string
 import random
 import os.path
+
+OPERATION_REBOOT = -1
+(
+    OPERATION_NONE,
+    OPERATION_INSTALL,
+    OPERATION_UPGRADE,
+    OPERATION_LOAD_DRIVER,
+    OPERATION_RESTORE,
+) = list(range(5))
 
 # exit status
 EXIT_OK = 0
@@ -199,3 +209,8 @@ PARTITIONING_ERROR = \
 # SW RAID
 swraid_query_interval = 10  # seconds
 swraid_speed_write_max = 5000000
+
+class MultipathConfig(Enum):
+    DISABLED = 0
+    ENABLED = 1
+    IF_MULTIPLE = 2

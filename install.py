@@ -16,7 +16,6 @@ import util
 import answerfile
 import uicontroller
 import constants
-import init_constants
 
 # hardware
 import disktools
@@ -92,7 +91,7 @@ def go(ui, args, answerfile_address, answerfile_script):
     results = {
         'keymap': None,
         'serial-console': None,
-        'operation': init_constants.OPERATION_INSTALL,
+        'operation': constants.OPERATION_INSTALL,
         'boot-serial': False,
         'extra-repos': [],
         'network-backend': constants.NETWORK_BACKEND_DEFAULT,

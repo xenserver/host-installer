@@ -180,9 +180,16 @@ Installer
     Reboot host after installation
 
 
-  --device_mapper_multipath=disabled|enabled
+  --device_mapper_multipath=disabled|enabled|if-multiple
 
-    Default: disabled
+    - disabled: Never create a device-mapper multipath device for the root disk
+                even if there are multiple paths.
+    - enabled: Always create a device-mapper multipath device for the root disk
+               even if there is only a single path.
+    - if-multiple: Create a device-mapper multipath device for the root disk
+                   only if there are multiple paths present.
+
+    Default: if-multiple
 
 
   --use_ibft
