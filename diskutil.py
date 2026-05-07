@@ -7,6 +7,7 @@ import constants
 from constants import MultipathConfig
 import fcntl
 import glob
+import subprocess
 import shutil
 import util
 import netutil
@@ -23,7 +24,11 @@ IBFT_BLOCK_VALID_FLAG = 1 << 0
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
     try:
-        (rc,stdout) = util.runCmd2(["multipathd","-k"], with_stdout=True, inputtext="help")
+        proc = subprocess.Popen(["multipathd", "-k"],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                stdin=subprocess.PIPE, text=True)
+        stdout, stderr = proc.communicate(input="help")
         m=regex.search(stdout)
         return bool(m)
     except:
@@ -60,7 +65,7 @@ def mpath_enable(mpath_config):
         assert 0
 
     # launch manually to make possible to wait initialization
-    util.runCmd2(["/sbin/multipath", "-v0", "-B"])
+    util.runCmd2(["/sbin/multipath", "-v0"])
     time.sleep(1)
     util.runCmd2(util.udevsettleCmd())
 
