@@ -221,6 +221,8 @@ def getFinalisationSequence(ans):
     if ans['install-type'] == constants.INSTALL_TYPE_REINSTALL:
         seq.append( Task(completeUpgrade, lambda a: [ a['upgrader'] ] + [ a[x] for x in a['upgrader'].completeUpgradeArgs ], []) )
 
+    seq.append(Task(writeLLDPBlocklist, A(ans, 'mounts', 'lldp-block-drivers'), []))
+
     if ans['install-type'] == INSTALL_TYPE_FRESH and ans['swraid']:
         # Once the SWRAID Sync has completed, we must umount the volumes to ensure page writes don't get stuck in the cache
         seq += [
@@ -1443,6 +1445,24 @@ def writeResolvConf(mounts, hn_conf, ns_conf):
             if ns != "":
                 resolvconf.write("nameserver %s\n" % ns)
         resolvconf.close()
+
+def writeLLDPBlocklist(mounts, lldp_block_drivers):
+    if not lldp_block_drivers:
+        return
+    path = os.path.join(mounts['root'], constants.LLDP_NIC_DRIVER_BLOCKLIST_FILE)
+    existing = []
+    if os.path.exists(path):
+        with open(path) as f:
+            existing = [line.strip() for line in f if line.strip()]
+            logger.log("Existing LLDP NIC driver blocklist %s: %s" % (path, existing))
+    else:
+        blocklist_dir = os.path.join(mounts['root'], constants.LLDP_NIC_DRIVER_BLOCKLIST_DIR)
+        os.makedirs(blocklist_dir, exist_ok=True)
+    drivers = list(dict.fromkeys(existing + lldp_block_drivers))
+    logger.log("Writing LLDP NIC driver blocklist %s: %s" % (path, drivers))
+    with open(path, "w") as f:
+        for driver in drivers:
+            f.write("%s\n" % driver)
 
 def writeMachineID(mounts):
     util.bindMount("/dev", "%s/dev" % mounts['root'])

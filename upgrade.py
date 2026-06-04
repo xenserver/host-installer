@@ -461,6 +461,8 @@ class ThirdGenUpgrader(Upgrader):
         restore_list += [constants.CLUSTERD_CONF]
         restore_list.append({'dir': constants.FIRSTBOOT_DATA_DIR, 're': re.compile(r'.*.conf')})
 
+        restore_list += [constants.LLDP_NIC_DRIVER_BLOCKLIST_FILE]
+
         restore_list += ['etc/xensource/syslog.conf']
 
         restore_list.append({'src': 'etc/xensource-inventory', 'dst': 'var/tmp/.previousInventory'})
