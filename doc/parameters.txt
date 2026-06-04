@@ -123,6 +123,19 @@ Startup
     Start an ssh server with the root password set as requested.
 
 
+  lldp_block_driver=<nic-driver-name>
+
+    Add a NIC driver name to the LLDP blocking list so that LLDP is not
+    enabled by default on NICs managed by that driver. This is intended for
+    NICs that share hardware with storage HBAs (such as CNA or hardware
+    FCoE-capable NICs), where advertising LLDP may disrupt the storage
+    function. May be specified multiple times to block several drivers.
+
+    The driver names are persisted on the installed host in
+    /etc/xensource/lldp-nic-driver-blocklist.d/host-installer.conf (one per
+    line) and are retained across rolling pool upgrade (RPU).
+
+
 Installer
 ---------
 

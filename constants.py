@@ -138,6 +138,8 @@ INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
 INSTALLED_REPOS_DIR = "etc/xensource/installed-repos"
+LLDP_NIC_DRIVER_BLOCKLIST_DIR = "etc/xensource/lldp-nic-driver-blocklist.d"
+LLDP_NIC_DRIVER_BLOCKLIST_FILE = LLDP_NIC_DRIVER_BLOCKLIST_DIR + "/host-installer.conf"
 NETWORK_DB = "var/lib/xcp/networkd.db"
 NETWORKD_DB = "usr/bin/networkd_db"
 NET_SCR_DIR = "etc/sysconfig/network-scripts"

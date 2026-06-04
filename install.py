@@ -100,6 +100,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'preserve-first-partition': constants.PRESERVE_IF_UTILITY,
         'fs-type': constants.default_rootfs_type,
         'ssh-mode': None,  # default SSH mode (no specific configuration)
+        'lldp-block-drivers': [],
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -131,6 +132,10 @@ def go(ui, args, answerfile_address, answerfile_script):
             constants.CC_PREPARATIONS = True
         elif opt == "--mount":
             disktools.DeviceMounter.addMountPoints(val)
+        elif opt == "--lldp_block_driver":
+            drivers = val if isinstance(val, list) else [val]
+            results['lldp-block-drivers'] += [d.strip() for d in drivers if d and d.strip()]
+            logger.log("LLDP block drivers specified on command-line: %s" % results['lldp-block-drivers'])
 
     if boot_console and not serial_console:
         serial_console = boot_console
