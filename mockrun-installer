@@ -8,7 +8,7 @@ import sys
 import tempfile
 from types import ModuleType
 
-MOUNTPOINT_PRIMARY = MOUNTPOINT_BACKUP = MOUNTPOINT_ROOT = MOUNTPOINT_STATE = ''
+MOUNTPOINT_PRIMARY = MOUNTPOINT_BACKUP = MOUNTPOINT_ROOT = MOUNTPOINT_STATE = None
 
 ### install stubs before imports get a chance to use them
 
@@ -83,16 +83,36 @@ def mocked_runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None
         logger.log("Mocking {}".format(command))
         return 0
 
+    if command[0:2] == ['mdadm', '--stop']:
+        # runned because we unconditionally fake presence of md device
+        assert not with_stdout and not with_stderr
+        logger.log("Mocking {}".format(command))
+        return 0
+
     if command[0:2] == ['mdadm', '--create']:
-        assert with_stdout and with_stderr
+        assert not with_stdout and not with_stderr
         logger.log("Mocking {}".format(command))
         for arg in reversed(command):
+            if arg == "missing": # last arg, support for degraded raids
+                continue
             if arg.startswith("--"): # seen all disks already
                 break
-            assert arg.startswith("/dev")
+            assert arg.startswith("/dev"), "%r does not start with /dev/" % (arg,)
             MOCKED_DISKLIST.remove(os.path.basename(arg))
         MOCKED_DISKLIST.append("md127")
-        return (0, "mocked stdout", "mocked stderr")
+        return 0
+
+    if command[0:2] == ['mdadm', '--manage']:
+        assert not with_stdout and not with_stderr
+        logger.log("Mocking {}".format(command))
+        for arg in reversed(command):
+            if arg == "--run": # last arg
+                continue
+            if arg.startswith("--"): # seen all disks already
+                break
+            assert arg.startswith("/dev"), "%r does not start with /dev/" % (arg,)
+            MOCKED_DISKLIST.remove(os.path.basename(arg))
+        return 0
 
     if command[0] == '/bin/mount':
         if command[1:3] == ['-o', 'ro']:
@@ -150,9 +170,23 @@ def mocked_runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None
         logger.log("faking mkfs of %s" % (command[1],))
         return (0, "mocked stderr")
 
-    if command[0:2] == ['sgdisk', '-b']:
+    if command[0:2] == ['sgdisk', '--mbrtogpt']:
         logger.log("faking %s" % (command,))
-        return (0, "mocked stderr")
+        if not with_stdout and not with_stderr:
+            return 0
+        if with_stdout and with_stderr:
+            return (0, "mocked stdout", "mocked stderr")
+        assert False, "unhandled with_stdout=%s with_stderr=%s" % (with_stdout, with_stderr)
+
+    if command[0:2] == ['sgdisk', '--set-alignment=1']:
+        logger.log("faking %s" % (command,))
+        assert with_stdout and with_stderr
+        return (0, "mocked stdout", "mocked stderr")
+
+    if command[0:3] == ['sfdisk', '--no-reread', '-A1']:
+        logger.log("faking %s" % (command,))
+        assert with_stdout and with_stderr
+        return (0, "mocked stdout", "mocked stderr")
 
     if command == ['uuidgen']:
         return (0, "40987587-a9d0-44ae-a7bc-d9fd21850b7c")
@@ -163,6 +197,10 @@ def mocked_runCmd2(command, with_stdout=False, with_stderr=False, inputtext=None
         # return (0, "10:1.21.0-1.el7\n0:1.29.0-1.el7_9\n")
         # return (0, "0:1.21.0-1.el7\n")
         return (0, "0:1.29.0-2.el7_9\n")
+
+    if command[0:2] == ['blockdev', '--getsize64']:
+        logger.log("faking %s" % (command,))
+        return (0, "107374182400\n")
 
     raise RuntimeError("mockrun runCmd2 command not specified: {!r}{}{}".format(
         command, " with_stdout" if with_stdout else "", " with_stderr" if with_stderr else ""))
@@ -232,7 +270,7 @@ import diskutil
 
 # modifiable by RAID building
 MOCKED_DISKLIST = ['sda',
-                   # 'sdb', 'sdc',
+                   'sdb', 'sdc',
                    ]
 
 def mocked_getDiskList():
@@ -258,6 +296,18 @@ def mocked_readExtPartitionLabel(partition):
         "/dev/sda1": "root-foo",
         "/dev/sda5": "logs-foo",
     }.get(partition, None)
+def mocked_idFromPartition(partition):
+    logger.log("faking idFromPartition")
+    return None
+
+def mocked_diskutil__readOneLineFile__(filename):
+    assert filename.startswith("/sys/block/")
+    if filename.endswith("/device/block/size"):
+        return "512"
+    if filename.endswith("/queue/logical_block_size"):
+        return "512"
+    # FIXME should be a better ENOENT
+    raise RuntimeError("No such file %r" % (filename,))
 
 diskutil.getDiskList = mocked_getDiskList
 diskutil.getPartitionList = mocked_getPartitionList
@@ -270,6 +320,9 @@ diskutil.getDiskDeviceSize = mocked_getDiskDeviceSize
 diskutil.log_available_disks = mocked_log_available_disks
 
 diskutil.readExtPartitionLabel = mocked_readExtPartitionLabel
+diskutil.idFromPartition = mocked_idFromPartition
+
+diskutil.__readOneLineFile__ = mocked_diskutil__readOneLineFile__
 
 #
 
@@ -328,11 +381,11 @@ def mocked_upgrade_open(fname, mode='r', *args, **kwargs):
 
     realfname = fname           # default
 
-    if fname.startswith(MOUNTPOINT_PRIMARY + '/'):
+    if MOUNTPOINT_PRIMARY and fname.startswith(MOUNTPOINT_PRIMARY + '/'):
         if fname == MOUNTPOINT_PRIMARY + "/etc/xensource/xapi-ssl.pem":
             realfname = MOCKDATA + "/etc/xensource/xapi-ssl.pem"
 
-    if fname.startswith(MOUNTPOINT_BACKUP + '/'):
+    if MOUNTPOINT_BACKUP and fname.startswith(MOUNTPOINT_BACKUP + '/'):
         if fname == MOUNTPOINT_BACKUP + "/.xen-backup-partition":
             realfname = MOCKDATA + "/emptyfile"
 
@@ -367,9 +420,16 @@ def mocked_repository_open(fname, mode='r', *args, **kwargs):
 
 def mocked_disableInitrdCreation(self, root):
     logger.log("faking disableInitrdCreation")
+def mocked_enableInitrdCreation(self):
+    logger.log("faking disableInitrdCreation")
+
+def mocked_installFromYum(yum_conf_path, targets, mounts, progress_callback, cachedir):
+    logger.log("faking installFromYum")
 
 repository.open = mocked_repository_open
 repository.MainYumRepository.disableInitrdCreation = mocked_disableInitrdCreation
+repository.MainYumRepository.enableInitrdCreation = mocked_enableInitrdCreation
+repository.installFromYum = mocked_installFromYum
 
 #
 
@@ -412,12 +472,12 @@ def mocked_netinterface_open(fname, mode='r', *args, **kwargs):
 
     realfname = fname           # default
 
-    if fname.startswith(MOUNTPOINT_PRIMARY + '/'):
+    if MOUNTPOINT_PRIMARY and fname.startswith(MOUNTPOINT_PRIMARY + '/'):
         if fname == MOUNTPOINT_PRIMARY + "/etc/xensource/xapi-ssl.pem":
             realfname = MOCKDATA + "/etc/xensource/xapi-ssl.pem"
 
     elif fname.startswith('/etc/sysconfig/network-scripts/ifcfg-'):
-        realfname = os.path.basename(fname)
+        realfname = os.path.join(MOCKDATA, os.path.basename(fname))
 
     if realfname != fname:
         logger.debug("redirecting open() to %r" % (realfname,))
@@ -442,12 +502,30 @@ generalui.getTimeZoneCities = mocked_getTimeZoneCities
 
 import backend
 
+def mocked_backend_open(fname, mode='r', *args, **kwargs):
+    logger.debug("open({!r}, mode={!r})".format(fname, mode))
+
+    realfname = fname           # default
+
+    if fname == '/proc/sys/dev/raid/speed_limit_max':
+        realfname = '/dev/null'
+
+    if fname == '/tmp/root/etc/firstboot.d/data/default-storage.conf':
+        realfname = 'mocked-default-storage.conf'
+
+    if realfname != fname:
+        logger.debug("redirecting open() to %r" % (realfname,))
+
+    return open(realfname, mode, *args, **kwargs)
+
+backend.open = mocked_backend_open
+
 def mocked_setTimeNTP(ntp_servers, ntp_config_method):
     logger.log("faking setTimeNTP")
 def mocked_createDom0DiskFilesystems(install_type, disk, target_boot_mode, boot_partnum, primary_partnum, logs_partnum, disk_label_suffix):
     logger.log("faking createDom0DiskFilesystems")
 
-def mocked_mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnum, cleanup, target_boot_mode):
+def mocked_mountVolumes(primary_disk, physical_disks, boot_partnum, primary_partnum, logs_partnum, cleanup, target_boot_mode, swraid):
     logger.log("faking mountVolumes")
     mounts = {'root': '/tmp/root',
               'boot': '/tmp/root/boot',
@@ -456,13 +534,35 @@ def mocked_mountVolumes(primary_disk, boot_partnum, primary_partnum, logs_partnu
               }
     return mounts, list(cleanup)
 
-def mocked_umountVolumes(mounts, cleanup, force=False):
+def mocked_umountVolumes(disk, mounts, cleanup, force=False):
     logger.log("faking umountVolumes")
+
+def mocked_getFinalisationSequence(ans):
+    logger.log("faking getFinalisationSequenceumountVolumes")
+    seq = [
+        # cannot return empty list, so return one entry we mock
+        backend.Task(backend.importYumAndRpmGpgKeys, backend.A(ans, 'mounts'), []),
+    ]
+    if ans['install-type'] == backend.INSTALL_TYPE_FRESH:
+        seq += [
+            backend.Task(backend.prepareStorageRepositories, backend.A(ans, 'mounts', 'primary-disk', 'storage-partnum', 'guest-disks', 'sr-type'), []),
+            ]
+
+    return seq
+
+def mocked_importYumAndRpmGpgKeys(mounts):
+    logger.log("faking importYumAndRpmGpgKeys")
+
+#def mocked_writeResolvConf(mounts, hn_conf, ns_conf):
+#    logger.log("faking writeResolvConf")
 
 backend.setTimeNTP = mocked_setTimeNTP
 backend.createDom0DiskFilesystems = mocked_createDom0DiskFilesystems
 backend.mountVolumes = mocked_mountVolumes
 backend.umountVolumes = mocked_umountVolumes
+backend.getFinalisationSequence = mocked_getFinalisationSequence
+backend.importYumAndRpmGpgKeys = mocked_importYumAndRpmGpgKeys
+#backend.writeResolvConf = mocked_writeResolvConf
 
 #
 
@@ -470,12 +570,18 @@ original_os_path_exists = os.path.exists;
 
 def mock_os_path_exists(path):
     exists = None
-    if path in ( # force exists
+    if MOUNTPOINT_STATE and path in ( # force exists
             # MOUNTPOINT_STATE + "/etc/firstboot.d/state",
             MOUNTPOINT_STATE + "/var/lib/misc/ran-network-init",
             MOUNTPOINT_STATE + "/var/lib/misc/ran-storage-init",
     ):
         exists = True
+    elif path in (
+            "/dev/sda",
+    ):
+        exists = True
+    elif path.startswith("/dev/md/xs-"):
+        return True
     elif path in ( # force NOT exists
         '/titi',
     ):
