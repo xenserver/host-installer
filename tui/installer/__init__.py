@@ -138,15 +138,15 @@ def runMainSequence(results, ram_warning, vt_blocker, suppress_extra_cd_dialog):
 
     seq = [
         Step(uis.welcome_screen),
-        Step(uis.dmv_screen),
-        Step(uis.confirm_dmv_selection),
-        Step(uis.eula_screen),
         Step(uis.hardware_blockers,
              args=[vt_blocker],
              predicates=[lambda _:vt_blocker]),
         Step(uis.hardware_warnings,
              args=[ram_warning],
              predicates=[lambda _:ram_warning]),
+        Step(uis.dmv_screen),
+        Step(uis.confirm_dmv_selection),
+        Step(uis.eula_screen),
         Step(uis.overwrite_warning,
              predicates=[only_unupgradeable_products]),
         Step(uis.get_installation_type,
