@@ -140,7 +140,7 @@ def runMainSequence(results, ram_warning, vt_blocker, suppress_extra_cd_dialog):
         Step(uis.welcome_screen),
         Step(uis.hardware_blockers,
              args=[vt_blocker],
-             predicates=[lambda _:vt_blocker]),
+             predicates=[lambda _:(results['stop-on-blocker'] and vt_blocker)]),
         Step(uis.hardware_warnings,
              args=[ram_warning],
              predicates=[lambda _:ram_warning]),

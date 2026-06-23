@@ -233,3 +233,7 @@ Installer
   --cc-preparations
 
     Prepare configuration for common criteria security.
+
+  --ignore-blockers
+
+    Ignore any installation blocking checks (e.g. missing VT support).

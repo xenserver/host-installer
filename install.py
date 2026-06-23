@@ -100,6 +100,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'preserve-first-partition': constants.PRESERVE_IF_UTILITY,
         'fs-type': constants.default_rootfs_type,
         'ssh-mode': None,  # default SSH mode (no specific configuration)
+        'stop-on-blocker': True,  # stop install when a blocking issue is detected
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -131,6 +132,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             constants.CC_PREPARATIONS = True
         elif opt == "--mount":
             disktools.DeviceMounter.addMountPoints(val)
+        elif opt == "--ignore-blockers":
+            results["stop-on-blocker"] = False
 
     if boot_console and not serial_console:
         serial_console = boot_console
