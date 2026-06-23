@@ -1035,9 +1035,6 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     short_version = kernelShortVersion(xen_kernel_version)
     common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
     common_xen_unsafe_params = "watchdog dom0_max_vcpus=1-%d" % host_config['dom0-vcpus']
-    safe_xen_params = ("nosmp noreboot noirqbalance no-mce no-bootscrub "
-                       "no-numa no-hap no-mmcfg max_cstate=0 "
-                       "nmi=ignore allow_unsafe")
     xen_mem_params = "crashkernel=512M,below=4G"
 
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
@@ -1082,14 +1079,6 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         boot_config.append("xe-serial", e)
         if boot_serial:
             boot_config.default = "xe-serial"
-        e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
-                                 hypervisor_args=' '.join([safe_xen_params, common_xen_params, xen_serial_params]),
-                                 kernel="/boot/vmlinuz-%s-xen" % short_version,
-                                 kernel_args=' '.join(["earlyprintk=xen", common_kernel_params, "console=tty0", kernel_console_params]),
-                                 initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" in Safe Mode",
-                                 root=constants.rootfs_label%disk_label_suffix)
-        e.entry_format = Grub2Format.XEN_BOOT
-        boot_config.append("safe", e)
 
     e = bootloader.MenuEntry(hypervisor="", hypervisor_args="", kernel="/boot/memtest86+x64.efi",
                             kernel_args="",
