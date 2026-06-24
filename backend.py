@@ -1053,8 +1053,7 @@ def prepFallback(mounts, primary_disk, primary_partnum):
 
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix):
     short_version = kernelShortVersion(xen_kernel_version)
-    common_xen_params = "dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)
-    common_xen_unsafe_params = "watchdog dom0_max_vcpus=1-%d" % host_config['dom0-vcpus']
+    common_xen_params = "dom0_mem=%dM,max:%dM watchdog dom0_max_vcpus=1-%d" % ((host_config['dom0-mem'],) * 2, host_config['dom0-vcpus'])
     xen_mem_params = "crashkernel=512M,below=4G"
 
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
@@ -1078,7 +1077,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         common_kernel_params += " rd.auto"
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
-                             hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
+                             hypervisor_args=' '.join([common_xen_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
                              initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND,
@@ -1090,7 +1089,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
 
         e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
-                                 hypervisor_args=' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
+                                 hypervisor_args=' '.join([xen_serial_params, common_xen_params, xen_mem_params]),
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" (Serial)",
@@ -1108,7 +1107,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     boot_config.append("memtest", e)
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
-                             hypervisor_args=' '.join([common_xen_params, common_xen_unsafe_params, xen_mem_params]),
+                             hypervisor_args=' '.join([common_xen_params, xen_mem_params]),
                              kernel="/boot/vmlinuz-fallback",
                              kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
                              initrd="/boot/initrd-fallback.img",
@@ -1118,7 +1117,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
-                                 hypervisor_args=' '.join([xen_serial_params, common_xen_params, common_xen_unsafe_params, xen_mem_params]),
+                                 hypervisor_args=' '.join([xen_serial_params, common_xen_params, xen_mem_params]),
                                  kernel="/boot/vmlinuz-fallback",
                                  kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
                                  initrd="/boot/initrd-fallback.img",
