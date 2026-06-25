@@ -140,17 +140,22 @@ def hardware_blockers(answers, vt_blocker):
     if vt_blocker:
         text += vt_not_found_text + "\n\n"
 
-    text += "%s will not be installed." % MY_PRODUCT_BRAND
+    # F9 breaks the ButtonChoiceWindow loop with 'None' button pressed
+    hotkeys = {"F9": lambda: False}
+    text += "\n\nPress <F9> to proceed anyway."
 
-    button = ButtonChoiceWindow(
+    button = snackutil.ButtonChoiceWindowEx(
         tui.screen,
         "System Hardware",
         text,
         ['Reboot'],
-        width=60, help="hwwarn"
+        width=60, help="hwwarn",
+        hotkeys=hotkeys
         )
 
-    return EXIT
+    if button == "reboot":
+        return EXIT
+    return RIGHT_FORWARDS
 
 def hardware_warnings(answers, ram_warning):
     not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (MY_PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
