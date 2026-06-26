@@ -133,13 +133,34 @@ If %s are present you may need to load a device driver on the previous screen fo
 
     return RIGHT_FORWARDS
 
-def hardware_warnings(answers, ram_warning, vt_warning):
-    vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start Windows virtual machines."
+def hardware_blockers(answers, vt_blocker):
+    vt_not_found_text = "Hardware virtualization assist support is not available on this system.  Either it is not present, or is disabled in the system's BIOS.  This capability is required to start virtual machines."
+
+    text = "The following critical problem(s) were found with your hardware:\n\n"
+    if vt_blocker:
+        text += vt_not_found_text + "\n\n"
+
+    # F9 breaks the ButtonChoiceWindow loop with 'None' button pressed
+    hotkeys = {"F9": lambda: False}
+    text += "\n\nPress <F9> to proceed anyway."
+
+    button = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "System Hardware",
+        text,
+        ['Reboot'],
+        width=60, help="hwwarn",
+        hotkeys=hotkeys
+        )
+
+    if button == "reboot":
+        return EXIT
+    return RIGHT_FORWARDS
+
+def hardware_warnings(answers, ram_warning):
     not_enough_ram_text = "%s requires %dMB of system memory in order to function normally.  Your system appears to have less than this, which may cause problems during startup." % (MY_PRODUCT_BRAND, constants.MIN_SYSTEM_RAM_MB_RAW)
 
     text = "The following problem(s) were found with your hardware:\n\n"
-    if vt_warning:
-        text += vt_not_found_text + "\n\n"
     if ram_warning:
         text += not_enough_ram_text + "\n\n"
     text += "You may continue with the installation, though %s might have limited functionality until you have addressed these problems." % MY_PRODUCT_BRAND
