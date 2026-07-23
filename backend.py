@@ -1033,45 +1033,67 @@ def prepFallback(mounts, primary_disk, primary_partnum):
 
 def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, serial, boot_serial, host_config, primary_disk, disk_label_suffix):
     short_version = kernelShortVersion(xen_kernel_version)
-    common_xen_params = "dom0_mem=%dM,max:%dM watchdog dom0_max_vcpus=1-%d" % ((host_config['dom0-mem'],) * 2, host_config['dom0-vcpus'])
-    xen_mem_params = "crashkernel=512M,below=4G"
+    # xs_xen_core is supplied to all targets. Currently it only contains dom0_mem, which also
+    # lives in /etc/xensource-inventory
+    xs_xen_core = ["dom0_mem=%dM,max:%dM" % ((host_config['dom0-mem'],) * 2)]
+    # xs_xen_shared is generally supplied to all targets (but see xs_xen_safemode). If replaces common_xen_params and
+    # xen_mem_params since now the old "safe mode" is removed there is no place where one is used but not the other.
+    xs_xen_shared = ["watchdog", "dom0_max_vcpus=1-%d" % (host_config['dom0-vcpus'])]
+    xs_xen_shared += ["crashkernel=512M,below=4G"]
+    # The vga mode parameter can be supplied always because it has no effect unless console=vga
+    xs_xen_shared += ["vga=mode-0x0311"]
+
+    # Set up xen_serial_params early
+    xen_serial_params = [serial.xenFmt(), "console=%s,vga" % (serial.port)] if serial else []
 
     # CA-103933 - AMD PCI-X Hypertransport Tunnel IOAPIC errata
     rc, out = util.runCmd2(['lspci', '-n'], with_stdout=True)
     if rc == 0 and ('1022:7451' in out or '1022:7459' in out):
-        common_xen_params += " ioapic_ack=old"
+        xs_xen_shared += ["ioapic_ack=old"]
 
     if "sched-gran" in host_config:
-        common_xen_params += " %s" % host_config["sched-gran"]
+        xs_xen_shared += [host_config["sched-gran"]]
 
-    common_kernel_params = "root=LABEL=%s ro nolvm hpet=disable" % constants.rootfs_label%disk_label_suffix
-    kernel_console_params = "console=hvc0"
+    # Keep the kernel rootdisk seperately so we can use xs_kernel_core for
+    # both direct grub.cfg and configuring grub-mkconfig
+    kernel_rootdisk = ["root=LABEL=%s" % constants.rootfs_label%disk_label_suffix]
+    # Supplying vga=785 should have no effect when there is no VGA console
+    xs_kernel_core = ["ro", "nolvm", "hpet=disable", "vga=785"]
+    kernel_console_vga = ["console=hvc0", "console=tty0"]
+    kernel_console_serial = ["console=tty0", "console=hvc0"]
 
     if "xen-pciback.hide" in host_config:
-        common_kernel_params += " %s" % host_config["xen-pciback.hide"]
+        xs_kernel_core += [host_config["xen-pciback.hide"]]
 
     if diskutil.is_iscsi(primary_disk):
-        common_kernel_params += " rd.iscsi.ibft=1 rd.iscsi.firmware=1"
+        xs_kernel_core += ["rd.iscsi.ibft=1", "rd.iscsi.firmware=1"]
 
     if diskutil.is_raid(primary_disk):
-        common_kernel_params += " rd.auto"
+        xs_kernel_core += ["rd.auto"]
+
+    # This is a new interpretation of the idea of "safe mode" which is basically the same
+    # as normal serial boot but the parameters are never touched by tools like "xen-cmdline".
+    # It is used by the grub-mkconfig handler rather than the legacy grub setup, so it just
+    # gets written to the xs_settings file.
+    xs_xen_safemode = []
+    xs_xen_safemode += xs_xen_shared
+    xs_kernel_safemode = []
+    xs_kernel_safemode += xs_kernel_core
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
-                             hypervisor_args=' '.join([common_xen_params, xen_mem_params, "console=vga vga=mode-0x0311"]),
+                             hypervisor_args=' '.join(xs_xen_core + xs_xen_shared + ["console=vga"]),
                              kernel="/boot/vmlinuz-%s-xen" % short_version,
-                             kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0 quiet vga=785 splash plymouth.ignore-serial-consoles"]),
+                             kernel_args=' '.join(kernel_rootdisk + xs_kernel_core + kernel_console_vga + ["quiet"]),
                              initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND,
                              root=constants.rootfs_label%disk_label_suffix)
     e.entry_format = Grub2Format.XEN_BOOT
     boot_config.append("xe", e)
     boot_config.default = "xe"
     if serial:
-        xen_serial_params = "%s console=%s,vga" % (serial.xenFmt(), serial.port)
-
         e = bootloader.MenuEntry(hypervisor="/boot/xen.efi",
-                                 hypervisor_args=' '.join([xen_serial_params, common_xen_params, xen_mem_params]),
+                                 hypervisor_args=' '.join(xs_xen_core + xs_xen_shared + xen_serial_params),
                                  kernel="/boot/vmlinuz-%s-xen" % short_version,
-                                 kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                                 kernel_args=' '.join(kernel_rootdisk + xs_kernel_core + kernel_console_serial),
                                  initrd="/boot/initrd-%s-xen.img" % short_version, title=MY_PRODUCT_BRAND+" (Serial)",
                                  root=constants.rootfs_label%disk_label_suffix)
         e.entry_format = Grub2Format.XEN_BOOT
@@ -1087,9 +1109,9 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     boot_config.append("memtest", e)
 
     e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
-                             hypervisor_args=' '.join([common_xen_params, xen_mem_params]),
+                             hypervisor_args=' '.join(xs_xen_core + xs_xen_shared),
                              kernel="/boot/vmlinuz-fallback",
-                             kernel_args=' '.join([common_kernel_params, kernel_console_params, "console=tty0"]),
+                             kernel_args=' '.join(kernel_rootdisk + xs_kernel_core + kernel_console_vga),
                              initrd="/boot/initrd-fallback.img",
                              title="%s (Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
                              root=constants.rootfs_label%disk_label_suffix)
@@ -1097,14 +1119,44 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
     boot_config.append("fallback", e)
     if serial:
         e = bootloader.MenuEntry(hypervisor="/boot/xen-fallback.efi",
-                                 hypervisor_args=' '.join([xen_serial_params, common_xen_params, xen_mem_params]),
+                                 hypervisor_args=' '.join(xs_xen_core + xs_xen_shared + xen_serial_params),
                                  kernel="/boot/vmlinuz-fallback",
-                                 kernel_args=' '.join([common_kernel_params, "console=tty0", kernel_console_params]),
+                                 kernel_args=' '.join(kernel_rootdisk + xs_kernel_core + kernel_console_serial),
                                  initrd="/boot/initrd-fallback.img",
                                  title="%s (Serial, Xen %s / Linux %s)" % (MY_PRODUCT_BRAND, xen_version, xen_kernel_version),
                                  root=constants.rootfs_label%disk_label_suffix)
         e.entry_format = Grub2Format.XEN_BOOT
         boot_config.append("fallback-serial", e)
+
+    # Write an xs_settings file to the root partition, but only if
+    # the update-grub action is available in the install
+    if os.path.exists(os.path.join(mounts['root'], '/usr/sbin/update-grub')):
+        xs_settings = os.path.join(mounts['root'], 'etc/grub.d/xs_settings')
+        with open(xs_settings, "w") as f:
+            boot_default = 1 if boot_serial else 0
+            serial_id = serial.id if serial else 0
+            serial_baud = serial.baud if serial else 115200
+            root_label=constants.rootfs_label%disk_label_suffix
+            # For some reason we keep our local constant in 10ths of a second and
+            # let the library divide it by 10? We need to do that ourselves here.
+            timeout = constants.BOOT_MENU_TIMEOUT // 10
+            # If we detect that we should be using the new grub-mkconfig we do not
+            # write XS__GRUB_TEST_ONLY into the file and also do not write the
+            # constructed grub config as the update-grub call will have done it
+            # for us. We do not yet have this test, so always write in test
+            # mode.
+            f.write("XS__GRUB_TEST_ONLY='yes'\n")
+            f.write(f"XS__MENUENTRY_DEFAULT='{boot_default}'\n")
+            f.write(f"XS__MENU_TIMEOUT='{timeout}'\n")
+            f.write(f"XS__SERIAL_PORT='{serial_id}'\n")
+            f.write(f"XS__SERIAL_BAUD='{serial_baud}'\n")
+            f.write(f"XS__ROOTDISK_LABEL='{root_label}'\n")
+            f.write(f"XS__XEN_CORE='{' '.join(xs_xen_core)}'\n")
+            f.write(f"XS__XEN_SHARED='{' '.join(xs_xen_shared)}'\n")
+            f.write(f"XS__XEN_SAFEMODE='{' '.join(xs_xen_safemode)}'\n")
+            f.write(f"XS__KERNEL_CORE='{' '.join(xs_kernel_core)}'\n")
+            f.write(f"XS__KERNEL_SAFEMODE='{' '.join(xs_kernel_safemode)}'\n")
+        util.runCmd2(['chroot', mounts['root'], '/usr/sbin/update-grub'])
 
 def installBootLoader(mounts, disk, primary_partnum,
                       disk_label_suffix, location, serial=None,
