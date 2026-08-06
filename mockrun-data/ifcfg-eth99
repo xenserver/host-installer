@@ -1,0 +1,2 @@
+DEVICE=eth99
+ONBOOT=yes
