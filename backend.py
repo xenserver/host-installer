@@ -1130,7 +1130,8 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
 
     # Write an xs_settings file to the root partition, but only if
     # the update-grub action is available in the install
-    if os.path.exists(os.path.join(mounts['root'], '/usr/sbin/update-grub')):
+    logger.log("Checking for grub-mkconfig setup")
+    if os.path.exists(os.path.join(mounts['root'], 'usr/sbin/update-grub')):
         xs_settings = os.path.join(mounts['root'], 'etc/grub.d/xs_settings')
         with open(xs_settings, "w") as f:
             boot_default = 1 if boot_serial else 0
@@ -1143,9 +1144,11 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
             # If we detect that we should be using the new grub-mkconfig we do not
             # write XS__GRUB_TEST_ONLY into the file and also do not write the
             # constructed grub config as the update-grub call will have done it
-            # for us. We do not yet have this test, so always write in test
-            # mode.
-            f.write("XS__GRUB_TEST_ONLY='yes'\n")
+            # for us.
+            logger.log("Writing xs_settings file")
+            if not os.path.exists(os.path.join(mounts['root'], 'etc/installer-use-update-grub')):
+                logger.log("(xs_settings file is in test mode)")
+                f.write("XS__GRUB_TEST_ONLY='yes'\n")
             f.write(f"XS__MENUENTRY_DEFAULT='{boot_default}'\n")
             f.write(f"XS__MENU_TIMEOUT='{timeout}'\n")
             f.write(f"XS__SERIAL_PORT='{serial_id}'\n")
@@ -1156,6 +1159,7 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
             f.write(f"XS__XEN_SAFEMODE='{' '.join(xs_xen_safemode)}'\n")
             f.write(f"XS__KERNEL_CORE='{' '.join(xs_kernel_core)}'\n")
             f.write(f"XS__KERNEL_SAFEMODE='{' '.join(xs_kernel_safemode)}'\n")
+        logger.log("Operating update-grub action after writing xs_settings")
         util.runCmd2(['chroot', mounts['root'], '/usr/sbin/update-grub'])
 
 def installBootLoader(mounts, disk, primary_partnum,
@@ -1180,7 +1184,10 @@ def installBootLoader(mounts, disk, primary_partnum,
                             serial, boot_serial, host_config, disk,
                             disk_label_suffix)
         util.assertDir(os.path.dirname(fn))
-        boot_config.commit()
+        if not os.path.exists(os.path.join(mounts['root'], 'etc/installer-use-update-grub')):
+            # Only commit the legacy bootloader config if we are NOT using grub-mkconfig
+            logger.log("Committing legacy bootloader config")
+            boot_config.commit()
 
     root_partition = partitionDevice(disk, primary_partnum)
 
