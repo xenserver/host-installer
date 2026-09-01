@@ -32,7 +32,7 @@ def need_networking(answers):
 
 is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']
 
-def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
+def runMainSequence(results, ram_warning, vt_blocker, suppress_extra_cd_dialog):
     """ Runs the main installer sequence and updates results with a
     set of values ready for the backend. """
     uis = tui.installer.screens
@@ -138,12 +138,15 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
 
     seq = [
         Step(uis.welcome_screen),
+        Step(uis.hardware_blockers,
+             args=[vt_blocker],
+             predicates=[lambda _:(results['stop-on-blocker'] and vt_blocker)]),
+        Step(uis.hardware_warnings,
+             args=[ram_warning],
+             predicates=[lambda _:ram_warning]),
         Step(uis.dmv_screen),
         Step(uis.confirm_dmv_selection),
         Step(uis.eula_screen),
-        Step(uis.hardware_warnings,
-             args=[ram_warning, vt_warning],
-             predicates=[lambda _:(ram_warning or vt_warning)]),
         Step(uis.overwrite_warning,
              predicates=[only_unupgradeable_products]),
         Step(uis.get_installation_type,

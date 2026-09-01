@@ -100,6 +100,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         'preserve-first-partition': constants.PRESERVE_IF_UTILITY,
         'fs-type': constants.default_rootfs_type,
         'ssh-mode': None,  # default SSH mode (no specific configuration)
+        'stop-on-blocker': True,  # stop install when a blocking issue is detected
         }
     suppress_extra_cd_dialog = False
     serial_console = None
@@ -131,6 +132,8 @@ def go(ui, args, answerfile_address, answerfile_script):
             constants.CC_PREPARATIONS = True
         elif opt == "--mount":
             disktools.DeviceMounter.addMountPoints(val)
+        elif opt == "--ignore-blockers":
+            results["stop-on-blocker"] = False
 
     if boot_console and not serial_console:
         serial_console = boot_console
@@ -219,7 +222,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         # how much RAM do we have?
         ram_found_mb = hardware.getHostTotalMemoryKB() // 1024
         ram_warning = ram_found_mb < constants.MIN_SYSTEM_RAM_MB
-        vt_warning = not hardware.VTSupportEnabled()
+        vt_blocker = not hardware.VTSupportEnabled()
 
         # Generate the UI sequence and populate some default
         # values in backend input.  Note that not all these screens
@@ -230,7 +233,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         aborted = False
         if ui and interactive:
             uiexit = ui.installer.runMainSequence(
-                results, ram_warning, vt_warning, suppress_extra_cd_dialog
+                results, ram_warning, vt_blocker, suppress_extra_cd_dialog
                 )
             if uiexit == uicontroller.EXIT:
                 aborted = True
