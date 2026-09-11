@@ -7,6 +7,7 @@ import os
 import itertools
 import json
 from json.decoder import JSONDecodeError
+import diskutil
 import util
 from xcp import logger
 
@@ -261,6 +262,22 @@ def getDriverVariantByName(drivers, drvname, oemtype):
                     return v
     return None
 
+def getNicDriver(nic):
+    try:
+        return os.path.basename(os.readlink('/sys/class/net/%s/device/driver' % nic))
+    except OSError:
+        return None
+
+def getBootPathDrivers():
+    """Return the drivers the running installer depends on to reach its target.
+    """
+    drivers = set()
+    for nic in diskutil.ibft_reserved_nics:
+        driver = getNicDriver(nic)
+        if driver:
+            drivers.add(driver)
+    return drivers
+
 class DriverMultiVersionData:
     def __init__(self, dmv_jsondata, hardware_info):
         self.dmv_jsondata = dmv_jsondata
@@ -277,6 +294,8 @@ class DriverMultiVersionData:
         dmvlist = dmvjson["drivers"]
         self.drivers = parseDMVJsonData(dmvlist, hardware_info)
         self.hw_present_drivers = getHardwarePresentDrivers(self.drivers)
+        # Variants not applied because the driver is in use by the installer
+        self.in_use_variants = []
 
     def getDriversData(self):
         return self.drivers
@@ -302,20 +321,47 @@ class DriverMultiVersionData:
         return chooseDefaultDriverVariants(drivers)
 
     def selectSingleDriverVariant(self, driver_name, variant_name):
+        # Query the loaded variant, not the selected symlink or the cached UI
+        # snapshot: the user may have gone back after an earlier selection.
+        try:
+            active_variant = json.loads(getDMVList())["drivers"][driver_name]["active"]
+        except (JSONDecodeError, KeyError, TypeError):
+            logger.log("Unable to determine active variant for driver %s; leaving it loaded." % driver_name)
+            return False
+
+        # Changing this driver means reloading it, which would take the iBFT
+        # iSCSI session and the installation target with it.  Leave both the
+        # running driver and the recorded selection as they are.
+        if active_variant != variant_name and driver_name in getBootPathDrivers():
+            logger.log("Driver %s is in use by the iBFT boot path; keeping variant %s and ignoring %s." % (driver_name, active_variant, variant_name))
+            self.in_use_variants.append((driver_name, variant_name))
+            return True
+
         cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
         rc, out = util.runCmd2(cmdparams, with_stdout=True)
         if rc != 0:
             return False
 
-        util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+        # Do not tear down an already-active driver (and any iBFT networking using its devices).
+        if active_variant == variant_name:
+            logger.log("Variant %s for driver %s is already active; skipping reload." % (variant_name, driver_name))
+            return True
+
+        rc, out = util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+        if rc != 0:
+            return False
 
         rc, out = util.runCmd2(['modprobe', driver_name], with_stdout=True)
         if rc != 0:
             return False
         return True
 
+    def getInUseDriverVariants(self):
+        return self.in_use_variants
+
     def applyDriverVariants(self, choices):
         failures = []
+        self.in_use_variants = []
         for driver_name, variant_name in choices:
             ret = self.selectSingleDriverVariant(driver_name, variant_name)
             if not ret:

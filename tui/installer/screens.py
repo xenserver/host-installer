@@ -633,6 +633,20 @@ def confirm_dmv_selection(answers):
                         "Setup was unable to activate driver variant.",
                         ['Ok']
                         )
+
+            in_use = dmv_data_provider.getInUseDriverVariants()
+            if len(in_use) > 0:
+                names = ", ".join("%s-%s" % (d, v) for d, v in in_use)
+                logger.log("driver variants not applied, driver in use: %s" % names)
+                ButtonChoiceWindow(
+                        tui.screen,
+                        "Driver Variant Not Changed",
+                        "%s was not selected because the driver is in use by the iSCSI "
+                        "boot disk and cannot be changed during installation. Setup will "
+                        "continue with the running variant, which can be changed on the "
+                        "installed host using driver-tool." % names,
+                        ['Ok'], width=60
+                        )
             return RIGHT_FORWARDS
         else:
             title = "Error"
