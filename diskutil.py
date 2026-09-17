@@ -76,6 +76,8 @@ def mpath_enable(mpath_config):
     use_mpath = True
 
 def mpath_disable():
+    global use_mpath
+
     destroyMpathPartnodes()
     util.runCmd2(['killall','multipathd'])
     util.runCmd2(['/sbin/multipath','-F'])
@@ -608,6 +610,9 @@ def probeDisk(device):
 iscsi_disks = []
 # Keep track of NICs reserved for iSCSI boot
 ibft_reserved_nics = set()
+# What configure_ibft_nic() added, so unconfigure_ibft_nic() can take it back
+# off again: iface -> (address/prefix, target address)
+ibft_nic_config = {}
 
 
 def get_initiator_name():
@@ -638,22 +643,80 @@ def is_iscsi(device):
     return False
 
 
+def set_link_up(iface):
+    """Bring a link up administratively, without waiting for carrier.
+
+    A freshly reloaded driver gives its interfaces back administratively down,
+    so this has to happen before anything can be configured on them.  Carrier
+    is waited for later, and all at once, in wait_for_links().
+    """
+
+    rv = util.runCmd2(['ip', 'link', 'set', iface, 'up'])
+    if rv:
+        raise RuntimeError('Failed to bring up NIC %s' % iface)
+
+
+def wait_for_links(ifaces, timeout=10):
+    """Wait for carrier on all of ifaces at once, rather than one at a time.
+
+    Only the iSCSI login needs carrier; addresses and routes go onto a dark
+    link quite happily.
+
+    Carrier up means the link is ready, but carrier down does not mean it is
+    dead -- some NICs report none until the first packet -- so carry on when
+    the wait times out and let the login produce the diagnostic.
+    """
+
+    waiting = set(ifaces)
+
+    for _ in range(timeout):
+        waiting = {i for i in waiting if not netutil.linkUp(i)}
+        if not waiting:
+            return
+        time.sleep(1)
+
+    logger.log('No carrier on %s after %ds, continuing anyway' %
+               (', '.join(sorted(waiting)), timeout))
+
+
 def configure_ibft_nic(target_ip, iface, ip, nm, gw):
     prefix = sum([bin(int(i)).count('1') for i in nm.split('.')])
-    rv = util.runCmd2(['ip', 'addr', 'add', '%s/%s' % (ip, prefix), 'dev', iface])
+    addr = '%s/%s' % (ip, prefix)
+
+    set_link_up(iface)
+
+    # 'replace' rather than 'add': a retry after a partial attempt must not
+    # fail with EEXIST.
+    rv = util.runCmd2(['ip', 'addr', 'replace', addr, 'dev', iface])
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
 
+    # Recorded before the route is attempted: if that fails, the address still
+    # has to come back off.
+    ibft_nic_config[iface] = (addr, None)
+
     if netutil.network(ip, nm) == netutil.network(target_ip, nm):
         # Same subnet, don't use the gateway
-        rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface])
+        rv = util.runCmd2(['ip', 'route', 'replace', target_ip, 'dev', iface])
     elif gw:
-        rv = util.runCmd2(['ip', 'route', 'add', target_ip, 'dev', iface, 'via', gw])
+        rv = util.runCmd2(['ip', 'route', 'replace', target_ip, 'dev', iface, 'via', gw])
     else:
         raise RuntimeError('A gateway is needed to initialize NIC for iSCSI')
 
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
+
+    ibft_nic_config[iface] = (addr, target_ip)
+
+
+def unconfigure_ibft_nic(iface):
+    """Undo configure_ibft_nic(). Tolerates a partially configured NIC."""
+
+    addr, target_ip = ibft_nic_config.pop(iface, (None, None))
+    if target_ip:
+        util.runCmd2(['ip', 'route', 'del', target_ip, 'dev', iface])
+    if addr:
+        util.runCmd2(['ip', 'addr', 'del', addr, 'dev', iface])
 
 
 # Set up the NICs according to the iBFT. It should be possible to use
@@ -774,11 +837,12 @@ def write_iscsi_records(mounts, primary_disk):
         raise Exception('Invalid iSCSI record')
 
 
-def process_ibft(ui, interactive):
-    """Process the iBFT.
+def restart_iscsid():
+    """Start iscsid, stopping any daemon which is already running.
 
-    Bring up any disks that the iBFT says should be attached, and reserve the
-    NICs that it says should be used for iSCSI.
+    iscsid adopts the sessions it finds in sysfs as it starts, and only then,
+    so which side of a login it starts on decides whether it can ever manage
+    that session.
     """
 
     util.runCmd2([ '/sbin/iscsiadm', '-k', '0'])
@@ -786,16 +850,27 @@ def process_ibft(ui, interactive):
     if rv:
         raise RuntimeError('Failed to start iscsid')
 
+
+def probe_ibft():
+    """Look for iSCSI targets described by the iBFT.
+
+    Returns (number of targets, set of NIC names) or None if the iBFT holds
+    nothing usable.  Starts iscsid as a side effect, so it should only be
+    called once.
+    """
+
+    restart_iscsid()
+
     nics = set()
     targets = 0
     rv, out = util.runCmd2(['iscsistart', '-f'], with_stdout=True)
     if rv:
-        logger.log("process_ibft: No valid iBFT found.")
+        logger.log("probe_ibft: No valid iBFT found.")
 
         # Dump iBFT state for debugging
         dump_ibft()
 
-        return
+        return None
     for line in out.split('\n'):
         m = re.match('iface.net_ifacename = (.*)$', line.strip())
         if m:
@@ -806,25 +881,40 @@ def process_ibft(ui, interactive):
 
     # Do nothing if the iBFT contains no valid targets
     if targets == 0:
-        logger.log("process_ibft: No valid target configs found in iBFT")
-        return
+        logger.log("probe_ibft: No valid target configs found in iBFT")
+        return None
 
-    # If interactive, ask user if he wants to proceed
-    if ui and interactive:
-        msg = \
-            "Found iSCSI Boot Firmware Table\n\nAttach to disks specified in iBFT?\n\n" \
-            "This will reserve %s for iSCSI disk access.  Reserved NICs are not available " \
-            "for use as the management interface or for use by virtual machines."  % " and ".join(sorted(nics))
-        button = ButtonChoiceWindowEx(ui.screen, "Attach iSCSI disks" , msg, ['Yes', 'No'], width=60)
-        if button == 'no':
-            return
+    return targets, nics
+
+
+def ibft_prompt_text(nics):
+    return "Found iSCSI Boot Firmware Table\n\nAttach to disks specified in iBFT?\n\n" \
+           "This will reserve %s for iSCSI disk access.  Reserved NICs are not available " \
+           "for use as the management interface or for use by virtual machines." \
+           % " and ".join(sorted(nics))
+
+
+def attach_ibft_disks():
+    """Bring up the disks the iBFT describes and reserve the NICs it uses.
+
+    Must be called after any driver change: setup_ibft_nics() matches the iBFT
+    by MAC against the interfaces which exist right now.
+    """
 
     setup_ibft_nics()
+
+    wait_for_links(ibft_reserved_nics)
 
     # Attach disks
     rv = util.runCmd2(['iscsistart', '-b'])
     if rv:
         raise RuntimeError('Failed to attach iSCSI target disk(s)')
+
+    # iscsistart logs in without telling any daemon, so the iscsid started by
+    # probe_ibft() has no record of this session: the logout fails with
+    # "session not found" while the session stays up, and the next attach is
+    # refused with "session exists".  Restarting makes iscsid adopt it.
+    restart_iscsid()
 
     util.runCmd2(util.udevsettleCmd())
     time.sleep(5)
@@ -838,15 +928,63 @@ def process_ibft(ui, interactive):
         if m:
             iscsi_disks.append('/dev/' + m.group(1))
 
-    logger.log('process_ibft: iSCSI Disks: %s' % (str(iscsi_disks),))
-    logger.log('process_ibft: Reserved NICs: %s' % (str(list(ibft_reserved_nics)),))
+    logger.log('attach_ibft_disks: iSCSI Disks: %s' % (str(iscsi_disks),))
+    logger.log('attach_ibft_disks: Reserved NICs: %s' % (str(list(ibft_reserved_nics)),))
+
+
+def process_ibft(ui, interactive):
+    """Process the iBFT.
+
+    Bring up any disks that the iBFT says should be attached, and reserve the
+    NICs that it says should be used for iSCSI.
+    """
+
+    probed = probe_ibft()
+    if not probed:
+        return
+    _, nics = probed
+
+    # If interactive, ask user if he wants to proceed
+    if ui and interactive:
+        button = ButtonChoiceWindowEx(ui.screen, "Attach iSCSI disks",
+                                      ibft_prompt_text(nics), ['Yes', 'No'], width=60)
+        if button == 'no':
+            return
+
+    attach_ibft_disks()
+
+
+def logout_ibft_disks():
+    """Undo attach_ibft_disks(), leaving iscsid running.
+
+    Every step has to tolerate the state not being there: this is also the
+    recovery path for an attach which failed part of the way through.
+    """
+
+    if util.pidof('iscsid'):
+        rv = util.runCmd2([ '/sbin/iscsiadm', '-m', 'session', '-u'])
+        if rv:
+            # Usually just "no matching sessions", which is fine here; anything
+            # else leaves a session up that the next attach is refused over.
+            logger.log('logout_ibft_disks: iscsiadm -m session -u failed (%d)' % rv)
+
+    for iface in list(ibft_nic_config):
+        unconfigure_ibft_nic(iface)
+
+    del iscsi_disks[:]
+    ibft_reserved_nics.clear()
 
 
 def release_ibft_disks():
+    """Log out of the iSCSI disks and stop iscsid.
+
+    Only for the end of the installation: nothing can be re-attached
+    afterwards without starting iscsid again.
+    """
+
+    logout_ibft_disks()
     if util.pidof('iscsid'):
-        util.runCmd2([ '/sbin/iscsiadm', '-m', 'session', '-u'])
         util.runCmd2([ '/sbin/iscsiadm', '-k', '0'])
-        iscsi_disks = []
 
 
 def is_raid(disk):
