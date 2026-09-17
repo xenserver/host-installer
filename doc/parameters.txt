@@ -192,11 +192,6 @@ Installer
     Default: if-multiple
 
 
-  --use_ibft
-
-    Read IBFT to determine iSCSI boot configuration.
-
-
   --boot_console=con
 
     Use con as the console for XenServer rather than that specified by

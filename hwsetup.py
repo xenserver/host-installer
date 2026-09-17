@@ -490,7 +490,7 @@ def attach_storage_and_scan(answers):
     return RIGHT_FORWARDS if did_work else SKIP_SCREEN
 
 
-def bring_up_hardware(ui, mpath_config, attach_ibft, net_device, net_config):
+def bring_up_hardware(ui, mpath_config, net_device, net_config):
     """Non-interactive bring-up, for the answerfile paths.
 
     Interactively this happens from the main sequence instead, after the driver
@@ -501,7 +501,9 @@ def bring_up_hardware(ui, mpath_config, attach_ibft, net_device, net_config):
     ui may be None -- that is the --rt_answerfile path.
     """
 
-    if attach_ibft and try_probe_ibft():
+    # Nobody to ask here, so the firmware's own boot-selected bit decides.
+    # Checking it first also keeps iscsid off a host with a merely stale table.
+    if diskutil.ibft_boot_selected() and try_probe_ibft():
         diskutil.attach_ibft_disks()
 
     # ensure partitions/disks are not locked by LVM

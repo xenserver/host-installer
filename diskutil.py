@@ -18,6 +18,7 @@ import time
 use_mpath = False
 CDROM_GET_CAPABILITY = 0x5331
 IBFT_BLOCK_VALID_FLAG = 1 << 0
+IBFT_BLOCK_BOOT_SELECTED_FLAG = 1 << 1
 
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
@@ -844,6 +845,34 @@ def ibft_present():
     """
 
     return len(glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*'))) > 0
+
+
+def ibft_boot_selected():
+    """Return True if the firmware booted, or meant to boot, from the iBFT.
+
+    Each target block carries a "firmware boot selected" bit beside its valid
+    bit.  A host set up for iSCSI boot once but now booting locally keeps the
+    block and its valid bit and clears this one, so it is the only thing in
+    the table separating "this host's boot path" from "was, at some point".
+
+    Only needed where there is nobody to ask; interactively ibft_prompt_screen
+    asks the user instead.
+    """
+
+    wanted = IBFT_BLOCK_VALID_FLAG | IBFT_BLOCK_BOOT_SELECTED_FLAG
+
+    for t in sorted(glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*'))):
+        try:
+            with open(os.path.join(t, 'flags'), 'r') as f:
+                flags = int(f.read().strip())
+        except (EnvironmentError, ValueError) as e:
+            logger.log("ibft_boot_selected: cannot read the flags of %s: %s" % (t, e))
+            continue
+
+        if (flags & wanted) == wanted:
+            return True
+
+    return False
 
 
 def restart_iscsid():

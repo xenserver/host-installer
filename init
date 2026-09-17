@@ -52,7 +52,6 @@ def main(args):
     answerfile_address = None
     answerfile_script = None
     mpath = MultipathConfig.IF_MULTIPLE
-    use_ibft = False
     netdev_map = []
 
     try:
@@ -96,8 +95,6 @@ def main(args):
                 mpath = MultipathConfig.IF_MULTIPLE
             elif val.lower() in [ "enabled", "true", "1", "yes", "force"]:
                 mpath = MultipathConfig.ENABLED
-        elif opt == "--use_ibft":
-            use_ibft = True
         elif opt == "--map_netdev":
             netdev_map = val
 
@@ -145,7 +142,7 @@ def main(args):
     # can fetch a remote answerfile, so it still does it here.
     if not interactive:
         try:
-            hwsetup.bring_up_hardware(ui, mpath, use_ibft,
+            hwsetup.bring_up_hardware(ui, mpath,
                                       answer_device if init_network else None,
                                       answer_config)
         except Exception as e:
