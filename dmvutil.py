@@ -302,12 +302,26 @@ class DriverMultiVersionData:
         return chooseDefaultDriverVariants(drivers)
 
     def selectSingleDriverVariant(self, driver_name, variant_name):
+        try:
+            active_variant = json.loads(getDMVList())["drivers"][driver_name]["active"]
+        except (JSONDecodeError, KeyError, TypeError):
+            logger.log("Unable to determine active variant for driver %s; leaving it loaded." % driver_name)
+            return False
+
         cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
         rc, out = util.runCmd2(cmdparams, with_stdout=True)
         if rc != 0:
             return False
 
-        util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+        # Reloading a driver already running the requested variant would drop
+        # the networking and storage built on its devices for nothing.
+        if active_variant == variant_name:
+            logger.log("Variant %s for driver %s is already active; skipping reload." % (variant_name, driver_name))
+            return True
+
+        rc, out = util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+        if rc != 0:
+            return False
 
         rc, out = util.runCmd2(['modprobe', driver_name], with_stdout=True)
         if rc != 0:
