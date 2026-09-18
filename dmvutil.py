@@ -358,6 +358,17 @@ def getDMVData():
     logger.log(devlist)
     return DriverMultiVersionData(dmvlist, devlist)
 
+_dmv_data = None
+
+def getCachedDMVData():
+    """Return this boot's driver data, read on first use."""
+    global _dmv_data
+
+    if _dmv_data is None:
+        _dmv_data = getDMVData()
+        logDriverVariants(_dmv_data.getDriversData())
+    return _dmv_data
+
 def logDriverVariants(drivers):
     for d in drivers:
         logger.log("driver: %s" % d.getHumanDriverLabel())
