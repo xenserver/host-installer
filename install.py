@@ -14,6 +14,7 @@ import tui.installer.screens
 import tui.progress
 import util
 import answerfile
+import hwsetup
 import uicontroller
 import constants
 
@@ -135,6 +136,14 @@ def go(ui, args, answerfile_address, answerfile_script):
         elif opt == "--lldp_block_driver":
             results['lldp-block-drivers'] += [d.strip() for d in val if d and d.strip()]
             logger.log("LLDP block drivers specified on command-line: %s" % results['lldp-block-drivers'])
+        # Hardware 'init' used to bring up before calling us; interactively
+        # hwsetup.attach_storage_and_scan() now does it, from these answers.
+        elif opt == "--device_mapper_multipath":
+            results['multipath-config'] = hwsetup.parse_multipath_config(val)
+        elif opt in ['--answerfile_device', '--network_device']:
+            results['network-device'] = val.lower()
+        elif opt == '--network_config':
+            results['network-config'] = val.lower()
 
     if boot_console and not serial_console:
         serial_console = boot_console

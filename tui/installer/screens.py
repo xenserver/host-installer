@@ -2,7 +2,6 @@
 
 import datetime
 import os.path
-import time
 import functools
 
 import generalui
@@ -16,7 +15,6 @@ import snackutil
 import util
 import socket
 import product
-import upgrade
 import netutil
 import dmvutil
 
@@ -24,7 +22,6 @@ from snack import *
 
 import tui
 import tui.network
-import tui.progress
 import driver
 
 from netinterface import NetInterface
@@ -56,6 +53,10 @@ def welcome_screen(answers):
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
+        # A new driver can bring new disks and NICs, so the scan and the iBFT
+        # probe are both stale.  Only those -- nothing attached is disturbed.
+        answers.pop('system-scanned', None)
+        answers.pop('ibft-targets', None)
         return True
 
     global loop
@@ -68,7 +69,10 @@ def welcome_screen(answers):
 
     while loop:
         loop = False
-        driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
+        # For the F9 sub-sequence only, which has no other source for it.
+        # answers['network-hardware'] is scanned later, by
+        # hwsetup.attach_storage_and_scan(), once the iSCSI NICs are reserved.
+        driver_answers['network-hardware'] = netutil.scanConfiguration()
         welcome_text = """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
 
 Please make sure you have backed up any data you wish to preserve before proceeding.
@@ -94,41 +98,28 @@ Please make sure you have backed up any data you wish to preserve before proceed
     if button == 'reboot':
         return EXIT
 
-    logger.log("Waiting for partitions to appear...")
-    util.runCmd2(util.udevsettleCmd())
-    time.sleep(1)
-    diskutil.mpath_part_scan()
+    # Scanning for disks, products and NICs now happens further down the
+    # sequence, in hwsetup.attach_storage_and_scan(), after the driver
+    # selection.
+    return RIGHT_FORWARDS
 
-    # ensure partitions/disks are not locked by LVM
-    lvm = LVMTool()
-    lvm.deactivateAll()
-    del lvm
+def ibft_prompt_screen(answers):
+    _, nics = answers['ibft-targets']
 
-    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-    answers['installed-products'] = product.find_installed_products()
-    answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
-    answers['backups'] = product.findXenSourceBackups()
-    tui.progress.clearModelessDialog()
+    text = """Found iSCSI Boot Firmware Table
 
-    diskutil.log_available_disks()
+Attach to disks specified in iBFT?
 
-    # CA-41142, ensure we have at least one network interface and one disk before proceeding
-    label = None
-    if len(diskutil.getDiskList()) == 0:
-        label = "No Disks"
-        text = "hard disks"
-        text_short = "disks"
-    if len(answers['network-hardware'].keys()) == 0:
-        label = "No Network Interfaces"
-        text = "network interfaces"
-        text_short = "interfaces"
-    if label:
-        text = """This host does not appear to have any %s.
+This will reserve %s for iSCSI disk access.  Reserved NICs are not available for use as the management interface or for use by virtual machines.""" % " and ".join(sorted(nics))
 
-If %s are present you may need to load a device driver on the previous screen for them to be detected.""" % (text, text_short)
-        ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
-        return REPEAT_STEP
+    button = snackutil.ButtonChoiceWindowEx(tui.screen, "Attach iSCSI disks", text,
+                                            ['Yes', 'No', 'Back'], width=60,
+                                            default=0 if answers.get('attach-ibft', True) else 1)
 
+    # Leave 'attach-ibft' alone on the way back: the user has not answered.
+    if button is None or button == 'back': return LEFT_BACKWARDS
+
+    answers['attach-ibft'] = (button == 'yes')
     return RIGHT_FORWARDS
 
 def hardware_warnings(answers, ram_warning, vt_warning):
@@ -606,20 +597,8 @@ def confirm_dmv_selection(answers):
 
             if button is None or button == 'back': return LEFT_BACKWARDS
 
-            for drvname, oemtype in choices:
-                logger.log("select and enable variant %s for driver %s." % (oemtype, drvname))
-            failures = dmv_data_provider.applyDriverVariants(choices)
-            if len(failures) == 0:
-                logger.log("succeed to select and enable all driver variants.")
-            else:
-                for driver_name, variant_name in failures:
-                    logger.log("fail to select or enable variant %s for driver %s." % (variant_name, driver_name))
-                ButtonChoiceWindow(
-                        tui.screen,
-                        "Problem Loading Driver Variant",
-                        "Setup was unable to activate driver variant.",
-                        ['Ok']
-                        )
+            # hwsetup.apply_drivers(), the next step, applies them.  Doing it
+            # here would reload the drivers before their storage came down.
             return RIGHT_FORWARDS
         else:
             title = "Error"
