@@ -14,7 +14,6 @@ from util import dev_null
 import xcp.logger as logger
 from disktools import *
 import time
-from snackutil import ButtonChoiceWindowEx
 
 use_mpath = False
 CDROM_GET_CAPABILITY = 0x5331
@@ -837,6 +836,16 @@ def write_iscsi_records(mounts, primary_disk):
         raise Exception('Invalid iSCSI record')
 
 
+def ibft_present():
+    """Return True if the firmware published an iBFT with at least one target.
+
+    Cheap enough to call unconditionally, unlike probe_ibft() which starts
+    iscsid.
+    """
+
+    return len(glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*'))) > 0
+
+
 def restart_iscsid():
     """Start iscsid, stopping any daemon which is already running.
 
@@ -856,7 +865,7 @@ def probe_ibft():
 
     Returns (number of targets, set of NIC names) or None if the iBFT holds
     nothing usable.  Starts iscsid as a side effect, so it should only be
-    called once.
+    called once and only when ibft_present() says there is something to find.
     """
 
     restart_iscsid()
@@ -885,13 +894,6 @@ def probe_ibft():
         return None
 
     return targets, nics
-
-
-def ibft_prompt_text(nics):
-    return "Found iSCSI Boot Firmware Table\n\nAttach to disks specified in iBFT?\n\n" \
-           "This will reserve %s for iSCSI disk access.  Reserved NICs are not available " \
-           "for use as the management interface or for use by virtual machines." \
-           % " and ".join(sorted(nics))
 
 
 def attach_ibft_disks():
@@ -930,28 +932,6 @@ def attach_ibft_disks():
 
     logger.log('attach_ibft_disks: iSCSI Disks: %s' % (str(iscsi_disks),))
     logger.log('attach_ibft_disks: Reserved NICs: %s' % (str(list(ibft_reserved_nics)),))
-
-
-def process_ibft(ui, interactive):
-    """Process the iBFT.
-
-    Bring up any disks that the iBFT says should be attached, and reserve the
-    NICs that it says should be used for iSCSI.
-    """
-
-    probed = probe_ibft()
-    if not probed:
-        return
-    _, nics = probed
-
-    # If interactive, ask user if he wants to proceed
-    if ui and interactive:
-        button = ButtonChoiceWindowEx(ui.screen, "Attach iSCSI disks",
-                                      ibft_prompt_text(nics), ['Yes', 'No'], width=60)
-        if button == 'no':
-            return
-
-    attach_ibft_disks()
 
 
 def logout_ibft_disks():
