@@ -29,8 +29,6 @@ import driver
 
 from netinterface import NetInterface
 
-dmv_data_provider = None
-
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
 def selectDefault(key, entries):
@@ -447,11 +445,9 @@ The backup will be placed on the backup partition of the destination disk (%s), 
     return RIGHT_FORWARDS
 
 def dmv_more_info(context):
-    global dmv_data_provider
-
     if not context: return True
 
-    itemtype, item = dmv_data_provider.queryDriversOrVariant(context)
+    itemtype, item = dmvutil.getCachedDMVData().queryDriversOrVariant(context)
     if itemtype == "variants" or itemtype == "unknown":
         return True
 
@@ -481,9 +477,7 @@ def dmv_more_info(context):
     return True
 
 def dmv_check_selection(answers):
-    global dmv_data_provider
-
-    hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+    hw_present_drivers = dmvutil.getCachedDMVData().getHardwarePresentDrivers()
     labels = list(map(lambda x:x.drvname, hw_present_drivers))
 
     choices = answers['selected-multiversion-drivers']
@@ -497,17 +491,10 @@ def dmv_check_selection(answers):
 
 # driver multi version screen:
 def dmv_screen(answers):
-    global dmv_data_provider
-
-    drivers = []
-    hw_present_drivers = []
     if "selected-multiversion-drivers" not in answers:
         answers['selected-multiversion-drivers'] = []
 
-    if not dmv_data_provider:
-        dmv_data_provider = dmvutil.getDMVData()
-        drivers = dmv_data_provider.getDriversData()
-        dmvutil.logDriverVariants(drivers)
+    dmv_data_provider = dmvutil.getCachedDMVData()
 
     # skip the ui rendering
     hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
@@ -588,7 +575,7 @@ def dmv_screen(answers):
     return RIGHT_FORWARDS
 
 def confirm_dmv_selection(answers):
-    global dmv_data_provider
+    dmv_data_provider = dmvutil.getCachedDMVData()
 
     variants = []
     choices = answers['selected-multiversion-drivers']
