@@ -132,14 +132,12 @@ def main(args):
     # Generate interface order rules, which will be saved later
     netutil.generate_interface_rules(netdev_map)
 
+    # The management interface screen shows each NIC's link state.
     if ui:
         netutil.setAllLinksUp()
 
-    # The interactive installer brings its own hardware up from the main
-    # sequence, after the driver variants are chosen -- applying one reloads
-    # the driver and destroys the devices this set up.  The non-interactive
-    # path applies no variant, and needs the network up before install.go()
-    # can fetch a remote answerfile, so it still does it here.
+    # Interactive installs bring the hardware up later, after the driver
+    # selection (see hwsetup).
     if not interactive:
         try:
             hwsetup.bring_up_hardware(ui, mpath,
@@ -163,8 +161,7 @@ def main(args):
     if mpath != MultipathConfig.DISABLED:
         diskutil.mpath_disable()
 
-    # Log out of any iSCSI disks.  Unconditional: the installer now decides for
-    # itself whether to attach them, and this is a no-op if it never did.
+    # Log out of any iSCSI disks
     diskutil.release_ibft_disks()
 
     # stop logging to tty3:

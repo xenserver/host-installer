@@ -141,8 +141,7 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.welcome_screen),
         Step(uis.dmv_screen),
         Step(uis.confirm_dmv_selection),
-        # Nothing touches the hardware before this point: applying a driver
-        # variant takes its devices -- disks and NICs alike -- away.
+        # Hardware setup starts here, after the driver selection.
         Step(hwsetup.apply_drivers),
         Step(uis.ibft_prompt_screen,
              predicates=[lambda a: bool(a.get('ibft-targets'))]),
