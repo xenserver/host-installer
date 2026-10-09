@@ -610,8 +610,7 @@ def probeDisk(device):
 iscsi_disks = []
 # Keep track of NICs reserved for iSCSI boot
 ibft_reserved_nics = set()
-# What configure_ibft_nic() added, so unconfigure_ibft_nic() can take it back
-# off again: iface -> (address/prefix, target address)
+# iface -> (address/prefix, target address) added by configure_ibft_nic()
 ibft_nic_config = {}
 
 
@@ -644,12 +643,7 @@ def is_iscsi(device):
 
 
 def set_link_up(iface):
-    """Bring a link up administratively, without waiting for carrier.
-
-    A freshly reloaded driver gives its interfaces back administratively down,
-    so this has to happen before anything can be configured on them.  Carrier
-    is waited for later, and all at once, in wait_for_links().
-    """
+    """Bring a link up administratively, without waiting for carrier."""
 
     rv = util.runCmd2(['ip', 'link', 'set', iface, 'up'])
     if rv:
@@ -657,14 +651,10 @@ def set_link_up(iface):
 
 
 def wait_for_links(ifaces, timeout=10):
-    """Wait for carrier on all of ifaces at once, rather than one at a time.
+    """Wait for carrier on all of ifaces at once.
 
-    Only the iSCSI login needs carrier; addresses and routes go onto a dark
-    link quite happily.
-
-    Carrier up means the link is ready, but carrier down does not mean it is
-    dead -- some NICs report none until the first packet -- so carry on when
-    the wait times out and let the login produce the diagnostic.
+    Gives up quietly on timeout: some NICs report no carrier until the first
+    packet, so the error is left to the iSCSI login.
     """
 
     waiting = set(ifaces)
@@ -685,14 +675,12 @@ def configure_ibft_nic(target_ip, iface, ip, nm, gw):
 
     set_link_up(iface)
 
-    # 'replace' rather than 'add': a retry after a partial attempt must not
-    # fail with EEXIST.
+    # 'replace', so that a retry does not fail with EEXIST.
     rv = util.runCmd2(['ip', 'addr', 'replace', addr, 'dev', iface])
     if rv:
         raise RuntimeError('Failed to initialize NIC for iSCSI')
 
-    # Recorded before the route is attempted: if that fails, the address still
-    # has to come back off.
+    # Record the address first, so it is removed even if the route fails.
     ibft_nic_config[iface] = (addr, None)
 
     if netutil.network(ip, nm) == netutil.network(target_ip, nm):
@@ -838,26 +826,13 @@ def write_iscsi_records(mounts, primary_disk):
 
 
 def ibft_present():
-    """Return True if the firmware published an iBFT with at least one target.
-
-    Cheap enough to call unconditionally, unlike probe_ibft() which starts
-    iscsid.
-    """
+    """Return True if the firmware published an iBFT with any targets."""
 
     return len(glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*'))) > 0
 
 
 def ibft_boot_selected():
-    """Return True if the firmware booted, or meant to boot, from the iBFT.
-
-    Each target block carries a "firmware boot selected" bit beside its valid
-    bit.  A host set up for iSCSI boot once but now booting locally keeps the
-    block and its valid bit and clears this one, so it is the only thing in
-    the table separating "this host's boot path" from "was, at some point".
-
-    Only needed where there is nobody to ask; interactively ibft_prompt_screen
-    asks the user instead.
-    """
+    """Return True if a valid iBFT target has the "boot selected" flag set."""
 
     wanted = IBFT_BLOCK_VALID_FLAG | IBFT_BLOCK_BOOT_SELECTED_FLAG
 
@@ -876,12 +851,7 @@ def ibft_boot_selected():
 
 
 def restart_iscsid():
-    """Start iscsid, stopping any daemon which is already running.
-
-    iscsid adopts the sessions it finds in sysfs as it starts, and only then,
-    so which side of a login it starts on decides whether it can ever manage
-    that session.
-    """
+    """Restart iscsid.  It adopts existing sessions only when it starts."""
 
     util.runCmd2([ '/sbin/iscsiadm', '-k', '0'])
     rv = util.runCmd2(['iscsid'])
@@ -892,9 +862,8 @@ def restart_iscsid():
 def probe_ibft():
     """Look for iSCSI targets described by the iBFT.
 
-    Returns (number of targets, set of NIC names) or None if the iBFT holds
-    nothing usable.  Starts iscsid as a side effect, so it should only be
-    called once and only when ibft_present() says there is something to find.
+    Returns (number of targets, set of NIC names), or None if there are none.
+    Starts iscsid.
     """
 
     restart_iscsid()
@@ -926,10 +895,10 @@ def probe_ibft():
 
 
 def attach_ibft_disks():
-    """Bring up the disks the iBFT describes and reserve the NICs it uses.
+    """Attach the disks the iBFT describes and reserve the NICs it uses.
 
-    Must be called after any driver change: setup_ibft_nics() matches the iBFT
-    by MAC against the interfaces which exist right now.
+    Call after any driver change: the NICs are matched by MAC to the current
+    interfaces.
     """
 
     setup_ibft_nics()
@@ -941,10 +910,8 @@ def attach_ibft_disks():
     if rv:
         raise RuntimeError('Failed to attach iSCSI target disk(s)')
 
-    # iscsistart logs in without telling any daemon, so the iscsid started by
-    # probe_ibft() has no record of this session: the logout fails with
-    # "session not found" while the session stays up, and the next attach is
-    # refused with "session exists".  Restarting makes iscsid adopt it.
+    # iscsistart does not register the session with iscsid, so restart iscsid
+    # to adopt it; otherwise the logout fails and the session stays up.
     restart_iscsid()
 
     util.runCmd2(util.udevsettleCmd())
@@ -966,15 +933,13 @@ def attach_ibft_disks():
 def logout_ibft_disks():
     """Undo attach_ibft_disks(), leaving iscsid running.
 
-    Every step has to tolerate the state not being there: this is also the
-    recovery path for an attach which failed part of the way through.
+    Tolerates a partial attach.
     """
 
     if util.pidof('iscsid'):
         rv = util.runCmd2([ '/sbin/iscsiadm', '-m', 'session', '-u'])
         if rv:
-            # Usually just "no matching sessions", which is fine here; anything
-            # else leaves a session up that the next attach is refused over.
+            # Usually "no matching sessions", which is harmless.
             logger.log('logout_ibft_disks: iscsiadm -m session -u failed (%d)' % rv)
 
     for iface in list(ibft_nic_config):
@@ -987,8 +952,7 @@ def logout_ibft_disks():
 def release_ibft_disks():
     """Log out of the iSCSI disks and stop iscsid.
 
-    Only for the end of the installation: nothing can be re-attached
-    afterwards without starting iscsid again.
+    For the end of the installation.
     """
 
     logout_ibft_disks()
