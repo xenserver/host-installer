@@ -53,6 +53,7 @@ def welcome_screen(answers):
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
+            dmvutil.invalidateCachedDMVData()
         # A new driver can bring new disks and NICs, so the scan and the iBFT
         # probe are both stale.  Only those -- nothing attached is disturbed.
         answers.pop('system-scanned', None)

@@ -302,20 +302,23 @@ class DriverMultiVersionData:
         return chooseDefaultDriverVariants(drivers)
 
     def selectSingleDriverVariant(self, driver_name, variant_name):
-        try:
-            active_variant = json.loads(getDMVList())["drivers"][driver_name]["active"]
-        except (JSONDecodeError, KeyError, TypeError):
-            logger.log("Unable to determine active variant for driver %s; leaving it loaded." % driver_name)
+        # The hardware-present list holds copies, which the screens display.
+        drivers = [d for d in self.drivers + self.hw_present_drivers
+                   if d.drvname == driver_name]
+        if not drivers:
+            logger.log("Unknown driver %s; leaving it loaded." % driver_name)
             return False
 
         cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
         rc, out = util.runCmd2(cmdparams, with_stdout=True)
         if rc != 0:
             return False
+        for d in drivers:
+            d.selected = variant_name
 
         # Reloading a driver already running the requested variant would drop
         # the networking and storage built on its devices for nothing.
-        if active_variant == variant_name:
+        if drivers[0].active == variant_name:
             logger.log("Variant %s for driver %s is already active; skipping reload." % (variant_name, driver_name))
             return True
 
@@ -323,9 +326,13 @@ class DriverMultiVersionData:
         if rc != 0:
             return False
 
+        for d in drivers:
+            d.active = None
         rc, out = util.runCmd2(['modprobe', driver_name], with_stdout=True)
         if rc != 0:
             return False
+        for d in drivers:
+            d.active = variant_name
         return True
 
     def applyDriverVariants(self, choices):
@@ -368,6 +375,12 @@ def getCachedDMVData():
         _dmv_data = getDMVData()
         logDriverVariants(_dmv_data.getDriversData())
     return _dmv_data
+
+def invalidateCachedDMVData():
+    """Make the next getCachedDMVData() read the driver data again."""
+    global _dmv_data
+
+    _dmv_data = None
 
 def logDriverVariants(drivers):
     for d in drivers:
