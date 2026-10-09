@@ -54,8 +54,7 @@ def welcome_screen(answers):
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
             dmvutil.invalidateCachedDMVData()
-        # A new driver can bring new disks and NICs, so the scan and the iBFT
-        # probe are both stale.  Only those -- nothing attached is disturbed.
+        # New drivers can add disks and NICs: rescan and re-probe.
         answers.pop('system-scanned', None)
         answers.pop('ibft-targets', None)
         return True
@@ -70,9 +69,8 @@ def welcome_screen(answers):
 
     while loop:
         loop = False
-        # For the F9 sub-sequence only, which has no other source for it.
-        # answers['network-hardware'] is scanned later, by
-        # hwsetup.attach_storage_and_scan(), once the iSCSI NICs are reserved.
+        # For the F9 sub-sequence; answers['network-hardware'] is scanned by
+        # hwsetup.attach_storage_and_scan().
         driver_answers['network-hardware'] = netutil.scanConfiguration()
         welcome_text = """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
 
@@ -99,9 +97,6 @@ Please make sure you have backed up any data you wish to preserve before proceed
     if button == 'reboot':
         return EXIT
 
-    # Scanning for disks, products and NICs now happens further down the
-    # sequence, in hwsetup.attach_storage_and_scan(), after the driver
-    # selection.
     return RIGHT_FORWARDS
 
 def ibft_prompt_screen(answers):
@@ -113,8 +108,7 @@ Attach to disks specified in iBFT?
 
 This will reserve %s for iSCSI disk access.  Reserved NICs are not available for use as the management interface or for use by virtual machines.""" % " and ".join(sorted(nics))
 
-    # Only the firmware knows whether this host was meant to boot from the
-    # iBFT, so a table left over from an earlier install does not offer Yes.
+    # Unless already answered, default to the firmware's boot-selected flag.
     default = answers.get('attach-ibft', diskutil.ibft_boot_selected())
 
     button = snackutil.ButtonChoiceWindowEx(tui.screen, "Attach iSCSI disks", text,
@@ -602,8 +596,7 @@ def confirm_dmv_selection(answers):
 
             if button is None or button == 'back': return LEFT_BACKWARDS
 
-            # hwsetup.apply_drivers(), the next step, applies them.  Doing it
-            # here would reload the drivers before their storage came down.
+            # Applied by hwsetup.apply_drivers(), the next step.
             return RIGHT_FORWARDS
         else:
             title = "Error"

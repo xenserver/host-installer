@@ -316,8 +316,7 @@ class DriverMultiVersionData:
         for d in drivers:
             d.selected = variant_name
 
-        # Reloading a driver already running the requested variant would drop
-        # the networking and storage built on its devices for nothing.
+        # Reloading would tear down the devices for nothing.
         if drivers[0].active == variant_name:
             logger.log("Variant %s for driver %s is already active; skipping reload." % (variant_name, driver_name))
             return True

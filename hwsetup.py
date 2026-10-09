@@ -1,15 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
-"""Bringing the host's hardware up, and keeping it in step with the answers.
+"""Hardware bring-up for the installer.
 
-Disk and network setup has to happen after the driver variants are chosen:
-applying a variant reloads the driver and destroys every device it drives,
-including the NIC carrying a live iSCSI boot session.
-
-The screens can be walked backwards and uicontroller has no rollback, so the
-two sequence steps here -- apply_drivers() and attach_storage_and_scan() --
-are reconcilers: each diffs desired_hw_state(answers) against
-answers['hw-applied'] and does only the difference.
+Disk and network setup runs after the driver variants are chosen, because
+applying a variant reloads the driver.  The screens can be walked backwards,
+so the sequence steps here compare desired_hw_state(answers) with
+answers['hw-applied'] and apply only the difference.
 """
 
 import time
@@ -126,15 +122,10 @@ def initial_hw_state():
 
 
 def teardown_storage(answers):
-    """Detach whatever a previous pass through the sequence attached.
+    """Detach whatever a previous pass attached.  Tolerates partial state.
 
-    Multipath has to come down before the iSCSI logout, or the /dev/sdX under
-    the maps vanish first: destroyMpathPartnodes() then abandons the rest on
-    the first device it cannot remove, and the leftovers trip one of
-    mpath_enable()'s asserts on the way back in.
-
-    Every step tolerates its state not being there -- this also runs after a
-    pass which died half way through, and after one which never started.
+    Multipath has to come down before the iSCSI logout, or mpath_enable()
+    trips over leftover maps on the next pass.
     """
 
     applied = answers.get('hw-applied')
@@ -145,7 +136,7 @@ def teardown_storage(answers):
         diskutil.mpath_disable()
         applied['mpath'] = MultipathConfig.DISABLED
 
-    # Deliberately leaves iscsid running, so the disks can be attached again.
+    # Leaves iscsid running, ready for the next attach.
     diskutil.logout_ibft_disks()
     applied['ibft'] = False
 
@@ -153,10 +144,9 @@ def teardown_storage(answers):
 
 
 def _find_after_rescan(previous, candidates, disk_of):
-    """Find `previous` in a freshly scanned list of installations or backups.
+    """Return the entry in candidates on the same disk as previous, or None.
 
-    Every scan builds new objects and they do not compare equal, so match on
-    the disk the installation or backup lives on.  Returns None if it is gone.
+    Each scan builds new objects, which do not compare equal.
     """
 
     for candidate in candidates:
@@ -168,11 +158,8 @@ def _find_after_rescan(previous, candidates, disk_of):
 def prune_stale_answers(answers):
     """Drop answers which refer to hardware the latest scan no longer sees.
 
-    A rescan can shrink the world: a teardown detaches the iSCSI LUNs, a
-    variant change can lose a disk, answering No to the iBFT prompt on a second
-    pass removes every iSCSI disk.  The screens which would let the user choose
-    again are skipped when that happens, because their predicates read the very
-    answers which are now wrong -- so the answers have to be corrected here.
+    The screens which would let the user choose again are skipped while those
+    answers are set, so they have to be corrected here.
     """
 
     disks = diskutil.getQualifiedDiskList()
@@ -249,13 +236,10 @@ def _apply_driver_variants(choices):
 
 
 def _settle_devices(timeout=30):
-    """Wait for the devices a driver reload destroyed to come back.
+    """Wait for the interfaces to settle after a driver reload.
 
-    udevadm settle only waits for the events already queued, and a freshly
-    loaded driver probes asynchronously, so a rename can still be to come.
-    Reserving a NIC under its pre-reload name leaves
-    netutil.scanConfiguration()'s filter not matching it, silently offering
-    the iSCSI NIC for management.  So wait for the interface list to settle.
+    The driver probes asynchronously, so a rename can follow udevadm settle.
+    Reserving a NIC under its old name would offer it for management.
     """
 
     util.runCmd2(util.udevsettleCmd())
@@ -276,9 +260,7 @@ def _settle_devices(timeout=30):
 def try_probe_ibft(report_error=False):
     """diskutil.probe_ibft(), returning None instead of raising.
 
-    The ibft_present() check keeps iscsid out of the way on hosts with no iBFT:
-    diskutil.probe_ibft() starts it, and a broken iscsid would otherwise turn a
-    working local-disk install into a hard failure.
+    Hosts with no iBFT are skipped, so they never start iscsid.
     """
 
     if not diskutil.ibft_present():
@@ -288,8 +270,7 @@ def try_probe_ibft(report_error=False):
     try:
         return diskutil.probe_ibft()
     except Exception as e:
-        # Do not take a local-disk install down with the iSCSI stack, but do
-        # say so: a host with an iBFT was probably meant to boot from it.
+        # Do not fail a local-disk install over the iSCSI stack.
         logger.logException(e)
         if report_error:
             ButtonChoiceWindow(
@@ -304,50 +285,41 @@ def try_probe_ibft(report_error=False):
 
 
 def apply_drivers(answers):
-    """Sequence step: put the selected driver variants into the running kernel.
+    """Sequence step: load the selected driver variants.
 
-    This is the first step which touches the hardware, and it deliberately runs
-    before any disk or network setup: reloading a driver takes its devices away,
-    so nothing may be built on them yet.
+    Runs before any disk or network setup, because a reload removes the
+    driver's devices.
     """
 
     desired = desired_hw_state(answers)
     if 'hw-applied' not in answers:
-        # First pass: nothing has been applied yet.
         answers['hw-applied'] = initial_hw_state()
     applied = answers['hw-applied']
     did_work = False
 
     if applied['variants'] != desired['variants']:
-        # Whatever is running on these drivers' devices has to come down first.
         teardown_storage(answers)
 
         if not _apply_driver_variants(answers['selected-multiversion-drivers']):
-            # Some variants may have loaded and some not, so the applied state
-            # is unknown rather than unchanged.  None never compares equal, so
-            # the next pass re-applies the whole selection -- including a
-            # revert, which would otherwise be skipped over a half-changed host.
+            # Some variants may have loaded, so record the state as unknown:
+            # the next pass then re-applies the whole selection.
             applied['variants'] = None
             return LEFT_BACKWARDS
 
         applied['variants'] = desired['variants']
-        # The reload took the netdevs away, so any --network_device
-        # configuration has to go on again.
+        # The reload removed the netdevs, so --network_device must go on again.
         applied['netdev'] = None
         answers.pop('system-scanned', None)
-        # The NICs the iBFT names may have come back renamed, and a probe
-        # which failed on the old driver deserves another go.
+        # Probe again: the iBFT NICs may have been renamed.
         answers.pop('ibft-targets', None)
 
         _settle_devices()
-        # The reloaded netdevs came back down.  ibft_reserved_nics is still
-        # empty here, so this reaches the iSCSI NIC too.
+        # Reloaded netdevs come back down, iSCSI NICs included.
         netutil.setAllLinksUp()
         did_work = True
 
-    # Not on every traversal: the prompt's predicate is evaluated in both
-    # directions, and probing restarts iscsid.  Only when the key has been
-    # dropped, which is how new hardware asks for a fresh answer.
+    # Probe only when the key has been dropped: this runs on every traversal
+    # and probing restarts iscsid.
     if 'ibft-targets' not in answers:
         answers['ibft-targets'] = try_probe_ibft(report_error=True)
         if not answers['ibft-targets']:
@@ -359,11 +331,10 @@ def apply_drivers(answers):
 
 
 def _scan_system(answers):
-    """Work out what is on the disks and on the network.
+    """Scan the disks, installed products and NICs.
 
-    Runs after the storage is attached and the iSCSI NICs are reserved, so that
-    the iSCSI LUNs are in the disk list and the reserved NICs are not in the
-    interface list.
+    Runs after the attach, so the iSCSI LUNs are listed and the reserved NICs
+    are not.
     """
 
     logger.log("Waiting for partitions to appear...")
@@ -390,16 +361,13 @@ def _scan_system(answers):
 
 
 def _check_hardware_present(answers):
-    """CA-41142: there is no point in going on without a disk and a usable NIC.
-
-    Returns LEFT_BACKWARDS if the user has to go back and change something,
-    otherwise None.
-    """
+    """Return LEFT_BACKWARDS if there is no disk or no usable NIC."""
 
     hint = """
 
 If %s are present you may need to load a device driver, or select a different driver variant, on the previous screens for them to be detected."""
 
+    # CA-41142, ensure we have at least one network interface and one disk before proceeding
     if len(diskutil.getDiskList()) == 0:
         label = "No Disks"
         text = "This host does not appear to have any hard disks." + hint % "disks"
@@ -419,12 +387,7 @@ To install to a local disk instead, go back and decline the iBFT disks."""
 
 
 def attach_storage_and_scan(answers):
-    """Sequence step: attach the storage, bring the network up, scan the result.
-
-    Everything here needs the drivers that apply_drivers() loaded, and the scan
-    has to follow the attach so that the iSCSI LUNs are in the disk list and the
-    reserved NICs are out of the interface list.
-    """
+    """Sequence step: attach storage, set up networking, scan the result."""
 
     desired = desired_hw_state(answers)
     applied = answers['hw-applied']
@@ -439,10 +402,7 @@ def attach_storage_and_scan(answers):
             try:
                 diskutil.attach_ibft_disks()
             except Exception as e:
-                # The only step here that depends on another host answering,
-                # and it runs again on every traversal.  Going back puts the
-                # user in front of the screens which can change the outcome --
-                # decline the disks, or pick a different driver for the NIC.
+                # Going back lets the user decline the disks or change driver.
                 logger.logException(e)
                 teardown_storage(answers)
                 ButtonChoiceWindow(
@@ -468,9 +428,8 @@ def attach_storage_and_scan(answers):
         answers.pop('system-scanned', None)
         did_work = True
 
-    # --network_device, so the host is reachable while it installs.  Reads the
-    # filtered interface list, so it must follow the reservation -- and go on
-    # again whenever that has changed.
+    # --network_device reads the filtered interface list, so it has to go on
+    # again whenever the reservation changes.
     if desired['netdev'] and (storage_changed or
                               applied['netdev'] != desired['netdev']):
         configureNetworking(tui, desired['netdev'],
@@ -493,16 +452,10 @@ def attach_storage_and_scan(answers):
 def bring_up_hardware(ui, mpath_config, net_device, net_config):
     """Non-interactive bring-up, for the answerfile paths.
 
-    Interactively this happens from the main sequence instead, after the driver
-    variants are chosen.  No variant is applied live here, so that ordering does
-    not arise; the iSCSI NICs must still be reserved before
-    configureNetworking() looks at what is available.
-
-    ui may be None -- that is the --rt_answerfile path.
+    ui may be None (--rt_answerfile).
     """
 
-    # Nobody to ask here, so the firmware's own boot-selected bit decides.
-    # Checking it first also keeps iscsid off a host with a merely stale table.
+    # Nobody to ask, so attach only if the firmware booted from the iBFT.
     if diskutil.ibft_boot_selected() and try_probe_ibft():
         diskutil.attach_ibft_disks()
 
@@ -512,7 +465,7 @@ def bring_up_hardware(ui, mpath_config, net_device, net_config):
     lvm.deactivateAll()
     del lvm
 
-    # Ensure multipath devices are created unless the installer is being
+    # Ensure multipath devices are created unless installer is being
     # run with the "--device_mapper_multipath=disabled" option
     if mpath_config != MultipathConfig.DISABLED:
         diskutil.mpath_enable(mpath_config)
