@@ -2,7 +2,6 @@
 
 import datetime
 import os.path
-import time
 import functools
 
 import generalui
@@ -16,7 +15,6 @@ import snackutil
 import util
 import socket
 import product
-import upgrade
 import netutil
 import dmvutil
 
@@ -24,12 +22,9 @@ from snack import *
 
 import tui
 import tui.network
-import tui.progress
 import driver
 
 from netinterface import NetInterface
-
-dmv_data_provider = None
 
 MY_PRODUCT_BRAND = PRODUCT_BRAND or PLATFORM_NAME
 
@@ -58,6 +53,10 @@ def welcome_screen(answers):
         if drivers[0]:
             if 'extra-repos' not in answers: answers['extra-repos'] = []
             answers['extra-repos'].append(drivers)
+            dmvutil.invalidateCachedDMVData()
+        # New drivers can add disks and NICs: rescan and re-probe.
+        answers.pop('system-scanned', None)
+        answers.pop('ibft-targets', None)
         return True
 
     global loop
@@ -70,7 +69,9 @@ def welcome_screen(answers):
 
     while loop:
         loop = False
-        driver_answers['network-hardware'] = answers['network-hardware'] = netutil.scanConfiguration()
+        # For the F9 sub-sequence; answers['network-hardware'] is scanned by
+        # hwsetup.attach_storage_and_scan().
+        driver_answers['network-hardware'] = netutil.scanConfiguration()
         welcome_text = """This setup tool can be used to install or upgrade %s on your system or restore your server from backup.  Installing %s will erase all data on the disks selected for use.
 
 Please make sure you have backed up any data you wish to preserve before proceeding.
@@ -96,41 +97,28 @@ Please make sure you have backed up any data you wish to preserve before proceed
     if button == 'reboot':
         return EXIT
 
-    logger.log("Waiting for partitions to appear...")
-    util.runCmd2(util.udevsettleCmd())
-    time.sleep(1)
-    diskutil.mpath_part_scan()
+    return RIGHT_FORWARDS
 
-    # ensure partitions/disks are not locked by LVM
-    lvm = LVMTool()
-    lvm.deactivateAll()
-    del lvm
+def ibft_prompt_screen(answers):
+    _, nics = answers['ibft-targets']
 
-    tui.progress.showMessageDialog("Please wait", "Checking for existing products...")
-    answers['installed-products'] = product.find_installed_products()
-    answers['upgradeable-products'] = upgrade.filter_for_upgradeable_products(answers['installed-products'])
-    answers['backups'] = product.findXenSourceBackups()
-    tui.progress.clearModelessDialog()
+    text = """Found iSCSI Boot Firmware Table
 
-    diskutil.log_available_disks()
+Attach to disks specified in iBFT?
 
-    # CA-41142, ensure we have at least one network interface and one disk before proceeding
-    label = None
-    if len(diskutil.getDiskList()) == 0:
-        label = "No Disks"
-        text = "hard disks"
-        text_short = "disks"
-    if len(answers['network-hardware'].keys()) == 0:
-        label = "No Network Interfaces"
-        text = "network interfaces"
-        text_short = "interfaces"
-    if label:
-        text = """This host does not appear to have any %s.
+This will reserve %s for iSCSI disk access.  Reserved NICs are not available for use as the management interface or for use by virtual machines.""" % " and ".join(sorted(nics))
 
-If %s are present you may need to load a device driver on the previous screen for them to be detected.""" % (text, text_short)
-        ButtonChoiceWindow(tui.screen, label, text, ["Back"], width=48)
-        return REPEAT_STEP
+    # Unless already answered, default to the firmware's boot-selected flag.
+    default = answers.get('attach-ibft', diskutil.ibft_boot_selected())
 
+    button = snackutil.ButtonChoiceWindowEx(tui.screen, "Attach iSCSI disks", text,
+                                            ['Yes', 'No', 'Back'], width=60,
+                                            default=0 if default else 1)
+
+    # Leave 'attach-ibft' alone on the way back: the user has not answered.
+    if button is None or button == 'back': return LEFT_BACKWARDS
+
+    answers['attach-ibft'] = (button == 'yes')
     return RIGHT_FORWARDS
 
 def hardware_warnings(answers, ram_warning, vt_warning):
@@ -447,11 +435,9 @@ The backup will be placed on the backup partition of the destination disk (%s), 
     return RIGHT_FORWARDS
 
 def dmv_more_info(context):
-    global dmv_data_provider
-
     if not context: return True
 
-    itemtype, item = dmv_data_provider.queryDriversOrVariant(context)
+    itemtype, item = dmvutil.getCachedDMVData().queryDriversOrVariant(context)
     if itemtype == "variants" or itemtype == "unknown":
         return True
 
@@ -481,9 +467,7 @@ def dmv_more_info(context):
     return True
 
 def dmv_check_selection(answers):
-    global dmv_data_provider
-
-    hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
+    hw_present_drivers = dmvutil.getCachedDMVData().getHardwarePresentDrivers()
     labels = list(map(lambda x:x.drvname, hw_present_drivers))
 
     choices = answers['selected-multiversion-drivers']
@@ -497,17 +481,10 @@ def dmv_check_selection(answers):
 
 # driver multi version screen:
 def dmv_screen(answers):
-    global dmv_data_provider
-
-    drivers = []
-    hw_present_drivers = []
     if "selected-multiversion-drivers" not in answers:
         answers['selected-multiversion-drivers'] = []
 
-    if not dmv_data_provider:
-        dmv_data_provider = dmvutil.getDMVData()
-        drivers = dmv_data_provider.getDriversData()
-        dmvutil.logDriverVariants(drivers)
+    dmv_data_provider = dmvutil.getCachedDMVData()
 
     # skip the ui rendering
     hw_present_drivers = dmv_data_provider.getHardwarePresentDrivers()
@@ -588,7 +565,7 @@ def dmv_screen(answers):
     return RIGHT_FORWARDS
 
 def confirm_dmv_selection(answers):
-    global dmv_data_provider
+    dmv_data_provider = dmvutil.getCachedDMVData()
 
     variants = []
     choices = answers['selected-multiversion-drivers']
@@ -619,20 +596,7 @@ def confirm_dmv_selection(answers):
 
             if button is None or button == 'back': return LEFT_BACKWARDS
 
-            for drvname, oemtype in choices:
-                logger.log("select and enable variant %s for driver %s." % (oemtype, drvname))
-            failures = dmv_data_provider.applyDriverVariants(choices)
-            if len(failures) == 0:
-                logger.log("succeed to select and enable all driver variants.")
-            else:
-                for driver_name, variant_name in failures:
-                    logger.log("fail to select or enable variant %s for driver %s." % (variant_name, driver_name))
-                ButtonChoiceWindow(
-                        tui.screen,
-                        "Problem Loading Driver Variant",
-                        "Setup was unable to activate driver variant.",
-                        ['Ok']
-                        )
+            # Applied by hwsetup.apply_drivers(), the next step.
             return RIGHT_FORWARDS
         else:
             title = "Error"

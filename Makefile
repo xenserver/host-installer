@@ -26,6 +26,7 @@ install:
 	        driver.py \
 	        generalui.py \
 	        hardware.py \
+	        hwsetup.py \
 	        install.py \
 	        netinterface.py \
 	        netutil.py \
