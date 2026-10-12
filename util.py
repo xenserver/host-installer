@@ -300,17 +300,18 @@ def splitArgs(argsIn, array_args=()):
     for arg in argsIn:
         eq = arg.find('=')
         if eq == -1:
-            argsOut[arg] = None
+            k = arg
+            v = None
         else:
             k = arg[:eq]
             v = arg[eq+1:]
-            if k in array_args:
-                if k in argsOut:
-                    argsOut[k].append(v)
-                else:
-                    argsOut[k] = [v]
-            else:
-                argsOut[k] = v
+
+        if k in array_args:
+            argsOut.setdefault(k, [])
+            if v is not None:
+                argsOut[k].append(v)
+        else:
+            argsOut[k] = v
 
     return argsOut
 
