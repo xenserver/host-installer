@@ -1458,11 +1458,10 @@ def writeLLDPBlocklist(mounts, lldp_block_drivers):
     else:
         blocklist_dir = os.path.join(mounts['root'], constants.LLDP_NIC_DRIVER_BLOCKLIST_DIR)
         os.makedirs(blocklist_dir, exist_ok=True)
-    drivers = list(dict.fromkeys(existing + lldp_block_drivers))
+    drivers = set(existing + lldp_block_drivers)
     logger.log("Writing LLDP NIC driver blocklist %s: %s" % (path, drivers))
     with open(path, "w") as f:
-        for driver in drivers:
-            f.write("%s\n" % driver)
+        f.write('\n'.join(drivers) + '\n')
 
 def writeMachineID(mounts):
     util.bindMount("/dev", "%s/dev" % mounts['root'])

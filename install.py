@@ -119,7 +119,7 @@ def go(ui, args, answerfile_address, answerfile_script):
             for console in val:
                 if hardware.is_serialConsole(console):
                     serial_console = hardware.getSerialConfig()
-            if hardware.is_serialConsole(val[-1]):
+            if val and hardware.is_serialConsole(val[-1]):
                 boot_serial = True
         elif opt == "--keymap":
             results["keymap"] = val
@@ -133,8 +133,7 @@ def go(ui, args, answerfile_address, answerfile_script):
         elif opt == "--mount":
             disktools.DeviceMounter.addMountPoints(val)
         elif opt == "--lldp_block_driver":
-            drivers = val if isinstance(val, list) else [val]
-            results['lldp-block-drivers'] += [d.strip() for d in drivers if d and d.strip()]
+            results['lldp-block-drivers'] += [d.strip() for d in val if d and d.strip()]
             logger.log("LLDP block drivers specified on command-line: %s" % results['lldp-block-drivers'])
 
     if boot_console and not serial_console:
