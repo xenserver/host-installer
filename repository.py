@@ -246,11 +246,11 @@ class MainYumRepository(YumRepositoryWithInfo):
         self._identifier = MAIN_REPOSITORY_NAME
         self.keyfiles = []
 
-        def get_name_version(config_parser, section, name_key, vesion_key):
+        def get_name_version(config_parser, section, name_key, version_key):
             name, version = None, None
             if config_parser.has_section(section):
                 name = config_parser.get(section, name_key)
-                ver_str = config_parser.get(section, vesion_key)
+                ver_str = config_parser.get(section, version_key)
                 version = Version.from_string(ver_str)
             return name, version
 
