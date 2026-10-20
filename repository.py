@@ -104,6 +104,7 @@ def _quoteDnfString(s):
 
 
 _yumRepositoryId = 0
+_bundleYumRepositoryId = 1
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
@@ -112,14 +113,24 @@ class YumRepository(Repository):
 
     @classmethod
     def resetIdCounter(cls):
-        global _yumRepositoryId
+        global _yumRepositoryId, _bundleYumRepositoryId
         _yumRepositoryId = 0
+        _bundleYumRepositoryId = 1
+
+    @classmethod
+    def nextIdentifier(cls, accessor):
+        global _yumRepositoryId, _bundleYumRepositoryId
+
+        if isinstance(accessor, BundleAccessor):
+            _bundleYumRepositoryId += 1
+            return "%s%d" % (BUNDLE_REPOSITORY_NAME, _bundleYumRepositoryId - 1)
+        else:
+            _yumRepositoryId += 1
+            return "repo%d" % (_yumRepositoryId - 1)
 
     def __init__(self, accessor):
         super(YumRepository, self).__init__(accessor)
-        global _yumRepositoryId
-        self._identifier = "repo%d" % _yumRepositoryId
-        _yumRepositoryId += 1
+        self._identifier = YumRepository.nextIdentifier(accessor)
 
     @property
     def _yum_conf(self):
