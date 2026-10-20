@@ -131,12 +131,20 @@ class YumRepository(Repository):
     def __init__(self, accessor):
         super(YumRepository, self).__init__(accessor)
         self._identifier = YumRepository.nextIdentifier(accessor)
+        self.gpgkey_file = None
 
     @property
     def _yum_conf(self):
         return _generateYumConf(self._cachedir)
 
     def _repo_config(self):
+        if self.gpgkey_file:
+            return """
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file://%s
+""" % (self.gpgkey_file)
+
         return None
 
     def _parse_repodata(self, accessor):
@@ -261,7 +269,6 @@ class MainYumRepository(YumRepositoryWithInfo):
         super(MainYumRepository, self).__init__(accessor)
         self._identifier = MAIN_REPOSITORY_NAME
         self.keyfiles = []
-        self.gpgkey_file = ""
 
         def get_name_version(config_parser, section, name_key, vesion_key):
             name, version = None, None
@@ -337,16 +344,6 @@ class MainYumRepository(YumRepositoryWithInfo):
 
         self._parse_repodata(accessor)
         accessor.finish()
-
-    def _repo_config(self):
-        if self.gpgkey_file:
-            return """
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=file://%s
-""" % (self.gpgkey_file)
-
-        return None
 
     def name(self):
         return self._product_data.get('brand', self._identifier)
@@ -893,8 +890,23 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
 
         shutil.rmtree(os.path.join(mounts['root'], cachedir), ignore_errors=True)
 
+def updateGPGKeys(repos):
+    gpgkey_file = None
+
+    for repo in repos:
+        if isinstance(repo, MainYumRepository):
+            gpgkey_file = repo.gpgkey_file
+            break
+
+    if gpgkey_file:
+        for repo in repos:
+            if isinstance(repo._accessor, BundleAccessor):
+                repo.gpgkey_file = gpgkey_file
+
 def installFromRepos(progress_callback, repos, mounts):
     """Install from a stacked set of repositories"""
+
+    updateGPGKeys(repos)
 
     cachedir = "var/cache/yum/installer"
     for repo in repos:
