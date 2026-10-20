@@ -253,6 +253,19 @@ class Answerfile:
                 address = getText(i)
             else:
                 raise AnswerfileException("Invalid type for <source> media specified.")
+
+            if rtype in ['url', 'nfs'] and address.endswith(".xsbundle"):
+                bundlePath = os.path.join("/tmp", os.path.basename(address))
+
+                if rtype == "nfs" and not address.startswith("nfs://"):
+                    address = "nfs://" + address
+
+                logger.info("Fetching bundle")
+                util.fetchFile(address, bundlePath)
+
+                address = bundlePath
+                rtype = "bundle"
+
             if rtype == 'url' and address.startswith('nfs://'):
                 rtype = 'nfs'
                 address = address[6:]

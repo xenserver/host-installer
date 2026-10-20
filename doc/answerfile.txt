@@ -94,8 +94,10 @@ Elements for 'installation' modes
 
   <source type="type">repo</source>+
 
-    The location of the installation repository or a Supplemental
+    The location of the installation repository, bundle or a Supplemental
     Pack. There may be multiple 'source' elements.
+
+    Bundles will be downloaded and unpacked onto the installation target.
 
 
   <bootloader location="mbr|partition">grub2|extlinux[D]|grub[D]</bootloader>?
