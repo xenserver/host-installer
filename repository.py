@@ -261,6 +261,7 @@ class MainYumRepository(YumRepositoryWithInfo):
         super(MainYumRepository, self).__init__(accessor)
         self._identifier = MAIN_REPOSITORY_NAME
         self.keyfiles = []
+        self.gpgkey_file = ""
 
         def get_name_version(config_parser, section, name_key, vesion_key):
             name, version = None, None
@@ -311,6 +312,24 @@ class MainYumRepository(YumRepositoryWithInfo):
             if treeinfo.has_section('keys'):
                 for _, keyfile in treeinfo.items('keys'):
                     self.keyfiles.append(keyfile)
+
+                if len(self.keyfiles) > 0:
+                    # Only deal with a single key for the repo
+                    keyfile = self.keyfiles[0]
+                    infh = None
+                    outfh = None
+                    try:
+                        infh = self._accessor.openAddress(keyfile)
+                        key_path = os.path.join('/tmp', os.path.basename(keyfile))
+                        outfh = open(key_path, "wb")
+                        outfh.write(infh.read())
+                        self.gpgkey_file = key_path
+                    finally:
+                        if infh:
+                            infh.close()
+                        if outfh:
+                            outfh.close()
+
         except Exception as e:
             accessor.finish()
             logger.logException(e)
@@ -320,26 +339,13 @@ class MainYumRepository(YumRepositoryWithInfo):
         accessor.finish()
 
     def _repo_config(self):
-        if len(self.keyfiles) > 0:
-            # Only deal with a single key for the repo
-            keyfile = self.keyfiles[0]
-            infh = None
-            outfh = None
-            try:
-                infh = self._accessor.openAddress(keyfile)
-                key_path = os.path.join('/root', os.path.basename(keyfile))
-                outfh = open(key_path, "wb")
-                outfh.write(infh.read())
-                return """
+        if self.gpgkey_file:
+            return """
 gpgcheck=1
 repo_gpgcheck=1
 gpgkey=file://%s
-""" % (key_path)
-            finally:
-                if infh:
-                    infh.close()
-                if outfh:
-                    outfh.close()
+""" % (self.gpgkey_file)
+
         return None
 
     def name(self):
