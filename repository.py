@@ -530,6 +530,26 @@ class FilesystemAccessor(Accessor):
     def url(self):
         return util.URL("file://%s" % self.location)
 
+class BundleAccessor(FilesystemAccessor):
+    def __init__(self, bundlePath):
+        self.bundlePath = bundlePath
+
+    def findRepository(self):
+        if YumRepository.isRepo(self):
+            return YumRepository(self)
+
+        logger.log("Bundle (%s) does not provide access to appropriate YumRepository" % self.bundlePath)
+        return None
+
+    def start(self):
+        self.location = tempfile.mkdtemp(prefix="bundle-", dir="/tmp")
+        rc = util.runCmd2(["tar", "-xf", self.bundlePath, "-C", self.location])
+        if rc != 0:
+            raise Exception("Failed to unpack bundle: %s" % self.bundlePath)
+
+    def finish(self):
+        shutil.rmtree(self.location)
+
 class MountingAccessor(FilesystemAccessor):
     def __init__(self, mount_types, mount_source, mount_options=['ro']):
         (
@@ -729,7 +749,8 @@ def repositoriesFromDefinition(media, address, drivers=False):
     else:
         accessors = { 'filesystem': FilesystemAccessor,
                       'url': URLAccessor,
-                      'nfs': NFSAccessor }
+                      'nfs': NFSAccessor,
+                      'bundle': BundleAccessor }
         if media in accessors:
             accessor = accessors[media](address)
         else:
