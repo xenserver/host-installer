@@ -64,10 +64,11 @@ def interactive_check_repo_def(definition, require_base_repo):
             ['Ok']
             )
     elif rc in [REPOCHK_NO_REPO, REPOCHK_NO_BASE_REPO]:
+        type_message = "A base " if rc == REPOCHK_NO_BASE_REPO else "An "
         ButtonChoiceWindow(
            tui.screen,
            "Problem With Location",
-           "A base installation repository was not found at that location.  Please check and try again.",
+           type_message + "installation repository was not found at that location.  Please check and try again.",
            ['Ok']
            )
     elif rc == REPOCHK_PLATFORM_VERSION_MISMATCH:
@@ -120,7 +121,7 @@ def select_repo_source(answers, title, text, require_base_repo=True):
 
     return RIGHT_FORWARDS
 
-def get_url_location(answers, require_base_repo):
+def get_url_location(answers, require_base_repo, address_key="source-address", media_key="source-media"):
     text = "Please enter the URL for your HTTP or FTP repository and, optionally, a username and password"
     url_field = Entry(50)
     user_field = Entry(16)
@@ -129,12 +130,14 @@ def get_url_location(answers, require_base_repo):
     user_text = Textbox(11, 1, "Username:")
     passwd_text = Textbox(11, 1, "Password:")
 
-    if 'source-address' in answers and answers['source-address'] != '':
-        url_field.set(answers['source-address'].getPlainURL())
-        if answers['source-address'].getUsername() is not None:
-            user_field.set(answers['source-address'].getUsername())
-        if answers['source-address'].getPassword() is not None:
-            passwd_field.set(answers['source-address'].getPassword())
+    if address_key in answers and answers[address_key] != '':
+        url_field.set(answers[address_key].getPlainURL())
+        if answers[address_key].getUsername() is not None:
+            user_field.set(answers[address_key].getUsername())
+        if answers[address_key].getPassword() is not None:
+            passwd_field.set(answers[address_key].getPassword())
+
+    original_media = answers[media_key]
 
     done = False
     while not done:
@@ -168,19 +171,59 @@ def get_url_location(answers, require_base_repo):
         else:
             urlstr = url_field.value()
         if len(urlstr) > 0:
-            answers['source-address'] = util.URL(urlstr)
-            done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_repo)
+            if urlstr.endswith(".xsbundle"):
+                answers[address_key] = util.fetchBundle(urlstr, "url")
+                answers[media_key] = "bundle"
+            else:
+                answers[address_key] = util.URL(urlstr)
+                answers[media_key] = original_media
+
+            done = interactive_check_repo_def((answers[media_key], answers[address_key]), require_base_repo)
 
     return RIGHT_FORWARDS
 
-def get_nfs_location(answers, require_base_rep):
-    text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
-    label = "NFS Path:"
+def get_filesystem_location(answers, require_base_rep, address_key="source-address", media_key="source-media"):
+    text = "Please enter the path of your filesystem bundle (e.g. /mydir/myfile.xsbundle)"
+    label = "Path:"
+
+    original_media = answers[media_key]
 
     done = False
     while not done:
-        if 'source-address' in answers:
-            default = answers['source-address']
+        if address_key in answers:
+            default = answers[address_key]
+        else:
+            default = ""
+        (button, result) = EntryWindow(
+            tui.screen,
+            "Specify Repository",
+            text,
+            [(label, default)], entryWidth=50, width=50,
+            buttons=['Ok', 'Back'], help='getfsloc')
+
+        answers[address_key] = result[0]
+
+        if button == 'back': return LEFT_BACKWARDS
+
+        if answers[address_key].endswith(".xsbundle"):
+            answers[media_key] = "bundle"
+        else:
+            answers[media_key] = original_media
+
+        done = interactive_check_repo_def((answers[media_key], answers[address_key]), require_base_rep)
+
+    return RIGHT_FORWARDS
+
+def get_nfs_location(answers, require_base_rep, address_key="source-address", media_key="source-media"):
+    text = "Please enter the server and path of your NFS share (e.g. myserver:/my/directory)"
+    label = "NFS Path:"
+
+    original_media = answers[media_key]
+
+    done = False
+    while not done:
+        if address_key in answers:
+            default = answers[address_key]
         else:
             default = ""
         (button, result) = EntryWindow(
@@ -190,19 +233,25 @@ def get_nfs_location(answers, require_base_rep):
             [(label, default)], entryWidth=50, width=50,
             buttons=['Ok', 'Back'], help='getnfsloc')
 
-        answers['source-address'] = result[0]
+        answers[address_key] = result[0]
 
         if button == 'back': return LEFT_BACKWARDS
 
-        done = interactive_check_repo_def((answers['source-media'], answers['source-address']), require_base_rep)
+        if answers[address_key].endswith(".xsbundle"):
+            answers[address_key] = util.fetchBundle(answers[address_key], "nfs")
+            answers[media_key] = "bundle"
+        else:
+            answers[media_key] = original_media
+
+        done = interactive_check_repo_def((answers[media_key], answers[address_key]), require_base_rep)
 
     return RIGHT_FORWARDS
 
 def get_source_location(answers, require_base_rep):
     if answers['source-media'] == 'url':
-        return get_url_location(answers, require_base_rep)
+        return get_url_location(answers, require_base_rep, "source-address", "source-media")
     else:
-        return get_nfs_location(answers, require_base_rep)
+        return get_nfs_location(answers, require_base_rep, "source-address", "source-media")
 
 def confirm_load_repo(answers, label, installed_repos):
     cap_label = ' '.join([a.capitalize() for a in label.split()])
@@ -370,3 +419,50 @@ def interactive_source_verification(repos, label):
             ['Ok']
             )
     return True
+
+def select_bundle_source(answers, title, text):
+    ENTRY_LOCAL = 'Local Filesystem', 'filesystem'
+    ENTRY_URL = 'HTTP or FTP', 'url'
+    ENTRY_NFS = 'NFS', 'nfs'
+    entries = [ ENTRY_LOCAL ]
+
+    default = ENTRY_LOCAL
+    if len(answers['network-hardware'].keys()) > 0:
+        entries += [ ENTRY_URL, ENTRY_NFS ]
+
+        # default selection?
+        if 'bundle-media' in answers:
+            default = selectDefault(answers['bundle-media'], entries)
+
+    (button, entry) = ListboxChoiceWindow(
+        tui.screen,
+        title,
+        text,
+        entries,
+        ['Ok', 'Back'], default=default, help='selreposrc'
+        )
+
+    if button == 'back': return LEFT_BACKWARDS
+
+    # store their answer:
+    answers['bundle-media'] = entry
+
+    return RIGHT_FORWARDS
+
+def get_bundle_location(answers):
+    rc = REPEAT_STEP
+    if answers['bundle-media'] == 'url':
+        rc = get_url_location(answers, False, "bundle-address", "bundle-media")
+    elif answers['bundle-media'] == 'filesystem':
+        rc = get_filesystem_location(answers, False, "bundle-address", "bundle-media")
+    else:
+        rc = get_nfs_location(answers, False, "bundle-address", "bundle-media")
+
+    if rc == RIGHT_FORWARDS:
+        if 'sources' not in answers:
+            answers['sources'] = []
+        answers['sources'].append({'media': 'bundle', 'address': answers['bundle-address']})
+        del answers['bundle-address']
+        del answers['bundle-media']
+
+    return rc
