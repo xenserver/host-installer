@@ -30,6 +30,9 @@ def need_networking(answers):
             logger.log("Settings unavailable: %s" % text)
     return False
 
+def bundle_need_networking(answers):
+    return 'bundle-media' in answers and answers['bundle-media'] in ['url', 'nfs']
+
 is_using_remote_media_fn = lambda a: 'source-media' in a and a['source-media'] in ['url', 'nfs']
 
 def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
@@ -132,6 +135,8 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         guest_disks = answers.get('guest-disks')
         return guest_disks is not None and len(guest_disks) > 0
 
+    apply_bundle = lambda a: 'apply-bundle' in a and a['apply-bundle']
+
     if 'install-type' not in results:
         results['install-type'] = constants.INSTALL_TYPE_FRESH
         results['preserve-settings'] = False
@@ -181,6 +186,15 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
              args=[True],
              predicates=[is_using_remote_media_fn]),
         Step(tui.repo.verify_source, args=['installation', True], predicates=[is_not_restore_fn]),
+        Step(uis.use_bundle,
+             predicates=[is_not_restore_fn]),
+        Step(tui.repo.select_bundle_source,
+             args=["Select Bundle Source", "Please select the type of source you would like to use for this bundle"],
+             predicates=[apply_bundle]),
+        Step(uis.setup_runtime_networking,
+             predicates=[bundle_need_networking, apply_bundle]),
+        Step(tui.repo.get_bundle_location,
+             predicates=[apply_bundle]),
         Step(uis.get_root_password,
              predicates=[is_not_restore_fn, not_preserve_settings]),
         Step(uis.get_admin_interface,
