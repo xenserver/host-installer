@@ -103,12 +103,17 @@ def _quoteDnfString(s):
     return '"' + s.replace('\\', '\\\\').replace('\"', '\\"') + '"'
 
 
-_yumRepositoryId = 1
+_yumRepositoryId = 0
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
     _cachedir = "var/cache/yum/installer"
     _targets = None
+
+    @classmethod
+    def resetIdCounter(cls):
+        global _yumRepositoryId
+        _yumRepositoryId = 0
 
     def __init__(self, accessor):
         super(YumRepository, self).__init__(accessor)
