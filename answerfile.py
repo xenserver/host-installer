@@ -484,7 +484,7 @@ class Answerfile:
         if ntpServerNodes and results['ntp-config-method'] != "manual":
             raise AnswerfileException("<ntp-server> and <ntp-servers> elements are only valid when using <ntp source=\"manual\" />")
 
-        results['ntp-servers'] = map(lambda x: getText(x), ntpServerNodes)
+        results['ntp-servers'] = [getText(x) for x in ntpServerNodes]
 
     def parseKeymap(self):
         results = {}
