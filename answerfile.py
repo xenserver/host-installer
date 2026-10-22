@@ -253,6 +253,11 @@ class Answerfile:
                 address = getText(i)
             else:
                 raise AnswerfileException("Invalid type for <source> media specified.")
+
+            if address.endswith(".xsbundle"):
+                address = fetchBundle(address, rtype)
+                rtype = "bundle"
+
             if rtype == 'url' and address.startswith('nfs://'):
                 rtype = 'nfs'
                 address = address[6:]

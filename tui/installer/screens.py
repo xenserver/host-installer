@@ -1415,6 +1415,21 @@ def set_time(answers):
                                              int(minute.value()))
     return RIGHT_FORWARDS
 
+def use_bundle(answers):
+    rc = snackutil.ButtonChoiceWindowEx(
+        tui.screen,
+        "Bundles",
+        "Would you like to apply a bundle update during installation?",
+        ['Yes', 'No', 'Back'],
+        default=1, help='bundle'
+        )
+
+    if rc == 'back':
+        return LEFT_BACKWARDS
+
+    answers['apply-bundle'] = (rc == 'yes')
+    return RIGHT_FORWARDS
+
 def installation_complete():
     ButtonChoiceWindow(tui.screen,
                        "Installation Complete",
