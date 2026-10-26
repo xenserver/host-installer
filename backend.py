@@ -1068,7 +1068,10 @@ def buildBootLoaderMenu(mounts, xen_version, xen_kernel_version, boot_config, se
         xs_kernel_core += [host_config["xen-pciback.hide"]]
 
     if diskutil.is_iscsi(primary_disk):
-        xs_kernel_core += ["rd.iscsi.ibft=1", "rd.iscsi.firmware=1"]
+        # Without rd.iscsi.mp dracut only brings up the boot-selected iBFT NIC,
+        # so every other path is lost at boot.
+        xs_kernel_core += ["rd.iscsi.ibft=1", "rd.iscsi.firmware=1",
+                           "rd.iscsi.mp=1"]
 
     if diskutil.is_raid(primary_disk):
         xs_kernel_core += ["rd.auto"]
