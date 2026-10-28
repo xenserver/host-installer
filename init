@@ -136,13 +136,11 @@ def main(args):
     if ui:
         netutil.setAllLinksUp()
 
-    # Interactive installs bring the hardware up later, after the driver
-    # selection (see hwsetup).
-    if not interactive:
+    # The rest of the hardware comes up later: after the driver selection, or
+    # once the answerfile has been read (see hwsetup).
+    if not interactive and init_network:
         try:
-            hwsetup.bring_up_hardware(ui, mpath,
-                                      answer_device if init_network else None,
-                                      answer_config)
+            hwsetup.bring_up_network(ui, answer_device, answer_config)
         except Exception as e:
             logger.logException(e)
             if ui:
