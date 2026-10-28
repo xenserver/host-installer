@@ -108,8 +108,7 @@ Attach to disks specified in iBFT?
 
 This will reserve %s for iSCSI disk access.  Reserved NICs are not available for use as the management interface or for use by virtual machines.""" % " and ".join(sorted(nics))
 
-    # Unless already answered, default to the firmware's boot-selected flag.
-    default = answers.get('attach-ibft', diskutil.ibft_boot_selected())
+    default = answers.get('attach-ibft', True)
 
     button = snackutil.ButtonChoiceWindowEx(tui.screen, "Attach iSCSI disks", text,
                                             ['Yes', 'No', 'Back'], width=60,

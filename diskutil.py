@@ -18,7 +18,6 @@ import time
 use_mpath = False
 CDROM_GET_CAPABILITY = 0x5331
 IBFT_BLOCK_VALID_FLAG = 1 << 0
-IBFT_BLOCK_BOOT_SELECTED_FLAG = 1 << 1
 
 def mpath_cli_is_working():
     regex = re.compile("switchgroup")
@@ -847,25 +846,6 @@ def ibft_nic_macs():
         except (EnvironmentError, ValueError) as e:
             logger.log("ibft_nic_macs: cannot read %s: %s" % (t, e))
     return macs
-
-
-def ibft_boot_selected():
-    """Return True if a valid iBFT target has the "boot selected" flag set."""
-
-    wanted = IBFT_BLOCK_VALID_FLAG | IBFT_BLOCK_BOOT_SELECTED_FLAG
-
-    for t in sorted(glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*'))):
-        try:
-            with open(os.path.join(t, 'flags'), 'r') as f:
-                flags = int(f.read().strip())
-        except (EnvironmentError, ValueError) as e:
-            logger.log("ibft_boot_selected: cannot read the flags of %s: %s" % (t, e))
-            continue
-
-        if (flags & wanted) == wanted:
-            return True
-
-    return False
 
 
 def restart_iscsid():
