@@ -179,7 +179,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             a = answerfile.Answerfile.generate(answerfile_script)
         if a:
             interactive = False
-            results['network-hardware'] = netutil.scanConfiguration()
             try:
                 results.update(a.parseScripts())
                 results.update(a.processAnswerfileSetup())
@@ -195,6 +194,8 @@ def go(ui, args, answerfile_address, answerfile_script):
                         for r in repository.repositoriesFromDefinition(media, address, drivers=True):
                             r.installPackages(lambda x: (), {'root': '/'})
 
+                hwsetup.bring_up_storage(results)
+
                 util.runCmd2(util.udevsettleCmd())
                 time.sleep(1)
                 diskutil.mpath_part_scan()
@@ -206,6 +207,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
                 diskutil.log_available_disks()
 
+                results['network-hardware'] = netutil.scanConfiguration()
                 results.update(a.processAnswerfile())
                 results = fixMpathResults(results)
             except Exception as e:

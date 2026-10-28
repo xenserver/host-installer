@@ -41,7 +41,7 @@ def parse_multipath_config(value):
 
 
 # Attempt to configure the network:
-def configureNetworking(ui, device, config):
+def configureNetworking(ui, device, config, exclude_macs=()):
     if ui:
         ui.progress.showMessageDialog(
             "Preparing for installation",
@@ -66,6 +66,10 @@ def configureNetworking(ui, device, config):
         config_dict['vlan'] = int(config_dict['vlan'])
 
     nethw = netutil.scanConfiguration()
+    if device == 'all':
+        for i in [i for i in nethw if nethw[i].hwaddr in exclude_macs]:
+            logger.log("Not configuring %s: it is an iBFT NIC" % i)
+            del nethw[i]
     netcfg = {}
     for i in nethw:
         if (device == i or device == nethw[i].hwaddr) and mode == 'static':
@@ -97,6 +101,8 @@ def configureNetworking(ui, device, config):
 
     if ui:
         ui.progress.clearModelessDialog()
+
+    return {netcfg[i].hwaddr for i in iface_to_start}
 
 
 def desired_hw_state(answers):
@@ -449,15 +455,35 @@ def attach_storage_and_scan(answers):
     return RIGHT_FORWARDS if did_work else SKIP_SCREEN
 
 
-def bring_up_hardware(ui, mpath_config, net_device, net_config):
-    """Non-interactive bring-up, for the answerfile paths.
+# MAC addresses of the NICs bring_up_network() configured
+fetch_nic_macs = set()
 
+
+def bring_up_network(ui, net_device, net_config):
+    """Non-interactive networking, enough to fetch the answerfile.
+
+    'all' leaves out the iBFT NICs, which bring_up_storage() may reserve.
     ui may be None (--rt_answerfile).
     """
 
-    # Nobody to ask, so attach only if the firmware booted from the iBFT.
-    if diskutil.ibft_boot_selected() and try_probe_ibft():
-        diskutil.attach_ibft_disks()
+    global fetch_nic_macs
+    fetch_nic_macs = configureNetworking(ui, net_device, net_config,
+                                         exclude_macs=diskutil.ibft_nic_macs())
+
+
+def bring_up_storage(answers):
+    """Non-interactive storage bring-up, once the answerfile has been read."""
+
+    if answers.get('attach-ibft'):
+        reused = fetch_nic_macs & diskutil.ibft_nic_macs()
+        if reused:
+            raise RuntimeError("Cannot attach the iBFT disks: networking was configured "
+                               "on %s, which the iBFT reserves for iSCSI"
+                               % ", ".join(sorted(reused)))
+        if not diskutil.ibft_present():
+            logger.log("The answerfile asks for the iBFT disks, but there is no iBFT")
+        elif diskutil.probe_ibft():
+            diskutil.attach_ibft_disks()
 
     # ensure partitions/disks are not locked by LVM
     # this should be done before attempting to enable multipath
@@ -467,8 +493,6 @@ def bring_up_hardware(ui, mpath_config, net_device, net_config):
 
     # Ensure multipath devices are created unless installer is being
     # run with the "--device_mapper_multipath=disabled" option
+    mpath_config = answers.get('multipath-config', MultipathConfig.IF_MULTIPLE)
     if mpath_config != MultipathConfig.DISABLED:
         diskutil.mpath_enable(mpath_config)
-
-    if net_device:
-        configureNetworking(ui, net_device, net_config)

@@ -161,6 +161,8 @@ Installer
 
     Bring up networking on the given interface, notably to be able to
     connect to the machine while being installed (also see `sshpassword`).
+    "all" leaves out the NICs that the iSCSI Boot Firmware Table (iBFT)
+    uses (see <attach-ibft> in answerfile.txt).
 
     Default: "all" when a non-file:// URL is specified for one of the
     three answerfile options above, "" otherwise.

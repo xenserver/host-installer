@@ -831,6 +831,24 @@ def ibft_present():
     return len(glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*'))) > 0
 
 
+def ibft_nic_macs():
+    """MAC addresses of the NICs attach_ibft_disks() would reserve."""
+
+    macs = set()
+    for t in glob.glob(os.path.join(constants.SYSFS_IBFT_DIR, 'target*')):
+        try:
+            with open(os.path.join(t, 'nic-assoc'), 'r') as f:
+                eth = os.path.join(constants.SYSFS_IBFT_DIR, 'ethernet' + f.read().strip())
+            with open(os.path.join(eth, 'flags'), 'r') as f:
+                if (int(f.read().strip()) & IBFT_BLOCK_VALID_FLAG) == 0:
+                    continue
+            with open(os.path.join(eth, 'mac'), 'r') as f:
+                macs.add(f.read().strip().lower())
+        except (EnvironmentError, ValueError) as e:
+            logger.log("ibft_nic_macs: cannot read %s: %s" % (t, e))
+    return macs
+
+
 def ibft_boot_selected():
     """Return True if a valid iBFT target has the "boot selected" flag set."""
 
