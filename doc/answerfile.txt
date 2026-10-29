@@ -89,6 +89,16 @@ Elements common to all answerfiles, both 'installation' and 'restore'
     before proceeding with installation.  Default value is 'false'.
 
 
+  <attach-ibft>bool</attach-ibft>?
+
+    Attach the iSCSI disks described by the iSCSI Boot Firmware Table
+    (iBFT), so that they can be used as the primary disk or found for an
+    upgrade or restore.  The NICs the iBFT uses are reserved for iSCSI
+    and are not available for management.  Naming one of them in
+    answerfile_device or network_device is an error.  Default value is
+    'false'.
+
+
 Elements for 'installation' modes
 ---------------------------------
 

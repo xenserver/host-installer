@@ -74,6 +74,7 @@ class Answerfile:
         results.update(self.parseDriverSource())
         results.update(self.parseDriverMultiVersion())
         results.update(self.parseUIConfirmationPrompt())
+        results.update(self.parseAttachIBFT())
 
         return results
 
@@ -498,6 +499,19 @@ class Answerfile:
         nodes = getElementsByTagName(self.top_node, ['ui-confirmation-prompt'])
         if len(nodes) > 0:
             results['ui-confirmation-prompt'] = bool(getText(nodes[0]))
+        return results
+
+    def parseAttachIBFT(self):
+        results = {}
+        nodes = getElementsByTagName(self.top_node, ['attach-ibft'])
+        if len(nodes) > 0:
+            value = getText(nodes[0]).strip().lower()
+            if value in ('true', 'yes', '1'):
+                results['attach-ibft'] = True
+            elif value in ('false', 'no', '0'):
+                results['attach-ibft'] = False
+            else:
+                raise AnswerfileException("<attach-ibft> must be true or false, not '%s'" % value)
         return results
 
     def parseSSHMode(self):

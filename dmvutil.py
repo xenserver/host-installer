@@ -302,16 +302,36 @@ class DriverMultiVersionData:
         return chooseDefaultDriverVariants(drivers)
 
     def selectSingleDriverVariant(self, driver_name, variant_name):
+        # The hardware-present list holds copies, which the screens display.
+        drivers = [d for d in self.drivers + self.hw_present_drivers
+                   if d.drvname == driver_name]
+        if not drivers:
+            logger.log("Unknown driver %s; leaving it loaded." % driver_name)
+            return False
+
         cmdparams = ['driver-tool', '-s', '-n', driver_name, '-v', variant_name]
         rc, out = util.runCmd2(cmdparams, with_stdout=True)
         if rc != 0:
             return False
+        for d in drivers:
+            d.selected = variant_name
 
-        util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+        # Reloading would tear down the devices for nothing.
+        if drivers[0].active == variant_name:
+            logger.log("Variant %s for driver %s is already active; skipping reload." % (variant_name, driver_name))
+            return True
 
+        rc, out = util.runCmd2(['modprobe', '-r', driver_name], with_stdout=True)
+        if rc != 0:
+            return False
+
+        for d in drivers:
+            d.active = None
         rc, out = util.runCmd2(['modprobe', driver_name], with_stdout=True)
         if rc != 0:
             return False
+        for d in drivers:
+            d.active = variant_name
         return True
 
     def applyDriverVariants(self, choices):
@@ -343,6 +363,23 @@ def getDMVData():
         raise RuntimeError("Failed to execute 'lspci'")
     logger.log(devlist)
     return DriverMultiVersionData(dmvlist, devlist)
+
+_dmv_data = None
+
+def getCachedDMVData():
+    """Return this boot's driver data, read on first use."""
+    global _dmv_data
+
+    if _dmv_data is None:
+        _dmv_data = getDMVData()
+        logDriverVariants(_dmv_data.getDriversData())
+    return _dmv_data
+
+def invalidateCachedDMVData():
+    """Make the next getCachedDMVData() read the driver data again."""
+    global _dmv_data
+
+    _dmv_data = None
 
 def logDriverVariants(drivers):
     for d in drivers:

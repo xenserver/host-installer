@@ -14,6 +14,7 @@ import tui.installer.screens
 import tui.progress
 import util
 import answerfile
+import hwsetup
 import uicontroller
 import constants
 
@@ -135,6 +136,12 @@ def go(ui, args, answerfile_address, answerfile_script):
         elif opt == "--lldp_block_driver":
             results['lldp-block-drivers'] += [d.strip() for d in val if d and d.strip()]
             logger.log("LLDP block drivers specified on command-line: %s" % results['lldp-block-drivers'])
+        elif opt == "--device_mapper_multipath":
+            results['multipath-config'] = hwsetup.parse_multipath_config(val)
+        elif opt in ['--answerfile_device', '--network_device']:
+            results['network-device'] = val.lower()
+        elif opt == '--network_config':
+            results['network-config'] = val.lower()
 
     if boot_console and not serial_console:
         serial_console = boot_console
@@ -172,7 +179,6 @@ def go(ui, args, answerfile_address, answerfile_script):
             a = answerfile.Answerfile.generate(answerfile_script)
         if a:
             interactive = False
-            results['network-hardware'] = netutil.scanConfiguration()
             try:
                 results.update(a.parseScripts())
                 results.update(a.processAnswerfileSetup())
@@ -188,6 +194,8 @@ def go(ui, args, answerfile_address, answerfile_script):
                         for r in repository.repositoriesFromDefinition(media, address, drivers=True):
                             r.installPackages(lambda x: (), {'root': '/'})
 
+                hwsetup.bring_up_storage(results)
+
                 util.runCmd2(util.udevsettleCmd())
                 time.sleep(1)
                 diskutil.mpath_part_scan()
@@ -199,6 +207,7 @@ def go(ui, args, answerfile_address, answerfile_script):
 
                 diskutil.log_available_disks()
 
+                results['network-hardware'] = netutil.scanConfiguration()
                 results.update(a.processAnswerfile())
                 results = fixMpathResults(results)
             except Exception as e:

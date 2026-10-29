@@ -6,6 +6,7 @@ import tui.repo
 import uicontroller
 from uicontroller import SKIP_SCREEN, EXIT, LEFT_BACKWARDS, RIGHT_FORWARDS, REPEAT_STEP
 import hardware
+import hwsetup
 import netutil
 import constants
 import upgrade
@@ -140,6 +141,11 @@ def runMainSequence(results, ram_warning, vt_warning, suppress_extra_cd_dialog):
         Step(uis.welcome_screen),
         Step(uis.dmv_screen),
         Step(uis.confirm_dmv_selection),
+        # Hardware setup starts here, after the driver selection.
+        Step(hwsetup.apply_drivers),
+        Step(uis.ibft_prompt_screen,
+             predicates=[lambda a: bool(a.get('ibft-targets'))]),
+        Step(hwsetup.attach_storage_and_scan),
         Step(uis.eula_screen),
         Step(uis.hardware_warnings,
              args=[ram_warning, vt_warning],
