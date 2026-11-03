@@ -558,6 +558,18 @@ class ThirdGenUpgrader(Upgrader):
             nfd.close()
             netutil.disable_ipv6_module(mounts["root"])
 
+        # The snmpd.xs.conf restored from the old release lacks the AgentX
+        # master that lldpd needs to serve the LLDP-MIB
+        snmpd_xs_conf = os.path.join(mounts['root'], 'etc/snmp/snmpd.xs.conf')
+        if os.path.isfile(snmpd_xs_conf):
+            with open(snmpd_xs_conf) as f:
+                lines = [line.strip() for line in f]
+            missing = [line for line in ('master agentx', 'agentXSocket /var/agentx/master')
+                       if line not in lines]
+            if missing:
+                with open(snmpd_xs_conf, 'a') as f:
+                    f.write('\n' + '\n'.join(missing) + '\n')
+
         # handle the conversion of devices from aacraid to smartpqi
         primary_disk = self.source.getInventoryValue("PRIMARY_DISK")
         target_link = diskutil.idFromPartition(target_disk) or target_disk
