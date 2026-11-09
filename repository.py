@@ -131,6 +131,10 @@ class YumRepository(Repository):
     def __init__(self, accessor):
         super(YumRepository, self).__init__(accessor)
         self._identifier = YumRepository.nextIdentifier(accessor)
+        self._name = self._identifier
+        if isinstance(accessor, BundleAccessor):
+            self._name = os.path.basename(accessor.bundlePath)
+
         self.gpgkey_file = None
 
     @property
@@ -196,7 +200,7 @@ gpgkey=file://%s
         return self._identifier
 
     def name(self):
-        return self._identifier
+        return self._name
 
     def __eq__(self, other):
         return self.identifier() == other.identifier()
@@ -406,7 +410,7 @@ class UpdateYumRepository(YumRepositoryWithInfo):
         accessor.finish()
 
     def name(self):
-        return self._identifier
+        return self._name
 
 class DriverUpdateYumRepository(UpdateYumRepository):
     """Represents a Yum repository containing packages and associated meta data for a driver disk."""
@@ -922,7 +926,7 @@ def installFromRepos(progress_callback, repos, mounts):
 [%s]
 name=%s
 baseurl=%s
-""" % (repo.identifier(), repo.identifier(), url.getPlainURL()))
+""" % (repo.identifier(), repo.name(), url.getPlainURL()))
                 username = url.getUsername()
                 if username is not None:
                     yum_conf.write("username=%s\n" % _quoteDnfString(username))
