@@ -462,6 +462,11 @@ def select_bundle_source(answers, title, text):
 
 def get_bundle_location(answers):
     rc = REPEAT_STEP
+    if 'bundle-media' not in answers or \
+            answers['bundle-media'] not in ['url', 'filesystem', 'nfs']:
+        # If bundle-media is not set (or was changed), go back to selection
+        return LEFT_BACKWARDS
+
     if answers['bundle-media'] == 'url':
         rc = get_url_location(answers, False, "bundle-address", "bundle-media")
     elif answers['bundle-media'] == 'filesystem':
@@ -473,7 +478,7 @@ def get_bundle_location(answers):
         if 'sources' not in answers:
             answers['sources'] = []
         answers['sources'].append({'media': 'bundle', 'address': answers['bundle-address']})
-        del answers['bundle-address']
         del answers['bundle-media']
+        del answers['bundle-address']
 
     return rc
