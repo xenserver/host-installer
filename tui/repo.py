@@ -174,9 +174,17 @@ def get_url_location(answers, require_base_repo, address_key="source-address", m
             if urlstr.endswith(".xsbundle"):
                 logger.log("Fetching bundle - this may take a while...")
                 tui.progress.showMessageDialog("Please wait", "Fetching bundle - this may take a while...")
-                answers[address_key] = util.fetchBundle(urlstr, "url")
-                answers[media_key] = "bundle"
-                tui.progress.clearModelessDialog()
+                try:
+                    answers[address_key] = util.fetchBundle(urlstr, "url")
+                    answers[media_key] = "bundle"
+                except Exception as e:
+                    ButtonChoiceWindow(
+                        tui.screen, "Error",
+                        """Unable to access location specified.  Please check the address was valid and/or that the media was inserted correctly, and try again.""",
+                        ['Back'])
+                    continue
+                finally:
+                    tui.progress.clearModelessDialog()
             else:
                 answers[address_key] = util.URL(urlstr)
                 answers[media_key] = original_media
