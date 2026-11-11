@@ -103,24 +103,52 @@ def _quoteDnfString(s):
     return '"' + s.replace('\\', '\\\\').replace('\"', '\\"') + '"'
 
 
-_yumRepositoryId = 1
+_yumRepositoryId = 0
+_bundleYumRepositoryId = 1
 class YumRepository(Repository):
     """ Represents a Yum repository containing packages and associated meta data. """
     REPOMD_FILENAME = "repodata/repomd.xml"
     _cachedir = "var/cache/yum/installer"
     _targets = None
 
+    @classmethod
+    def resetIdCounter(cls):
+        global _yumRepositoryId, _bundleYumRepositoryId
+        _yumRepositoryId = 0
+        _bundleYumRepositoryId = 1
+
+    @classmethod
+    def nextIdentifier(cls, accessor):
+        global _yumRepositoryId, _bundleYumRepositoryId
+
+        if isinstance(accessor, BundleAccessor):
+            _bundleYumRepositoryId += 1
+            return "%s%d" % (BUNDLE_REPOSITORY_NAME, _bundleYumRepositoryId - 1)
+        else:
+            _yumRepositoryId += 1
+            return "repo%d" % (_yumRepositoryId - 1)
+
     def __init__(self, accessor):
         super(YumRepository, self).__init__(accessor)
-        global _yumRepositoryId
-        self._identifier = "repo%d" % _yumRepositoryId
-        _yumRepositoryId += 1
+        self._identifier = YumRepository.nextIdentifier(accessor)
+        self._name = self._identifier
+        if isinstance(accessor, BundleAccessor):
+            self._name = os.path.basename(accessor.bundlePath)
+
+        self.gpgkey_file = None
 
     @property
     def _yum_conf(self):
         return _generateYumConf(self._cachedir)
 
     def _repo_config(self):
+        if self.gpgkey_file:
+            return """
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=file://%s
+""" % (self.gpgkey_file)
+
         return None
 
     def _parse_repodata(self, accessor):
@@ -172,7 +200,7 @@ class YumRepository(Repository):
         return self._identifier
 
     def name(self):
-        return self._identifier
+        return self._name
 
     def __eq__(self, other):
         return self.identifier() == other.identifier()
@@ -295,6 +323,24 @@ class MainYumRepository(YumRepositoryWithInfo):
             if treeinfo.has_section('keys'):
                 for _, keyfile in treeinfo.items('keys'):
                     self.keyfiles.append(keyfile)
+
+                if len(self.keyfiles) > 0:
+                    # Only deal with a single key for the repo
+                    keyfile = self.keyfiles[0]
+                    infh = None
+                    outfh = None
+                    try:
+                        infh = self._accessor.openAddress(keyfile)
+                        key_path = os.path.join('/tmp', os.path.basename(keyfile))
+                        outfh = open(key_path, "wb")
+                        outfh.write(infh.read())
+                        self.gpgkey_file = key_path
+                    finally:
+                        if infh:
+                            infh.close()
+                        if outfh:
+                            outfh.close()
+
         except Exception as e:
             accessor.finish()
             logger.logException(e)
@@ -302,29 +348,6 @@ class MainYumRepository(YumRepositoryWithInfo):
 
         self._parse_repodata(accessor)
         accessor.finish()
-
-    def _repo_config(self):
-        if len(self.keyfiles) > 0:
-            # Only deal with a single key for the repo
-            keyfile = self.keyfiles[0]
-            infh = None
-            outfh = None
-            try:
-                infh = self._accessor.openAddress(keyfile)
-                key_path = os.path.join('/root', os.path.basename(keyfile))
-                outfh = open(key_path, "wb")
-                outfh.write(infh.read())
-                return """
-gpgcheck=1
-repo_gpgcheck=1
-gpgkey=file://%s
-""" % (key_path)
-            finally:
-                if infh:
-                    infh.close()
-                if outfh:
-                    outfh.close()
-        return None
 
     def name(self):
         return self._product_data.get('brand', self._identifier)
@@ -387,7 +410,7 @@ class UpdateYumRepository(YumRepositoryWithInfo):
         accessor.finish()
 
     def name(self):
-        return self._identifier
+        return self._name
 
 class DriverUpdateYumRepository(UpdateYumRepository):
     """Represents a Yum repository containing packages and associated meta data for a driver disk."""
@@ -529,6 +552,17 @@ class FilesystemAccessor(Accessor):
 
     def url(self):
         return util.URL("file://%s" % self.location)
+
+class BundleAccessor(FilesystemAccessor):
+    def __init__(self, bundlePath):
+        self.bundlePath = bundlePath
+
+    def start(self):
+        self.location = tempfile.mkdtemp(prefix="bundle-", dir="/tmp")
+        util.runCmd2(["tar", "-xf", self.bundlePath, "-C", self.location])
+
+    def finish(self):
+        shutil.rmtree(self.location)
 
 class MountingAccessor(FilesystemAccessor):
     def __init__(self, mount_types, mount_source, mount_options=['ro']):
@@ -729,7 +763,8 @@ def repositoriesFromDefinition(media, address, drivers=False):
     else:
         accessors = { 'filesystem': FilesystemAccessor,
                       'url': URLAccessor,
-                      'nfs': NFSAccessor }
+                      'nfs': NFSAccessor,
+                      'bundle': BundleAccessor }
         if media in accessors:
             accessor = accessors[media](address)
         else:
@@ -859,8 +894,23 @@ def installFromYum(targets, mounts, progress_callback, cachedir):
 
         shutil.rmtree(os.path.join(mounts['root'], cachedir), ignore_errors=True)
 
+def updateGPGKeys(repos):
+    gpgkey_file = None
+
+    for repo in repos:
+        if isinstance(repo, MainYumRepository):
+            gpgkey_file = repo.gpgkey_file
+            break
+
+    if gpgkey_file:
+        for repo in repos:
+            if isinstance(repo._accessor, BundleAccessor):
+                repo.gpgkey_file = gpgkey_file
+
 def installFromRepos(progress_callback, repos, mounts):
     """Install from a stacked set of repositories"""
+
+    updateGPGKeys(repos)
 
     cachedir = "var/cache/yum/installer"
     for repo in repos:
@@ -876,7 +926,7 @@ def installFromRepos(progress_callback, repos, mounts):
 [%s]
 name=%s
 baseurl=%s
-""" % (repo.identifier(), repo.identifier(), url.getPlainURL()))
+""" % (repo.identifier(), repo.name(), url.getPlainURL()))
                 username = url.getUsername()
                 if username is not None:
                     yum_conf.write("username=%s\n" % _quoteDnfString(username))

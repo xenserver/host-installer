@@ -277,6 +277,17 @@ def fetchFile(source, dest):
             umount(d)
             os.rmdir(d)
 
+def fetchBundle(source, media):
+    if isinstance(source, URL):
+        source = source.getPlainURL()
+
+    if media == "nfs" and not source.startswith("nfs://"):
+        source = "nfs://" + source
+
+    bundleLocal = os.path.join("/tmp", os.path.basename(source))
+    fetchFile(source, bundleLocal)
+    return bundleLocal
+
 def getUUID():
     rc, out = runCmd2(['uuidgen'], with_stdout=True)
     assert rc == 0

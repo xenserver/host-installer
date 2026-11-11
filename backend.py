@@ -411,6 +411,7 @@ def performInstallation(answers, ui_package, interactive):
                 else:
                     repo_list.append(repo)
 
+    repository.YumRepository.resetIdCounter()
     # A list of sources coming from the answerfile
     if 'sources' in answers_pristine:
         for i in answers_pristine['sources']:

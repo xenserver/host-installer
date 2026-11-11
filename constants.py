@@ -134,6 +134,7 @@ COROSYNC_CONF = "etc/corosync/corosync.conf"
 
 MAIN_REPOSITORY_NAME = 'xcp:main'
 MAIN_XS_REPOSITORY_NAME = 'xs:main'
+BUNDLE_REPOSITORY_NAME = 'xs:bundle'
 INTERNAL_REPOS = [MAIN_XS_REPOSITORY_NAME, "xs:xenserver-transfer-vm", "xs:linux", "xcp:extras"]
 
 FIRSTBOOT_DATA_DIR = "etc/firstboot.d/data"
