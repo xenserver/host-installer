@@ -97,6 +97,9 @@ def main(args):
                 mpath = MultipathConfig.ENABLED
         elif opt == "--map_netdev":
             netdev_map = val
+        elif opt == "--use_ibft":
+            logger.log("WARNING: --use_ibft is no longer supported and is ignored; "
+                       "use <attach-ibft>true</attach-ibft> in the answerfile")
 
     # start the user interface:
     if ui:
