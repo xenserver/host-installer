@@ -116,7 +116,7 @@ def main(args):
 
     try:
         installer_version = subprocess.check_output(
-            ['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 'host-installer'])
+            ['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 'host-installer'], text=True)
     except Exception:
         installer_version = 'unknown'
 
