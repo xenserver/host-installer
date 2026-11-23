@@ -1428,6 +1428,9 @@ def use_bundle(answers):
         return LEFT_BACKWARDS
 
     answers['apply-bundle'] = (rc == 'yes')
+    if not answers['apply-bundle'] and 'sources' in answers:
+        answers['sources'] = [source for source in answers['sources'] if 'media' in source and source['media'] != 'bundle']
+
     return RIGHT_FORWARDS
 
 def installation_complete():
